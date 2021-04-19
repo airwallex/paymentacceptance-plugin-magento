@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<include xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_include.xsd">
+    <group id="redirect" translate="label" type="text" sortOrder="16" showInDefault="1" showInWebsite="1" showInStore="1">
+        <label>Other Payment Methods</label>
+        <include path="Airwallex_Payments::system/redirect/alipaycn.xml"/>
+        <include path="Airwallex_Payments::system/redirect/alipayhk.xml"/>
+        <include path="Airwallex_Payments::system/redirect/dana.xml"/>
+        <include path="Airwallex_Payments::system/redirect/gcash.xml"/>
+        <include path="Airwallex_Payments::system/redirect/kakao.xml"/>
+        <include path="Airwallex_Payments::system/redirect/touch_n_go.xml"/>
+    </group>
+</include>

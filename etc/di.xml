@@ -1,0 +1,376 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * This file is part of the Airwallex Payments module.
+ *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade
+ * to newer versions in the future.
+ *
+ * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
+ * @license   GNU General Public License ("GPL") v3.0
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+ -->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <preference for="Airwallex\Payments\Api\ServiceInterface" type="Airwallex\Payments\Model\Service" />
+    <type name="Magento\Payment\Block\Form\Container">
+        <plugin name="remove_methods_from_admin_reorder" type="Airwallex\Payments\Plugin\RemoveMethodsFromAdminReorder" sortOrder="1" />
+    </type>
+    <type name="Magento\Store\Model\Store">
+        <plugin name="remove_intent_after_change_currency" type="Airwallex\Payments\Plugin\StorePlugin" sortOrder="1" />
+    </type>
+    <type name="Airwallex\Payments\Logger\Handler">
+        <arguments>
+            <argument name="filesystem" xsi:type="object">Magento\Framework\Filesystem\Driver\File</argument>
+        </arguments>
+    </type>
+    <type name="Airwallex\Payments\Logger\Logger">
+        <arguments>
+            <argument name="name" xsi:type="string">Airwallex_Payments_Logger</argument>
+            <argument name="handlers"  xsi:type="array">
+                <item name="system" xsi:type="object">Airwallex\Payments\Logger\Handler</item>
+            </argument>
+        </arguments>
+    </type>
+    <!-- Card Method -->
+    <virtualType name="AirwallexPaymentCardCountryValidator" type="Magento\Payment\Gateway\Validator\CountryValidator">
+        <arguments>
+            <argument name="config" xsi:type="object">AirwallexPaymentCardConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentCardValidatorPool" type="Magento\Payment\Gateway\Validator\ValidatorPool">
+        <arguments>
+            <argument name="validators" xsi:type="array">
+                <item name="country" xsi:type="string">AirwallexPaymentCardCountryValidator</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentCardConfig" type="Magento\Payment\Gateway\Config\Config">
+        <arguments>
+            <argument name="methodCode" xsi:type="const">Airwallex\Payments\Model\Methods\CardMethod::CODE</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="AirwallexPaymentCardConfigValueHandler" type="Magento\Payment\Gateway\Config\ConfigValueHandler">
+        <arguments>
+            <argument name="configInterface" xsi:type="object">AirwallexPaymentCardConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentCardValueHandlerPool" type="Magento\Payment\Gateway\Config\ValueHandlerPool">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="default" xsi:type="string">AirwallexPaymentCardConfigValueHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsCardsGatewayFacade" type="Airwallex\Payments\Model\Methods\CardMethod">
+        <arguments>
+            <argument name="eventManager" xsi:type="object">Magento\Framework\Event\ManagerInterface</argument>
+            <argument name="valueHandlerPool" xsi:type="object">AirwallexPaymentCardValueHandlerPool</argument>
+            <argument name="paymentDataObjectFactory" xsi:type="object">Magento\Payment\Gateway\Data\PaymentDataObjectFactory</argument>
+            <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\CardMethod::CODE</argument>
+            <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
+            <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
+            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
+            <argument name="validatorPool" xsi:type="object">AirwallexPaymentCardValidatorPool</argument>
+        </arguments>
+    </virtualType>
+    <!-- Wechat Method -->
+    <virtualType name="AirwallexPaymentWechatCountryValidator" type="Magento\Payment\Gateway\Validator\CountryValidator">
+        <arguments>
+            <argument name="config" xsi:type="object">AirwallexPaymentWechatConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsWechatValidatorPool" type="Magento\Payment\Gateway\Validator\ValidatorPool">
+        <arguments>
+            <argument name="validators" xsi:type="array">
+                <item name="country" xsi:type="string">AirwallexPaymentWechatCountryValidator</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentWechatConfig" type="Magento\Payment\Gateway\Config\Config">
+        <arguments>
+            <argument name="methodCode" xsi:type="const">Airwallex\Payments\Model\Methods\WechatMethod::CODE</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentWechatConfigValueHandler" type="Magento\Payment\Gateway\Config\ConfigValueHandler">
+        <arguments>
+            <argument name="configInterface" xsi:type="object">AirwallexPaymentWechatConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentWechatValueHandlerPool" type="Magento\Payment\Gateway\Config\ValueHandlerPool">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="default" xsi:type="string">AirwallexPaymentWechatConfigValueHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsWechatGatewayFacade" type="Airwallex\Payments\Model\Methods\WechatMethod">
+        <arguments>
+            <argument name="eventManager" xsi:type="object">Magento\Framework\Event\ManagerInterface</argument>
+            <argument name="valueHandlerPool" xsi:type="object">AirwallexPaymentWechatValueHandlerPool</argument>
+            <argument name="paymentDataObjectFactory" xsi:type="object">Magento\Payment\Gateway\Data\PaymentDataObjectFactory</argument>
+            <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\WechatMethod::CODE</argument>
+            <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
+            <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
+            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
+            <argument name="validatorPool" xsi:type="object">AirwallexPaymentsWechatValidatorPool</argument>
+        </arguments>
+    </virtualType>
+    <!-- AlipayCN Method -->
+    <virtualType name="AirwallexPaymentAlipayCNCountryValidator" type="Magento\Payment\Gateway\Validator\CountryValidator">
+        <arguments>
+            <argument name="config" xsi:type="object">AirwallexPaymentAlipayCNConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsAlipayCNValidatorPool" type="Magento\Payment\Gateway\Validator\ValidatorPool">
+        <arguments>
+            <argument name="validators" xsi:type="array">
+                <item name="country" xsi:type="string">AirwallexPaymentAlipayCNCountryValidator</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentAlipayCNConfig" type="Magento\Payment\Gateway\Config\Config">
+        <arguments>
+            <argument name="methodCode" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::ALIPAYCN_CODE</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentAlipayCNConfigValueHandler" type="Magento\Payment\Gateway\Config\ConfigValueHandler">
+        <arguments>
+            <argument name="configInterface" xsi:type="object">AirwallexPaymentAlipayCNConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentAlipayCNValueHandlerPool" type="Magento\Payment\Gateway\Config\ValueHandlerPool">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="default" xsi:type="string">AirwallexPaymentAlipayCNConfigValueHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsAlipayCNGatewayFacade" type="Airwallex\Payments\Model\Methods\RedirectMethod">
+        <arguments>
+            <argument name="eventManager" xsi:type="object">Magento\Framework\Event\ManagerInterface</argument>
+            <argument name="valueHandlerPool" xsi:type="object">AirwallexPaymentAlipayCNValueHandlerPool</argument>
+            <argument name="paymentDataObjectFactory" xsi:type="object">Magento\Payment\Gateway\Data\PaymentDataObjectFactory</argument>
+            <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::ALIPAYCN_CODE</argument>
+            <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
+            <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
+            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
+            <argument name="validatorPool" xsi:type="object">AirwallexPaymentsAlipayCNValidatorPool</argument>
+        </arguments>
+    </virtualType>
+    <!-- Dana Method -->
+    <virtualType name="AirwallexPaymentDanaCountryValidator" type="Magento\Payment\Gateway\Validator\CountryValidator">
+        <arguments>
+            <argument name="config" xsi:type="object">AirwallexPaymentDanaConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsDanaValidatorPool" type="Magento\Payment\Gateway\Validator\ValidatorPool">
+        <arguments>
+            <argument name="validators" xsi:type="array">
+                <item name="country" xsi:type="string">AirwallexPaymentDanaCountryValidator</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentDanaConfig" type="Magento\Payment\Gateway\Config\Config">
+        <arguments>
+            <argument name="methodCode" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::DANA_CODE</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentDanaConfigValueHandler" type="Magento\Payment\Gateway\Config\ConfigValueHandler">
+        <arguments>
+            <argument name="configInterface" xsi:type="object">AirwallexPaymentDanaConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentDanaValueHandlerPool" type="Magento\Payment\Gateway\Config\ValueHandlerPool">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="default" xsi:type="string">AirwallexPaymentDanaConfigValueHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsDanaGatewayFacade" type="Airwallex\Payments\Model\Methods\RedirectMethod">
+        <arguments>
+            <argument name="eventManager" xsi:type="object">Magento\Framework\Event\ManagerInterface</argument>
+            <argument name="valueHandlerPool" xsi:type="object">AirwallexPaymentDanaValueHandlerPool</argument>
+            <argument name="paymentDataObjectFactory" xsi:type="object">Magento\Payment\Gateway\Data\PaymentDataObjectFactory</argument>
+            <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::DANA_CODE</argument>
+            <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
+            <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
+            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
+            <argument name="validatorPool" xsi:type="object">AirwallexPaymentsDanaValidatorPool</argument>
+        </arguments>
+    </virtualType>
+    <!-- AlipayHK Method -->
+    <virtualType name="AirwallexPaymentAlipayHKCountryValidator" type="Magento\Payment\Gateway\Validator\CountryValidator">
+        <arguments>
+            <argument name="config" xsi:type="object">AirwallexPaymentAlipayHKConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsAlipayHKValidatorPool" type="Magento\Payment\Gateway\Validator\ValidatorPool">
+        <arguments>
+            <argument name="validators" xsi:type="array">
+                <item name="country" xsi:type="string">AirwallexPaymentAlipayHKCountryValidator</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentAlipayHKConfig" type="Magento\Payment\Gateway\Config\Config">
+        <arguments>
+            <argument name="methodCode" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::ALIPAYHK_CODE</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentAlipayHKConfigValueHandler" type="Magento\Payment\Gateway\Config\ConfigValueHandler">
+        <arguments>
+            <argument name="configInterface" xsi:type="object">AirwallexPaymentAlipayHKConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentAlipayHKValueHandlerPool" type="Magento\Payment\Gateway\Config\ValueHandlerPool">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="default" xsi:type="string">AirwallexPaymentAlipayHKConfigValueHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsAlipayHKGatewayFacade" type="Airwallex\Payments\Model\Methods\RedirectMethod">
+        <arguments>
+            <argument name="eventManager" xsi:type="object">Magento\Framework\Event\ManagerInterface</argument>
+            <argument name="valueHandlerPool" xsi:type="object">AirwallexPaymentAlipayHKValueHandlerPool</argument>
+            <argument name="paymentDataObjectFactory" xsi:type="object">Magento\Payment\Gateway\Data\PaymentDataObjectFactory</argument>
+            <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::ALIPAYHK_CODE</argument>
+            <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
+            <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
+            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
+            <argument name="validatorPool" xsi:type="object">AirwallexPaymentsAlipayHKValidatorPool</argument>
+        </arguments>
+    </virtualType>
+    <!-- GCash Method -->
+    <virtualType name="AirwallexPaymentGCashCountryValidator" type="Magento\Payment\Gateway\Validator\CountryValidator">
+        <arguments>
+            <argument name="config" xsi:type="object">AirwallexPaymentGCashConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsGCashValidatorPool" type="Magento\Payment\Gateway\Validator\ValidatorPool">
+        <arguments>
+            <argument name="validators" xsi:type="array">
+                <item name="country" xsi:type="string">AirwallexPaymentGCashCountryValidator</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentGCashConfig" type="Magento\Payment\Gateway\Config\Config">
+        <arguments>
+            <argument name="methodCode" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::GCASH_CODE</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentGCashConfigValueHandler" type="Magento\Payment\Gateway\Config\ConfigValueHandler">
+        <arguments>
+            <argument name="configInterface" xsi:type="object">AirwallexPaymentGCashConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentGCashValueHandlerPool" type="Magento\Payment\Gateway\Config\ValueHandlerPool">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="default" xsi:type="string">AirwallexPaymentGCashConfigValueHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsGCashGatewayFacade" type="Airwallex\Payments\Model\Methods\RedirectMethod">
+        <arguments>
+            <argument name="eventManager" xsi:type="object">Magento\Framework\Event\ManagerInterface</argument>
+            <argument name="valueHandlerPool" xsi:type="object">AirwallexPaymentGCashValueHandlerPool</argument>
+            <argument name="paymentDataObjectFactory" xsi:type="object">Magento\Payment\Gateway\Data\PaymentDataObjectFactory</argument>
+            <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::GCASH_CODE</argument>
+            <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
+            <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
+            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
+            <argument name="validatorPool" xsi:type="object">AirwallexPaymentsGCashValidatorPool</argument>
+        </arguments>
+    </virtualType>
+    <!-- Kakao Method -->
+    <virtualType name="AirwallexPaymentKakaoCountryValidator" type="Magento\Payment\Gateway\Validator\CountryValidator">
+        <arguments>
+            <argument name="config" xsi:type="object">AirwallexPaymentKakaoConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsKakaoValidatorPool" type="Magento\Payment\Gateway\Validator\ValidatorPool">
+        <arguments>
+            <argument name="validators" xsi:type="array">
+                <item name="country" xsi:type="string">AirwallexPaymentKakaoCountryValidator</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentKakaoConfig" type="Magento\Payment\Gateway\Config\Config">
+        <arguments>
+            <argument name="methodCode" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::KAKAO_CODE</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentKakaoConfigValueHandler" type="Magento\Payment\Gateway\Config\ConfigValueHandler">
+        <arguments>
+            <argument name="configInterface" xsi:type="object">AirwallexPaymentKakaoConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentKakaoValueHandlerPool" type="Magento\Payment\Gateway\Config\ValueHandlerPool">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="default" xsi:type="string">AirwallexPaymentKakaoConfigValueHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsKakaoGatewayFacade" type="Airwallex\Payments\Model\Methods\RedirectMethod">
+        <arguments>
+            <argument name="eventManager" xsi:type="object">Magento\Framework\Event\ManagerInterface</argument>
+            <argument name="valueHandlerPool" xsi:type="object">AirwallexPaymentKakaoValueHandlerPool</argument>
+            <argument name="paymentDataObjectFactory" xsi:type="object">Magento\Payment\Gateway\Data\PaymentDataObjectFactory</argument>
+            <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::KAKAO_CODE</argument>
+            <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
+            <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
+            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
+            <argument name="validatorPool" xsi:type="object">AirwallexPaymentsKakaoValidatorPool</argument>
+        </arguments>
+    </virtualType>
+    <!-- TouchNGo Method -->
+    <virtualType name="AirwallexPaymentTouchNGoCountryValidator" type="Magento\Payment\Gateway\Validator\CountryValidator">
+        <arguments>
+            <argument name="config" xsi:type="object">AirwallexPaymentTouchNGoConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsTouchNGoValidatorPool" type="Magento\Payment\Gateway\Validator\ValidatorPool">
+        <arguments>
+            <argument name="validators" xsi:type="array">
+                <item name="country" xsi:type="string">AirwallexPaymentTouchNGoCountryValidator</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentTouchNGoConfig" type="Magento\Payment\Gateway\Config\Config">
+        <arguments>
+            <argument name="methodCode" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::TOUCH_N_GO_CODE</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentTouchNGoConfigValueHandler" type="Magento\Payment\Gateway\Config\ConfigValueHandler">
+        <arguments>
+            <argument name="configInterface" xsi:type="object">AirwallexPaymentTouchNGoConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentTouchNGoValueHandlerPool" type="Magento\Payment\Gateway\Config\ValueHandlerPool">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="default" xsi:type="string">AirwallexPaymentTouchNGoConfigValueHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsTouchNGoGatewayFacade" type="Airwallex\Payments\Model\Methods\RedirectMethod">
+        <arguments>
+            <argument name="eventManager" xsi:type="object">Magento\Framework\Event\ManagerInterface</argument>
+            <argument name="valueHandlerPool" xsi:type="object">AirwallexPaymentTouchNGoValueHandlerPool</argument>
+            <argument name="paymentDataObjectFactory" xsi:type="object">Magento\Payment\Gateway\Data\PaymentDataObjectFactory</argument>
+            <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::TOUCH_N_GO_CODE</argument>
+            <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
+            <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
+            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
+            <argument name="validatorPool" xsi:type="object">AirwallexPaymentsTouchNGoValidatorPool</argument>
+        </arguments>
+    </virtualType>
+</config>

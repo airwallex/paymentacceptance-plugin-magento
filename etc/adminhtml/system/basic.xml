@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * This file is part of the Airwallex Payments module.
+ *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade
+ * to newer versions in the future.
+ *
+ * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
+ * @license   GNU General Public License ("GPL") v3.0
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+ -->
+<include xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_include.xsd">
+    <group id="basic" translate="label" type="text" sortOrder="1" showInDefault="1" showInWebsite="0" showInStore="0">
+        <label>Basic Settings</label>
+        <field id="mode" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" canRestore="1">
+            <label>Mode</label>
+            <source_model>Airwallex\Payments\Model\Config\Source\Mode</source_model>
+            <config_path>payment/airwallex_payments_basic/mode</config_path>
+        </field>
+        <field id="demo_client_id" translate="label" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Demo Client ID</label>
+            <config_path>payment/airwallex_payments_basic/demo_client_id</config_path>
+            <depends>
+                <field id="mode">demo</field>
+            </depends>
+        </field>
+        <field id="demo_api_key" translate="label" type="obscure" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Demo API Key</label>
+            <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
+            <config_path>payment/airwallex_payments_basic/demo_api_key</config_path>
+            <depends>
+                <field id="mode">demo</field>
+            </depends>
+        </field>
+        <field id="webhook_demo_secret_key" translate="label" type="obscure" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Webhook Demo Secret Key</label>
+            <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
+            <config_path>payment/airwallex_payments_basic/webhook_demo_secret_key</config_path>
+            <depends>
+                <field id="mode">demo</field>
+            </depends>
+        </field>
+        <field id="prod_client_id" translate="label" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Production Client ID</label>
+            <config_path>payment/airwallex_payments_basic/prod_client_id</config_path>
+            <depends>
+                <field id="mode">prod</field>
+            </depends>
+        </field>
+        <field id="prod_api_key" translate="label" type="obscure" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Production API Key</label>
+            <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
+            <config_path>payment/airwallex_payments_basic/prod_api_key</config_path>
+            <depends>
+                <field id="mode">prod</field>
+            </depends>
+        </field>
+        <field id="webhook_prod_secret_key" translate="label" type="obscure" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Webhook Production Secret Key</label>
+            <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
+            <config_path>payment/airwallex_payments_basic/webhook_prod_secret_key</config_path>
+            <depends>
+                <field id="mode">prod</field>
+            </depends>
+        </field>
+        <field id="webhook_url" translate="label" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="0">
+            <label>Webhook Url</label>
+            <frontend_model>Airwallex\Payments\Model\Config\Source\WebhookUrl</frontend_model>
+        </field>
+        <field id="request_logger" translate="label" type="select" sortOrder="40" showInDefault="1" showInWebsite="1" canRestore="1">
+            <label>Request Logger</label>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <config_path>payment/airwallex_payments_basic/request_logger</config_path>
+        </field>
+    </group>
+</include>

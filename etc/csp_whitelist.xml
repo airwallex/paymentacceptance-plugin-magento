@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * This file is part of the Airwallex Payments module.
+ *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade
+ * to newer versions in the future.
+ *
+ * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
+ * @license   GNU General Public License ("GPL") v3.0
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+ -->
+
+<csp_whitelist xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Csp/etc/csp_whitelist.xsd">
+    <policies>
+        <policy id="script-src">
+            <values>
+                <value id="airwallex-api" type="host">checkout.airwallex.com</value>
+                <value id="metrix" type="host">h.online-metrix.net/</value>
+            </values>
+        </policy>
+        <policy id="connect-src">
+            <values>
+                <value id="airwallex-api" type="host">checkout.airwallex.com</value>
+                <value id="metrix" type="host">h.online-metrix.net/</value>
+            </values>
+        </policy>
+        <policy id="frame-src">
+            <values>
+                <value id="airwallex-api" type="host">checkout.airwallex.com</value>
+                <value id="airwallex-demo-api" type="host">checkout-demo.airwallex.com</value>
+                <value id="metrix" type="host">h.online-metrix.net/</value>
+                <value id="pci-api-demo-airwallex" type="host">pci-api-demo.airwallex.com</value>
+                <value id="demo-pacybsmock-airwallex" type="host">demo-pacybsmock.airwallex.com</value>
+            </values>
+        </policy>
+        <policy id="img-src">
+            <values>
+                <value id="metrix" type="host">*.online-metrix.net/</value>
+            </values>
+        </policy>
+    </policies>
+</csp_whitelist>
