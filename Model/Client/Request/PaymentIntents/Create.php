@@ -23,6 +23,13 @@ use Psr\Http\Message\ResponseInterface;
 
 class Create extends AbstractClient implements BearerAuthenticationInterface
 {
+    private const ROUND_DECIMAL_CURRENCY = [
+        'KRW',
+        'PHP',
+    ];
+
+    private const MULTIPLE_CURRENCY_PRICE = 100;
+
     /**
      * @param Quote $quote
      * @param string $returnUrl
@@ -118,11 +125,16 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
     private function getAmount(Quote $quote): float
     {
         $currency =  $quote->getQuoteCurrencyCode();
+        $baseTotal = $quote->getBaseGrandTotal();
 
-        if ($currency === 'KRW') {
-            return round($quote->getBaseGrandTotal());
+        if (in_array($currency, self::ROUND_DECIMAL_CURRENCY, true)) {
+            return round($baseTotal);
         }
 
-        return $quote->getBaseGrandTotal();
+        if ($currency === 'IDR') {
+            return $baseTotal * self::MULTIPLE_CURRENCY_PRICE;
+        }
+
+        return $baseTotal;
     }
 }

@@ -163,7 +163,6 @@ abstract class AbstractClient
 
     /**
      * @return array
-     * @throws GuzzleException
      */
     protected function getHeaders(): array
     {

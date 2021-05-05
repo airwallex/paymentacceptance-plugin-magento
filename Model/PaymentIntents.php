@@ -127,8 +127,8 @@ class PaymentIntents
         }
 
         $this->cache->save(
-            $cacheKey,
             $this->serializer->serialize($response),
+            $cacheKey,
             AbstractMethod::CACHE_TAGS,
             self::CACHE_TIME
         );
