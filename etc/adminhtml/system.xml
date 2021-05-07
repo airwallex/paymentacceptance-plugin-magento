@@ -18,8 +18,9 @@
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
     <system>
         <section id="payment">
-            <group id="airwallex_payments" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+            <group id="airwallex_payments" translate="label comment" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
                 <label>Airwallex</label>
+                <comment>Airwallex provides you with the payment methods your customers trust and choose, from international cards to popular local payment methods</comment>
                 <fieldset_css>complex airwallex-admin-config</fieldset_css>
                 <frontend_model>Airwallex\Payments\Block\Adminhtml\Config\Fieldset</frontend_model>
                 <attribute type="displayIn">recommended_solutions</attribute>
