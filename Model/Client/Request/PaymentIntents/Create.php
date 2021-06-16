@@ -23,13 +23,6 @@ use Psr\Http\Message\ResponseInterface;
 
 class Create extends AbstractClient implements BearerAuthenticationInterface
 {
-    private const ROUND_DECIMAL_CURRENCY = [
-        'KRW',
-        'PHP',
-    ];
-
-    private const MULTIPLE_CURRENCY_PRICE = 100;
-
     /**
      * @param Quote $quote
      * @param string $returnUrl
@@ -41,7 +34,7 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
         $shippingAddress = $quote->getShippingAddress();
 
         return $this->setParams([
-            'amount' => $this->getAmount($quote),
+            'amount' => $quote->getBaseGrandTotal(),
             'currency' => $quote->getQuoteCurrencyCode(),
             'merchant_order_id' => $quote->getReservedOrderId(),
             'supplementary_amount' => 1,
@@ -115,26 +108,5 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
                 'url' => $item->getProduct()->getProductUrl()
             ];
         }, $quote->getAllItems());
-    }
-
-    /**
-     * @param Quote $quote
-     *
-     * @return float
-     */
-    private function getAmount(Quote $quote): float
-    {
-        $currency =  $quote->getQuoteCurrencyCode();
-        $baseTotal = $quote->getBaseGrandTotal();
-
-        if (in_array($currency, self::ROUND_DECIMAL_CURRENCY, true)) {
-            return round($baseTotal);
-        }
-
-        if ($currency === 'IDR') {
-            return $baseTotal * self::MULTIPLE_CURRENCY_PRICE;
-        }
-
-        return $baseTotal;
     }
 }

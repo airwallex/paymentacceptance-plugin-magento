@@ -2,7 +2,7 @@
     "name": "airwallex/payments",
     "type": "magento2-module",
     "description": "",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "require": {
         "ext-json": "*",
         "airwallex/magento-core": "^0.0.1"
