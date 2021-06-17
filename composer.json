@@ -1,11 +1,10 @@
 {
-    "name": "airwallex/payments-plugin-magento",
+    "name": "airwallex/payments",
     "type": "magento2-module",
     "description": "",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "require": {
-        "ext-json": "*",
-        "airwallex/magento-core": "^0.0.1"
+        "ext-json": "*"
     },
     "autoload": {
         "files": [ "registration.php" ],

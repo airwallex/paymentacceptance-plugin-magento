@@ -76,8 +76,7 @@ class AvailablePaymentMethodsHelper
      */
     public function canInitialize(): bool
     {
-        // @codingStandardsIgnoreLine
-        return class_exists('Airwallex\MagentoCore\Core');
+        return class_exists('Mobile_Detect');
     }
 
     /**

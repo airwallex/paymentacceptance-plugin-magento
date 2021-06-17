@@ -79,8 +79,8 @@ class Dependencies implements MessageInterface
     private function hasDependencies(): void
     {
         if (!$this->availablePaymentMethodsHelper->canInitialize()) {
-            $this->displayedText = __('The Airwallex Core has not been installed.
-                Please run composer require airwallex/magento-core to install the dependency.');
+            $this->displayedText = __('The Airwallex Payment module is missing dependency
+                Please run "composer require mobiledetect/mobiledetectlib" to install the dependency.');
         }
     }
 }
