@@ -19,10 +19,10 @@
     <type name="Magento\Config\Model\Config\TypePool">
         <arguments>
             <argument name="sensitive" xsi:type="array">
-                <item name="payment/airwallex_payments_basic/demo_api_key" xsi:type="string">1</item>
-                <item name="payment/airwallex_payments_basic/prod_api_key" xsi:type="string">1</item>
-                <item name="payment/airwallex_payments_basic/webhook_prod_secret_key" xsi:type="string">1</item>
-                <item name="payment/airwallex_payments_basic/webhook_demo_secret_key" xsi:type="string">1</item>
+                <item name="airwallex/general/demo_api_key" xsi:type="string">1</item>
+                <item name="airwallex/general/prod_api_key" xsi:type="string">1</item>
+                <item name="airwallex/general/webhook_prod_secret_key" xsi:type="string">1</item>
+                <item name="airwallex/general/webhook_demo_secret_key" xsi:type="string">1</item>
             </argument>
         </arguments>
     </type>
