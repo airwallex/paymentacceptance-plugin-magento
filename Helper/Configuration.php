@@ -28,7 +28,7 @@ class Configuration extends AbstractHelper
      */
     public function getClientId(): ?string
     {
-        return $this->scopeConfig->getValue('payment/airwallex_payments_basic/' . $this->getMode() . '_client_id');
+        return $this->scopeConfig->getValue('airwallex/general/' . $this->getMode() . '_client_id');
     }
 
     /**
@@ -36,7 +36,7 @@ class Configuration extends AbstractHelper
      */
     public function getApiKey(): ?string
     {
-        return $this->scopeConfig->getValue('payment/airwallex_payments_basic/' . $this->getMode() . '_api_key');
+        return $this->scopeConfig->getValue('airwallex/general/' . $this->getMode() . '_api_key');
     }
 
     /**
@@ -44,7 +44,7 @@ class Configuration extends AbstractHelper
      */
     public function isRequestLoggerEnable(): bool
     {
-        return (bool) $this->scopeConfig->getValue('payment/airwallex_payments_basic/request_logger');
+        return (bool) $this->scopeConfig->getValue('airwallex/general/request_logger');
     }
 
     /**
@@ -53,7 +53,7 @@ class Configuration extends AbstractHelper
     public function getWebhookSecretKey(): string
     {
         return $this->scopeConfig->getValue(
-            'payment/airwallex_payments_basic/webhook_' . $this->getMode() . '_secret_key'
+            'airwallex/general/webhook_' . $this->getMode() . '_secret_key'
         );
     }
 
@@ -62,7 +62,7 @@ class Configuration extends AbstractHelper
      */
     public function getMode(): string
     {
-        return $this->scopeConfig->getValue('payment/airwallex_payments_basic/mode');
+        return $this->scopeConfig->getValue('airwallex/general/mode');
     }
 
     /**
