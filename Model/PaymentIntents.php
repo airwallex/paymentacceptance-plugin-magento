@@ -17,6 +17,7 @@ namespace Airwallex\Payments\Model;
 
 use Airwallex\Payments\Logger\Logger;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Create;
+use Airwallex\Payments\Model\Client\Request\PaymentIntents\Cancel;
 use Airwallex\Payments\Model\Methods\AbstractMethod;
 use GuzzleHttp\Exception\GuzzleException;
 use Magento\Checkout\Model\Session;
@@ -39,6 +40,11 @@ class PaymentIntents
      * @var Create
      */
     private Create $paymentIntentsCreate;
+
+    /**
+     * @var Cancel
+     */
+    private Cancel $paymentIntentsCancel;
 
     /**
      * @var Session
@@ -70,19 +76,9 @@ class PaymentIntents
      */
     private UrlInterface $urlInterface;
 
-    /**
-     * PaymentIntents constructor.
-     *
-     * @param Create $paymentIntentsCreate
-     * @param Session $checkoutSession
-     * @param SerializerInterface $serializer
-     * @param QuoteRepository $quoteRepository
-     * @param CacheInterface $cache
-     * @param UrlInterface $urlInterface
-     * @param Logger $logger
-     */
     public function __construct(
         Create $paymentIntentsCreate,
+        Cancel $paymentIntentsCancel,
         Session $checkoutSession,
         SerializerInterface $serializer,
         QuoteRepository $quoteRepository,
@@ -90,6 +86,7 @@ class PaymentIntents
         UrlInterface $urlInterface,
         Logger $logger
     ) {
+        $this->paymentIntentsCancel = $paymentIntentsCancel;
         $this->paymentIntentsCreate = $paymentIntentsCreate;
         $this->checkoutSession = $checkoutSession;
         $this->cache = $cache;
@@ -168,5 +165,28 @@ class PaymentIntents
 
             $this->quoteRepository->save($quote);
         }
+    }
+
+    /**
+     * @param string $intentId
+     * @return mixed
+     * @throws GuzzleException
+     * @throws LocalizedException
+     * @throws NoSuchEntityException
+     * @throws \JsonException
+     */
+    public function cancelIntent(string $intentId)
+    {
+        try {
+            $response = $this->paymentIntentsCancel
+                ->setPaymentIntentId($intentId)
+                ->send();
+        } catch (GuzzleException $exception) {
+            $quote = $this->checkoutSession->getQuote();
+            $this->logger->quoteError($quote, 'intents', $exception->getMessage());
+            throw $exception;
+        }
+        $this->removeIntents();
+        return $response;
     }
 }

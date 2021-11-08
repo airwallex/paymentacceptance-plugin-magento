@@ -38,16 +38,11 @@ define([
         },
         responseData: {},
         readyLoaded: {},
-
         intentId: ko.observable(),
         amount: ko.observable(0),
 
         initObservable: function () {
             this._super();
-
-            if (this.isChecked() === this.code) {
-                this.loadPayment();
-            }
 
             this.isChecked.subscribe(function (method) {
                 if (method !== this.code) {
@@ -60,6 +55,12 @@ define([
             }, this);
 
             return this;
+        },
+
+        afterRender: function () {
+            if (this.isChecked() === this.code) {
+                this.loadPayment();
+            }
         },
 
         /**
@@ -77,43 +78,20 @@ define([
         },
 
         loadPayment: function () {
-            const method = this.isChecked();
-            const payload = {
-                'method': method
+            $('body').trigger('processStart');
+            if (this.type !== 'redirect') {
+                Airwallex.init({
+                    env: window.checkoutConfig.payment.airwallex_payments.mode,
+                    origin: window.location.origin,
+                    fonts: this.fonts
+                });
+
+                this.initPayment();
+                this.readyLoaded[this.code] = true;
+            } else {
+                $('body').trigger('processStop');
             }
-            $.ajax({
-                url: url.build('rest/V1/airwallex/payments/create_intent'),
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify(payload),
-                beforeSend: function () {
-                    $('body').trigger('processStart');
-                },
-                success: function (result) {
-                    this.responseData = JSON.parse(result);
-                    this.readyLoaded[method] = true;
-                    this.intentId(this.responseData.id);
 
-                    if (this.type !== 'redirect') {
-                        Airwallex.init({
-                            env: this.responseData.mode,
-                            origin: window.location.origin,
-                            fonts: this.fonts
-                        });
-
-                        this.initPayment();
-                    } else {
-                        $('body').trigger('processStop');
-                    }
-                }.bind(this),
-                error: function () {
-                    globalMessageList.addErrorMessage({
-                        message: $.mage.__('An error occurred on the server. Please try to place the order again.'),
-                    });
-
-                    $('body').trigger('processStop');
-                }
-            });
         },
 
         paymentSuccess: function (intent) {
@@ -136,8 +114,10 @@ define([
         },
 
         initPayment: function () {
+            if(!this.intentConfiguration().id){
+                this.createIntent();
+            }
             const airwallexElement = Airwallex.createElement(this.type, this.getElementConfiguration());
-
             airwallexElement.mount(this.mountElement);
 
             $('body').trigger('processStop');
@@ -151,6 +131,56 @@ define([
 
             window.addEventListener('onError', function (event) {
                 console.log(event.detail);
+            });
+        },
+
+        createIntent: function () {
+            const method = this.isChecked();
+            const payload = {
+                'method': method
+            }
+            $.ajax({
+                url: url.build('rest/V1/airwallex/payments/create_intent'),
+                method: 'POST',
+                contentType: 'application/json',
+                async:false,
+                data: JSON.stringify(payload),
+                success: function (result) {
+                    this.responseData = JSON.parse(result);
+                    this.intentId(this.responseData.id);
+                }.bind(this),
+                error: function () {
+                    globalMessageList.addErrorMessage({
+                        message: $.mage.__('An error occurred on the server. Please try to place the order again.'),
+                    });
+
+                    $('body').trigger('processStop');
+                }
+            });
+        },
+
+        refreshIntent: function () {
+            const payload = {
+                'intentId': this.intentConfiguration().id,
+                'method': this.isChecked()
+            }
+            $.ajax({
+                url: url.build('rest/V1/airwallex/payments/refresh_intent'),
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(payload),
+                async:false,
+                success: function (result) {
+                    this.responseData = JSON.parse(result);
+                    this.intentId(this.responseData.id);
+                }.bind(this),
+                error: function () {
+                    globalMessageList.addErrorMessage({
+                        message: $.mage.__('An error occurred on the server. Please try to place the order again.'),
+                    });
+
+                    $('body').trigger('processStop');
+                }
             });
         }
     });

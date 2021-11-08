@@ -23,6 +23,13 @@
         </resources>
     </route>
 
+    <route url="/V1/airwallex/payments/refresh_intent" method="POST">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="refreshIntent"/>
+        <resources>
+            <resource ref="anonymous"/>
+        </resources>
+    </route>
+
     <route url="/V1/airwallex/payments/redirect_url" method="POST">
         <service class="Airwallex\Payments\Api\ServiceInterface" method="redirectUrl"/>
         <resources>

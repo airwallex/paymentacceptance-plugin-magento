@@ -31,8 +31,6 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
      */
     public function setQuote(Quote $quote, string $returnUrl): self
     {
-        $shippingAddress = $quote->getShippingAddress();
-
         return $this->setParams([
             'amount' => $quote->getBaseGrandTotal(),
             'currency' => $quote->getQuoteCurrencyCode(),
@@ -41,19 +39,7 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
             'return_url' => $returnUrl,
             'order' => [
                 'products' => array_values(array_filter($this->getQuoteProducts($quote))),
-                'shipping' => [
-                    'fist_name' => $shippingAddress->getName(),
-                    'last_name' => $shippingAddress->getLastname(),
-                    'phone_number' => $shippingAddress->getTelephone(),
-                    'shipping_method' => $shippingAddress->getShippingMethod(),
-                    'address' => [
-                        'city' => $shippingAddress->getCity(),
-                        'country_code' => $shippingAddress->getCountryId(),
-                        'postcode' => $shippingAddress->getPostcode(),
-                        'state' => $shippingAddress->getRegion(),
-                        'street' => current($shippingAddress->getStreet()),
-                    ]
-                ]
+                'shipping' => $this->getShippingAddress($quote)
             ]
         ]);
     }
@@ -79,6 +65,34 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
         return [
             'clientSecret' =>  $data->client_secret,
             'id' =>  $data->id,
+        ];
+    }
+
+    /**
+     * @param Quote $quote
+     *
+     * @return array|null
+     */
+    private function getShippingAddress(Quote $quote): ?array
+    {
+        $shippingAddress = $quote->getShippingAddress();
+
+        if ($quote->getIsVirtual()) {
+            return null;
+        }
+
+        return [
+            'fist_name' => $shippingAddress->getName(),
+            'last_name' => $shippingAddress->getLastname(),
+            'phone_number' => $shippingAddress->getTelephone(),
+            'shipping_method' => $shippingAddress->getShippingMethod(),
+            'address' => [
+                'city' => $shippingAddress->getCity(),
+                'country_code' => $shippingAddress->getCountryId(),
+                'postcode' => $shippingAddress->getPostcode(),
+                'state' => $shippingAddress->getRegion(),
+                'street' => current($shippingAddress->getStreet()),
+            ]
         ];
     }
 

@@ -246,7 +246,7 @@ abstract class AbstractMethod extends Adapter
     public function refund(InfoInterface $payment, $amount): self
     {
         $paymentTransactionId = str_replace('-refund', '', $payment->getTransactionId());
-
+        $paymentTransactionId = str_replace('-capture', '', $paymentTransactionId);
         try {
             $this->refund
                 ->setInformation($paymentTransactionId, $amount)
