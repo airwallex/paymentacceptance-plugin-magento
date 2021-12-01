@@ -175,8 +175,7 @@ class PaymentIntents
      * @throws NoSuchEntityException
      * @throws \JsonException
      */
-    public function cancelIntent(string $intentId)
-    {
+    public function cancelIntent(string $intentId) {
         try {
             $response = $this->paymentIntentsCancel
                 ->setPaymentIntentId($intentId)

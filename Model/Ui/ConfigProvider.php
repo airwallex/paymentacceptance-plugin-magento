@@ -2,29 +2,25 @@
 
 namespace Airwallex\Payments\Model\Ui;
 
+use Airwallex\Payments\Helper\Configuration;
 use \Magento\Checkout\Model\ConfigProviderInterface;
-use \Magento\Framework\App\Config\ScopeConfigInterface;
-use \Magento\Payment\Model\MethodInterface;
 
 class ConfigProvider implements ConfigProviderInterface
 {
-    const MODE_PATH = 'payment/airwallex_payments_basic/mode';
-
-    const CAPTURE_PATH = 'payment/airwallex_payments_card/airwallex_payment_action';
 
     /**
-     * @var ScopeConfigInterface
+     * @var Configuration
      */
-    protected $scopeConfig;
+    protected $configuration;
 
     /**
      * ConfigProvider constructor.
-     * @param ScopeConfigInterface $scopeConfig
+     * @param Configuration $configuration
      */
     public function __construct(
-        ScopeConfigInterface $scopeConfig
+        Configuration $configuration
     ) {
-        $this->scopeConfig = $scopeConfig;
+        $this->configuration = $configuration;
     }
 
     /**
@@ -37,19 +33,11 @@ class ConfigProvider implements ConfigProviderInterface
         $config = [
             'payment' => [
                 'airwallex_payments' => [
-                    'mode' => $this->scopeConfig->getValue(self::MODE_PATH) ?? 'demo',
-                    'cc_auto_capture' => $this->isCaptureEnabled()
+                    'mode' => $this->configuration->getMode(),
+                    'cc_auto_capture' => $this->configuration->isCaptureEnabled()
                 ]
             ]
         ];
         return $config;
     }
-
-    /**
-     * @return bool
-     */
-    private function isCaptureEnabled() {
-        return $this->scopeConfig->getValue(self::CAPTURE_PATH) === MethodInterface::ACTION_AUTHORIZE_CAPTURE;
-    }
-
 }

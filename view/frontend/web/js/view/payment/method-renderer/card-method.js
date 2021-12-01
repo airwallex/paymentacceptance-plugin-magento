@@ -49,7 +49,7 @@ define([
                 }
             },
 
-            confirmIntern: function () {
+            initiateOrderPlacement: function () {
                 $('body').trigger('processStart');
                 this.createIntent();
                 const params = this.intentConfiguration();
@@ -77,7 +77,7 @@ define([
 
                 window.addEventListener('onReady', function () {
                     $('body').trigger('processStop');
-                });
+                }, {once: true});
             }
         });
     });
