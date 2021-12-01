@@ -13,7 +13,11 @@
  * file that was distributed with this source code.
  */
 
-define(['Airwallex_Payments/js/view/payment/abstract-method'], function (Component) {
+define(['Airwallex_Payments/js/view/payment/abstract-method',
+        'jquery',
+        'Magento_SalesRule/js/action/set-coupon-code',
+        'Magento_SalesRule/js/action/cancel-coupon'],
+    function (Component, $, setCouponCodeAction, cancelCouponAction) {
     'use strict';
 
     return Component.extend({
@@ -22,6 +26,20 @@ define(['Airwallex_Payments/js/view/payment/abstract-method'], function (Compone
         mountElement: 'airwallex-payments-wechat-form',
         defaults: {
             template: 'Airwallex_Payments/payment/wechat-method'
+        },
+
+        loadPayment: function() {
+            if (this.isChecked() === this.code) {
+                this._super();
+                setCouponCodeAction.registerSuccessCallback(this.reloadElement.bind(this));
+                cancelCouponAction.registerSuccessCallback(this.reloadElement.bind(this));
+            }
+        },
+
+        reloadElement: function() {
+            Airwallex.destroyElement('wechat');
+            this.refreshIntent();
+            this.initPayment();
         }
     });
 });

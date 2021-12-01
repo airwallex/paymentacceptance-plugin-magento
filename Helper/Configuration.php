@@ -17,6 +17,7 @@ namespace Airwallex\Payments\Helper;
 
 use Airwallex\Payments\Model\Config\Source\Mode;
 use Magento\Framework\App\Helper\AbstractHelper;
+use Magento\Payment\Model\MethodInterface;
 
 class Configuration extends AbstractHelper
 {
@@ -87,5 +88,12 @@ class Configuration extends AbstractHelper
     private function isDemoMode(): bool
     {
         return $this->getMode() === Mode::DEMO;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isCaptureEnabled() {
+        return $this->scopeConfig->getValue('payment/airwallex_payments_card/airwallex_payment_action') === MethodInterface::ACTION_AUTHORIZE_CAPTURE;
     }
 }

@@ -38,7 +38,7 @@
             <!--/ko-->
         </div>
 
-        <div id='airwallex-payments-card-form' class="airwallex-payment-frame airwallex-card" data-bind="css: {'error': validationError}"></div>
+        <div id='airwallex-payments-card-form' class="airwallex-payment-frame airwallex-card" data-bind="css: {'error': validationError}, afterRender: loadPayment"></div>
 
         <p class="airwallex-error" data-bind="visible: validationError, text: validationError"></p>
 
@@ -47,7 +47,7 @@
                 <button class="action primary checkout"
                         type="submit"
                         data-bind="
-                        click: confirmIntern,
+                        click: initiateOrderPlacement,
                         enable: (getCode() == isChecked())
                         "
                         disabled>

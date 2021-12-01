@@ -49,8 +49,9 @@ define([
                 }
             },
 
-            confirmIntern: function () {
+            initiateOrderPlacement: function () {
                 $('body').trigger('processStart');
+                this.createIntent();
                 const params = this.intentConfiguration();
                 params.billing = this.getBillingInformation();
                 params.element = this.cardElement;
@@ -70,13 +71,13 @@ define([
 
             initPayment: function () {
                 this.cardElement = Airwallex.createElement(this.type, {
-                    autoCapture: this.responseData.card.auto_capture
+                    autoCapture: window.checkoutConfig.payment.airwallex_payments.cc_auto_capture
                 });
                 this.cardElement.mount(this.mountElement);
 
                 window.addEventListener('onReady', function () {
                     $('body').trigger('processStop');
-                });
+                }, {once: true});
             }
         });
     });

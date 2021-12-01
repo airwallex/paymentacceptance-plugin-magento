@@ -18,7 +18,6 @@ namespace Airwallex\Payments\Helper;
 use Airwallex\Payments\Model\Client\Request\AvailablePaymentMethods;
 use Airwallex\Payments\Model\Methods\AbstractMethod;
 use Exception;
-use GuzzleHttp\Exception\GuzzleException;
 use Magento\Framework\App\CacheInterface;
 use Magento\Framework\Serialize\SerializerInterface;
 use Magento\Store\Model\StoreManagerInterface;
@@ -52,23 +51,31 @@ class AvailablePaymentMethodsHelper
     private SerializerInterface $serializer;
 
     /**
+     * @var Configuration
+     */
+    private Configuration $configuration;
+
+    /**
      * AvailablePaymentMethodsHelper constructor.
      *
      * @param AvailablePaymentMethods $availablePaymentMethod
      * @param CacheInterface $cache
      * @param SerializerInterface $serializer
      * @param StoreManagerInterface $storeManager
+     * @param Configuration $configuration
      */
     public function __construct(
         AvailablePaymentMethods $availablePaymentMethod,
         CacheInterface $cache,
         SerializerInterface $serializer,
-        StoreManagerInterface $storeManager
+        StoreManagerInterface $storeManager,
+        Configuration $configuration
     ) {
         $this->availablePaymentMethod = $availablePaymentMethod;
         $this->cache = $cache;
         $this->storeManager = $storeManager;
         $this->serializer = $serializer;
+        $this->configuration = $configuration;
     }
 
     /**
@@ -76,7 +83,9 @@ class AvailablePaymentMethodsHelper
      */
     public function canInitialize(): bool
     {
-        return class_exists('Mobile_Detect');
+        return class_exists('Mobile_Detect') &&
+            !is_null($this->configuration->getApiKey()) &&
+            !is_null($this->configuration->getClientId());
     }
 
     /**
@@ -104,7 +113,7 @@ class AvailablePaymentMethodsHelper
 
         try {
             $methods = $this->availablePaymentMethod->setCurrency($this->getCurrencyCode())->send();
-        } catch (GuzzleException $e) {
+        } catch (Exception $e) {
             $methods = [];
         }
 

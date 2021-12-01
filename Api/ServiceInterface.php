@@ -28,4 +28,12 @@ interface ServiceInterface
      * @return string
      */
     public function redirectUrl(): string;
+
+    /**
+     * @param string $intentId
+     * @param string $method
+     *
+     * @return string
+     */
+    public function refreshIntent(string $intentId, string $method): string;
 }

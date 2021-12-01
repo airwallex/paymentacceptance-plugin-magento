@@ -109,4 +109,19 @@ class Service implements ServiceInterface
 
         return $data;
     }
+
+    /**
+     * @param string $intentId
+     * @param string $method
+     * @return string
+     * @throws GuzzleException
+     * @throws LocalizedException
+     * @throws NoSuchEntityException
+     * @throws \JsonException
+     */
+    public function refreshIntent(string $intentId, string $method): string
+    {
+        $this->paymentIntents->cancelIntent($intentId);
+        return $this->createIntent($method);
+    }
 }
