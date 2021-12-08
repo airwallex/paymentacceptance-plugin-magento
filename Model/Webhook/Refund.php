@@ -28,7 +28,7 @@ use Magento\Sales\Model\Service\CreditmemoService;
 
 class Refund extends AbstractWebhook
 {
-    public const WEBHOOK_PROCESSING_NAME = 'refund.processing';
+    public const WEBHOOK_ACCEPTED_NAME = 'refund.accepted';
     public const WEBHOOK_SUCCESS_NAME = 'refund.succeeded';
 
     /**
