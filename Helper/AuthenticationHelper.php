@@ -22,7 +22,6 @@ use Magento\Framework\ObjectManagerInterface;
 class AuthenticationHelper
 {
     private const CACHE_NAME = 'airwallex_token';
-    private const CACHE_TIME = 60 * 60; // 1 Hour
 
     /**
      * @var CacheInterface
@@ -56,10 +55,24 @@ class AuthenticationHelper
         $token = $this->cache->load(self::CACHE_NAME);
 
         if (empty($token)) {
-            $token = $this->objectManager->create(Authentication::class)->send();
-            $this->cache->save($token, self::CACHE_NAME, [], self::CACHE_TIME);
+            $authenticationData = $this->objectManager->create(Authentication::class)->send();
+            $token = $authenticationData->token;
+            $cacheLifetime = $this->getCacheLifetime($authenticationData->expires_at);
+            $this->cache->save($token, self::CACHE_NAME, [], $cacheLifetime);
         }
 
         return $token;
+    }
+
+    /**
+     * @param string $expiresAt
+     * @return int
+     * @throws \Exception
+     */
+    protected function getCacheLifetime(string $expiresAt): int
+    {
+        $expiresAtDate = new \DateTime($expiresAt);
+        $currentDate = new \DateTime(null, new \DateTimeZone('Europe/London'));
+        return $expiresAtDate->getTimestamp() - $currentDate->getTimestamp();
     }
 }
