@@ -72,7 +72,7 @@ class AuthenticationHelper
     protected function getCacheLifetime(string $expiresAt): int
     {
         $expiresAtDate = new \DateTime($expiresAt);
-        $currentDate = new \DateTime(null, new \DateTimeZone('Europe/London'));
+        $currentDate = new \DateTime(null, $expiresAtDate->getTimezone());
         return $expiresAtDate->getTimestamp() - $currentDate->getTimestamp();
     }
 }
