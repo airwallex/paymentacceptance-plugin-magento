@@ -65,6 +65,16 @@ class AuthenticationHelper
     }
 
     /**
+     * Clear authentication token from cache.
+     *
+     * @return void
+     */
+    public function clearToken()
+    {
+        $this->cache->remove(self::CACHE_NAME);
+    }
+
+    /**
      * @param string $expiresAt
      * @return int
      * @throws \Exception
