@@ -29,6 +29,7 @@ abstract class AbstractClient
     private const JSON_DECODE_DEPTH = 512;
     private const SUCCESS_STATUS_START = 200;
     private const SUCCESS_STATUS_END = 299;
+    private const AUTHENTICATION_FAILED = 401;
     private const TIME_OUT = 30;
     private const DEFAULT_HEADER = [
         'Content-Type' => 'application/json',
@@ -98,7 +99,7 @@ abstract class AbstractClient
         $statusCode = $request->getStatusCode();
 
         // If authorization fails on first try, clear token from cache and try again.
-        if ($statusCode === 401) {
+        if ($statusCode === self::AUTHENTICATION_FAILED) {
             $this->authenticationHelper->clearToken();
             $request = $this->createRequest($client);
             $statusCode = $request->getStatusCode();
@@ -201,7 +202,7 @@ abstract class AbstractClient
             $options['json'] = $this->params;
         }
 
-        return $request = $client->request($this->getMethod(), $this->getUri(), $options);
+        return $client->request($this->getMethod(), $this->getUri(), $options);
     }
 
     /**
