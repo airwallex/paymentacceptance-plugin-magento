@@ -33,27 +33,27 @@ class AvailablePaymentMethodsHelper
     /**
      * @var AvailablePaymentMethods
      */
-    private AvailablePaymentMethods $availablePaymentMethod;
+    private $availablePaymentMethod;
 
     /**
      * @var CacheInterface
      */
-    private CacheInterface $cache;
+    private $cache;
 
     /**
      * @var StoreManagerInterface
      */
-    private StoreManagerInterface $storeManager;
+    private $storeManager;
 
     /**
      * @var SerializerInterface
      */
-    private SerializerInterface $serializer;
+    private $serializer;
 
     /**
      * @var Configuration
      */
-    private Configuration $configuration;
+    private $configuration;
 
     /**
      * AvailablePaymentMethodsHelper constructor.
@@ -141,7 +141,7 @@ class AvailablePaymentMethodsHelper
     private function getCurrencyCode(): string
     {
         try {
-            return $this->storeManager->getStore()->getCurrentCurrency()->getCode();
+            return $this->storeManager->getStore()->getBaseCurrency()->getCode();
         } catch (Exception $exception) {
             return '';
         }

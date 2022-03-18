@@ -27,7 +27,7 @@ class WebhookUrl extends Field
     /**
      * @var ScopeConfigInterface
      */
-    private ScopeConfigInterface $scopeConfig;
+    private $scopeConfig;
 
     /**
      * WebhookUrl constructor.

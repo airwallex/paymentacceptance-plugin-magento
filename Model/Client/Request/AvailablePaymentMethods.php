@@ -26,7 +26,7 @@ class AvailablePaymentMethods extends AbstractClient implements BearerAuthentica
     /**
      * @var string
      */
-    private string $currency;
+    private $currency;
 
     /**
      * @param string $currency

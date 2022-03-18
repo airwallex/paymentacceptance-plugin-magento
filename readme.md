@@ -2,12 +2,12 @@
 
 ## Compatibility:
 This module was tested on:
-* Magento 2.4 @ PHP 7.4
+* Magento 2.3 @ PHP 7.3
 
 ## Installing/Getting started 
 
 ```bash
-composer require {futer_link}
+composer require airwallex/payments-plugin-magento:^0.0
 ```
 
 Enable the module

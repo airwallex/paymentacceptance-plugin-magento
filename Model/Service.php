@@ -30,17 +30,17 @@ class Service implements ServiceInterface
     /**
      * @var PaymentIntents
      */
-    private PaymentIntents $paymentIntents;
+    private $paymentIntents;
 
     /**
      * @var Configuration
      */
-    private Configuration $configuration;
+    private $configuration;
 
     /**
      * @var CheckoutData
      */
-    private CheckoutData $checkoutHelper;
+    private $checkoutHelper;
 
     /**
      * Index constructor.

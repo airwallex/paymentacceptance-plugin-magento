@@ -26,7 +26,7 @@ class ClearSavedIntent implements ObserverInterface
     /**
      * @var PaymentIntents
      */
-    private PaymentIntents $paymentIntents;
+    private $paymentIntents;
 
     /**
      * ClearSavedIntent constructor.

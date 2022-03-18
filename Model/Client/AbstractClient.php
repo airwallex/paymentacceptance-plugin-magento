@@ -38,27 +38,27 @@ abstract class AbstractClient
     /**
      * @var AuthenticationHelper
      */
-    private AuthenticationHelper $authenticationHelper;
+    private $authenticationHelper;
 
     /**
      * @var IdentityService
      */
-    private IdentityService $identityService;
+    private $identityService;
 
     /**
      * @var RequestLogger
      */
-    private RequestLogger $requestLogger;
+    private $requestLogger;
 
     /**
      * @var Configuration
      */
-    protected Configuration $configuration;
+    protected $configuration;
 
     /**
      * @var array
      */
-    private array $params = [];
+    private $params = [];
 
     /**
      * AbstractClient constructor.

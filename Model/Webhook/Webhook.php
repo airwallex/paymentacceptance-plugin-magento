@@ -31,22 +31,22 @@ class Webhook
     /**
      * @var Refund
      */
-    private Refund $refund;
+    private $refund;
 
     /**
      * @var Configuration
      */
-    private Configuration $configuration;
+    private $configuration;
 
     /**
      * @var Capture
      */
-    private Capture $capture;
+    private $capture;
 
     /**
      * @var Cancel
      */
-    private Cancel $cancel;
+    private $cancel;
 
     /**
      * Webhook constructor.
@@ -93,7 +93,7 @@ class Webhook
      */
     public function dispatch(string $type, stdClass $data): void
     {
-        if (in_array($type, [Refund::WEBHOOK_ACCEPTED_NAME, Refund::WEBHOOK_SUCCESS_NAME], true)) {
+        if (in_array($type, [Refund::WEBHOOK_PROCESSING_NAME, Refund::WEBHOOK_SUCCESS_NAME], true)) {
             $this->refund->execute($data);
         }
 

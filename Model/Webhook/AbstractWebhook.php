@@ -23,12 +23,12 @@ abstract class AbstractWebhook
     /**
      * @var OrderRepository
      */
-    protected OrderRepository $orderRepository;
+    protected $orderRepository;
 
     /**
      * @var PaymentIntentRepository
      */
-    protected PaymentIntentRepository $paymentIntentRepository;
+    protected $paymentIntentRepository;
 
     /**
      * AbstractWebhook constructor.

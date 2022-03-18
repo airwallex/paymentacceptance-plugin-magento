@@ -57,41 +57,41 @@ abstract class AbstractMethod extends Adapter
     /**
      * @var Refund
      */
-    private Refund $refund;
+    private $refund;
 
     /**
      * @var Capture
      */
-    protected Capture $capture;
+    protected $capture;
 
     /**
      * @var PaymentIntentRepository
      */
-    private PaymentIntentRepository $paymentIntentRepository;
+    private $paymentIntentRepository;
 
     /**
      * @var Cancel
      */
-    private Cancel $cancel;
+    private $cancel;
     /**
      * @var CancelHelper
      */
-    private CancelHelper $cancelHelper;
+    private $cancelHelper;
 
     /**
      * @var AvailablePaymentMethodsHelper
      */
-    private AvailablePaymentMethodsHelper $availablePaymentMethodsHelper;
+    private $availablePaymentMethodsHelper;
 
     /**
      * @var Confirm
      */
-    protected Confirm $confirm;
+    protected $confirm;
 
     /**
      * @var CheckoutData
      */
-    protected CheckoutData $checkoutHelper;
+    protected $checkoutHelper;
 
     /**
      * Payment constructor.

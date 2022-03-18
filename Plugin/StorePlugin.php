@@ -24,7 +24,7 @@ class StorePlugin
     /**
      * @var PaymentIntents
      */
-    private PaymentIntents $paymentIntents;
+    private $paymentIntents;
 
     /**
      * ClearSavedIntent constructor.

@@ -33,21 +33,21 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
     /**
      * @var Webhook
      */
-    private Webhook $webhook;
+    private $webhook;
     /**
      * @var RequestHttp
      */
-    private RequestHttp $request;
+    private $request;
 
     /**
      * @var ResponseHttp
      */
-    private ResponseHttp $response;
+    private $response;
 
     /**
      * @var Logger
      */
-    private Logger $logger;
+    private $logger;
 
     /**
      * Index constructor.

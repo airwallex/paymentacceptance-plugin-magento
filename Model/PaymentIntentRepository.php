@@ -28,22 +28,22 @@ class PaymentIntentRepository
     /**
      * @var CollectionFactory
      */
-    private CollectionFactory $collectionFactory;
+    private $collectionFactory;
 
     /**
      * @var PaymentIntentFactory
      */
-    private PaymentIntentFactory $paymentIntentFactory;
+    private $paymentIntentFactory;
 
     /**
      * @var PaymentIntentResource
      */
-    private PaymentIntentResource $paymentIntent;
+    private $paymentIntent;
 
     /**
      * @var OrderInterface
      */
-    private OrderInterface $order;
+    private $order;
 
     /**
      * PaymentIntentRepository constructor.

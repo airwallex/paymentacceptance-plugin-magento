@@ -39,42 +39,42 @@ class PaymentIntents
     /**
      * @var Create
      */
-    private Create $paymentIntentsCreate;
+    private $paymentIntentsCreate;
 
     /**
      * @var Cancel
      */
-    private Cancel $paymentIntentsCancel;
+    private $paymentIntentsCancel;
 
     /**
      * @var Session
      */
-    private Session $checkoutSession;
+    private $checkoutSession;
 
     /**
      * @var CacheInterface
      */
-    private CacheInterface $cache;
+    private $cache;
 
     /**
      * @var SerializerInterface
      */
-    private SerializerInterface $serializer;
+    private $serializer;
 
     /**
      * @var QuoteRepository
      */
-    private QuoteRepository $quoteRepository;
+    private $quoteRepository;
 
     /**
      * @var Logger
      */
-    private Logger $logger;
+    private $logger;
 
     /**
      * @var UrlInterface
      */
-    private UrlInterface $urlInterface;
+    private $urlInterface;
 
     public function __construct(
         Create $paymentIntentsCreate,
@@ -105,7 +105,7 @@ class PaymentIntents
     public function getIntents(): array
     {
         $quote = $this->checkoutSession->getQuote();
-        $cacheKey = $this->getCacheKey($quote);
+        $cacheKey = $this->getCacheKey($quote->getId());
 
         if ($response = $this->cache->load($cacheKey)) {
             return $this->serializer->unserialize($response);
@@ -140,17 +140,19 @@ class PaymentIntents
      */
     public function removeIntents(): void
     {
-        $this->cache->remove($this->getCacheKey($this->checkoutSession->getQuote()));
+        if ($this->checkoutSession->getQuoteId()) {
+            $this->cache->remove($this->getCacheKey($this->checkoutSession->getQuoteId()));
+        }
     }
 
     /**
-     * @param Quote $quote
+     * @param string $quoteId
      *
      * @return string
      */
-    private function getCacheKey(Quote $quote): string
+    private function getCacheKey(string $quoteId): string
     {
-        return 'airwallex-intent-' . $quote->getId();
+        return 'airwallex-intent-' . $quoteId;
     }
 
     /**

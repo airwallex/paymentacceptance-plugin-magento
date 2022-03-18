@@ -30,7 +30,7 @@ class CardMethod extends AbstractMethod
      * @return $this
      * @throws LocalizedException
      */
-    public function capture(InfoInterface $payment, $amount): self
+    public function capture(InfoInterface $payment, $amount): parent
     {
         $intentId = $this->getIntentId();
 

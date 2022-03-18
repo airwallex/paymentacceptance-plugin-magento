@@ -40,7 +40,7 @@ class RedirectMethod extends AbstractMethod
      * @throws AlreadyExistsException
      * @throws LocalizedException
      */
-    public function authorize(InfoInterface $payment, $amount): self
+    public function authorize(InfoInterface $payment, $amount): parent
     {
         parent::authorize($payment, $amount);
 

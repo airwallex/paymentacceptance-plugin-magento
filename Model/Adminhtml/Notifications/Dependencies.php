@@ -23,12 +23,12 @@ class Dependencies implements MessageInterface
     /**
      * @var string|null
      */
-    private ?string $displayedText = null;
+    private $displayedText = null;
 
     /**
      * @var AvailablePaymentMethodsHelper
      */
-    private AvailablePaymentMethodsHelper $availablePaymentMethodsHelper;
+    private $availablePaymentMethodsHelper;
 
     /**
      * Dependencies constructor.

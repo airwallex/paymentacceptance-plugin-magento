@@ -30,12 +30,12 @@ class Capture extends AbstractWebhook
     /**
      * @var InvoiceService
      */
-    private InvoiceService $invoiceService;
+    private $invoiceService;
 
     /**
      * @var TransactionFactory
      */
-    private TransactionFactory $transactionFactory;
+    private $transactionFactory;
 
     /**
      * Capture constructor.

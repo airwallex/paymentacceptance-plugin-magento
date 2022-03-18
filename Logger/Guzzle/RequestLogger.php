@@ -30,17 +30,17 @@ class RequestLogger
     /**
      * @var Configuration
      */
-    private Configuration $configuration;
+    private $configuration;
 
     /**
      * @var DirectoryList
      */
-    private DirectoryList $directoryList;
+    private $directoryList;
 
     /**
      * @var Logger
      */
-    private Logger $logger;
+    private $logger;
 
     /**
      * RequestLogger constructor.

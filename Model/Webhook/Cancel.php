@@ -31,7 +31,7 @@ class Cancel extends AbstractWebhook
     /**
      * @var CancelHelper
      */
-    private CancelHelper $cancelHelper;
+    private $cancelHelper;
 
     /**
      * Cancel constructor.

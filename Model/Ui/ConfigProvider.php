@@ -7,7 +7,6 @@ use \Magento\Checkout\Model\ConfigProviderInterface;
 
 class ConfigProvider implements ConfigProviderInterface
 {
-
     /**
      * @var Configuration
      */

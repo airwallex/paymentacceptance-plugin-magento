@@ -24,7 +24,7 @@ class Cancel extends AbstractClient implements BearerAuthenticationInterface
     /**
      * @var string
      */
-    private string $paymentIntentId;
+    private $paymentIntentId;
 
     /**
      * @param string $id

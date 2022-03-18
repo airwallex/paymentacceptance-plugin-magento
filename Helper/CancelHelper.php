@@ -20,7 +20,7 @@ class CancelHelper
     /**
      * @var bool
      */
-    private bool $webhookCanceling = false;
+    private $webhookCanceling = false;
 
     /**
      * @return bool
