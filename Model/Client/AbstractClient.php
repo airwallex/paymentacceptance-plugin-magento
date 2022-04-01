@@ -21,6 +21,7 @@ use Airwallex\Payments\Logger\Guzzle\RequestLogger;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use Magento\Framework\App\ProductMetadataInterface;
 use Magento\Framework\DataObject\IdentityService;
 use Psr\Http\Message\ResponseInterface;
 
@@ -57,6 +58,11 @@ abstract class AbstractClient
     protected $configuration;
 
     /**
+     * @var ProductMetadataInterface
+     */
+    protected $metadata;
+
+    /**
      * @var array
      */
     private $params = [];
@@ -68,17 +74,20 @@ abstract class AbstractClient
      * @param IdentityService $identityService
      * @param RequestLogger $requestLogger
      * @param Configuration $configuration
+     * @param ProductMetadataInterface $metadata
      */
     public function __construct(
         AuthenticationHelper $authenticationHelper,
         IdentityService $identityService,
         RequestLogger $requestLogger,
-        Configuration $configuration
+        Configuration $configuration,
+        ProductMetadataInterface $metadata
     ) {
         $this->authenticationHelper = $authenticationHelper;
         $this->identityService = $identityService;
         $this->requestLogger = $requestLogger;
         $this->configuration = $configuration;
+        $this->metadata = $metadata;
     }
 
     /**
@@ -186,6 +195,19 @@ abstract class AbstractClient
     }
 
     /**
+     * Get information about Magento version executing the request.
+     *
+     * @return array
+     */
+    protected function getReferrerData(): array
+    {
+        return [
+            'type' => 'magento',
+            'version' => $this->metadata->getVersion()
+        ];
+    }
+
+    /**
      * Create request to Airwallex.
      *
      * @param Client $client
@@ -199,6 +221,7 @@ abstract class AbstractClient
 
         if ($method === 'POST') {
             $this->params['request_id'] = $this->identityService->generateId();
+            $this->params['referrer_data'] = $this->getReferrerData();
             $options['json'] = $this->params;
         }
 
