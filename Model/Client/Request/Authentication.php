@@ -46,11 +46,11 @@ class Authentication extends AbstractClient
     /**
      * @param ResponseInterface $request
      *
-     * @return string
+     * @return object
      * @throws JsonException
      */
-    protected function parseResponse(ResponseInterface $request): string
+    protected function parseResponse(ResponseInterface $request): object
     {
-        return $this->parseJson($request)->token;
+        return $this->parseJson($request);
     }
 }

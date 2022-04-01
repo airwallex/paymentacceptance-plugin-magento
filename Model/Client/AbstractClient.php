@@ -29,6 +29,7 @@ abstract class AbstractClient
     private const JSON_DECODE_DEPTH = 512;
     private const SUCCESS_STATUS_START = 200;
     private const SUCCESS_STATUS_END = 299;
+    private const AUTHENTICATION_FAILED = 401;
     private const TIME_OUT = 30;
     private const DEFAULT_HEADER = [
         'Content-Type' => 'application/json',
@@ -94,21 +95,17 @@ abstract class AbstractClient
             'handler' => $this->requestLogger->getStack()
         ]);
 
-        $method = $this->getMethod();
-
-        $options = [
-            'headers' => array_merge(self::DEFAULT_HEADER, $this->getHeaders()),
-            'http_errors' => false
-        ];
-
-        if ($method === 'POST') {
-            $this->params['request_id'] = $this->identityService->generateId();
-            $options['json'] = $this->params;
-        }
-
-        $request = $client->request($this->getMethod(), $this->getUri(), $options);
+        $request = $this->createRequest($client);
         $statusCode = $request->getStatusCode();
 
+        // If authorization fails on first try, clear token from cache and try again.
+        if ($statusCode === self::AUTHENTICATION_FAILED) {
+            $this->authenticationHelper->clearToken();
+            $request = $this->createRequest($client);
+            $statusCode = $request->getStatusCode();
+        }
+
+        // If still invalid response, process error.
         if (!($statusCode >= self::SUCCESS_STATUS_START && $statusCode < self::SUCCESS_STATUS_END)) {
             $response = $this->parseJson($request);
             throw new RequestException($response->message);
@@ -162,6 +159,19 @@ abstract class AbstractClient
     }
 
     /**
+     * Get options to create request.
+     *
+     * @return array
+     */
+    protected function getRequestOptions(): array
+    {
+        return [
+            'headers' => array_merge(self::DEFAULT_HEADER, $this->getHeaders()),
+            'http_errors' => false
+        ];
+    }
+
+    /**
      * @return array
      */
     protected function getHeaders(): array
@@ -173,6 +183,26 @@ abstract class AbstractClient
         }
 
         return $header;
+    }
+
+    /**
+     * Create request to Airwallex.
+     *
+     * @param Client $client
+     * @return ResponseInterface
+     * @throws GuzzleException
+     */
+    protected function createRequest(Client $client): ResponseInterface
+    {
+        $method = $this->getMethod();
+        $options = $this->getRequestOptions();
+
+        if ($method === 'POST') {
+            $this->params['request_id'] = $this->identityService->generateId();
+            $options['json'] = $this->params;
+        }
+
+        return $client->request($this->getMethod(), $this->getUri(), $options);
     }
 
     /**
