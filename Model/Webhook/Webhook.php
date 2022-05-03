@@ -93,7 +93,7 @@ class Webhook
      */
     public function dispatch(string $type, stdClass $data): void
     {
-        if (in_array($type, [Refund::WEBHOOK_ACCEPTED_NAME, Refund::WEBHOOK_SUCCESS_NAME], true)) {
+        if ($type === Refund::WEBHOOK_SUCCESS_NAME) {
             $this->refund->execute($data);
         }
 
