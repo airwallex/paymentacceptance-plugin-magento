@@ -21,8 +21,8 @@ use Airwallex\Payments\Logger\Guzzle\RequestLogger;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
-use Magento\Framework\App\ProductMetadataInterface;
 use Magento\Framework\DataObject\IdentityService;
+use Magento\Framework\Module\ModuleListInterface;
 use Psr\Http\Message\ResponseInterface;
 
 abstract class AbstractClient
@@ -58,9 +58,9 @@ abstract class AbstractClient
     protected Configuration $configuration;
 
     /**
-     * @var ProductMetadataInterface
+     * @var ModuleListInterface
      */
-    protected ProductMetadataInterface $metadata;
+    protected ModuleListInterface $moduleList;
 
     /**
      * @var array
@@ -74,19 +74,20 @@ abstract class AbstractClient
      * @param IdentityService $identityService
      * @param RequestLogger $requestLogger
      * @param Configuration $configuration
+     * @param ModuleListInterface $moduleList
      */
     public function __construct(
         AuthenticationHelper $authenticationHelper,
         IdentityService $identityService,
         RequestLogger $requestLogger,
         Configuration $configuration,
-        ProductMetadataInterface $metadata
+        ModuleListInterface $moduleList
     ) {
         $this->authenticationHelper = $authenticationHelper;
         $this->identityService = $identityService;
         $this->requestLogger = $requestLogger;
         $this->configuration = $configuration;
-        $this->metadata = $metadata;
+        $this->moduleList = $moduleList;
     }
 
     /**
@@ -202,7 +203,7 @@ abstract class AbstractClient
     {
         return [
             'type' => 'magento',
-            'version' => $this->metadata->getVersion()
+            'version' => $this->moduleList->getOne(Configuration::MODULE_NAME)['setup_version']
         ];
     }
 
