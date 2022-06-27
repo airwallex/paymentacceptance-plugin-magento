@@ -16,6 +16,7 @@
 namespace Airwallex\Payments\Model\Webhook;
 
 use Airwallex\Payments\Exception\WebhookException;
+use Airwallex\Payments\Helper\CancelHelper;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\InputException;
@@ -28,8 +29,12 @@ use Magento\Sales\Model\Service\CreditmemoService;
 
 class Refund extends AbstractWebhook
 {
-    public const WEBHOOK_ACCEPTED_NAME = 'refund.accepted';
     public const WEBHOOK_SUCCESS_NAME = 'refund.succeeded';
+
+    /**
+     * @var CancelHelper
+     */
+    private CancelHelper $cancelHelper;
 
     /**
      * @var CreditmemoFactory
@@ -46,16 +51,19 @@ class Refund extends AbstractWebhook
      *
      * @param OrderRepository $orderRepository
      * @param PaymentIntentRepository $paymentIntentRepository
+     * @param CancelHelper $cancelHelper
      * @param CreditmemoFactory $creditmemoFactory
      * @param CreditmemoService $creditmemoService
      */
     public function __construct(
         OrderRepository $orderRepository,
         PaymentIntentRepository $paymentIntentRepository,
+        CancelHelper $cancelHelper,
         CreditmemoFactory $creditmemoFactory,
         CreditmemoService $creditmemoService
     ) {
         parent::__construct($orderRepository, $paymentIntentRepository);
+        $this->cancelHelper = $cancelHelper;
         $this->creditmemoFactory = $creditmemoFactory;
         $this->creditmemoService = $creditmemoService;
     }
@@ -84,6 +92,7 @@ class Refund extends AbstractWebhook
 
         if (!$order->canCreditmemo()) {
             if ($order->canCancel()) {
+                $this->cancelHelper->setWebhookCanceling(true);
                 $order->cancel();
                 $this->orderRepository->save($order);
             }
