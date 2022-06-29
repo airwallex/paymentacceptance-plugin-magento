@@ -33,7 +33,7 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
     {
         return $this->setParams([
             'amount' => $quote->getBaseGrandTotal(),
-            'currency' => $quote->getQuoteCurrencyCode(),
+            'currency' => $quote->getBaseCurrencyCode(),
             'merchant_order_id' => $quote->getReservedOrderId(),
             'supplementary_amount' => 1,
             'return_url' => $returnUrl,
