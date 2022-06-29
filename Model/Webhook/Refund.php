@@ -92,7 +92,6 @@ class Refund extends AbstractWebhook
 
         if (!$order->canCreditmemo()) {
             if ($order->canCancel()) {
-                $this->cancelHelper->setWebhookCanceling(true);
                 $order->cancel();
                 $this->orderRepository->save($order);
             }
@@ -135,5 +134,6 @@ class Refund extends AbstractWebhook
 
         $this->creditmemoService->refund($creditMemo, true);
         $order->addCommentToStatusHistory(__('Order refunded through Airwallex, Reason: %1', $reason));
+        $this->orderRepository->save($order);
     }
 }
