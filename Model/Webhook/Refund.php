@@ -32,11 +32,6 @@ class Refund extends AbstractWebhook
     public const WEBHOOK_SUCCESS_NAME = 'refund.succeeded';
 
     /**
-     * @var CancelHelper
-     */
-    private CancelHelper $cancelHelper;
-
-    /**
      * @var CreditmemoFactory
      */
     private CreditmemoFactory $creditmemoFactory;
@@ -51,19 +46,16 @@ class Refund extends AbstractWebhook
      *
      * @param OrderRepository $orderRepository
      * @param PaymentIntentRepository $paymentIntentRepository
-     * @param CancelHelper $cancelHelper
      * @param CreditmemoFactory $creditmemoFactory
      * @param CreditmemoService $creditmemoService
      */
     public function __construct(
         OrderRepository $orderRepository,
         PaymentIntentRepository $paymentIntentRepository,
-        CancelHelper $cancelHelper,
         CreditmemoFactory $creditmemoFactory,
         CreditmemoService $creditmemoService
     ) {
         parent::__construct($orderRepository, $paymentIntentRepository);
-        $this->cancelHelper = $cancelHelper;
         $this->creditmemoFactory = $creditmemoFactory;
         $this->creditmemoService = $creditmemoService;
     }
