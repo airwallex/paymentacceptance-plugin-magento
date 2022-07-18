@@ -28,7 +28,6 @@ use Magento\Sales\Model\Service\CreditmemoService;
 
 class Refund extends AbstractWebhook
 {
-    public const WEBHOOK_ACCEPTED_NAME = 'refund.accepted';
     public const WEBHOOK_SUCCESS_NAME = 'refund.succeeded';
 
     /**
@@ -126,5 +125,6 @@ class Refund extends AbstractWebhook
 
         $this->creditmemoService->refund($creditMemo, true);
         $order->addCommentToStatusHistory(__('Order refunded through Airwallex, Reason: %1', $reason));
+        $this->orderRepository->save($order);
     }
 }
