@@ -189,6 +189,7 @@ abstract class AbstractClient
 
         if ($this instanceof BearerAuthenticationInterface) {
             $header['Authorization'] = 'Bearer ' . $this->authenticationHelper->getBearerToken();
+            $header['x-api-version'] = '2022-11-11';
         }
 
         return $header;
