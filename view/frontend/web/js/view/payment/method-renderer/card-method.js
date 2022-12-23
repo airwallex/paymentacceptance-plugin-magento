@@ -53,7 +53,8 @@ define([
                 $('body').trigger('processStart');
                 this.createIntent();
                 const params = this.intentConfiguration();
-                params.billing = this.getBillingInformation();
+                params.payment_method = {};
+                params.payment_method.billing = this.getBillingInformation();
                 params.element = this.cardElement;
                 this.validationError(undefined);
 
