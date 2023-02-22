@@ -19,7 +19,8 @@ define([
     'ko',
     'Airwallex_Payments/js/view/payment/abstract-method',
     'Magento_Checkout/js/model/quote',
-    ], function ($, ko, Component, quote) {
+    'Magento_Checkout/js/model/payment/additional-validators',
+    ], function ($, ko, Component, quote, additionalValidators) {
         'use strict';
 
         return Component.extend({
@@ -50,6 +51,9 @@ define([
             },
 
             initiateOrderPlacement: function () {
+                if (!additionalValidators.validate()) {
+                    return;
+                }
                 $('body').trigger('processStart');
                 this.createIntent();
                 const params = this.intentConfiguration();

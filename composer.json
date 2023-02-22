@@ -2,7 +2,7 @@
     "name": "airwallex/payments-plugin-magento",
     "type": "magento2-module",
     "description": "",
-    "version": "0.2.3",
+    "version": "0.2.4",
     "require": {
         "ext-json": "*"
     },
