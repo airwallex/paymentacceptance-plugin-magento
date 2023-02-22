@@ -15,6 +15,7 @@
  */
 namespace Airwallex\Payments\Model\Methods;
 
+use Airwallex\Payments\Api\Data\PaymentIntentInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Payment\Model\InfoInterface;
@@ -36,16 +37,29 @@ class CardMethod extends AbstractMethod
 
         $payment->setTransactionId($intentId);
 
-        try {
-            $this->capture
-                ->setPaymentIntentId($intentId)
-                ->setInformation($amount)
-                ->send();
-            $this->logger->error(sprintf('Credit Card: Payment Intent %s, Capture information', $intentId));
-        } catch (GuzzleException $exception) {
-            $this->logger->orderError($payment->getOrder(), 'capture', $exception->getMessage());
+        $status = $this->getIntentStatus();
+
+        if ($status === PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE) {
+            try {
+                $result = $this->capture
+                    ->setPaymentIntentId($intentId)
+                    ->setInformation($amount)
+                    ->send();
+                $this->logger->error(sprintf('Credit Card: Payment Intent %s, Capture information', $intentId));
+                $this->getInfoInstance()->setAdditionalInformation('intent_status', $result->status);
+            } catch (GuzzleException $exception) {
+                $this->logger->orderError($payment->getOrder(), 'capture', $exception->getMessage());
+            }
         }
 
         return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getConfigPaymentAction(): string
+    {
+        return $this->getConfigData('airwallex_payment_action');
     }
 }

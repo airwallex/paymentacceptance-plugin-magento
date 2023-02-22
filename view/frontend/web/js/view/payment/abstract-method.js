@@ -40,6 +40,7 @@ define([
         readyLoaded: {},
         intentId: ko.observable(),
         amount: ko.observable(0),
+        intentStatus: ko.observable(0),
 
         initObservable: function () {
             this._super();
@@ -71,7 +72,8 @@ define([
 
             data['additional_data'] = {
                 'intent_id': this.intentId(),
-                'amount': this.amount()
+                'amount': this.amount(),
+                'intent_status': this.intentStatus(),
             };
 
             return data;
@@ -95,6 +97,7 @@ define([
         },
 
         paymentSuccess: function (intent) {
+            this.intentStatus(intent.status);
             this.amount(intent.amount);
             this.placeOrder();
         },

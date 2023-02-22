@@ -48,6 +48,7 @@ abstract class AbstractMethod extends Adapter
 {
     public const CACHE_TAGS = ['airwallex'];
     public const PAYMENT_PREFIX = 'airwallex_payments_';
+    public const ADDITIONAL_DATA = ['intent_id', 'intent_status'];
 
     /**
      * @var LoggerInterface|null
@@ -168,10 +169,11 @@ abstract class AbstractMethod extends Adapter
     public function assignData(DataObject $data): self
     {
         $additionalData = $data->getData('additional_data');
-
-        if (isset($additionalData['intent_id'])) {
-            $info = $this->getInfoInstance();
-            $info->setAdditionalInformation('intent_id', $additionalData['intent_id']);
+        $info = $this->getInfoInstance();
+        foreach (self::ADDITIONAL_DATA as $additionalDatum) {
+            if (isset($additionalData[$additionalDatum])) {
+                $info->setAdditionalInformation($additionalDatum, $additionalData[$additionalDatum]);
+            }
         }
 
         return $this;
@@ -296,5 +298,14 @@ abstract class AbstractMethod extends Adapter
     protected function getPaymentMethodCode(): string
     {
         return str_replace(self::PAYMENT_PREFIX, '', $this->getCode());
+    }
+
+    /**
+     * @return string
+     * @throws LocalizedException
+     */
+    protected function getIntentStatus(): string
+    {
+        return $this->getInfoInstance()->getAdditionalInformation('intent_status');
     }
 }
