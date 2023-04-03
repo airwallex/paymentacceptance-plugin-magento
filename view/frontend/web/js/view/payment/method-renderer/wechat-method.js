@@ -15,17 +15,42 @@
 
 define(['Airwallex_Payments/js/view/payment/abstract-method',
         'jquery',
+        'ko',
         'Magento_SalesRule/js/action/set-coupon-code',
-        'Magento_SalesRule/js/action/cancel-coupon'],
-    function (Component, $, setCouponCodeAction, cancelCouponAction) {
+        'Magento_SalesRule/js/action/cancel-coupon'
+    ],
+    function (Component, $, ko, setCouponCodeAction, cancelCouponAction) {
     'use strict';
 
     return Component.extend({
         code: 'airwallex_payments_wechat',
         type: 'wechat',
+        showQRElement: ko.observable(),
         mountElement: 'airwallex-payments-wechat-form',
         defaults: {
             template: 'Airwallex_Payments/payment/wechat-method'
+        },
+
+        initObservable: function() {
+            let show = true;
+            if(window.checkoutConfig.checkoutAgreements && window.checkoutConfig.checkoutAgreements.isEnabled) {
+                window.checkoutConfig.checkoutAgreements.agreements.forEach(function (element) {
+                    if (element.mode === '1') {
+                        show = false
+                    }
+                })
+            }
+            this.showQRElement(show);
+            let self = this;
+            if (!show) {
+                $(document).on(
+                    'change',
+                    '.payment-method._active div.checkout-agreements input',
+                    function (event) {
+                        self.showQRElement(event.target.checked)
+                    })
+            }
+            return this._super();
         },
 
         loadPayment: function() {

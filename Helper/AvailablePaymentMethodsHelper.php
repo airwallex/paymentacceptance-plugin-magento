@@ -141,7 +141,7 @@ class AvailablePaymentMethodsHelper
     private function getCurrencyCode(): string
     {
         try {
-            return $this->storeManager->getStore()->getCurrentCurrency()->getCode();
+            return $this->storeManager->getStore()->getBaseCurrency()->getCode();
         } catch (Exception $exception) {
             return '';
         }
