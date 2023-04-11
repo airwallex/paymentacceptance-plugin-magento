@@ -66,11 +66,9 @@ define([
                     .confirmPaymentIntent(params)
                     .then(function (response) {
                         this.paymentSuccess(response);
-                        $('body').trigger('processStop');
                     }.bind(this))
                     .catch(function (response) {
                         this.validationError(response.message);
-                        $('body').trigger('processStop');
                     }.bind(this));
             },
 
@@ -82,7 +80,7 @@ define([
 
                 window.addEventListener('onReady', function () {
                     $('body').trigger('processStop');
-                }, {once: true});
+                });
             }
         });
     });
