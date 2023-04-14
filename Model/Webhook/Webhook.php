@@ -97,7 +97,7 @@ class Webhook
             $this->refund->execute($data);
         }
 
-        if ($type === Capture::WEBHOOK_NAME) {
+        if (in_array($type, Capture::WEBHOOK_NAMES)) {
             $this->capture->execute($data);
         }
 
