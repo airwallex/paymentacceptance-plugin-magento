@@ -25,7 +25,18 @@ use Magento\Sales\Model\Service\InvoiceService;
 
 class Capture extends AbstractWebhook
 {
+    /**
+     * @deprecated No longer used. It is replaced by WEBHOOK_NAMES array.
+     */
     public const WEBHOOK_NAME = 'payment_attempt.capture_requested';
+
+    /**
+     * Array of webhooks that trigger capture process.
+     */
+    public const WEBHOOK_NAMES = [
+        'payment_attempt.capture_requested',
+        'payment_intent.succeeded'
+    ];
 
     /**
      * @var InvoiceService
@@ -64,10 +75,11 @@ class Capture extends AbstractWebhook
      */
     public function execute(object $data): void
     {
-        $order = $this->paymentIntentRepository->loadOrderByPaymentIntent($data->payment_intent_id);
+        $paymentIntentId = $data->payment_intent_id ?? $data->id;
+        $order = $this->paymentIntentRepository->loadOrderByPaymentIntent($paymentIntentId);
 
         if ($order === null) {
-            throw new WebhookException(__('Payment Intent: ' . $data->payment_intent_id . ': Can\'t find Order'));
+            throw new WebhookException(__('Payment Intent: ' . $paymentIntentId . ': Can\'t find Order'));
         }
 
         $paid = $order->getBaseGrandTotal() - $order->getBaseTotalPaid();
@@ -80,7 +92,7 @@ class Capture extends AbstractWebhook
         $invoice = $this->invoiceService->prepareInvoice($order);
         $invoice->setBaseSubtotal($amount);
         $invoice->setBaseGrandTotal($amount);
-        $invoice->setTransactionId($data->payment_intent_id);
+        $invoice->setTransactionId($paymentIntentId);
         $invoice->setRequestedCaptureCase(Invoice::CAPTURE_OFFLINE);
         $invoice->register();
         $invoice->getOrder()->setCustomerNoteNotify(false);
