@@ -83,7 +83,7 @@ class AvailablePaymentMethodsHelper
      */
     public function canInitialize(): bool
     {
-        return class_exists('Mobile_Detect') &&
+        return class_exists('Detection\MobileDetect') &&
             !is_null($this->configuration->getApiKey()) &&
             !is_null($this->configuration->getClientId());
     }
