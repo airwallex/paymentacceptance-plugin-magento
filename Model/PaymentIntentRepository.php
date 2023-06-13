@@ -66,26 +66,6 @@ class PaymentIntentRepository
     }
 
     /**
-     * Webhooks Race Condition: Sometimes we may receive the webhook before Magento commits the order to the database,
-     * so we give it a few seconds and try again. Can happen when multiple subscriptions are purchased together.
-     * @param string $paymentIntentId
-     * @param int $count
-     *
-     * @return OrderInterface|null
-     */
-    public function loadOrderByPaymentIntent(string $paymentIntentId, int $count = 5): ?OrderInterface
-    {
-        $order = $this->getOrder($paymentIntentId);
-        if ($order === null || (empty($order->getId()) && $count >= 0)) {
-            // phpcs:ignore Magento2.Functions.DiscouragedFunction
-            sleep(self::RACE_SLEEP_TIME);
-            return $this->loadOrderByPaymentIntent($paymentIntentId, $count - 1);
-        }
-
-        return $order;
-    }
-
-    /**
      * @param string $paymentIntentId
      *
      * @return OrderInterface|null

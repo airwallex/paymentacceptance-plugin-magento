@@ -76,7 +76,7 @@ class Capture extends AbstractWebhook
     public function execute(object $data): void
     {
         $paymentIntentId = $data->payment_intent_id ?? $data->id;
-        $order = $this->paymentIntentRepository->loadOrderByPaymentIntent($paymentIntentId);
+        $order = $this->paymentIntentRepository->getOrder($paymentIntentId);
 
         if ($order === null) {
             throw new WebhookException(__('Payment Intent: ' . $paymentIntentId . ': Can\'t find Order'));

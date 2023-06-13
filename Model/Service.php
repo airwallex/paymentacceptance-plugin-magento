@@ -23,7 +23,7 @@ use Magento\Checkout\Helper\Data as CheckoutData;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Payment\Model\MethodInterface;
-use Zend_Json;
+use Magento\Framework\Serialize\SerializerInterface;
 
 class Service implements ServiceInterface
 {
@@ -43,23 +43,33 @@ class Service implements ServiceInterface
     private CheckoutData $checkoutHelper;
 
     /**
+     * @var SerializerInterface
+     */
+    private SerializerInterface $serializer;
+
+    /**
      * Index constructor.
      *
+     * @param SerializerInterface $serializer
      * @param PaymentIntents $paymentIntents
      * @param Configuration $configuration
      * @param CheckoutData $checkoutHelper
      */
     public function __construct(
+        SerializerInterface $serializer,
         PaymentIntents $paymentIntents,
         Configuration $configuration,
         CheckoutData $checkoutHelper
     ) {
+        $this->serializer = $serializer;
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
         $this->checkoutHelper = $checkoutHelper;
     }
 
     /**
+     * Creates payment intent
+     *
      * @param string $method
      *
      * @return string
@@ -73,7 +83,7 @@ class Service implements ServiceInterface
         $response['mode'] = $this->configuration->getMode();
         $response = array_merge($response, $this->getExtraConfiguration($method));
 
-        return Zend_Json::encode($response);
+        return $this->serializer->serialize($response);
     }
 
     /**
@@ -94,6 +104,8 @@ class Service implements ServiceInterface
     }
 
     /**
+     * Checks if payment should be captured on order placement
+     *
      * @param string $method
      *
      * @return array
@@ -111,8 +123,11 @@ class Service implements ServiceInterface
     }
 
     /**
+     * Regenerates payment intent
+     *
      * @param string $intentId
      * @param string $method
+     *
      * @return string
      * @throws GuzzleException
      * @throws LocalizedException

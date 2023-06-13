@@ -37,7 +37,7 @@
             <label>Display Payment Method For</label>
             <comment><![CDATA[Select the countries and currencies for which Airwallex is available at the checkout.]]></comment>
             <source_model>Magento\Directory\Model\Config\Source\Country</source_model>
-            <config_path>payment/airwallex_payments_kakaoairwallex_payments_kakaopay/specificcountry</config_path>
+            <config_path>payment/airwallex_payments_kakaopay/specificcountry</config_path>
             <depends>
                 <field id="allowspecific">1</field>
             </depends>
