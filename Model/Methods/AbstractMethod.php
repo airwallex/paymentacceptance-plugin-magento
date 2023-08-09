@@ -82,7 +82,7 @@ abstract class AbstractMethod extends Adapter
     /**
      * @var AvailablePaymentMethodsHelper
      */
-    private AvailablePaymentMethodsHelper $availablePaymentMethodsHelper;
+    protected AvailablePaymentMethodsHelper $availablePaymentMethodsHelper;
 
     /**
      * @var Confirm

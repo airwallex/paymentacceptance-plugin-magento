@@ -19,6 +19,7 @@ use GuzzleHttp\Exception\GuzzleException;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Payment\Model\InfoInterface;
+use Magento\Quote\Api\Data\CartInterface;
 use Mobile_Detect;
 use Exception;
 
@@ -72,5 +73,16 @@ class RedirectMethod extends AbstractMethod
         }
 
         return $detect->isAndroidOS() ? 'android' : 'ios';
+    }
+
+    /**
+     * @param CartInterface|null $quote
+     *
+     * @return bool
+     */
+    public function isAvailable(CartInterface $quote = null): bool
+    {
+        return parent::isAvailable($quote) &&
+            $this->availablePaymentMethodsHelper->isMobileDetectInstalled();
     }
 }

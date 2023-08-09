@@ -78,7 +78,7 @@ class Dependencies implements MessageInterface
      */
     private function hasDependencies(): void
     {
-        if (!$this->availablePaymentMethodsHelper->canInitialize()) {
+        if (!$this->availablePaymentMethodsHelper->isMobileDetectInstalled()) {
             $this->displayedText = __('The Airwallex Payment module is missing dependency
                 Please run "composer require mobiledetect/mobiledetectlib" to install the dependency.');
         }
