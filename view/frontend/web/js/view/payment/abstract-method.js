@@ -64,6 +64,8 @@ define([
             }
         },
 
+        onPaymentMethodReady: function() {},
+
         /**
          * Get payment method data
          */
@@ -120,25 +122,30 @@ define([
             if(!this.intentConfiguration().id){
                 this.createIntent();
             }
-            const airwallexElement = Airwallex.createElement(this.type, this.getElementConfiguration());
-            airwallexElement.mount(this.mountElement);
+            const domElement = Airwallex.createElement(
+                this.type,
+                this.getElementConfiguration()
+            )?.mount(this.mountElement);
 
             $('body').trigger('processStop');
-            window.addEventListener('onReady', function () {
+            const self = this;
+            domElement.addEventListener('onReady', function () {
+                self.onPaymentMethodReady();
+
                 $('body').trigger('processStop');
             });
 
-            window.addEventListener('onSuccess', function (event) {
+            domElement.addEventListener('onSuccess', function (event) {
                 this.paymentSuccess(event.detail.intent);
             }.bind(this));
 
-            window.addEventListener('onError', function (event) {
+            domElement.addEventListener('onError', function (event) {
                 console.log(event.detail);
             });
         },
 
         createIntent: function () {
-            const method = this.isChecked();
+            const method = this.code;
             const payload = {
                 'method': method
             }

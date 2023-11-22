@@ -28,6 +28,7 @@
                 <include path="Airwallex_Payments::system/card.xml"/>
                 <include path="Airwallex_Payments::system/wechat.xml"/>
                 <include path="Airwallex_Payments::system/redirect.xml"/>
+                <include path="Airwallex_Payments::system/embedded.xml"/>
             </group>
         </section>
     </system>
