@@ -34,6 +34,27 @@
                                             <item name="children" xsi:type="array">
                                                 <item name="payment" xsi:type="array">
                                                     <item name="children" xsi:type="array">
+                                                        <item name="beforeMethods" xsi:type="array">
+                                                            <item name="children" xsi:type="array">
+                                                                <item name="airwallex_payments.embedded.checkout" xsi:type="array">
+                                                                    <item name="component" xsi:type="string">uiComponent</item>
+                                                                    <item name="template" xsi:type="string">Airwallex_Payments/embedded/checkout-embedded</item>
+                                                                    <item name="displayArea" xsi:type="string">beforeMethods</item>
+                                                                    <item name="children" xsi:type="array">
+                                                                        <item name="airwallex_payments.embeded.googlepay" xsi:type="array">
+                                                                            <item name="component" xsi:type="string">uiComponent</item>
+                                                                            <item name="template" xsi:type="string">Airwallex_Payments/embedded/googlepay-button</item>
+                                                                            <item name="displayArea" xsi:type="string">airwallexEmbedded</item>
+                                                                        </item>
+                                                                        <item name="airwallex_payments.embeded.applepay" xsi:type="array">
+                                                                            <item name="component" xsi:type="string">uiComponent</item>
+                                                                            <item name="template" xsi:type="string">Airwallex_Payments/embedded/applepay-button</item>
+                                                                            <item name="displayArea" xsi:type="string">airwallexEmbedded</item>
+                                                                        </item>
+                                                                    </item>
+                                                                </item>
+                                                            </item>
+                                                        </item>
                                                         <!-- Merge these payment methods into the list of available methods at the checkout -->
                                                         <item name="renders" xsi:type="array">
                                                             <item name="children" xsi:type="array">
@@ -69,6 +90,14 @@
 
                                                                         <item name="airwallex_payments_tng" xsi:type="array">
                                                                             <item name="isBillingAddressRequired" xsi:type="boolean">true</item>
+                                                                        </item>
+
+                                                                        <item name="airwallex_payments_googlepay" xsi:type="array">
+                                                                            <item name="isBillingAddressRequired" xsi:type="boolean">false</item>
+                                                                        </item>
+
+                                                                        <item name="airwallex_payments_applepay" xsi:type="array">
+                                                                            <item name="isBillingAddressRequired" xsi:type="boolean">false</item>
                                                                         </item>
                                                                     </item>
                                                                 </item>

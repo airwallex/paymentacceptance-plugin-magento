@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * This file is part of the Airwallex Payments module.
+ *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade
+ * to newer versions in the future.
+ *
+ * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
+ * @license   GNU General Public License ("GPL") v3.0
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+ -->
+<include xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_include.xsd">
+    <group id="googlepay" translate="label" type="text" sortOrder="1" showInDefault="1" showInWebsite="1" showInStore="1">
+        <label>GooglePay</label>
+        <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1" canRestore="1">
+            <label>Enable</label>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <config_path>payment/airwallex_payments_googlepay/active</config_path>
+        </field>
+        <field id="title" translate="label comment" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Title</label>
+            <comment><![CDATA[This is the payment method title used at the checkout page]]></comment>
+            <config_path>payment/airwallex_payments_googlepay/title</config_path>
+        </field>
+        <field id="allowspecific" translate="label" type="allowspecific" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Payment From Applicable Countries</label>
+            <source_model>Magento\Payment\Model\Config\Source\Allspecificcountries</source_model>
+            <config_path>payment/airwallex_payments_googlepay/allowspecific</config_path>
+        </field>
+        <field id="specificcountry" translate="label comment" type="multiselect" sortOrder="60" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Display Payment Method For</label>
+            <comment><![CDATA[Select the countries and currencies for which Airwallex is available at the checkout.]]></comment>
+            <source_model>Magento\Directory\Model\Config\Source\Country</source_model>
+            <config_path>payment/airwallex_payments_googlepay/specificcountry</config_path>
+            <depends>
+                <field id="allowspecific">1</field>
+            </depends>
+        </field>
+    </group>
+    <group id="applepay" translate="label" type="text" sortOrder="1" showInDefault="1" showInWebsite="1" showInStore="1">
+        <label>ApplePay</label>
+        <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1" canRestore="1">
+            <label>Enable</label>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <config_path>payment/airwallex_payments_applepay/active</config_path>
+        </field>
+        <field id="title" translate="label comment" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Title</label>
+            <comment><![CDATA[This is the payment method title used at the checkout page]]></comment>
+            <config_path>payment/airwallex_payments_applepay/title</config_path>
+        </field>
+        <field id="allowspecific" translate="label" type="allowspecific" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Payment From Applicable Countries</label>
+            <source_model>Magento\Payment\Model\Config\Source\Allspecificcountries</source_model>
+            <config_path>payment/airwallex_payments_applepay/allowspecific</config_path>
+        </field>
+        <field id="specificcountry" translate="label comment" type="multiselect" sortOrder="60" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Display Payment Method For</label>
+            <comment><![CDATA[Select the countries and currencies for which Airwallex is available at the checkout.]]></comment>
+            <source_model>Magento\Directory\Model\Config\Source\Country</source_model>
+            <config_path>payment/airwallex_payments_applepay/specificcountry</config_path>
+            <depends>
+                <field id="allowspecific">1</field>
+            </depends>
+        </field>
+    </group>
+</include>
