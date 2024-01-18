@@ -17,6 +17,7 @@ namespace Airwallex\Payments\Model;
 
 use Airwallex\Payments\Api\ServiceInterface;
 use Airwallex\Payments\Helper\Configuration;
+use Airwallex\Payments\Helper\Verification as VerificationHelper;
 use Airwallex\Payments\Model\Methods\CardMethod;
 use GuzzleHttp\Exception\GuzzleException;
 use Magento\Checkout\Helper\Data as CheckoutData;
@@ -59,7 +60,8 @@ class Service implements ServiceInterface
         SerializerInterface $serializer,
         PaymentIntents $paymentIntents,
         Configuration $configuration,
-        CheckoutData $checkoutHelper
+        CheckoutData $checkoutHelper,
+        protected VerificationHelper $verificationHelper
     ) {
         $this->serializer = $serializer;
         $this->paymentIntents = $paymentIntents;
@@ -71,13 +73,20 @@ class Service implements ServiceInterface
      * Creates payment intent
      *
      * @param string $method
-     *
+     * @param string $powSolution
      * @return string
      * @throws GuzzleException
      * @throws LocalizedException
      * @throws NoSuchEntityException
      */
-    public function createIntent(string $method): string
+    public function createIntent(string $method, string $powSolution): string
+    {
+        $this->verificationHelper->validatePOWSolution($powSolution);
+
+        return $this->createNewIntent($method);
+    }
+
+    protected function createNewIntent(string $method): string
     {
         $response = $this->paymentIntents->getIntents();
         $response['mode'] = $this->configuration->getMode();
@@ -127,16 +136,19 @@ class Service implements ServiceInterface
      *
      * @param string $intentId
      * @param string $method
-     *
+     * @param string $powSolution
      * @return string
      * @throws GuzzleException
      * @throws LocalizedException
      * @throws NoSuchEntityException
      * @throws \JsonException
      */
-    public function refreshIntent(string $intentId, string $method): string
+    public function refreshIntent(string $intentId, string $method, string $powSolution): string
     {
+        $this->verificationHelper->validatePOWSolution($powSolution);
+
         $this->paymentIntents->cancelIntent($intentId);
-        return $this->createIntent($method);
+
+        return $this->createNewIntent($method);
     }
 }

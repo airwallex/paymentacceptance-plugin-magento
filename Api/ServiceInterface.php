@@ -22,7 +22,7 @@ interface ServiceInterface
      *
      * @return string
      */
-    public function createIntent(string $method): string;
+    public function createIntent(string $method, string $powSolution): string;
 
     /**
      * @return string
@@ -35,5 +35,5 @@ interface ServiceInterface
      *
      * @return string
      */
-    public function refreshIntent(string $intentId, string $method): string;
+    public function refreshIntent(string $intentId, string $method, string $powSolution): string;
 }

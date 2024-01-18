@@ -20,8 +20,9 @@ define([
     'Magento_Checkout/js/view/payment/default',
     'mage/url',
     'Magento_Ui/js/model/messageList',
+    'Airwallex_Payments/js/util/pow',
     'mage/translate'
-], function ($, ko, Component, url, globalMessageList) {
+], function ($, ko, Component, url, globalMessageList, powUtil) {
     'use strict';
 
     return Component.extend({
@@ -88,8 +89,9 @@ define([
                     fonts: this.fonts
                 });
 
-                this.initPayment();
-                this.readyLoaded[this.code] = true;
+                this.initPayment().then(() => {
+                    this.readyLoaded[this.code] = true;
+                });
             } else {
                 $('body').trigger('processStop');
             }
@@ -116,9 +118,9 @@ define([
             };
         },
 
-        initPayment: function () {
+        initPayment: async function () {
             if(!this.intentConfiguration().id){
-                this.createIntent();
+                await this.createIntent();
             }
             const airwallexElement = Airwallex.createElement(this.type, this.getElementConfiguration());
             airwallexElement.mount(this.mountElement);
@@ -137,10 +139,11 @@ define([
             });
         },
 
-        createIntent: function () {
+        createIntent: async function () {
             const method = this.isChecked();
             const payload = {
-                'method': method
+                'method': method,
+                'powSolution': await powUtil.solvePOW()
             }
             $.ajax({
                 url: url.build('rest/V1/airwallex/payments/create_intent'),
@@ -162,10 +165,11 @@ define([
             });
         },
 
-        refreshIntent: function () {
+        refreshIntent: async function () {
             const payload = {
                 'intentId': this.intentConfiguration().id,
-                'method': this.isChecked()
+                'method': this.isChecked(),
+                'powSolution': await powUtil.solvePOW()
             }
             $.ajax({
                 url: url.build('rest/V1/airwallex/payments/refresh_intent'),

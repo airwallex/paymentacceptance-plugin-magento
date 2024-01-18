@@ -63,8 +63,9 @@ define(['Airwallex_Payments/js/view/payment/abstract-method',
 
         reloadElement: function() {
             Airwallex.destroyElement('wechat');
-            this.refreshIntent();
-            this.initPayment();
+            this.refreshIntent().then(() => {
+                this.initPayment();
+            });
         }
     });
 });

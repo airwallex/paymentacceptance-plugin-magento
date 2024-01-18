@@ -78,5 +78,12 @@
             <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
             <config_path>airwallex/general/request_logger</config_path>
         </field>
+        <field id="pow_enable" translate="label" type="select" sortOrder="100" showInDefault="1"
+               showInWebsite="1" showInStore="0" canRestore="1">
+            <label>Enable Proof-of-work check</label>
+            <comment>Enable additional check to limit fraud. This check requires JS blocking simple bots.</comment>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <config_path>airwallex/general/pow_enable</config_path>
+        </field>
     </group>
 </include>

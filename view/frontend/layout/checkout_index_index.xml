@@ -21,6 +21,11 @@
         <css src="Airwallex_Payments::css/airwallex_payment.css" />
     </head>
     <body>
+        <referenceBlock name="head.additional">
+            <block class="Airwallex\Payments\Block\Checkout\PowVerification"
+                   name="pow_verification_nonce" ttl="0" ifconfig="airwallex/general/pow_enable">
+            </block>
+        </referenceBlock>
         <referenceBlock name="checkout.root">
             <arguments>
                 <argument name="jsLayout" xsi:type="array">

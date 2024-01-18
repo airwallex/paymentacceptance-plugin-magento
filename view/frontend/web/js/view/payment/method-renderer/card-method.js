@@ -50,12 +50,12 @@ define([
                 }
             },
 
-            initiateOrderPlacement: function () {
+            initiateOrderPlacement: async function () {
                 if (!additionalValidators.validate()) {
                     return;
                 }
                 $('body').trigger('processStart');
-                this.createIntent();
+                await this.createIntent();
                 const params = this.intentConfiguration();
                 params.payment_method = {};
                 params.payment_method.billing = this.getBillingInformation();
@@ -73,7 +73,7 @@ define([
                     }.bind(this));
             },
 
-            initPayment: function () {
+            initPayment: async function () {
                 this.cardElement = Airwallex.createElement(this.type, {
                     autoCapture: window.checkoutConfig.payment.airwallex_payments.cc_auto_capture
                 });
