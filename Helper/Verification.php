@@ -27,7 +27,7 @@ class Verification
     const POW_PREFIX = 'airwallex';
     const POW_SEPARATOR = ':';
 
-    const NONCE_CACHE_TTL = 600; // 10min
+    const NONCE_CACHE_TTL = 3600; // 1h
     const NONCE_CACHE_PREFIX = 'airwallex_nonce_';
     const NONCE_CACHE_STATUS_CREATED = '1';
     const NONCE_CACHE_STATUS_USED = '2';
@@ -65,17 +65,11 @@ class Verification
         }
 
         $nonceStatus = $this->cache->load($this->getNonceCacheID($parts[1]));
-        if ($nonceStatus === self::NONCE_CACHE_STATUS_USED) {
+        if ($nonceStatus !== self::NONCE_CACHE_STATUS_CREATED) {
             throw new LocalizedException(
-                __('Nonce has been used already')
+                __('Nonce is invalid or has expired')
             );
         }
-        $this->cache->save(
-            self::NONCE_CACHE_STATUS_USED,
-            $this->getNonceCacheID($parts[1]),
-            [],
-            self::NONCE_CACHE_TTL
-        );
 
         if ($parts[0] !== self::POW_PREFIX) {
             throw new LocalizedException(
@@ -99,7 +93,12 @@ class Verification
     public function getNonce(): string
     {
         $nonce = bin2hex(random_bytes(16));
-        $this->cache->save(self::NONCE_CACHE_STATUS_CREATED, $this->getNonceCacheID($nonce));
+        $this->cache->save(
+            self::NONCE_CACHE_STATUS_CREATED,
+            $this->getNonceCacheID($nonce),
+            [],
+            self::NONCE_CACHE_TTL
+        );
 
         return $nonce;
     }
