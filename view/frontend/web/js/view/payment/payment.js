@@ -24,8 +24,8 @@ define([
     });
 
     rendererList.push({
-        type: 'airwallex_payments_wechat',
-        component: 'Airwallex_Payments/js/view/payment/method-renderer/wechat-method'
+        type: 'airwallex_payments_wechatpay',
+        component: 'Airwallex_Payments/js/view/payment/redirect-method'
     });
 
     rendererList.push({

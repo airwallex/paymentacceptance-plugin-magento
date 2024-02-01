@@ -23,6 +23,7 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
 {
     private const DESKTOP_FLOW = 'webqr';
     private const MOBILE_FLOW = 'mweb';
+    private const WECHAT_FLOW = 'jsapi';
 
     /**
      * @var string
@@ -54,9 +55,15 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
             'type' => $method
         ];
 
-        $data[$method] = [
-            'flow' => $isMobile ? self::MOBILE_FLOW : self::DESKTOP_FLOW
-        ];
+        if ($method === 'wechatpay') {
+            $data[$method] = [
+                'flow' => self::WECHAT_FLOW
+            ];
+        } else {
+            $data[$method] = [
+                'flow' => $isMobile ? self::MOBILE_FLOW : self::DESKTOP_FLOW
+            ];
+        }
 
         if ($isMobile) {
             $data[$method]['os_type'] = $osType;

@@ -35,11 +35,6 @@ define([
             return this._super();
         },
 
-        placeOrder: function () {
-            this.createIntent();
-            this._super();
-        },
-
         afterPlaceOrder: function () {
             $.ajax({
                 url: url.build('rest/V1/airwallex/payments/redirect_url'),

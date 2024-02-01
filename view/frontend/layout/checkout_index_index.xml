@@ -48,7 +48,7 @@
                                                                         <item name="airwallex_payments_card" xsi:type="array">
                                                                             <item name="isBillingAddressRequired" xsi:type="boolean">true</item>
                                                                         </item>
-                                                                        <item name="airwallex_payments_wechat" xsi:type="array">
+                                                                        <item name="airwallex_payments_wechatpay" xsi:type="array">
                                                                             <item name="isBillingAddressRequired" xsi:type="boolean">true</item>
                                                                         </item>
 

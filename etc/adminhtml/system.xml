@@ -26,7 +26,6 @@
                 <attribute type="displayIn">recommended_solutions</attribute>
                 <include path="Airwallex_Payments::system/basic.xml"/>
                 <include path="Airwallex_Payments::system/card.xml"/>
-                <include path="Airwallex_Payments::system/wechat.xml"/>
                 <include path="Airwallex_Payments::system/redirect.xml"/>
             </group>
         </section>
