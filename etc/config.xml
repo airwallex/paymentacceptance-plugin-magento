@@ -50,7 +50,7 @@
                 <can_save_cc>0</can_save_cc>
                 <sort_order>10</sort_order>
             </airwallex_payments_card>
-            <airwallex_payments_wechat>
+            <airwallex_payments_wechatpay>
                 <active>0</active>
                 <model>AirwallexPaymentsWechatGatewayFacade</model>
                 <allowspecific>0</allowspecific>
@@ -67,7 +67,7 @@
                 <can_use_internal>1</can_use_internal>
                 <can_use_checkout>1</can_use_checkout>
                 <sort_order>20</sort_order>
-            </airwallex_payments_wechat>
+            </airwallex_payments_wechatpay>
             <airwallex_payments_alipaycn>
                 <active>0</active>
                 <model>AirwallexPaymentsAlipayCNGatewayFacade</model>
