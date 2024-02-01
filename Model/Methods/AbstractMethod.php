@@ -95,11 +95,15 @@ abstract class AbstractMethod extends Adapter
      */
     protected CheckoutData $checkoutHelper;
 
+    /**
+     * @var PaymentIntents
+     */
     protected PaymentIntents $paymentIntents;
 
     /**
      * Payment constructor.
      *
+     * @param PaymentIntents $paymentIntents
      * @param ManagerInterface $eventManager
      * @param ValueHandlerPoolInterface $valueHandlerPool
      * @param PaymentDataObjectFactory $paymentDataObjectFactory
