@@ -17,6 +17,7 @@
  -->
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="Airwallex\Payments\Api\ServiceInterface" type="Airwallex\Payments\Model\Service" />
+    <preference for="Airwallex\Payments\Api\Data\PlaceOrderResponseInterface" type="Airwallex\Payments\Model\PlaceOrderResponse" />
     <type name="Magento\Payment\Block\Form\Container">
         <plugin name="remove_methods_from_admin_reorder" type="Airwallex\Payments\Plugin\RemoveMethodsFromAdminReorder" sortOrder="1" />
     </type>
