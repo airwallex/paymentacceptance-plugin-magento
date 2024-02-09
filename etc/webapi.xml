@@ -16,18 +16,21 @@
  */
  -->
 <routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Webapi:etc/webapi.xsd">
-    <route url="/V1/airwallex/payments/create_intent" method="POST">
-        <service class="Airwallex\Payments\Api\ServiceInterface" method="createIntent"/>
+    <route url="/V1/airwallex/payments/guest-place-order" method="POST">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="guestSavePaymentInformationAndPlaceOrder"/>
         <resources>
-            <resource ref="anonymous"/>
+            <resource ref="anonymous" />
         </resources>
     </route>
 
-    <route url="/V1/airwallex/payments/refresh_intent" method="POST">
-        <service class="Airwallex\Payments\Api\ServiceInterface" method="refreshIntent"/>
+    <route url="/V1/airwallex/payments/place-order" method="POST">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="savePaymentInformationAndPlaceOrder"/>
         <resources>
-            <resource ref="anonymous"/>
+            <resource ref="self" />
         </resources>
+        <data>
+            <parameter name="cartId" force="true">%cart_id%</parameter>
+        </data>
     </route>
 
     <route url="/V1/airwallex/payments/redirect_url" method="POST">

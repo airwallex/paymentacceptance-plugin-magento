@@ -101,6 +101,7 @@ class PaymentIntents
      * @throws GuzzleException
      * @throws LocalizedException
      * @throws NoSuchEntityException
+     * @throws \JsonException
      */
     public function getIntents(): array
     {
