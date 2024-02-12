@@ -20,18 +20,18 @@ use Airwallex\Payments\Api\Data\PlaceOrderResponseInterface;
 use Airwallex\Payments\Api\Data\PlaceOrderResponseInterfaceFactory;
 use Airwallex\Payments\Api\ServiceInterface;
 use Airwallex\Payments\Helper\Configuration;
-use Airwallex\Payments\Helper\Verification as VerificationHelper;
 use Airwallex\Payments\Model\Methods\CardMethod;
+use Airwallex\Payments\Plugin\ReCaptchaValidationPlugin;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Checkout\Api\GuestPaymentInformationManagementInterface;
 use Magento\Checkout\Api\PaymentInformationManagementInterface;
 use Magento\Checkout\Helper\Data as CheckoutData;
+use Magento\Framework\App\CacheInterface;
 use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Payment\Model\MethodInterface;
-use Magento\Framework\Serialize\SerializerInterface;
 use Magento\Quote\Api\Data\AddressInterface;
 use Magento\Quote\Api\Data\PaymentInterface;
 
@@ -53,33 +53,25 @@ class Service implements ServiceInterface
     private CheckoutData $checkoutHelper;
 
     /**
-     * @var SerializerInterface
-     */
-    private SerializerInterface $serializer;
-
-    /**
      * Index constructor.
      *
-     * @param SerializerInterface $serializer
      * @param PaymentIntents $paymentIntents
      * @param Configuration $configuration
      * @param CheckoutData $checkoutHelper
-     * @param VerificationHelper $verificationHelper
      * @param GuestPaymentInformationManagementInterface $guestPaymentInformationManagement
      * @param PaymentInformationManagementInterface $paymentInformationManagement
      * @param PlaceOrderResponseInterfaceFactory $placeOrderResponseFactory
+     * @param CacheInterface $cache
      */
     public function __construct(
-        SerializerInterface $serializer,
         PaymentIntents $paymentIntents,
         Configuration $configuration,
         CheckoutData $checkoutHelper,
-        protected VerificationHelper $verificationHelper,
         protected GuestPaymentInformationManagementInterface $guestPaymentInformationManagement,
         protected PaymentInformationManagementInterface $paymentInformationManagement,
-        protected PlaceOrderResponseInterfaceFactory $placeOrderResponseFactory
+        protected PlaceOrderResponseInterfaceFactory $placeOrderResponseFactory,
+        protected CacheInterface $cache
     ) {
-        $this->serializer = $serializer;
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
         $this->checkoutHelper = $checkoutHelper;
@@ -96,7 +88,9 @@ class Service implements ServiceInterface
         $checkout = $this->checkoutHelper->getCheckout();
 
         if (empty($checkout->getLastRealOrderId())) {
-            throw new LocalizedException(__("Sorry, the order could not be placed. Please contact us for more help."));
+            throw new LocalizedException(
+                __("Sorry, the order could not be placed. Please contact us for more help.")
+            );
         }
 
         return $checkout->getAirwallexPaymentsRedirectUrl();
@@ -139,6 +133,7 @@ class Service implements ServiceInterface
         $response = $this->placeOrderResponseFactory->create();
         if ($intentId === null) {
             $intent = $this->paymentIntents->getIntents();
+            $this->cache->save(1, ReCaptchaValidationPlugin::getCacheKey($intent['id']), [], 3600);
 
             $response->setData([
                 'response_type' => 'confirmation_required',
@@ -146,7 +141,6 @@ class Service implements ServiceInterface
                 'client_secret' => $intent['clientSecret']
             ]);
         } else {
-            // TODO: Validate intent
             $orderId = $this->guestPaymentInformationManagement->savePaymentInformationAndPlaceOrder(
                 $cartId,
                 $email,
@@ -163,6 +157,13 @@ class Service implements ServiceInterface
         return $response;
     }
 
+    /**
+     * @throws NoSuchEntityException
+     * @throws CouldNotSaveException
+     * @throws GuzzleException
+     * @throws LocalizedException
+     * @throws JsonException
+     */
     public function savePaymentInformationAndPlaceOrder(
         string $cartId,
         PaymentInterface $paymentMethod,
@@ -173,6 +174,7 @@ class Service implements ServiceInterface
         $response = $this->placeOrderResponseFactory->create();
         if ($intentId === null) {
             $intent = $this->paymentIntents->getIntents();
+            $this->cache->save(1, ReCaptchaValidationPlugin::getCacheKey($intent['id']), [], 3600);
 
             $response->setData([
                 'response_type' => 'confirmation_required',
@@ -180,7 +182,6 @@ class Service implements ServiceInterface
                 'client_secret' => $intent['clientSecret']
             ]);
         } else {
-            // TODO: Validate intent
             $orderId = $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
                 $cartId,
                 $paymentMethod,
