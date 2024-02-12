@@ -15,17 +15,13 @@
  * file that was distributed with this source code.
  */
 -->
-<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
     <head>
         <script src="https://checkout.airwallex.com/assets/elements.bundle.min.js" src_type="url" />
         <css src="Airwallex_Payments::css/airwallex_payment.css" />
     </head>
     <body>
-        <referenceBlock name="head.additional">
-            <block class="Airwallex\Payments\Block\Checkout\PowVerification"
-                   name="pow_verification_nonce" ttl="0" ifconfig="airwallex/general/pow_enable">
-            </block>
-        </referenceBlock>
         <referenceBlock name="checkout.root">
             <arguments>
                 <argument name="jsLayout" xsi:type="array">

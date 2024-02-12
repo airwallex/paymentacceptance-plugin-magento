@@ -24,6 +24,18 @@
     <type name="Magento\Store\Model\Store">
         <plugin name="remove_intent_after_change_currency" type="Airwallex\Payments\Plugin\StorePlugin" sortOrder="1" />
     </type>
+    <type name="Magento\ReCaptchaWebapiApi\Model\CompositeWebapiValidationConfigProvider">
+        <arguments>
+            <argument name="providers" xsi:type="array">
+                <item name="airwallex_card" xsi:type="object">Airwallex\Payments\Model\Config\WebapiConfigProvider</item>
+            </argument>
+        </arguments>
+    </type>
+    <type name="Magento\ReCaptchaValidation\Model\Validator">
+        <plugin name="airwallex_recaptcha_validator"
+                type="Airwallex\Payments\Plugin\ReCaptchaValidationPlugin"
+                sortOrder="100" />
+    </type>
     <type name="Airwallex\Payments\Logger\Handler">
         <arguments>
             <argument name="filesystem" xsi:type="object">Magento\Framework\Filesystem\Driver\File</argument>
