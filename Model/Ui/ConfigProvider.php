@@ -28,6 +28,10 @@ class ConfigProvider implements ConfigProviderInterface
 {
     const AIRWALLEX_RECAPTCHA_FOR = 'airwallex_card';
 
+    protected Configuration $configuration;
+    protected IsCaptchaEnabledInterface $isCaptchaEnabled;
+    protected ReCaptcha $reCaptchaBlock;
+
     /**
      * ConfigProvider constructor.
      * @param Configuration $configuration
@@ -35,10 +39,14 @@ class ConfigProvider implements ConfigProviderInterface
      * @param ReCaptcha $reCaptchaBlock
      */
     public function __construct(
-        protected Configuration $configuration,
-        protected IsCaptchaEnabledInterface $isCaptchaEnabled,
-        protected ReCaptcha $reCaptchaBlock
-    ) {}
+        Configuration $configuration,
+        IsCaptchaEnabledInterface $isCaptchaEnabled,
+        ReCaptcha $reCaptchaBlock
+    ) {
+        $this->configuration = $configuration;
+        $this->isCaptchaEnabled = $isCaptchaEnabled;
+        $this->reCaptchaBlock = $reCaptchaBlock;
+    }
 
     /**
      * Adds mode to checkout config array

@@ -34,11 +34,19 @@ class ReCaptchaValidationPlugin
 
     const CACHE_PREFIX = 'RC_BYPASS';
 
+    protected RestRequest $request;
+    protected CacheInterface $cache;
+    protected ValidationResultFactory $validationResultFactory;
+
     public function __construct(
-        protected RestRequest $request,
-        protected CacheInterface $cache,
-        protected ValidationResultFactory $validationResultFactory
-    ) {}
+        RestRequest $request,
+        CacheInterface $cache,
+        ValidationResultFactory $validationResultFactory
+    ) {
+        $this->request = $request;
+        $this->cache = $cache;
+        $this->validationResultFactory = $validationResultFactory;
+    }
 
     public function aroundIsValid(
         Validator $subject,

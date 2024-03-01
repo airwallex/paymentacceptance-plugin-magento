@@ -37,20 +37,13 @@ use Magento\Quote\Api\Data\PaymentInterface;
 
 class Service implements ServiceInterface
 {
-    /**
-     * @var PaymentIntents
-     */
-    private PaymentIntents $paymentIntents;
-
-    /**
-     * @var Configuration
-     */
-    private Configuration $configuration;
-
-    /**
-     * @var CheckoutData
-     */
-    private CheckoutData $checkoutHelper;
+    protected PaymentIntents $paymentIntents;
+    protected Configuration $configuration;
+    protected CheckoutData $checkoutHelper;
+    protected GuestPaymentInformationManagementInterface $guestPaymentInformationManagement;
+    protected PaymentInformationManagementInterface $paymentInformationManagement;
+    protected PlaceOrderResponseInterfaceFactory $placeOrderResponseFactory;
+    protected CacheInterface $cache;
 
     /**
      * Index constructor.
@@ -67,14 +60,18 @@ class Service implements ServiceInterface
         PaymentIntents $paymentIntents,
         Configuration $configuration,
         CheckoutData $checkoutHelper,
-        protected GuestPaymentInformationManagementInterface $guestPaymentInformationManagement,
-        protected PaymentInformationManagementInterface $paymentInformationManagement,
-        protected PlaceOrderResponseInterfaceFactory $placeOrderResponseFactory,
-        protected CacheInterface $cache
+        GuestPaymentInformationManagementInterface $guestPaymentInformationManagement,
+        PaymentInformationManagementInterface $paymentInformationManagement,
+        PlaceOrderResponseInterfaceFactory $placeOrderResponseFactory,
+        CacheInterface $cache
     ) {
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
         $this->checkoutHelper = $checkoutHelper;
+        $this->guestPaymentInformationManagement = $guestPaymentInformationManagement;
+        $this->paymentInformationManagement = $paymentInformationManagement;
+        $this->placeOrderResponseFactory = $placeOrderResponseFactory;
+        $this->cache = $cache;
     }
 
     /**

@@ -35,6 +35,9 @@ class WebapiConfigProvider implements WebapiValidationConfigProviderInterface
         'guestSavePaymentInformationAndPlaceOrder' => true,
         'savePaymentInformationAndPlaceOrder' => true
     ];
+    protected IsCaptchaEnabledInterface $isEnabled;
+    protected ValidationConfigResolverInterface $configResolver;
+    protected RestRequest $request;
 
     /**
      * @param IsCaptchaEnabledInterface $isEnabled
@@ -42,10 +45,14 @@ class WebapiConfigProvider implements WebapiValidationConfigProviderInterface
      * @param RestRequest $request
      */
     public function __construct(
-        protected IsCaptchaEnabledInterface $isEnabled,
-        protected ValidationConfigResolverInterface $configResolver,
-        protected RestRequest $request
-    ) {}
+        IsCaptchaEnabledInterface $isEnabled,
+        ValidationConfigResolverInterface $configResolver,
+        RestRequest $request
+    ) {
+        $this->isEnabled = $isEnabled;
+        $this->configResolver = $configResolver;
+        $this->request = $request;
+    }
 
     /**
      * @inheritDoc
