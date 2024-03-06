@@ -146,61 +146,67 @@ define(
 
                     payload.intent_id = null;
 
-                    $.when(new Promise(function (resolve) {
-                        self.getRecaptchaToken(resolve);
-                    })).then(function (xReCaptchaValue) {
-                        payload.xReCaptchaValue = xReCaptchaValue;
-                        return storage.post(
-                            serviceUrl, JSON.stringify(payload), true, 'application/json', headers
-                        )
-                    }).then(
-                        function (result) {
+                    (new Promise(async function (resolve, reject) {
+                        try {
+                            const xReCaptchaValue = await (new Promise(function (resolve) {
+                                self.getRecaptchaToken(resolve);
+                            }));
+                            payload.xReCaptchaValue = xReCaptchaValue;
+                            console.debug("ReCaptcha", xReCaptchaValue);
+
+                            const intentResponse = await storage.post(
+                                serviceUrl, JSON.stringify(payload), true, 'application/json', headers
+                            );
+                            console.debug("Intent Response", intentResponse);
+
                             const params = {};
-                            params.id = result.intent_id;
-                            params.client_secret = result.client_secret;
+                            params.id = intentResponse.intent_id;
+                            params.client_secret = intentResponse.client_secret;
                             params.payment_method = {};
                             params.payment_method.billing = self.getBillingInformation();
                             params.element = self.cardElement;
 
-                            payload.intent_id = result.intent_id;
+                            payload.intent_id = intentResponse.intent_id;
+                            payload.xReCaptchaValue = null;
 
-                            return Airwallex.confirmPaymentIntent(params);
-                        }
-                    ).then(
-                        function (xReCaptchaValue) {
-                            payload.xReCaptchaValue = xReCaptchaValue;
-                            return storage.post(
+                            const airwallexResponse = await Airwallex.confirmPaymentIntent(params);
+                            console.debug("airwallexResponse", airwallexResponse);
+
+                            const endResult = await storage.post(
                                 serviceUrl, JSON.stringify(payload), true, 'application/json', headers
                             );
+                            console.debug("endResult", endResult);
+
+                            resolve(endResult);
+                        } catch (e) {
+                            reject(e);
                         }
-                    ).done(
-                        function (response) {
-                            const clearData = {
-                                'selectedShippingAddress': null,
-                                'shippingAddressFromData': null,
-                                'newCustomerShippingAddress': null,
-                                'selectedShippingRate': null,
-                                'selectedPaymentMethod': null,
-                                'selectedBillingAddress': null,
-                                'billingAddressFromData': null,
-                                'newCustomerBillingAddress': null
-                            };
+                    })).then(function (response) {
+                        const clearData = {
+                            'selectedShippingAddress': null,
+                            'shippingAddressFromData': null,
+                            'newCustomerShippingAddress': null,
+                            'selectedShippingRate': null,
+                            'selectedPaymentMethod': null,
+                            'selectedBillingAddress': null,
+                            'billingAddressFromData': null,
+                            'newCustomerBillingAddress': null
+                        };
 
-                            if (response?.responseType !== 'error') {
-                                customerData.set('checkout-data', clearData);
-                                customerData.invalidate(['cart']);
-                                customerData.reload(['cart'], true);
-                            }
-
-                            self.afterPlaceOrder();
-
-                            if (self.redirectAfterPlaceOrder) {
-                                redirectOnSuccessAction.execute();
-                            }
+                        if (response?.responseType !== 'error') {
+                            customerData.set('checkout-data', clearData);
+                            customerData.invalidate(['cart']);
+                            customerData.reload(['cart'], true);
                         }
-                    ).fail(
-                        this.processPlaceOrderError.bind(this)
-                    ).always(
+
+                        self.afterPlaceOrder();
+
+                        if (self.redirectAfterPlaceOrder) {
+                            redirectOnSuccessAction.execute();
+                        }
+                    }).catch(
+                        self.processPlaceOrderError.bind(self)
+                    ).finally(
                         function () {
                             fullScreenLoader.stopLoader();
                             $('body').trigger('processStop');
@@ -244,8 +250,19 @@ define(
                 const reCaptchaId = this.recaptcha.getReCaptchaId(),
                       registry = this.recaptcha.getRegistry();
 
-                registry.addListener(reCaptchaId, callback);
-                registry.triggers[reCaptchaId]();
+                if (registry.tokens.hasOwnProperty(reCaptchaId)) {
+                    const response = registry.tokens[reCaptchaId];
+                    if (typeof response === 'object' && typeof response.then === 'function') {
+                        response.then(function (token) {
+                            callback(token);
+                        });
+                    } else {
+                        callback(response);
+                    }
+                } else {
+                    registry._listeners[reCaptchaId] = callback;
+                    registry.triggers[reCaptchaId]();
+                }
             }
         });
     });

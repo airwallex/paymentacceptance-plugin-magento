@@ -20,7 +20,7 @@ define(
         'jquery',
         'ko',
         'underscore',
-        'Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry',
+        'Airwallex_Payments/js/webapiReCaptchaRegistry',
         'Magento_ReCaptchaFrontendUi/js/reCaptchaScriptLoader',
         'Magento_ReCaptchaFrontendUi/js/nonInlineReCaptchaRenderer'
     ],
@@ -32,6 +32,11 @@ define(
                 reCaptchaId: 'airwallex-payments-card-recaptcha',
                 autoTrigger: false
             },
+
+            /**
+             * recaptchaId: bool map
+             */
+            _isInvisibleType: {},
 
             parentFormId: 'airwallex-payments-card-form',
 
@@ -82,6 +87,20 @@ define(
                 // eslint-disable-next-line no-undef
                 widgetId = grecaptcha.render(this.getReCaptchaId(), parameters);
                 this.initParentForm($parentForm, widgetId);
+            },
+
+            /**
+             * Checking that reCAPTCHA is invisible type
+             * @returns {Boolean}
+             */
+            getIsInvisibleRecaptcha: function () {
+                if (this.settings ===
+
+                    void 0) {
+                    return false;
+                }
+
+                return this.settings.invisible;
             },
 
             /**

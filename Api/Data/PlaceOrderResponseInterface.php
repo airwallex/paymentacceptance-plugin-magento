@@ -26,7 +26,7 @@ interface PlaceOrderResponseInterface
     /**
      * @return string|null
      */
-    public function getIntentId(): string|null;
+    public function getIntentId();
 
     /**
      * @param string|null $intentId
@@ -37,7 +37,7 @@ interface PlaceOrderResponseInterface
     /**
      * @return string|null
      */
-    public function getClientSecret(): string|null;
+    public function getClientSecret();
 
     /**
      * @param string|null $clientSecret
@@ -48,7 +48,7 @@ interface PlaceOrderResponseInterface
     /**
      * @return string
      */
-    public function getResponseType(): string;
+    public function getResponseType();
 
     /**
      * @param string $responseType
@@ -59,7 +59,7 @@ interface PlaceOrderResponseInterface
     /**
      * @return int|null
      */
-    public function getOrderId(): int|null;
+    public function getOrderId();
 
     /**
      * @param int|null $orderId

@@ -21,42 +21,69 @@ use Magento\Framework\DataObject;
 
 class PlaceOrderResponse extends DataObject implements PlaceOrderResponseInterface
 {
-
-    public function getIntentId(): string|null
+    /**
+     * @return string|null
+     */
+    public function getIntentId()
     {
         return $this->getData(self::DATA_KEY_INTENT_ID);
     }
 
+    /**
+     * @param string|null $intentId
+     * @return PlaceOrderResponse
+     */
     public function setIntentId(string $intentId = null)
     {
         return $this->setData(self::DATA_KEY_INTENT_ID, $intentId);
     }
 
-    public function getClientSecret(): string|null
+    /**
+     * @return string|null
+     */
+    public function getClientSecret()
     {
         return $this->getData(self::DATA_KEY_CLIENT_SECRET);
     }
 
+    /**
+     * @param string|null $clientSecret
+     * @return PlaceOrderResponse
+     */
     public function setClientSecret(string $clientSecret = null)
     {
         return $this->setData(self::DATA_KEY_CLIENT_SECRET, $clientSecret);
     }
 
-    public function getResponseType(): string
+    /**
+     * @return string
+     */
+    public function getResponseType()
     {
         return $this->getData(self::DATA_KEY_RESPONSE_TYPE);
     }
 
+    /**
+     * @param string $responseType
+     * @return PlaceOrderResponse
+     */
     public function setResponseType(string $responseType)
     {
         return $this->setData(self::DATA_KEY_RESPONSE_TYPE, $responseType);
     }
 
-    public function getOrderId(): int|null
+    /**
+     * @return int|null
+     */
+    public function getOrderId()
     {
         return $this->getData(self::DATA_KEY_ORDER_ID);
     }
 
+    /**
+     * @param int|null $orderId
+     * @return PlaceOrderResponse
+     */
     public function setOrderId(int $orderId = null)
     {
         return $this->setData(self::DATA_KEY_ORDER_ID, $orderId);

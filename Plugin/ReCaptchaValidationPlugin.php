@@ -65,7 +65,8 @@ class ReCaptchaValidationPlugin
 
     protected function validateBypassReCaptcha(): bool
     {
-        $intentId = $this->request->getRequestData()['intent_id'] ?: false;
+        $requestData = $this->request->getRequestData();
+        $intentId = $requestData['intent_id'] ?? false;
         if (!$intentId) {
             return false;
         }
