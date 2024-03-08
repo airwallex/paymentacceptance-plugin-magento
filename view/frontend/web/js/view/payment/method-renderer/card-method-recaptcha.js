@@ -113,6 +113,8 @@ define(
                 let self = this,
                     trigger;
 
+                registry._widgets[this.getReCaptchaId()] = widgetId;
+
                 trigger = function () {
                     self.reCaptchaCallback(grecaptcha.getResponse(widgetId));
                 };
@@ -157,6 +159,14 @@ define(
 
             getRegistry: function () {
                 return registry;
+            },
+
+            reset: function () {
+                delete registry.tokens[this.getReCaptchaId()];
+                if (typeof registry._widgets[this.getReCaptchaId()] !== 'undefined'
+                    && registry._widgets[this.getReCaptchaId()] !== null) {
+                    grecaptcha.reset(registry._widgets[this.getReCaptchaId()]);
+                }
             }
         });
     }

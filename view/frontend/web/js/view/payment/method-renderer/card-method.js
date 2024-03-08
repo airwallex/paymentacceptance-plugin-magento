@@ -208,6 +208,7 @@ define(
                         self.processPlaceOrderError.bind(self)
                     ).finally(
                         function () {
+                            self.recaptcha.reset();
                             fullScreenLoader.stopLoader();
                             $('body').trigger('processStop');
                             _.each(placeOrderHooks.afterRequestListeners, function (listener) {

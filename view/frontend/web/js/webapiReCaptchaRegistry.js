@@ -42,6 +42,8 @@ define([], function () {
          */
         _isInvisibleType: {},
 
+        _widgets: {},
+
         /**
          * Add a listener to when the ReCaptcha finishes verification
          * @param {String} id - ReCaptchaId
