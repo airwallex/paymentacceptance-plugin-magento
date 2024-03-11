@@ -152,12 +152,10 @@ define(
                                 self.getRecaptchaToken(resolve);
                             }));
                             payload.xReCaptchaValue = xReCaptchaValue;
-                            console.debug("ReCaptcha", xReCaptchaValue);
 
                             const intentResponse = await storage.post(
                                 serviceUrl, JSON.stringify(payload), true, 'application/json', headers
                             );
-                            console.debug("Intent Response", intentResponse);
 
                             const params = {};
                             params.id = intentResponse.intent_id;
@@ -170,12 +168,10 @@ define(
                             payload.xReCaptchaValue = null;
 
                             const airwallexResponse = await Airwallex.confirmPaymentIntent(params);
-                            console.debug("airwallexResponse", airwallexResponse);
 
                             const endResult = await storage.post(
                                 serviceUrl, JSON.stringify(payload), true, 'application/json', headers
                             );
-                            console.debug("endResult", endResult);
 
                             resolve(endResult);
                         } catch (e) {
