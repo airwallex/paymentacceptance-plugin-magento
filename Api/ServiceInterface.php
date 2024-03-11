@@ -29,7 +29,7 @@ interface ServiceInterface
      * @param string|null $intentId
      * @return PlaceOrderResponseInterface
      */
-    public function guestSavePaymentInformationAndPlaceOrder(
+    public function airwallexGuestPlaceOrder(
         string $cartId,
         string $email,
         PaymentInterface $paymentMethod,
@@ -44,7 +44,7 @@ interface ServiceInterface
      * @param string|null $intentId
      * @return PlaceOrderResponseInterface
      */
-    public function savePaymentInformationAndPlaceOrder(
+    public function airwallexPlaceOrder(
         string $cartId,
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,

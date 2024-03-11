@@ -119,7 +119,7 @@ class Service implements ServiceInterface
      * @throws LocalizedException
      * @throws JsonException
      */
-    public function guestSavePaymentInformationAndPlaceOrder(
+    public function airwallexGuestPlaceOrder(
         string $cartId,
         string $email,
         PaymentInterface $paymentMethod,
@@ -161,7 +161,7 @@ class Service implements ServiceInterface
      * @throws LocalizedException
      * @throws JsonException
      */
-    public function savePaymentInformationAndPlaceOrder(
+    public function airwallexPlaceOrder(
         string $cartId,
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
