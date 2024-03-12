@@ -2,7 +2,8 @@
 
 ## Compatibility:
 This module was tested on:
-* Magento 2.4 @ PHP 7.4
+* Magento 2.4.3 @ PHP 7.4
+* Magento 2.4.6 @ PHP 8.1
 
 ## Installing/Getting started 
 

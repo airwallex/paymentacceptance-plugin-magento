@@ -5,6 +5,8 @@
     "version": "1.4.3",
     "require": {
         "ext-json": "*",
+        "php": "^7.4|^8.0",
+        "magento/module-re-captcha-webapi-api": "^1.0.0",
         "mobiledetect/mobiledetectlib": "^2.8"
     },
     "autoload": {
