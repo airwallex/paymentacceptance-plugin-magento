@@ -15,7 +15,8 @@
  * file that was distributed with this source code.
  */
 -->
-<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
     <head>
         <script src="https://checkout.airwallex.com/assets/elements.bundle.min.js" src_type="url" />
         <css src="Airwallex_Payments::css/airwallex_payment.css" />
@@ -43,7 +44,7 @@
                                                                         <item name="airwallex_payments_card" xsi:type="array">
                                                                             <item name="isBillingAddressRequired" xsi:type="boolean">true</item>
                                                                         </item>
-                                                                        <item name="airwallex_payments_wechat" xsi:type="array">
+                                                                        <item name="airwallex_payments_wechatpay" xsi:type="array">
                                                                             <item name="isBillingAddressRequired" xsi:type="boolean">true</item>
                                                                         </item>
 

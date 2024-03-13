@@ -49,24 +49,24 @@
                 <can_save_cc>0</can_save_cc>
                 <sort_order>10</sort_order>
             </airwallex_payments_card>
-            <airwallex_payments_wechat>
-                <active>0</active>
-                <model>AirwallexPaymentsWechatGatewayFacade</model>
-                <allowspecific>0</allowspecific>
-                <title>Pay by Wechat (Airwallex)</title>
-                <payment_action>authorize</payment_action>
-                <is_gateway>1</is_gateway>
-                <can_authorize>1</can_authorize>
-                <can_capture>1</can_capture>
-                <can_capture_partial>0</can_capture_partial>
-                <can_refund>1</can_refund>
-                <can_refund_partial_per_invoice>1</can_refund_partial_per_invoice>
-                <can_void>1</can_void>
-                <can_cancel>1</can_cancel>
-                <can_use_internal>1</can_use_internal>
-                <can_use_checkout>1</can_use_checkout>
-                <sort_order>20</sort_order>
-            </airwallex_payments_wechat>
+<!--            <airwallex_payments_wechatpay>-->
+<!--                <active>0</active>-->
+<!--                <model>AirwallexPaymentsWechatGatewayFacade</model>-->
+<!--                <allowspecific>0</allowspecific>-->
+<!--                <title>Pay by Wechat (Airwallex)</title>-->
+<!--                <payment_action>authorize</payment_action>-->
+<!--                <is_gateway>1</is_gateway>-->
+<!--                <can_authorize>1</can_authorize>-->
+<!--                <can_capture>1</can_capture>-->
+<!--                <can_capture_partial>0</can_capture_partial>-->
+<!--                <can_refund>1</can_refund>-->
+<!--                <can_refund_partial_per_invoice>1</can_refund_partial_per_invoice>-->
+<!--                <can_void>1</can_void>-->
+<!--                <can_cancel>1</can_cancel>-->
+<!--                <can_use_internal>1</can_use_internal>-->
+<!--                <can_use_checkout>1</can_use_checkout>-->
+<!--                <sort_order>20</sort_order>-->
+<!--            </airwallex_payments_wechatpay>-->
             <airwallex_payments_alipaycn>
                 <active>0</active>
                 <model>AirwallexPaymentsAlipayCNGatewayFacade</model>

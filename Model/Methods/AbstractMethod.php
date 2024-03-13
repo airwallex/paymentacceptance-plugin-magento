@@ -22,6 +22,7 @@ use Airwallex\Payments\Model\Client\Request\PaymentIntents\Capture;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Confirm;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Refund;
 use Airwallex\Payments\Model\PaymentIntentRepository;
+use Airwallex\Payments\Model\PaymentIntents;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use Magento\Checkout\Helper\Data as CheckoutData;
@@ -95,8 +96,14 @@ abstract class AbstractMethod extends Adapter
     protected CheckoutData $checkoutHelper;
 
     /**
+     * @var PaymentIntents
+     */
+    protected PaymentIntents $paymentIntents;
+
+    /**
      * Payment constructor.
      *
+     * @param PaymentIntents $paymentIntents
      * @param ManagerInterface $eventManager
      * @param ValueHandlerPoolInterface $valueHandlerPool
      * @param PaymentDataObjectFactory $paymentDataObjectFactory
@@ -117,6 +124,7 @@ abstract class AbstractMethod extends Adapter
      * @param LoggerInterface|null $logger
      */
     public function __construct(
+        PaymentIntents $paymentIntents,
         ManagerInterface $eventManager,
         ValueHandlerPoolInterface $valueHandlerPool,
         PaymentDataObjectFactory $paymentDataObjectFactory,
@@ -148,7 +156,7 @@ abstract class AbstractMethod extends Adapter
             $commandExecutor,
             $logger
         );
-
+        $this->paymentIntents = $paymentIntents;
         $this->logger = $logger;
         $this->refund = $refund;
         $this->capture = $capture;
@@ -290,7 +298,13 @@ abstract class AbstractMethod extends Adapter
      */
     protected function getIntentId(): string
     {
-        return $this->getInfoInstance()->getAdditionalInformation('intent_id');
+        $intentId = $this->getInfoInstance()->getAdditionalInformation('intent_id');
+        if ($intentId === null) {
+            $response = $this->paymentIntents->getIntents();
+            $intentId = $response['id'];
+            $this->getInfoInstance()->setAdditionalInformation('intent_id', $intentId);
+        }
+        return $intentId;
     }
 
     /**

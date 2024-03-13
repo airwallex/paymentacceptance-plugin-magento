@@ -26,10 +26,6 @@ class AvailablePaymentMethodsHelper
 {
     private const CACHE_NAME = 'airwallex_payment_methods';
     private const CACHE_TIME = 60;
-    private const METHOD_MAPPING = [
-        'wechat' => 'wechatpay'
-    ];
-
     /**
      * @var AvailablePaymentMethods
      */
@@ -102,8 +98,6 @@ class AvailablePaymentMethodsHelper
      */
     public function isAvailable(string $code): bool
     {
-        $code = self::METHOD_MAPPING[$code] ?? $code;
-
         return $this->canInitialize() && in_array($code, $this->getAllMethods(), true);
     }
 

@@ -17,11 +17,24 @@
  -->
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="Airwallex\Payments\Api\ServiceInterface" type="Airwallex\Payments\Model\Service" />
+    <preference for="Airwallex\Payments\Api\Data\PlaceOrderResponseInterface" type="Airwallex\Payments\Model\PlaceOrderResponse" />
     <type name="Magento\Payment\Block\Form\Container">
         <plugin name="remove_methods_from_admin_reorder" type="Airwallex\Payments\Plugin\RemoveMethodsFromAdminReorder" sortOrder="1" />
     </type>
     <type name="Magento\Store\Model\Store">
         <plugin name="remove_intent_after_change_currency" type="Airwallex\Payments\Plugin\StorePlugin" sortOrder="1" />
+    </type>
+    <type name="Magento\ReCaptchaWebapiApi\Model\CompositeWebapiValidationConfigProvider">
+        <arguments>
+            <argument name="providers" xsi:type="array">
+                <item name="airwallex_card" xsi:type="object">Airwallex\Payments\Model\Config\WebapiConfigProvider</item>
+            </argument>
+        </arguments>
+    </type>
+    <type name="Magento\ReCaptchaValidation\Model\Validator">
+        <plugin name="airwallex_recaptcha_validator"
+                type="Airwallex\Payments\Plugin\ReCaptchaValidationPlugin"
+                sortOrder="100" />
     </type>
     <type name="Airwallex\Payments\Logger\Handler">
         <arguments>
@@ -94,7 +107,7 @@
     </virtualType>
     <virtualType name="AirwallexPaymentWechatConfig" type="Magento\Payment\Gateway\Config\Config">
         <arguments>
-            <argument name="methodCode" xsi:type="const">Airwallex\Payments\Model\Methods\WechatMethod::CODE</argument>
+            <argument name="methodCode" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::WECHAT_CODE</argument>
         </arguments>
     </virtualType>
     <virtualType name="AirwallexPaymentWechatConfigValueHandler" type="Magento\Payment\Gateway\Config\ConfigValueHandler">
@@ -109,12 +122,12 @@
             </argument>
         </arguments>
     </virtualType>
-    <virtualType name="AirwallexPaymentsWechatGatewayFacade" type="Airwallex\Payments\Model\Methods\WechatMethod">
+    <virtualType name="AirwallexPaymentsWechatGatewayFacade" type="Airwallex\Payments\Model\Methods\RedirectMethod">
         <arguments>
             <argument name="eventManager" xsi:type="object">Magento\Framework\Event\ManagerInterface</argument>
             <argument name="valueHandlerPool" xsi:type="object">AirwallexPaymentWechatValueHandlerPool</argument>
             <argument name="paymentDataObjectFactory" xsi:type="object">Magento\Payment\Gateway\Data\PaymentDataObjectFactory</argument>
-            <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\WechatMethod::CODE</argument>
+            <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::WECHAT_CODE</argument>
             <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
             <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
             <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>

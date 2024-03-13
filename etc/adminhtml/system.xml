@@ -26,8 +26,16 @@
                 <attribute type="displayIn">recommended_solutions</attribute>
                 <include path="Airwallex_Payments::system/basic.xml"/>
                 <include path="Airwallex_Payments::system/card.xml"/>
-                <include path="Airwallex_Payments::system/wechat.xml"/>
                 <include path="Airwallex_Payments::system/redirect.xml"/>
+            </group>
+        </section>
+        <section id="recaptcha_frontend">
+            <group id="type_for">
+                <field id="airwallex_card" translate="label" type="select" sortOrder="200" showInDefault="1"
+                       showInWebsite="1" showInStore="0" canRestore="1">
+                    <label>Enable for Airwallex Card payment form</label>
+                    <source_model>Magento\ReCaptchaAdminUi\Model\OptionSource\Type</source_model>
+                </field>
             </group>
         </section>
     </system>

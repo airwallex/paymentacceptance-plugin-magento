@@ -18,10 +18,8 @@ define([
     'jquery',
     'ko',
     'Magento_Checkout/js/view/payment/default',
-    'mage/url',
-    'Magento_Ui/js/model/messageList',
     'mage/translate'
-], function ($, ko, Component, url, globalMessageList) {
+], function ($, ko, Component) {
     'use strict';
 
     return Component.extend({
@@ -88,8 +86,9 @@ define([
                     fonts: this.fonts
                 });
 
-                this.initPayment();
-                this.readyLoaded[this.code] = true;
+                this.initPayment().then(() => {
+                    this.readyLoaded[this.code] = true;
+                });
             } else {
                 $('body').trigger('processStop');
             }
@@ -97,29 +96,18 @@ define([
         },
 
         paymentSuccess: function (intent) {
-            this.intentStatus(intent.status);
-            this.amount(intent.amount);
+            this.intentStatus(intent?.status);
+            this.amount(intent?.amount);
             this.placeOrder();
-        },
-
-        intentConfiguration() {
-            return {
-                id: this.responseData.id,
-                client_secret: this.responseData.clientSecret
-            }
         },
 
         getElementConfiguration: function () {
             return {
-                autoCapture: false,
-                intent: this.intentConfiguration()
+                autoCapture: false
             };
         },
 
-        initPayment: function () {
-            if(!this.intentConfiguration().id){
-                this.createIntent();
-            }
+        initPayment: async function () {
             const airwallexElement = Airwallex.createElement(this.type, this.getElementConfiguration());
             airwallexElement.mount(this.mountElement);
 
@@ -136,55 +124,5 @@ define([
                 console.log(event.detail);
             });
         },
-
-        createIntent: function () {
-            const method = this.isChecked();
-            const payload = {
-                'method': method
-            }
-            $.ajax({
-                url: url.build('rest/V1/airwallex/payments/create_intent'),
-                method: 'POST',
-                contentType: 'application/json',
-                async:false,
-                data: JSON.stringify(payload),
-                success: function (result) {
-                    this.responseData = JSON.parse(result);
-                    this.intentId(this.responseData.id);
-                }.bind(this),
-                error: function () {
-                    globalMessageList.addErrorMessage({
-                        message: $.mage.__('An error occurred on the server. Please try to place the order again.'),
-                    });
-
-                    $('body').trigger('processStop');
-                }
-            });
-        },
-
-        refreshIntent: function () {
-            const payload = {
-                'intentId': this.intentConfiguration().id,
-                'method': this.isChecked()
-            }
-            $.ajax({
-                url: url.build('rest/V1/airwallex/payments/refresh_intent'),
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify(payload),
-                async:false,
-                success: function (result) {
-                    this.responseData = JSON.parse(result);
-                    this.intentId(this.responseData.id);
-                }.bind(this),
-                error: function () {
-                    globalMessageList.addErrorMessage({
-                        message: $.mage.__('An error occurred on the server. Please try to place the order again.'),
-                    });
-
-                    $('body').trigger('processStop');
-                }
-            });
-        }
     });
 });
