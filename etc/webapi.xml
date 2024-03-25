@@ -39,4 +39,14 @@
             <resource ref="anonymous"/>
         </resources>
     </route>
+
+    <route url="/V1/airwallex/customer/create" method="POST">
+        <service class="Airwallex\Payments\Api\PaymentConsentsInterface" method="createAirwallexCustomer"/>
+        <resources>
+            <resource ref="self"/>
+        </resources>
+        <data>
+            <parameter name="customerId" force="true">%customer_id%</parameter>
+        </data>
+    </route>
 </routes>

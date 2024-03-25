@@ -16,6 +16,7 @@
 
 namespace Airwallex\Payments\Setup\Patch\Data;
 
+use Airwallex\Payments\Model\PaymentConsents;
 use Magento\Customer\Model\Customer;
 use Magento\Eav\Setup\EavSetup;
 use Magento\Eav\Setup\EavSetupFactory;
@@ -46,7 +47,7 @@ class AddAirwallexCustomerIdAttribute implements DataPatchInterface
         /** @var EavSetup $eavSetup */
         $eavSetup = $this->eavSetupFactory->create(['setup' => $this->moduleDataSetup]);
 
-        $eavSetup->addAttribute(Customer::ENTITY, 'airwallex_customer_id', [
+        $eavSetup->addAttribute(Customer::ENTITY, PaymentConsents::KEY_AIRWALLEX_CUSTOMER_ID, [
             'type' => 'varchar',
             'label' => 'Airwallex Customer ID',
             'input' => 'text',
