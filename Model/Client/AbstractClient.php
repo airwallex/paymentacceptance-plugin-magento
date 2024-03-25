@@ -21,6 +21,7 @@ use Airwallex\Payments\Logger\Guzzle\RequestLogger;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use Magento\Framework\App\ProductMetadataInterface;
 use Magento\Framework\DataObject\IdentityService;
 use Magento\Framework\Module\ModuleListInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -58,6 +59,11 @@ abstract class AbstractClient
     protected Configuration $configuration;
 
     /**
+     * @var ProductMetadataInterface
+     */
+    protected ProductMetadataInterface $productMetada;
+
+    /**
      * @var ModuleListInterface
      */
     protected ModuleListInterface $moduleList;
@@ -81,12 +87,14 @@ abstract class AbstractClient
         IdentityService $identityService,
         RequestLogger $requestLogger,
         Configuration $configuration,
+        ProductMetadataInterface $productMetada,
         ModuleListInterface $moduleList
     ) {
         $this->authenticationHelper = $authenticationHelper;
         $this->identityService = $identityService;
         $this->requestLogger = $requestLogger;
         $this->configuration = $configuration;
+        $this->productMetada = $productMetada;
         $this->moduleList = $moduleList;
     }
 
@@ -209,6 +217,20 @@ abstract class AbstractClient
     }
 
     /**
+     * Get information about versions executing the request.
+     *
+     * @return array
+     */
+    protected function getMetadata(): array
+    {
+        return [
+            'php_version' => phpversion(),
+            'magento_version' => $this->productMetada->getVersion(),
+            'plugin_version' => $this->moduleList->getOne(Configuration::MODULE_NAME)['setup_version'],
+        ];
+    }
+
+    /**
      * Create request to Airwallex.
      *
      * @param Client $client
@@ -223,6 +245,7 @@ abstract class AbstractClient
         if ($method === 'POST') {
             $this->params['request_id'] = $this->identityService->generateId();
             $this->params['referrer_data'] = $this->getReferrerData();
+            $this->params['metadata'] = $this->getMetadata();
             $options['json'] = $this->params;
         }
 
