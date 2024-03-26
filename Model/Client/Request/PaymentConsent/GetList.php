@@ -13,21 +13,21 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
-namespace Airwallex\Payments\Model\Client\Request;
+namespace Airwallex\Payments\Model\Client\Request\PaymentConsent;
 
 use Airwallex\Payments\Api\Data\SavedPaymentResponseInterface;
+use Airwallex\Payments\Api\Data\SavedPaymentResponseInterfaceFactory;
 use Airwallex\Payments\Helper\AuthenticationHelper;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Logger\Guzzle\RequestLogger;
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
+use Airwallex\Payments\Model\SavedPaymentResponse;
 use Magento\Framework\DataObject\IdentityService;
 use Magento\Framework\Module\ModuleListInterface;
 use Psr\Http\Message\ResponseInterface;
-use Airwallex\Payments\Model\SavedPaymentResponse;
-use Airwallex\Payments\Api\Data\SavedPaymentResponseInterfaceFactory;
 
-class PaymentConsentList extends AbstractClient implements BearerAuthenticationInterface
+class GetList extends AbstractClient implements BearerAuthenticationInterface
 {
     const TRIGGER_REASON_SCHEDULED = 'scheduled';
     const TRIGGER_REASON_UNSCHEDULED = 'unscheduled';
@@ -66,7 +66,7 @@ class PaymentConsentList extends AbstractClient implements BearerAuthenticationI
 
     /**
      * @param string $airwallexCustomerId
-     * @return AbstractClient|PaymentConsentList
+     * @return AbstractClient|GetList
      */
     public function setCustomerId(string $airwallexCustomerId)
     {
@@ -76,7 +76,7 @@ class PaymentConsentList extends AbstractClient implements BearerAuthenticationI
     /**
      * @param int $pageNumber
      * @param int $pageSize
-     * @return AbstractClient|PaymentConsentList
+     * @return AbstractClient|GetList
      */
     public function setPage(int $pageNumber, int $pageSize = 20)
     {
@@ -86,7 +86,7 @@ class PaymentConsentList extends AbstractClient implements BearerAuthenticationI
 
     /**
      * @param string $status
-     * @return AbstractClient|PaymentConsentList
+     * @return AbstractClient|GetList
      */
     public function setStatus(string $status)
     {
@@ -95,7 +95,7 @@ class PaymentConsentList extends AbstractClient implements BearerAuthenticationI
 
     /**
      * @param string $triggerReason
-     * @return AbstractClient|PaymentConsentList
+     * @return AbstractClient|GetList
      */
     public function setTriggerReason(string $triggerReason)
     {
@@ -104,7 +104,7 @@ class PaymentConsentList extends AbstractClient implements BearerAuthenticationI
 
     /**
      * @param string $triggeredBy
-     * @return AbstractClient|PaymentConsentList
+     * @return AbstractClient|GetList
      */
     public function setNextTriggeredBy(string $triggeredBy)
     {

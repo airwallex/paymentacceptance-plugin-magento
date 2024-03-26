@@ -33,4 +33,11 @@ interface PaymentConsentsInterface
      * @return SavedPaymentResponseInterface[]
      */
     public function getSavedPayments($customerId);
+
+    /**
+     * @param int $customerId
+     * @param string $paymentConsentId
+     * @return bool
+     */
+    public function disablePaymentConsent($customerId, $paymentConsentId);
 }
