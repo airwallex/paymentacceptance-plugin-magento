@@ -16,6 +16,7 @@
 namespace Airwallex\Payments\Api;
 
 use Airwallex\Payments\Api\Data\PlaceOrderResponseInterface;
+use Airwallex\Payments\Api\Data\SavedPaymentResponseInterface;
 use Magento\Quote\Api\Data\AddressInterface;
 use Magento\Quote\Api\Data\PaymentInterface;
 
@@ -26,4 +27,10 @@ interface PaymentConsentsInterface
      * @return string
      */
     public function createAirwallexCustomer($customerId);
+
+    /**
+     * @param int $customerId
+     * @return SavedPaymentResponseInterface[]
+     */
+    public function getSavedPayments($customerId);
 }

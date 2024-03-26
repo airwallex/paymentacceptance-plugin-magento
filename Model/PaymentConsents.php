@@ -15,9 +15,12 @@
  */
 namespace Airwallex\Payments\Model;
 
+use Airwallex\Payments\Api\Data\SavedPaymentResponseInterface;
 use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Model\Client\Request\CreateCustomer;
+use Airwallex\Payments\Model\Client\Request\PaymentConsentList;
 use GuzzleHttp\Exception\GuzzleException;
+use JsonException;
 use Magento\Customer\Api\CustomerRepositoryInterface;
 use Magento\Customer\Api\Data\CustomerInterface;
 use Magento\Framework\Exception\InputException;
@@ -32,13 +35,16 @@ class PaymentConsents implements PaymentConsentsInterface
     const KEY_AIRWALLEX_CUSTOMER_ID = 'airwallex_customer_id';
 
     private CreateCustomer $createCustomer;
+    private PaymentConsentList $paymentConsentList;
     private CustomerRepositoryInterface $customerRepository;
 
     public function __construct(
         CreateCustomer $createCustomer,
+        PaymentConsentList $paymentConsentList,
         CustomerRepositoryInterface $customerRepository
     ) {
         $this->createCustomer = $createCustomer;
+        $this->paymentConsentList = $paymentConsentList;
         $this->customerRepository = $customerRepository;
     }
 
@@ -46,7 +52,7 @@ class PaymentConsents implements PaymentConsentsInterface
      * @param int $customerId
      * @return string
      * @throws GuzzleException
-     * @throws \JsonException
+     * @throws JsonException
      * @throws LocalizedException
      * @throws NoSuchEntityException
      */
@@ -79,5 +85,28 @@ class PaymentConsents implements PaymentConsentsInterface
         $customer->setCustomAttribute(self::KEY_AIRWALLEX_CUSTOMER_ID, $airwallexCustomerId);
 
         $this->customerRepository->save($customer);
+    }
+
+    /**
+     * @param $customerId
+     * @return SavedPaymentResponseInterface[]|array
+     * @throws LocalizedException
+     * @throws NoSuchEntityException
+     */
+    public function getSavedPayments($customerId)
+    {
+        $customer = $this->customerRepository->getById($customerId);
+        $airwallexCustomerIdAttribute = $customer->getCustomAttribute(self::KEY_AIRWALLEX_CUSTOMER_ID);
+
+        if (!$airwallexCustomerIdAttribute || !($airwallexCustomerId = $airwallexCustomerIdAttribute->getValue())) {
+            return [];
+        }
+
+        return $this->paymentConsentList
+            ->setCustomerId($airwallexCustomerId)
+            ->setPage(0, 200)
+            ->setNextTriggeredBy(PaymentConsentList::TRIGGERED_BY_CUSTOMER)
+            ->setTriggerReason(PaymentConsentList::TRIGGER_REASON_UNSCHEDULED)
+            ->send();
     }
 }
