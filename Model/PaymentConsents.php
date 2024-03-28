@@ -113,8 +113,8 @@ class PaymentConsents implements PaymentConsentsInterface
         return $this->paymentConsentList
             ->setCustomerId($airwallexCustomerId)
             ->setPage(0, 200)
-            ->setNextTriggeredBy(GetList::TRIGGERED_BY_CUSTOMER)
-            ->setTriggerReason(GetList::TRIGGER_REASON_UNSCHEDULED)
+//            ->setNextTriggeredBy(GetList::TRIGGERED_BY_CUSTOMER)
+//            ->setTriggerReason(GetList::TRIGGER_REASON_UNSCHEDULED)
             ->send();
     }
 
