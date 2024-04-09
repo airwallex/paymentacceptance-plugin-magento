@@ -129,7 +129,7 @@ class Service implements ServiceInterface
         /** @var PlaceOrderResponse $response */
         $response = $this->placeOrderResponseFactory->create();
         if ($intentId === null) {
-            $intent = $this->paymentIntents->getIntents();
+            $intent = $this->paymentIntents->getIntents(false);
             $this->cache->save(1, ReCaptchaValidationPlugin::getCacheKey($intent['id']), [], 3600);
 
             $response->setData([
@@ -170,7 +170,7 @@ class Service implements ServiceInterface
         /** @var PlaceOrderResponse $response */
         $response = $this->placeOrderResponseFactory->create();
         if ($intentId === null) {
-            $intent = $this->paymentIntents->getIntents();
+            $intent = $this->paymentIntents->getIntents(true);
             $this->cache->save(1, ReCaptchaValidationPlugin::getCacheKey($intent['id']), [], 3600);
 
             $response->setData([

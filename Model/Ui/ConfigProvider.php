@@ -18,9 +18,15 @@ please view the LICENSE
 
 namespace Airwallex\Payments\Model\Ui;
 
+use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Helper\Configuration;
+use Airwallex\Payments\Model\PaymentConsents;
 use Magento\Checkout\Model\ConfigProviderInterface;
+use Magento\Customer\Api\CustomerRepositoryInterface;
+use Magento\Customer\Model\Session;
 use Magento\Framework\Exception\InputException;
+use Magento\Framework\Exception\LocalizedException;
+use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\ReCaptchaUi\Block\ReCaptcha;
 use Magento\ReCaptchaUi\Model\IsCaptchaEnabledInterface;
 
@@ -31,21 +37,29 @@ class ConfigProvider implements ConfigProviderInterface
     protected Configuration $configuration;
     protected IsCaptchaEnabledInterface $isCaptchaEnabled;
     protected ReCaptcha $reCaptchaBlock;
+    protected Session $customerSession;
+    protected PaymentConsentsInterface $paymentConsents;
 
     /**
      * ConfigProvider constructor.
      * @param Configuration $configuration
      * @param IsCaptchaEnabledInterface $isCaptchaEnabled
      * @param ReCaptcha $reCaptchaBlock
+     * @param Session $customerSession
+     * @param PaymentConsentsInterface $paymentConsents
      */
     public function __construct(
         Configuration $configuration,
         IsCaptchaEnabledInterface $isCaptchaEnabled,
-        ReCaptcha $reCaptchaBlock
+        ReCaptcha $reCaptchaBlock,
+        Session $customerSession,
+        PaymentConsentsInterface $paymentConsents
     ) {
         $this->configuration = $configuration;
         $this->isCaptchaEnabled = $isCaptchaEnabled;
         $this->reCaptchaBlock = $reCaptchaBlock;
+        $this->customerSession = $customerSession;
+        $this->paymentConsents = $paymentConsents;
     }
 
     /**
@@ -73,6 +87,14 @@ class ConfigProvider implements ConfigProviderInterface
             ]);
             $config['payment']['airwallex_payments']['recaptcha_settings']
                 = $this->reCaptchaBlock->getCaptchaUiConfig();
+        }
+
+        if ($this->customerSession->isLoggedIn() && $customer = $this->customerSession->getCustomer()) {
+            $airwallexCustomerId = $customer->getData(PaymentConsents::KEY_AIRWALLEX_CUSTOMER_ID);
+            if (!$airwallexCustomerId) {
+                $airwallexCustomerId = $this->paymentConsents->createAirwallexCustomer($customer->getId());
+            }
+            $config['payment']['airwallex_payments']['customer_id'] = $airwallexCustomerId;
         }
 
         return $config;

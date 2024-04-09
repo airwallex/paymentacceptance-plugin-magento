@@ -42,6 +42,11 @@
 
         <div id="airwallex-payments-card-recaptcha"></div>
 
+        <!-- ko if: (showSaveCardCheckbox()) -->
+        <input id="airwallex-payments-card-save" type="checkbox" />
+        <label for="airwallex-payments-card-save" data-bind="i18n: 'Save card on customer'"></label>
+        <!-- /ko -->
+
         <p class="airwallex-error" data-bind="visible: validationError, text: validationError"></p>
 
         <div class="actions-toolbar" id="actions-toolbar">

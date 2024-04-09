@@ -31,7 +31,8 @@ define(
         'Magento_Checkout/js/model/full-screen-loader',
         'Magento_Checkout/js/model/url-builder',
         'Magento_Customer/js/model/customer',
-        'Airwallex_Payments/js/view/payment/method-renderer/card-method-recaptcha'
+        'Airwallex_Payments/js/view/payment/method-renderer/card-method-recaptcha',
+        'Airwallex_Payments/js/view/customer/payment-consent'
     ],
     function (
         $,
@@ -47,7 +48,8 @@ define(
         fullScreenLoader,
         urlBuilder,
         customer,
-        cardMethodRecaptcha
+        cardMethodRecaptcha,
+        paymentConsent
     ) {
         'use strict';
 
@@ -110,6 +112,14 @@ define(
                 self.placeOrder();
             },
 
+            showSaveCardCheckbox: function () {
+                return !!paymentConsent.getCustomerId();
+            },
+
+            isSaveCardSelected: function () {
+                return $('#airwallex-payments-card-save')?.is(':checked');
+            },
+
             placeOrder: function (data, event) {
                 const self = this;
 
@@ -157,17 +167,28 @@ define(
                                 serviceUrl, JSON.stringify(payload), true, 'application/json', headers
                             );
 
-                            const params = {};
-                            params.id = intentResponse.intent_id;
-                            params.client_secret = intentResponse.client_secret;
-                            params.payment_method = {};
-                            params.payment_method.billing = self.getBillingInformation();
-                            params.element = self.cardElement;
+                            if (self.isSaveCardSelected()) {
+                                await Airwallex.createPaymentConsent({
+                                    intent_id: intentResponse.intent_id,
+                                    customer_id: paymentConsent.getCustomerId(),
+                                    client_secret: intentResponse.client_secret,
+                                    currency: quote.totals().quote_currency_code,
+                                    element: self.cardElement,
+                                    next_triggered_by: 'customer'
+                                });
+                            } else {
+                                await Airwallex.confirmPaymentIntent({
+                                    id: intentResponse.intent_id,
+                                    client_secret: intentResponse.client_secret,
+                                    payment_method: {
+                                        billing: self.getBillingInformation()
+                                    },
+                                    element: self.cardElement
+                                });
+                            }
 
                             payload.intent_id = intentResponse.intent_id;
                             payload.xReCaptchaValue = null;
-
-                            const airwallexResponse = await Airwallex.confirmPaymentIntent(params);
 
                             const endResult = await storage.post(
                                 serviceUrl, JSON.stringify(payload), true, 'application/json', headers

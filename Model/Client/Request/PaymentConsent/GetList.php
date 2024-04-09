@@ -123,8 +123,8 @@ class GetList extends AbstractClient implements BearerAuthenticationInterface
 
         $result = [];
         foreach ($request->items as $item) {
-            if (!method_exists($item, 'payment_method')
-                || !method_exists($item->payment_method, 'card')) {
+            if (!property_exists($item, 'payment_method')
+                || !property_exists($item->payment_method, 'card')) {
                 continue;
             }
 
