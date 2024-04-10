@@ -13,6 +13,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+
 namespace Airwallex\Payments\Helper;
 
 use Airwallex\Payments\Model\Config\Source\Mode;
@@ -24,6 +25,8 @@ class Configuration extends AbstractHelper
     public const MODULE_NAME = 'Airwallex_Payments';
     private const DEMO_BASE_URL = 'https://pci-api-demo.airwallex.com/api/v1/';
     private const PRODUCTION_BASE_URL = 'https://pci-api.airwallex.com/api/v1/';
+
+    private const EXPRESS_PREFIX = 'payment/airwallex_payments_express/';
 
     /**
      * @return string|null
@@ -97,5 +100,69 @@ class Configuration extends AbstractHelper
     public function isCaptureEnabled()
     {
         return $this->scopeConfig->getValue('payment/airwallex_payments_card/airwallex_payment_action') === MethodInterface::ACTION_AUTHORIZE_CAPTURE;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isExpressCaptureEnabled()
+    {
+        return $this->scopeConfig->getValue('payment/airwallex_payments_express/airwallex_payment_action') === MethodInterface::ACTION_AUTHORIZE_CAPTURE;
+    }
+
+    /**
+     * @return string
+     */
+    public function getExpressSellerName()
+    {
+        return $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'seller_name');
+    }
+
+    /**
+     * @return array
+     */
+    public function getExpressStyle()
+    {
+        return [
+            "button_height" => $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'button_height'),
+            "apple_pay_button_theme" => $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'apple_pay_button_theme'),
+            "google_pay_button_theme" => $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'google_pay_button_theme'),
+            "apple_pay_button_type" => $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'apple_pay_button_type'),
+            "google_pay_button_type" => $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'google_pay_button_type'),
+        ];
+    }
+
+    /**
+     * @return bool
+     */
+    public function isExpressActive(): bool
+    {
+        return !!$this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'active');
+    }
+
+    /**
+     * @return bool
+     */
+    public function isExpressPhoneRequired(): bool
+    {
+        return $this->scopeConfig->getValue('customer/address/telephone_show') === "req";
+    }
+
+    public function getCountryCode(): string
+    {
+        return $this->scopeConfig->getValue('paypal/general/merchant_country')
+            ?: $this->scopeConfig->getValue('general/country/default');
+    }
+
+    /**
+     * @return array
+     */
+    public function getExpressButtonSort()
+    {
+        $sorts = [];
+        $sorts['google'] = (int)$this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'google_pay_sort_order');
+        $sorts['apple'] = (int)$this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'apple_pay_sort_order');
+        asort($sorts);
+        return array_keys($sorts);
     }
 }

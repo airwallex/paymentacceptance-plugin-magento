@@ -29,6 +29,23 @@
             </general>
         </airwallex>
         <payment>
+            <airwallex_payments_express>
+                <active>0</active>
+                <model>AirwallexPaymentsExpressGatewayFacade</model>
+                <title>Express Checkout (Airwallex)</title>
+                <allowspecific>0</allowspecific>
+                <!-- <enabled>product_page,minicart,shopping_cart_page,chevckout_page</enabled> -->
+                <button_height>50</button_height>
+                <apple_pay_button_theme>black</apple_pay_button_theme>
+                <google_pay_button_theme>black</google_pay_button_theme>
+                <apple_pay_button_type>plain</apple_pay_button_type>
+                <google_pay_button_type>buy</google_pay_button_type>
+                <is_gateway>1</is_gateway>
+                <can_authorize>1</can_authorize>
+                <can_capture>1</can_capture>
+                <can_use_checkout>1</can_use_checkout>
+                <airwallex_payment_action>authorize_capture</airwallex_payment_action>
+            </airwallex_payments_express>
             <airwallex_payments_card>
                 <active>0</active>
                 <model>AirwallexPaymentsCardsGatewayFacade</model>

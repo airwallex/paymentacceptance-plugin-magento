@@ -52,6 +52,14 @@ class AvailablePaymentMethodsHelper
     private Configuration $configuration;
 
     /**
+     * @var array
+     */
+    protected $methodsInExpress = [
+        'googlepay',
+        'applepay',
+    ];
+
+    /**
      * AvailablePaymentMethodsHelper constructor.
      *
      * @param AvailablePaymentMethods $availablePaymentMethod
@@ -98,6 +106,9 @@ class AvailablePaymentMethodsHelper
      */
     public function isAvailable(string $code): bool
     {
+        if ($code === 'express') {
+            return $this->canInitialize() && !!array_intersect($this->methodsInExpress, $this->getAllMethods());
+        }
         return $this->canInitialize() && in_array($code, $this->getAllMethods(), true);
     }
 

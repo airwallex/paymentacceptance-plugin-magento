@@ -8,11 +8,11 @@
  * to newer versions in the future.
  *
  * @copyright Copyright (c) 2021 Magebit,
-Ltd. (https://magebit.com/)
+ * Ltd. (https://magebit.com/)
  * @license   GNU General Public License ("GPL") v3.0
  *
  * For the full copyright and license information,
-please view the LICENSE
+ * please view the LICENSE
  * file that was distributed with this source code.
  */
 
@@ -39,10 +39,11 @@ class ConfigProvider implements ConfigProviderInterface
      * @param ReCaptcha $reCaptchaBlock
      */
     public function __construct(
-        Configuration $configuration,
+        Configuration             $configuration,
         IsCaptchaEnabledInterface $isCaptchaEnabled,
-        ReCaptcha $reCaptchaBlock
-    ) {
+        ReCaptcha                 $reCaptchaBlock
+    )
+    {
         $this->configuration = $configuration;
         $this->isCaptchaEnabled = $isCaptchaEnabled;
         $this->reCaptchaBlock = $reCaptchaBlock;
@@ -61,8 +62,15 @@ class ConfigProvider implements ConfigProviderInterface
             'payment' => [
                 'airwallex_payments' => [
                     'mode' => $this->configuration->getMode(),
+                    'express_seller_name' => $this->configuration->getExpressSellerName(),
+                    'is_express_active' => $this->configuration->isExpressActive(),
+                    'is_express_phone_required' => $this->configuration->isExpressPhoneRequired(),
+                    'is_express_capture_enabled' => $this->configuration->isExpressCaptureEnabled(),
+                    'express_style' => $this->configuration->getExpressStyle(),
+                    'express_button_sort' => $this->configuration->getExpressButtonSort(),
                     'cc_auto_capture' => $this->configuration->isCaptureEnabled(),
-                    'recaptcha_enabled' => !!$recaptchaEnabled
+                    'recaptcha_enabled' => !!$recaptchaEnabled,
+                    'country_code' => $this->configuration->getCountryCode(),
                 ]
             ]
         ];
