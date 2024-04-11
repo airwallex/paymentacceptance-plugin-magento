@@ -38,11 +38,43 @@
             <!--/ko-->
         </div>
 
-        <div id='airwallex-payments-card-form' class="airwallex-payment-frame airwallex-card" data-bind="css: {'error': validationError}, afterRender: loadPayment"></div>
+        <!-- ko if: (isAirwallexCustomer() && savedCards().length) -->
+        <style>
+            #airwallex-payments-saved-card-list tr.selected {
+                background: red;
+            }
+        </style>
+
+        <h4 data-bind="i18n: 'Saved Cards'"></h4>
+        <div id="airwallex-payments-saved-card-list">
+            <!-- ko foreach: savedCards -->
+            <div class="airwallex-payments-saved-card-item"
+                 data-bind="click: $parent.selectSavedCard.bind($parent, consent_id)">
+                <label>
+                    <input type="radio" name="airwallex-selected-card" data-bind="value: consent_id">
+                </label>
+                <span data-bind="text: brand" class="brand"></span>
+                <span data-bind="text: last4" class="last4"></span>
+                <span data-bind="text: expiry" class="expiry"></span>
+            </div>
+            <!--/ko-->
+
+            <div class="airwallex-payments-saved-card-item new-card"
+                 data-bind="click: selectSavedCard.bind($data, '__new_card__')">
+                <label>
+                    <input type="radio" name="airwallex-selected-card"  data-bind="value: '__new_card__'" checked>
+                </label>
+                <span data-bind="i18n: 'New Card'"></span>
+            </div>
+        </div>
+        <!-- /ko -->
+
+        <div id="airwallex-payments-card-form" class="airwallex-payment-frame airwallex-card"
+             data-bind="css: {'error': validationError}, visible: showNewCardForm, afterRender: loadPayment"></div>
 
         <div id="airwallex-payments-card-recaptcha"></div>
 
-        <!-- ko if: (showSaveCardCheckbox()) -->
+        <!-- ko if: (isAirwallexCustomer() && showNewCardForm) -->
         <input id="airwallex-payments-card-save" type="checkbox" />
         <label for="airwallex-payments-card-save" data-bind="i18n: 'Save card on customer'"></label>
         <!-- /ko -->
