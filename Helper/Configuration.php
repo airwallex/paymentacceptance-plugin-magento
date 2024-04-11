@@ -97,4 +97,12 @@ class Configuration extends AbstractHelper
     public function isCaptureEnabled() {
         return $this->scopeConfig->getValue('payment/airwallex_payments_card/airwallex_payment_action') === MethodInterface::ACTION_AUTHORIZE_CAPTURE;
     }
+
+    /**
+     * @return bool
+     */
+    public function isCvcRequired(): bool
+    {
+        return !!$this->scopeConfig->getValue('payment/airwallex_payments_card/cvc_required');
+    }
 }

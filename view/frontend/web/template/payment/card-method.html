@@ -69,6 +69,12 @@
         </div>
         <!-- /ko -->
 
+        <!-- ko if: (isCvcRequired) -->
+        <label for="airwallex-payments-cvc-form" data-bind="i18n: 'Card CVC code', hidden: showNewCardForm"></label>
+        <div id="airwallex-payments-cvc-form" class="airwallex-payment-frame airwallex-cvc"
+             data-bind="hidden: showNewCardForm, afterRender: initCvcForm"></div>
+        <!-- /ko -->
+
         <div id="airwallex-payments-card-form" class="airwallex-payment-frame airwallex-card"
              data-bind="css: {'error': validationError}, visible: showNewCardForm, afterRender: loadPayment"></div>
 
@@ -78,6 +84,7 @@
         <input id="airwallex-payments-card-save" type="checkbox" />
         <label for="airwallex-payments-card-save" data-bind="i18n: 'Save card on customer'"></label>
         <!-- /ko -->
+
 
         <p class="airwallex-error" data-bind="visible: validationError, text: validationError"></p>
 

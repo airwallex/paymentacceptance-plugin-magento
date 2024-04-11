@@ -57,11 +57,15 @@ define(
             code: 'airwallex_payments_card',
             type: 'card',
             mountElement: 'airwallex-payments-card-form',
+            cvcMountElement: 'airwallex-payments-cvc-form',
             cardElement: undefined,
+            cvcElement: undefined,
             savedCards: ko.observableArray(),
             validationError: ko.observable(),
             showNewCardForm: ko.observable(true),
+            showCvcForm: ko.observable(false),
             isRecaptchaEnabled: !!window.checkoutConfig?.payment?.airwallex_payments?.recaptcha_enabled,
+            isCvcRequired: !!window?.checkoutConfig?.payment?.airwallex_payments?.cvc_required,
             recaptcha: null,
             defaults: {
                 template: 'Airwallex_Payments/payment/card-method'
@@ -116,6 +120,20 @@ define(
                 this.validationError(undefined);
 
                 self.placeOrder();
+            },
+
+            initCvcForm: function() {
+                if (!this.isAirwallexCustomer() || !this.isCvcRequired || this.cvcElement !== undefined) {
+                    return;
+                }
+
+                this.cvcElement = Airwallex.createElement(
+                    'cvc',
+                    {
+                        autoCapture: window.checkoutConfig.payment.airwallex_payments.cc_auto_capture
+                    }
+                );
+                this.cvcElement.mount(this.cvcMountElement);
             },
 
             loadSavedCards: async function () {
@@ -211,19 +229,29 @@ define(
 
                             const selectedConsentId = self.getSelectedSavedCard();
                             if (selectedConsentId) {
-                                await Airwallex.confirmPaymentIntent({
+                                const response = await Airwallex.confirmPaymentIntent({
                                     id: intentResponse.intent_id,
                                     client_secret: intentResponse.client_secret,
-                                    payment_consent_id: selectedConsentId
+                                    payment_consent_id: selectedConsentId,
+                                    payment_method: {
+                                        billing: self.getBillingInformation()
+                                    },
+                                    element: self.isCvcRequired ? self.cvcElement : undefined
                                 });
+                                console.debug(response);
+                                debugger;
                             } else if (self.isSaveCardSelected()) {
                                 await Airwallex.createPaymentConsent({
                                     intent_id: intentResponse.intent_id,
                                     customer_id: paymentConsent.getCustomerId(),
                                     client_secret: intentResponse.client_secret,
                                     currency: quote.totals().quote_currency_code,
+                                    payment_method: {
+                                        billing: self.getBillingInformation()
+                                    },
                                     element: self.cardElement,
-                                    next_triggered_by: 'customer'
+                                    next_triggered_by: 'customer',
+                                    requires_cvc: self.isCvcRequired
                                 });
                             } else {
                                 await Airwallex.confirmPaymentIntent({

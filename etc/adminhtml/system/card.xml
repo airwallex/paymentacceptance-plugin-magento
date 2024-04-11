@@ -47,6 +47,11 @@
                 <field id="allowspecific">1</field>
             </depends>
         </field>
+        <field id="cvc_required" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1" canRestore="1">
+            <label>CVC Required</label>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <config_path>payment/airwallex_payments_card/cvc_required</config_path>
+        </field>
         <field id="sort_order" translate="label" type="text" sortOrder="210" showInDefault="1" showInWebsite="1" showInStore="1">
             <label>Sort Order</label>
             <comment>Adjust this to move the payment method above or below other payment methods</comment>
