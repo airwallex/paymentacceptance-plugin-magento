@@ -1,0 +1,23 @@
+<div data-bind="if: paymentMethods() === null">
+    <p data-bind="i18n: 'Loading...'"></p>
+</div>
+
+<div data-bind="if: paymentMethods() === false">
+    <p data-bind="i18n: 'No saved cards.'"></p>
+</div>
+
+<table data-bind="visible: paymentMethods">
+    <thead>
+    <tr>
+        <th data-bind="i18n: 'Card'"></th>
+        <th data-bind="i18n: 'Last Four Digits'"></th>
+    </tr>
+    </thead>
+    <tbody data-bind="foreach: paymentMethods">
+    <tr>
+        <td data-bind="text: $data.card_brand"></td>
+        <td data-bind="text: $data.card_last_four"></td>
+        <td><a data-bind="i18n: 'Delete', click: $parent.deletePaymentMethod.bind($parent)"></a></td>
+    </tr>
+    </tbody>
+</table>

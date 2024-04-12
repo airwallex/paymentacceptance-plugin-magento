@@ -1,0 +1,16 @@
+<div id="payment-methods" data-bind="scope:'paymentMethods'">
+    <!-- ko template: getTemplate() --><!-- /ko -->
+    <script type="text/x-magento-init">
+        {
+            "#payment-methods": {
+                "Magento_Ui/js/core/app": {
+                   "components": {
+                        "paymentMethods": {
+                            "component": "Airwallex_Payments/js/payment-methods"
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</div>
