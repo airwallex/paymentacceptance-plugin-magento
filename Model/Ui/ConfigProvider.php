@@ -62,15 +62,8 @@ class ConfigProvider implements ConfigProviderInterface
             'payment' => [
                 'airwallex_payments' => [
                     'mode' => $this->configuration->getMode(),
-                    'express_seller_name' => $this->configuration->getExpressSellerName(),
-                    'is_express_active' => $this->configuration->isExpressActive(),
-                    'is_express_phone_required' => $this->configuration->isExpressPhoneRequired(),
-                    'is_express_capture_enabled' => $this->configuration->isExpressCaptureEnabled(),
-                    'express_style' => $this->configuration->getExpressStyle(),
-                    'express_button_sort' => $this->configuration->getExpressButtonSort(),
                     'cc_auto_capture' => $this->configuration->isCaptureEnabled(),
                     'recaptcha_enabled' => !!$recaptchaEnabled,
-                    'country_code' => $this->configuration->getCountryCode(),
                 ]
             ]
         ];

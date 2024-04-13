@@ -1,4 +1,4 @@
-<div class="airwallex-express-checkout" data-bind="if: isExpressActive()">
+<div class="airwallex-express-checkout" data-bind="if: isExpressActive">
     <div data-role="title" class="express-title">
         <!-- ko i18n: 'Express Checkout' --><!-- /ko -->
     </div>
@@ -15,5 +15,5 @@
             </div>
         </div>
     </div>
-    <div data-bind="afterRender: observePayment"></div>
 </div>
+<div data-bind="afterRender: observePayment"></div>

@@ -34,6 +34,7 @@ use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Payment\Model\MethodInterface;
 use Magento\Quote\Api\Data\AddressInterface;
 use Magento\Quote\Api\Data\PaymentInterface;
+use Magento\Quote\Model\QuoteIdToMaskedQuoteIdInterface;
 
 class Service implements ServiceInterface
 {
@@ -44,6 +45,7 @@ class Service implements ServiceInterface
     protected PaymentInformationManagementInterface $paymentInformationManagement;
     protected PlaceOrderResponseInterfaceFactory $placeOrderResponseFactory;
     protected CacheInterface $cache;
+    protected QuoteIdToMaskedQuoteIdInterface $quoteIdToMaskedQuoteId;
 
     /**
      * Index constructor.
@@ -63,7 +65,8 @@ class Service implements ServiceInterface
         GuestPaymentInformationManagementInterface $guestPaymentInformationManagement,
         PaymentInformationManagementInterface $paymentInformationManagement,
         PlaceOrderResponseInterfaceFactory $placeOrderResponseFactory,
-        CacheInterface $cache
+        CacheInterface $cache,
+        QuoteIdToMaskedQuoteIdInterface $quoteIdToMaskedQuoteId
     ) {
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
@@ -72,6 +75,7 @@ class Service implements ServiceInterface
         $this->paymentInformationManagement = $paymentInformationManagement;
         $this->placeOrderResponseFactory = $placeOrderResponseFactory;
         $this->cache = $cache;
+        $this->quoteIdToMaskedQuoteId = $quoteIdToMaskedQuoteId;
     }
 
     /**
@@ -192,5 +196,43 @@ class Service implements ServiceInterface
         }
 
         return $response;
+    }
+
+    /**
+     * @return string
+     */
+    public function getQuote()
+    {
+        $quote = $this->checkoutHelper->getQuote();
+        $cartId = $quote->getId() ?? 0;
+        try {
+            $maskCartId =  $this->quoteIdToMaskedQuoteId->execute($cartId);
+        } catch (NoSuchEntityException $e) {
+            $maskCartId = '';
+        }
+
+
+        return json_encode([
+            'subtotal' => $quote->getSubtotal() ?? 0,
+            'grand_total' => $quote->getGrandTotal() ?? 0,
+            'shipping_amount' => $quote->getShippingAddress()->getShippingAmount() ?? 0,
+            'tax_amount' => $quote->getShippingAddress()->getTaxAmount() ?? 0,
+            'grand_subtotal_with_discount' => $quote->getSubtotalWithDiscount() ?? 0,
+            'cart_id' => $cartId,
+            'mask_cart_id' => $maskCartId,
+            'is_virtual' => $quote->isVirtual(),
+            'customer_id' => $quote->getCustomer()->getId(),
+            'quote_currency_code' => $quote->getQuoteCurrencyCode(),
+            'settings' => [
+                'mode' => $this->configuration->getMode(),
+                'express_seller_name' => $this->configuration->getExpressSellerName(),
+                'is_express_active' => $this->configuration->isExpressActive(),
+                'is_express_phone_required' => $this->configuration->isExpressPhoneRequired(),
+                'is_express_capture_enabled' => $this->configuration->isExpressCaptureEnabled(),
+                'express_style' => $this->configuration->getExpressStyle(),
+                'express_button_sort' => $this->configuration->getExpressButtonSort(),
+                'country_code' => $this->configuration->getCountryCode(),
+            ]
+        ]);
     }
 }

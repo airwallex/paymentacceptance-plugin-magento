@@ -55,4 +55,9 @@ interface ServiceInterface
      * @return string
      */
     public function redirectUrl(): string;
+
+    /**
+     * @return string
+     */
+    public function getQuote();
 }

@@ -39,8 +39,11 @@
                                                             <item name="component" xsi:type="string">uiComponent</item>
                                                             <item name="displayArea" xsi:type="string">beforeMethods</item>
                                                             <item name="children" xsi:type="array">
-                                                                <item name="airwallex_payments" xsi:type="array">
+                                                                <item name="airwallex_payments_express_checkout" xsi:type="array">
                                                                     <item name="component" xsi:type="string">Airwallex_Payments/js/view/payment/method-renderer/express-checkout</item>
+                                                                    <item name="config" xsi:type="array">
+                                                                        <item name="template" xsi:type="string">Airwallex_Payments/payment/express-checkout</item>
+                                                                    </item>
                                                                 </item>
                                                             </item>
                                                         </item>

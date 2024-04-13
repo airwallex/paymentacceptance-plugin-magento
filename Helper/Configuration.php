@@ -148,6 +148,9 @@ class Configuration extends AbstractHelper
         return $this->scopeConfig->getValue('customer/address/telephone_show') === "req";
     }
 
+    /**
+     * @return string
+     */
     public function getCountryCode(): string
     {
         return $this->scopeConfig->getValue('paypal/general/merchant_country')

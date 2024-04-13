@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" layout="1column" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <head>
+        <script src="https://checkout.airwallex.com/assets/elements.bundle.min.js" src_type="url" />
+        <css src="Airwallex_Payments::css/airwallex_payment.css" />
+    </head>
+    <body>
+        <referenceContainer name="checkout.cart.methods">
+            <block class="Magento\Checkout\Block\Onepage\Link" name="checkout.cart.methods.onepage.express" template="Airwallex_Payments::onepage/express.phtml" before="checkout.cart.methods.onepage.bottom" />
+        </referenceContainer>
+    </body>
+</page>

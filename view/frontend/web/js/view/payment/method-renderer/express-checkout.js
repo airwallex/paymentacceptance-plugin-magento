@@ -2,32 +2,24 @@ define(
     [
         'jquery',
         'ko',
-        'Magento_Checkout/js/model/quote',
-        'Magento_Checkout/js/model/payment/additional-validators',
-        'Magento_Checkout/js/action/redirect-on-success',
         'mage/storage',
+        'Magento_Checkout/js/model/quote',
         'Magento_Customer/js/customer-data',
-        'Magento_Checkout/js/model/payment/place-order-hooks',
-        'Magento_Checkout/js/model/error-processor',
-        'Magento_Checkout/js/model/full-screen-loader',
+        'Magento_Checkout/js/model/error-processor', // todo
+        'mage/url',
         'Magento_Checkout/js/model/url-builder',
-        'Magento_Customer/js/model/customer',
         'uiComponent',
-        'Airwallex_Payments/js/view/payment/method-renderer/card-method-recaptcha'
+        'Airwallex_Payments/js/view/payment/method-renderer/card-method-recaptcha' // todo
     ],
     function (
         $,
         ko,
-        quote,
-        additionalValidators,
-        redirectOnSuccessAction,
         storage,
+        quote,
         customerData,
-        placeOrderHooks,
         errorProcessor,
-        fullScreenLoader,
+        url,
         urlBuilder,
-        customer,
         Component,
         cardMethodRecaptcha
     ) {
@@ -35,20 +27,16 @@ define(
         return Component.extend({
             code: 'airwallex_payments_express',
             defaults: {
-                paymentConfig: window.checkoutConfig.payment.airwallex_payments,
-                totalsData: window.checkoutConfig.totalsData,
-                template: 'Airwallex_Payments/payment/express-checkout',
+                paymentConfig: {},
                 recaptcha: null,
                 validationError: ko.observable(),
+                isExpressActive: ko.observable(false),
                 googlepay: null,
-                redirectAfterPlaceOrder: true,
-                shipment: {
-                    "shipping_address": {},
-                    "billing_address": {},
-                    "shipping_method_code": '',
-                    "shipping_carrier_code": ''
-                },
-                isExpressLoaded: false
+                isExpressLoaded: false,
+                quoteRemote: {},
+                guestEmail: "", // todo how about the checkout page
+                billingAddress: {},
+                shippingMethods: [],
             },
 
             getOptions() {
@@ -84,7 +72,7 @@ define(
 
                 const transactionInfo = {
                     amount: {
-                        value: this.getGrandTotal(),
+                        value: this.formatCurrency(this.quoteRemote.grand_total),
                         currency: this.getCurrencyCode(),
                     },
                     countryCode: this.getCountryCode(),
@@ -104,51 +92,69 @@ define(
 
             getDisplayItems() {
                 let res = [];
-                for (let i = 0; i < this.totalsData.total_segments.length; i++) {
-                    let el = this.totalsData.total_segments[i];
-                    el.value = this.formatPrice(el.value).toString()
-                    if (el.code === 'shipping') {
-                        res.push({'label': 'Shipping', 'type': 'LINE_ITEM', 'price': el.value})
-                    } else if (el.code === 'tax') {
-                        res.push({'label': 'Tax', 'type': 'TAX', 'price': el.value})
-                    } else if (el.code === 'subtotal') {
-                        res.push({'label': 'Subtotal', 'type': 'SUBTOTAL', 'price': el.value})
+                for (let key in this.quoteRemote) {
+                    if (this.quoteRemote[key] === '0.0000') {
+                        continue
+                    }
+                    if (key === 'shipping_amount') {
+                        res.push({
+                            'label': 'Shipping',
+                            'type': 'LINE_ITEM',
+                            'price': this.formatCurrency(this.quoteRemote[key])
+                        })
+                    } else if (key === 'tax_amount') {
+                        res.push({
+                            'label': 'Tax',
+                            'type': 'TAX',
+                            'price': this.formatCurrency(this.quoteRemote[key])
+                        })
+                    } else if (key === 'subtotal') {
+                        res.push({
+                            'label': 'Subtotal',
+                            'type': 'SUBTOTAL',
+                            'price': this.formatCurrency(this.quoteRemote[key])
+                        })
+                    } else if (key === 'grand_subtotal_with_discount') {
+                        if (this.quoteRemote[key] !== this.quoteRemote['subtotal']) {
+                            res.push({
+                                'label': 'Discount',
+                                'type': 'LINE_ITEM',
+                                'price': '-' + this.getDiscount().toString()
+                            })
+                        }
                     }
                 }
                 return res
+            },
+
+            getDiscount() {
+                let diff = this.quoteRemote['subtotal'] - this.quoteRemote['grand_subtotal_with_discount']
+                return diff.toFixed(2)
             },
 
             formatPrice(p) {
                 return parseFloat(parseFloat(p).toFixed(2))
             },
 
-            isExpressActive() {
-                return this.paymentConfig.is_express_active
-            },
-
-            getGrandTotal() {
-                let res = 0
-                for (let i = 0; i < this.totalsData.total_segments.length; i++) {
-                    let el = this.totalsData.total_segments[i];
-                    if (el.code === 'grand_total') {
-                        res = el.value
-                        break
-                    }
-                }
-                return parseFloat(res).toFixed(2)
+            formatCurrency(v) {
+                return parseFloat(v).toFixed(2)
             },
 
             getCurrencyCode() {
-                return this.totalsData.quote_currency_code
+                return this.quoteRemote.quote_currency_code
             },
 
             isShippingRequired() {
-                return !quote.isVirtual() && location.hash !== '#payment'
+                return !this.quoteRemote.is_virtual && location.hash !== '#payment'
             },
 
-            formatShippingOptions(address) {
-                const addresses = Array.isArray(address) ? address : [address];
-                const shippingOptions = addresses.map(addr => {
+
+            setGuestEmail(email) {
+                this.guestEmail = email
+            },
+
+            formatShippingMethodsToGoogle(methods, selectedMethod) {
+                const shippingOptions = methods.map(addr => {
                     return {
                         id: addr.carrier_code,
                         label: addr.method_code,
@@ -156,20 +162,14 @@ define(
                     };
                 });
 
-                let defaultSelectedOptionId = shippingOptions.length > 0 ? shippingOptions[0].id : undefined;
-                shippingOptions.forEach(option => {
-                    if (option.id === window.checkoutConfig.selectedShippingMethod.carrier_code) {
-                        defaultSelectedOptionId = option.id;
-                    }
-                });
-
                 return {
                     shippingOptions,
-                    defaultSelectedOptionId
+                    defaultSelectedOptionId: selectedMethod.carrier_code
                 };
             },
 
             observePayment() {
+                let self = this;
                 let targetNode = document.getElementById('payment');
                 let config = {attributes: true, attributeFilter: ['style']};
 
@@ -179,7 +179,7 @@ define(
                             let displayStyle = window.getComputedStyle(targetNode).display;
                             if (displayStyle !== 'none') {
                                 if (!this.isExpressLoaded) {
-                                    this.loadPayment()
+                                    self.loadPayment()
                                 }
                             } else {
                                 this.isExpressLoaded = false
@@ -194,8 +194,46 @@ define(
                 observer.observe(targetNode, config);
             },
 
-            loadPayment() {
+            async fetchQuote() {
+                let url = urlBuilder.createUrl('/airwallex/payments/get-quote', {})
+                const resp = await storage.get(
+                    url, true, 'application/json', {}
+                );
+                let obj = JSON.parse(resp)
+                this.quoteRemote = obj
+                this.paymentConfig = obj.settings
+            },
+
+            postShippingInformation(payload) {
+                let url = '/carts/mine/shipping-information';
+                if (!this.isLoggedIn()) {
+                    url = '/guest-carts/' + this.getCartId() + '/shipping-information'
+                }
+                return storage.post(
+                    urlBuilder.createUrl(url, {}), JSON.stringify(payload)
+                );
+            },
+
+            estimateShippingMethods(address) {
+                let url = '/carts/mine/estimate-shipping-methods';
+                if (!this.isLoggedIn()) {
+                    url = '/guest-carts/' + this.getCartId() + '/estimate-shipping-methods'
+                }
+                return storage.post(
+                    urlBuilder.createUrl(url, {}),
+                    JSON.stringify({address})
+                );
+            },
+
+            async loadPayment() {
+                if (this.isExpressLoaded) {
+                    return;
+                }
                 this.isExpressLoaded = true
+
+                let self = this;
+                await this.fetchQuote();
+                this.isExpressActive(this.paymentConfig.is_express_active)
 
                 this.recaptcha = cardMethodRecaptcha();
                 this.recaptcha.renderReCaptcha();
@@ -211,28 +249,41 @@ define(
                 this.googlepay = googlepay
                 googlepay.mount('awx-google-pay');
 
-                googlepay.on('shippingAddressChange', async (event) => {
-                    let eventAddress = event.detail.intermediatePaymentData.shippingAddress
-                    let address = {
-                        "region": eventAddress.administrativeArea,
-                        "country_id": eventAddress.countryCode,
-                        "postcode": eventAddress.postalCode,
-                        "city": eventAddress.locality,
-                    }
-                    const resp = await storage.post(
-                        '/rest/default/V1/carts/mine/estimate-shipping-methods', JSON.stringify({address}), true, 'application/json'
-                    );
+                let updateQuoteByShipment = async (event) => {
+                    // 1. estimateShippingMethods
+                    let addr = self.getIntermediateShippingAddressFromGoogle(event.detail.intermediatePaymentData.shippingAddress)
+                    this.methods = await this.estimateShippingMethods(addr)
+                    // 2. postShippingInformation
+                    let {information, selectedMethod} = self.constructAddressInformationForGoogle(
+                        event.detail.intermediatePaymentData,
+                        this.methods
+                    )
+                    let newQuote = await self.postShippingInformation(information)
+                    // 3. update quote
+                    await self.fetchQuote()
 
                     let options = this.getGooglePayRequestOptions();
-                    options.shippingOptionParameters = this.formatShippingOptions(resp)
+                    options.shippingOptionParameters = this.formatShippingMethodsToGoogle(this.methods, selectedMethod)
                     googlepay.update(options);
-                });
+                }
+                googlepay.on('shippingAddressChange', updateQuoteByShipment);
 
-                googlepay.on('shippingMethodChange', async (event) => {
-                    googlepay.update();
-                });
+                googlepay.on('shippingMethodChange', updateQuoteByShipment);
 
                 googlepay.on('authorized', async (event) => {
+                    // only here set the billing address
+                    // this time we have full shipping address information
+                    let {information, selectedMethod} = self.constructAddressInformationForGoogle(event.detail.paymentData, this.methods)
+                    await self.postShippingInformation(information)
+
+                    self.setGuestEmail(event.detail.paymentData.email)
+
+                    if (!self.isShippingRequired()) {
+                        // don't set address by googlepay, so setBillingAddressFromOfficial
+                        self.setBillingAddressFromOfficial();
+                    } else {
+                        self.setBillingAddressFromGoogle(event.detail.paymentData);
+                    }
                     this.placeOrder()
                 });
             },
@@ -249,7 +300,6 @@ define(
             },
 
             processPlaceOrderError: function (response) {
-                fullScreenLoader.stopLoader();
                 $('body').trigger('processStop');
                 if (response?.getResponseHeader) {
                     errorProcessor.process(response, this.messageContainer);
@@ -265,6 +315,14 @@ define(
                 }
             },
 
+            getCartId() {
+                return this.isLoggedIn() ? this.quoteRemote.cart_id : this.quoteRemote.mask_cart_id
+            },
+
+            isLoggedIn() {
+                return !!this.quoteRemote.customer_id;
+            },
+
             placeOrder: function (data, event) {
                 const self = this;
 
@@ -273,52 +331,50 @@ define(
                 }
 
                 $('body').trigger('processStart');
-                fullScreenLoader.startLoader();
 
                 const payload = {
-                    cartId: quote.getQuoteId(),
-                    billingAddress: quote.billingAddress(),
+                    cartId: this.getCartId(),
                     paymentMethod: this.getData()
                 };
 
                 let serviceUrl;
-                if (customer.isLoggedIn()) {
+                if (this.isLoggedIn()) {
                     serviceUrl = urlBuilder.createUrl('/airwallex/payments/place-order', {});
                 } else {
                     serviceUrl = urlBuilder.createUrl('/airwallex/payments/guest-place-order', {});
-                    payload.email = quote.guestEmail;
                 }
-
-                let headers = {};
-                _.each(placeOrderHooks.requestModifiers, function (modifier) {
-                    modifier(headers, payload);
-                });
 
                 payload.intent_id = null;
 
                 (new Promise(async function (resolve, reject) {
                     try {
-                        const xReCaptchaValue = await (new Promise(function (resolve) {
+                        payload.xReCaptchaValue = await (new Promise(function (resolve) {
                             self.getRecaptchaToken(resolve);
                         }));
-                        payload.xReCaptchaValue = xReCaptchaValue;
+                        if (!self.isLoggedIn()) {
+                            payload.email = self.guestEmail;
+                        }
 
                         const intentResponse = await storage.post(
-                            serviceUrl, JSON.stringify(payload), true, 'application/json', headers
+                            serviceUrl, JSON.stringify(payload), true, 'application/json'
                         );
                         const params = {};
                         params.id = intentResponse.intent_id;
                         params.client_secret = intentResponse.client_secret;
                         params.payment_method = {};
-                        params.payment_method.billing = self.getBillingInformation();
+                        params.payment_method.billing = self.billingAddress;
 
                         payload.intent_id = intentResponse.intent_id;
                         payload.xReCaptchaValue = null;
-
-                        const airwallexResponse = await self.googlepay.confirmIntent(params);
+                        if (self.isShippingRequired()) {
+                            payload.billingAddress = self.getBillingAddressToPlaceOrder()
+                        } else {
+                            payload.billingAddress = quote.billingAddress();
+                        }
+                        await self.googlepay.confirmIntent(params);
 
                         const endResult = await storage.post(
-                            serviceUrl, JSON.stringify(payload), true, 'application/json', headers
+                            serviceUrl, JSON.stringify(payload), true, 'application/json', {}
                         );
                         resolve(endResult);
                     } catch (e) {
@@ -342,21 +398,13 @@ define(
                         customerData.reload(['cart'], true);
                     }
 
-                    if (self.redirectAfterPlaceOrder) {
-                        redirectOnSuccessAction.execute();
-                    }
+                    window.location.replace(url.build('checkout/onepage/success/'));
                 }).catch(
                     self.processPlaceOrderError.bind(self)
-
                 ).finally(
                     function () {
                         self.recaptcha.reset();
-                        fullScreenLoader.stopLoader();
                         $('body').trigger('processStop');
-                        _.each(placeOrderHooks.afterRequestListeners, function (listener) {
-                            listener();
-                        });
-
                     }
                 );
             },
@@ -384,20 +432,111 @@ define(
                 }
             },
 
-            getBillingInformation: function () {
+            getIntermediateShippingAddressFromGoogle(addr) {
+                return {
+                    "region": addr.administrativeArea,
+                    "country_id": addr.countryCode,
+                    "postcode": addr.postalCode,
+                    "city": addr.locality,
+                }
+            },
+
+            constructAddressInformationForGoogle(data, methods) {
+                let billingAddress = {}
+                if (data.paymentMethodData) {
+                    let addr = data.paymentMethodData.info.billingAddress
+                    let names = addr.name.split(' ')
+                    billingAddress = {
+                        countryId: addr.countryCode,
+                        // "regionCode": "DC",
+                        region: addr.administrativeArea,
+                        street: [addr.address1 + addr.address2 + addr.address3],
+                        telephone: addr.phoneNumber,
+                        postcode: addr.postalCode,
+                        city: addr.locality,
+                        firstname: names[0],
+                        lastname: names.length > 1 ? names[names.length - 1] : names[0],
+                    }
+                }
+
+                let selectedMethod = methods.find(item => item.carrier_code === data.shippingOptionData.id) || methods[0];
+
+                let firstname = '', lastname = ''
+                if (data.shippingAddress.name) {
+                    let names = data.shippingAddress.name.split(' ') || [];
+                    firstname = data.shippingAddress.name ? names[0] : '';
+                    lastname = names.length > 1 ? names[names.length - 1] : firstname;
+                }
+
+                let information = {
+                    "addressInformation": {
+                        "shipping_address": {
+                            "countryId": data.shippingAddress.countryCode,
+                            "region": data.shippingAddress.administrativeArea,
+                            "street": [data.shippingAddress.address1 + data.shippingAddress.address2 + data.shippingAddress.address3],
+                            "telephone": data.shippingAddress.phoneNumber,
+                            "postcode": data.shippingAddress.postalCode,
+                            "city": data.shippingAddress.locality,
+                            firstname,
+                            lastname,
+                        },
+                        "billing_address": billingAddress,
+                        "shipping_method_code": selectedMethod.method_code,
+                        "shipping_carrier_code": selectedMethod.carrier_code,
+                        "extension_attributes": {}
+                    }
+                }
+                return {information, selectedMethod}
+            },
+
+            getBillingAddressToPlaceOrder() {
+                return {
+                    "countryId": this.billingAddress.address.country_code,
+                    "regionCode": this.billingAddress.address.state,
+                    "street": [
+                        this.billingAddress.address.street[0],
+                    ],
+                    "telephone": this.billingAddress.telephone,
+                    "postcode": this.billingAddress.address.postcode,
+                    "city": this.billingAddress.address.city,
+                    "firstname": this.billingAddress.first_name,
+                    "lastname": this.billingAddress.last_name,
+                }
+            },
+
+            setBillingAddressFromGoogle(data) {
+                let addr = data.paymentMethodData.info.billingAddress
+                let names = addr.name.split(' ')
+                this.billingAddress = {
+                    address: {
+                        city: addr.locality,
+                        country_code: addr.countryCode,
+                        postcode: addr.postalCode,
+                        state: addr.administrativeArea,
+                        street: [addr.address1 + addr.address2 + addr.address3],
+                    },
+                    first_name: names[0],
+                    last_name: names.length > 1 ? names[names.length - 1] : names[0],
+                    email: data.email,
+                    telephone: addr.phoneNumber
+                }
+            },
+
+            setBillingAddressFromOfficial() {
                 const billingAddress = quote.billingAddress();
 
-                return {
+                this.billingAddress = {
                     address: {
                         city: billingAddress.city,
                         country_code: billingAddress.countryId,
                         postcode: billingAddress.postcode,
                         state: billingAddress.region,
-                        street: billingAddress.street[0]
+                        street: billingAddress.street
                     },
                     first_name: billingAddress.firstname,
                     last_name: billingAddress.lastname,
-                    email: quote.guestEmail
+                    email: quote.guestEmail,
+                    telephone: billingAddress.telephone
                 }
             },
         });
