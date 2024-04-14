@@ -35,6 +35,7 @@ use Magento\Payment\Model\MethodInterface;
 use Magento\Quote\Api\Data\AddressInterface;
 use Magento\Quote\Api\Data\PaymentInterface;
 use Magento\Quote\Model\QuoteIdToMaskedQuoteIdInterface;
+use Magento\Store\Model\StoreManagerInterface;
 
 class Service implements ServiceInterface
 {
@@ -46,6 +47,7 @@ class Service implements ServiceInterface
     protected PlaceOrderResponseInterfaceFactory $placeOrderResponseFactory;
     protected CacheInterface $cache;
     protected QuoteIdToMaskedQuoteIdInterface $quoteIdToMaskedQuoteId;
+    protected StoreManagerInterface $storeManager;
 
     /**
      * Index constructor.
@@ -66,8 +68,10 @@ class Service implements ServiceInterface
         PaymentInformationManagementInterface $paymentInformationManagement,
         PlaceOrderResponseInterfaceFactory $placeOrderResponseFactory,
         CacheInterface $cache,
-        QuoteIdToMaskedQuoteIdInterface $quoteIdToMaskedQuoteId
-    ) {
+        QuoteIdToMaskedQuoteIdInterface $quoteIdToMaskedQuoteId,
+        StoreManagerInterface $storeManager,
+    )
+    {
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
         $this->checkoutHelper = $checkoutHelper;
@@ -76,6 +80,7 @@ class Service implements ServiceInterface
         $this->placeOrderResponseFactory = $placeOrderResponseFactory;
         $this->cache = $cache;
         $this->quoteIdToMaskedQuoteId = $quoteIdToMaskedQuoteId;
+        $this->storeManager = $storeManager;
     }
 
     /**
@@ -129,7 +134,8 @@ class Service implements ServiceInterface
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
         string $intentId = null
-    ): PlaceOrderResponseInterface {
+    ): PlaceOrderResponseInterface
+    {
         /** @var PlaceOrderResponse $response */
         $response = $this->placeOrderResponseFactory->create();
         if ($intentId === null) {
@@ -170,7 +176,8 @@ class Service implements ServiceInterface
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
         string $intentId = null
-    ): PlaceOrderResponseInterface {
+    ): PlaceOrderResponseInterface
+    {
         /** @var PlaceOrderResponse $response */
         $response = $this->placeOrderResponseFactory->create();
         if ($intentId === null) {
@@ -206,11 +213,10 @@ class Service implements ServiceInterface
         $quote = $this->checkoutHelper->getQuote();
         $cartId = $quote->getId() ?? 0;
         try {
-            $maskCartId =  $this->quoteIdToMaskedQuoteId->execute($cartId);
+            $maskCartId = $this->quoteIdToMaskedQuoteId->execute($cartId);
         } catch (NoSuchEntityException $e) {
             $maskCartId = '';
         }
-
 
         return json_encode([
             'subtotal' => $quote->getSubtotal() ?? 0,
@@ -222,7 +228,8 @@ class Service implements ServiceInterface
             'mask_cart_id' => $maskCartId,
             'is_virtual' => $quote->isVirtual(),
             'customer_id' => $quote->getCustomer()->getId(),
-            'quote_currency_code' => $quote->getQuoteCurrencyCode(),
+            'quote_currency_code' => $quote->getQuoteCurrencyCode() ?: $quote->getStore()->getBaseCurrencyCode(),
+            'email' => $quote->getCustomer()->getEmail(),
             'settings' => [
                 'mode' => $this->configuration->getMode(),
                 'express_seller_name' => $this->configuration->getExpressSellerName(),
@@ -232,6 +239,7 @@ class Service implements ServiceInterface
                 'express_style' => $this->configuration->getExpressStyle(),
                 'express_button_sort' => $this->configuration->getExpressButtonSort(),
                 'country_code' => $this->configuration->getCountryCode(),
+                'store_code' => $this->storeManager->getStore()->getCode()
             ]
         ]);
     }

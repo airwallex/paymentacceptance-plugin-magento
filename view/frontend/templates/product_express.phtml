@@ -1,0 +1,18 @@
+<script>
+    require(['domReady!', 'Airwallex_Payments/js/view/payment/method-renderer/express-checkout'],
+        function (domReady, airwallexPayments) {
+            let obj = airwallexPayments()
+            console.log('why')
+            obj.loadPayment()
+        });
+</script>
+
+<div class="airwallex-express-checkout">
+    <div class="google-pay" id="awx-google-pay-container">
+        <div id="awx-google-pay"></div>
+    </div>
+</div>
+<button type="button" class="action" data-trigger="trigger">
+    <span data-bind="i18n: 'Click Here'"></span>
+</button>
+

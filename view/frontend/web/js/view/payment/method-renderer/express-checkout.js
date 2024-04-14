@@ -3,11 +3,9 @@ define(
         'jquery',
         'ko',
         'mage/storage',
-        'Magento_Checkout/js/model/quote',
         'Magento_Customer/js/customer-data',
         'Magento_Checkout/js/model/error-processor', // todo
         'mage/url',
-        'Magento_Checkout/js/model/url-builder',
         'uiComponent',
         'Airwallex_Payments/js/view/payment/method-renderer/card-method-recaptcha' // todo
     ],
@@ -15,11 +13,9 @@ define(
         $,
         ko,
         storage,
-        quote,
         customerData,
         errorProcessor,
         url,
-        urlBuilder,
         Component,
         cardMethodRecaptcha
     ) {
@@ -37,6 +33,12 @@ define(
                 guestEmail: "", // todo how about the checkout page
                 billingAddress: {},
                 shippingMethods: [],
+                methods: [],
+                storeCode: "",
+            },
+
+            createUrl(url) {
+                return '/rest/' + this.storeCode + '/V1' + url
             },
 
             getOptions() {
@@ -195,7 +197,7 @@ define(
             },
 
             async fetchQuote() {
-                let url = urlBuilder.createUrl('/airwallex/payments/get-quote', {})
+                let url = this.createUrl('/airwallex/payments/get-quote', {})
                 const resp = await storage.get(
                     url, true, 'application/json', {}
                 );
@@ -210,7 +212,7 @@ define(
                     url = '/guest-carts/' + this.getCartId() + '/shipping-information'
                 }
                 return storage.post(
-                    urlBuilder.createUrl(url, {}), JSON.stringify(payload)
+                    this.createUrl(url, {}), JSON.stringify(payload)
                 );
             },
 
@@ -220,7 +222,7 @@ define(
                     url = '/guest-carts/' + this.getCartId() + '/estimate-shipping-methods'
                 }
                 return storage.post(
-                    urlBuilder.createUrl(url, {}),
+                    this.createUrl(url, {}),
                     JSON.stringify({address})
                 );
             },
@@ -230,6 +232,14 @@ define(
                     return;
                 }
                 this.isExpressLoaded = true
+                let parts = url.build('')
+                    .split('/')
+                    .filter(function (element) {
+                        return element.length > 0;
+                    });
+                if (parts.length === 3) {
+                    this.storeCode = parts[parts.length - 1]
+                }
 
                 let self = this;
                 await this.fetchQuote();
@@ -266,22 +276,21 @@ define(
                     options.shippingOptionParameters = this.formatShippingMethodsToGoogle(this.methods, selectedMethod)
                     googlepay.update(options);
                 }
+
                 googlepay.on('shippingAddressChange', updateQuoteByShipment);
 
                 googlepay.on('shippingMethodChange', updateQuoteByShipment);
 
                 googlepay.on('authorized', async (event) => {
-                    // only here set the billing address
-                    // this time we have full shipping address information
-                    let {information, selectedMethod} = self.constructAddressInformationForGoogle(event.detail.paymentData, this.methods)
-                    await self.postShippingInformation(information)
-
                     self.setGuestEmail(event.detail.paymentData.email)
 
-                    if (!self.isShippingRequired()) {
-                        // don't set address by googlepay, so setBillingAddressFromOfficial
-                        self.setBillingAddressFromOfficial();
-                    } else {
+                    if (self.isShippingRequired()) {
+                        let {
+                            information,
+                            selectedMethod
+                        } = self.constructAddressInformationForGoogle(event.detail.paymentData, this.methods)
+                        await self.postShippingInformation(information)
+
                         self.setBillingAddressFromGoogle(event.detail.paymentData);
                     }
                     this.placeOrder()
@@ -339,9 +348,9 @@ define(
 
                 let serviceUrl;
                 if (this.isLoggedIn()) {
-                    serviceUrl = urlBuilder.createUrl('/airwallex/payments/place-order', {});
+                    serviceUrl = this.createUrl('/airwallex/payments/place-order', {});
                 } else {
-                    serviceUrl = urlBuilder.createUrl('/airwallex/payments/guest-place-order', {});
+                    serviceUrl = this.createUrl('/airwallex/payments/guest-place-order', {});
                 }
 
                 payload.intent_id = null;
@@ -369,7 +378,7 @@ define(
                         if (self.isShippingRequired()) {
                             payload.billingAddress = self.getBillingAddressToPlaceOrder()
                         } else {
-                            payload.billingAddress = quote.billingAddress();
+                            // payload.billingAddress = quote.billingAddress();
                         }
                         await self.googlepay.confirmIntent(params);
 
@@ -398,7 +407,7 @@ define(
                         customerData.reload(['cart'], true);
                     }
 
-                    window.location.replace(url.build('checkout/onepage/success/'));
+                    window.location.replace(url.build( '/checkout/onepage/success/'));
                 }).catch(
                     self.processPlaceOrderError.bind(self)
                 ).finally(
@@ -462,7 +471,7 @@ define(
                 let selectedMethod = methods.find(item => item.carrier_code === data.shippingOptionData.id) || methods[0];
 
                 let firstname = '', lastname = ''
-                if (data.shippingAddress.name) {
+                if (data.shippingAddress && data.shippingAddress.name) {
                     let names = data.shippingAddress.name.split(' ') || [];
                     firstname = data.shippingAddress.name ? names[0] : '';
                     lastname = names.length > 1 ? names[names.length - 1] : firstname;
@@ -535,7 +544,7 @@ define(
                     },
                     first_name: billingAddress.firstname,
                     last_name: billingAddress.lastname,
-                    email: quote.guestEmail,
+                    email: this.quoteRemote.email,
                     telephone: billingAddress.telephone
                 }
             },
