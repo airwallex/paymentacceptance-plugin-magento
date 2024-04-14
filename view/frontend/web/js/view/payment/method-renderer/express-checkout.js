@@ -4,9 +4,9 @@ define(
         'ko',
         'mage/storage',
         'Magento_Customer/js/customer-data',
-        'Magento_Checkout/js/model/error-processor', // todo
         'mage/url',
         'uiComponent',
+        'Magento_Ui/js/modal/modal',
         'Airwallex_Payments/js/view/payment/method-renderer/card-method-recaptcha' // todo
     ],
     function (
@@ -14,9 +14,9 @@ define(
         ko,
         storage,
         customerData,
-        errorProcessor,
         url,
         Component,
+        modal,
         cardMethodRecaptcha
     ) {
         'use strict';
@@ -25,12 +25,11 @@ define(
             defaults: {
                 paymentConfig: {},
                 recaptcha: null,
-                validationError: ko.observable(),
                 isExpressActive: ko.observable(false),
                 googlepay: null,
                 isExpressLoaded: false,
                 quoteRemote: {},
-                guestEmail: "", // todo how about the checkout page
+                guestEmail: "",
                 billingAddress: {},
                 shippingMethods: [],
                 methods: [],
@@ -147,9 +146,12 @@ define(
             },
 
             isShippingRequired() {
-                return !this.quoteRemote.is_virtual && location.hash !== '#payment'
+                return !(this.quoteRemote.is_virtual || this.isCheckoutPage())
             },
 
+            isCheckoutPage() {
+                return location.hash === '#payment'
+            },
 
             setGuestEmail(email) {
                 this.guestEmail = email
@@ -227,7 +229,7 @@ define(
                 );
             },
 
-            async loadPayment() {
+            init() {
                 if (this.isExpressLoaded) {
                     return;
                 }
@@ -241,12 +243,37 @@ define(
                     this.storeCode = parts[parts.length - 1]
                 }
 
+                modal({
+                    type: 'popup',
+                    responsive: true,
+                    title: 'Error',
+                    buttons: [{
+                        text: $.mage.__('OK'),
+                        class: '',
+                        click: function () {
+                            this.closeModal();
+                            window.location.reload()
+                        }
+                    }]
+                }, $('#awx-modal'));
+            },
+
+            async loadPayment(from) {
+                console.log('xx')
+                this.init()
+                // this is cart page, there can only one express checkout button
+                if (from === 'minicart' && (window.location.pathname.endsWith('/checkout/cart/')
+                    || $('.product-info-main').length)) {
+                    $(".cart-page-awx-express").remove()
+                    return
+                }
+
                 let self = this;
                 await this.fetchQuote();
                 this.isExpressActive(this.paymentConfig.is_express_active)
 
                 this.recaptcha = cardMethodRecaptcha();
-                this.recaptcha.renderReCaptcha();
+                // this.recaptcha.renderReCaptcha();
 
                 Airwallex.init({
                     env: this.paymentConfig.mode,
@@ -263,12 +290,14 @@ define(
                     // 1. estimateShippingMethods
                     let addr = self.getIntermediateShippingAddressFromGoogle(event.detail.intermediatePaymentData.shippingAddress)
                     this.methods = await this.estimateShippingMethods(addr)
+
                     // 2. postShippingInformation
                     let {information, selectedMethod} = self.constructAddressInformationForGoogle(
                         event.detail.intermediatePaymentData,
                         this.methods
                     )
-                    let newQuote = await self.postShippingInformation(information)
+                    await self.postShippingInformation(information)
+
                     // 3. update quote
                     await self.fetchQuote()
 
@@ -285,13 +314,12 @@ define(
                     self.setGuestEmail(event.detail.paymentData.email)
 
                     if (self.isShippingRequired()) {
-                        let {
-                            information,
-                            selectedMethod
-                        } = self.constructAddressInformationForGoogle(event.detail.paymentData, this.methods)
+                        // this time google provide full billing address, we should post to magento
+                        let {information} = self.constructAddressInformationForGoogle(
+                            event.detail.paymentData, this.methods
+                        )
                         await self.postShippingInformation(information)
-
-                        self.setBillingAddressFromGoogle(event.detail.paymentData);
+                        self.setIntentConfirmBillingAddressFromGoogle(event.detail.paymentData);
                     }
                     this.placeOrder()
                 });
@@ -310,18 +338,12 @@ define(
 
             processPlaceOrderError: function (response) {
                 $('body').trigger('processStop');
-                if (response?.getResponseHeader) {
-                    errorProcessor.process(response, this.messageContainer);
-                    const redirectURL = response.getResponseHeader('errorRedirectAction');
-
-                    if (redirectURL) {
-                        setTimeout(function () {
-                            errorProcessor.redirectTo(redirectURL);
-                        }, 3000);
-                    }
-                } else if (response?.message) {
-                    this.validationError(response.message);
+                let errorMessage = response.message
+                if (response.responseText && response.responseText.indexOf('shipping address') !== -1) {
+                    errorMessage = $.mage.__('Placing an order is failed: please try another address.')
                 }
+                $("#awx-modal .modal-body-content").html(errorMessage)
+                $('#awx-modal').modal('openModal');
             },
 
             getCartId() {
@@ -360,13 +382,15 @@ define(
                         payload.xReCaptchaValue = await (new Promise(function (resolve) {
                             self.getRecaptchaToken(resolve);
                         }));
+
                         if (!self.isLoggedIn()) {
-                            payload.email = self.guestEmail;
+                            payload.email = self.isCheckoutPage() ? $("#customer-email").val() : self.guestEmail;
                         }
 
                         const intentResponse = await storage.post(
                             serviceUrl, JSON.stringify(payload), true, 'application/json'
                         );
+
                         const params = {};
                         params.id = intentResponse.intent_id;
                         params.client_secret = intentResponse.client_secret;
@@ -377,8 +401,6 @@ define(
                         payload.xReCaptchaValue = null;
                         if (self.isShippingRequired()) {
                             payload.billingAddress = self.getBillingAddressToPlaceOrder()
-                        } else {
-                            // payload.billingAddress = quote.billingAddress();
                         }
                         await self.googlepay.confirmIntent(params);
 
@@ -407,13 +429,15 @@ define(
                         customerData.reload(['cart'], true);
                     }
 
-                    window.location.replace(url.build( '/checkout/onepage/success/'));
+                    window.location.replace(url.build('/checkout/onepage/success/'));
                 }).catch(
                     self.processPlaceOrderError.bind(self)
                 ).finally(
                     function () {
                         self.recaptcha.reset();
-                        $('body').trigger('processStop');
+                        setTimeout(() => {
+                            $('body').trigger('processStop')
+                        }, 2000)
                     }
                 );
             },
@@ -457,7 +481,6 @@ define(
                     let names = addr.name.split(' ')
                     billingAddress = {
                         countryId: addr.countryCode,
-                        // "regionCode": "DC",
                         region: addr.administrativeArea,
                         street: [addr.address1 + addr.address2 + addr.address3],
                         telephone: addr.phoneNumber,
@@ -513,7 +536,7 @@ define(
                 }
             },
 
-            setBillingAddressFromGoogle(data) {
+            setIntentConfirmBillingAddressFromGoogle(data) {
                 let addr = data.paymentMethodData.info.billingAddress
                 let names = addr.name.split(' ')
                 this.billingAddress = {
@@ -528,24 +551,6 @@ define(
                     last_name: names.length > 1 ? names[names.length - 1] : names[0],
                     email: data.email,
                     telephone: addr.phoneNumber
-                }
-            },
-
-            setBillingAddressFromOfficial() {
-                const billingAddress = quote.billingAddress();
-
-                this.billingAddress = {
-                    address: {
-                        city: billingAddress.city,
-                        country_code: billingAddress.countryId,
-                        postcode: billingAddress.postcode,
-                        state: billingAddress.region,
-                        street: billingAddress.street
-                    },
-                    first_name: billingAddress.firstname,
-                    last_name: billingAddress.lastname,
-                    email: this.quoteRemote.email,
-                    telephone: billingAddress.telephone
                 }
             },
         });

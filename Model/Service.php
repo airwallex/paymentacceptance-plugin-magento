@@ -69,7 +69,7 @@ class Service implements ServiceInterface
         PlaceOrderResponseInterfaceFactory $placeOrderResponseFactory,
         CacheInterface $cache,
         QuoteIdToMaskedQuoteIdInterface $quoteIdToMaskedQuoteId,
-        StoreManagerInterface $storeManager,
+        StoreManagerInterface $storeManager
     )
     {
         $this->paymentIntents = $paymentIntents;
