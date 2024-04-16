@@ -128,6 +128,10 @@ class GetList extends AbstractClient implements BearerAuthenticationInterface
                 continue;
             }
 
+            if ($item->status === 'DISABLED') {
+                continue;
+            }
+
             /** @var SavedPaymentResponse $result */
             $savedPayment = $this->savedPaymentResponseFactory->create();
             $savedPayment->setData([
