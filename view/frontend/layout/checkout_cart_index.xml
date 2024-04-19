@@ -6,7 +6,7 @@
     </head>
     <body>
         <referenceContainer name="checkout.cart.methods">
-            <block class="Magento\Checkout\Block\Onepage\Link" name="checkout.cart.methods.onepage.express" template="Airwallex_Payments::onepage/express.phtml" before="checkout.cart.methods.onepage.bottom" />
+            <block class="Magento\Checkout\Block\Onepage\Link" name="checkout.cart.methods.onepage.express" template="Airwallex_Payments::express.phtml" before="checkout.cart.methods.onepage.bottom" />
         </referenceContainer>
     </body>
 </page>

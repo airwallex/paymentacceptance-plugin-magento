@@ -7,14 +7,19 @@
             <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
             <config_path>payment/airwallex_payments_express/active</config_path>
         </field>
-        <!-- <field id="locations" translate="label" type="multiselect" sortOrder="5" showInDefault="1" showInWebsite="1" showInStore="1">
+        <field id="airwallex_payment_action" translate="label" type="select" sortOrder="30" showInDefault="1" showInWebsite="0" showInStore="0">
+            <label>Payment Action</label>
+            <source_model>Airwallex\Payments\Model\Config\Source\PaymentAction</source_model>
+            <config_path>payment/airwallex_payments_express/airwallex_payment_action</config_path>
+        </field>
+        <field id="locations" translate="label" type="multiselect" sortOrder="5" showInDefault="1" showInWebsite="1" showInStore="1">
           <label>Locations</label>
-          <source_model>AirwallexIntegration\Payments\Model\Adminhtml\Source\WalletButton</source_model>
+          <source_model>Airwallex\Payments\Model\Config\Source\Express\WalletButton</source_model>
           <config_path>payment/airwallex_payments_express/enabled</config_path>
           <depends>
-            <field id="global_enabled">1</field>
+            <field id="active">1</field>
           </depends>
-        </field> -->
+        </field>
         <field id="seller_name" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
             <label>Seller name</label>
             <comment>

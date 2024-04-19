@@ -34,7 +34,7 @@
                 <model>AirwallexPaymentsExpressGatewayFacade</model>
                 <title>Express Checkout (Airwallex)</title>
                 <allowspecific>0</allowspecific>
-                <!-- <enabled>product_page,minicart,shopping_cart_page,chevckout_page</enabled> -->
+                <enabled>product_page,minicart,cart_page,checkout_page</enabled>
                 <button_height>50</button_height>
                 <apple_pay_button_theme>black</apple_pay_button_theme>
                 <google_pay_button_theme>black</google_pay_button_theme>

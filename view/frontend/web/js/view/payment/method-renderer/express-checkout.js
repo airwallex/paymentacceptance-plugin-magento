@@ -8,6 +8,7 @@ define(
         'uiComponent',
         'Magento_Ui/js/modal/modal',
         'Airwallex_Payments/js/view/payment/method-renderer/card-method-recaptcha', //
+        'Magento_Customer/js/model/authentication-popup',
     ],
     function (
         $,
@@ -18,6 +19,7 @@ define(
         Component,
         modal,
         cardMethodRecaptcha,
+        popup,
     ) {
         'use strict';
         return Component.extend({
@@ -26,7 +28,6 @@ define(
                 paymentConfig: {},
                 recaptcha: null,
                 googlepay: null,
-                isExpressLoaded: false,
                 quoteRemote: {},
                 guestEmail: "",
                 billingAddress: {},
@@ -37,7 +38,7 @@ define(
                 isProductAdded: false,
                 cartPageIdentitySelector: '.cart-summary',
                 checkoutPageIdentitySelector: '#co-payment-form',
-                minicartExpressSelector: '.minicart-awx-express',
+                minicartExpressSelector: '#minicart-content-wrapper .airwallex-express-checkout',
                 expressSelector: '.airwallex-express-checkout',
                 showMinicartSelector: '.showcart'
             },
@@ -189,19 +190,6 @@ define(
                 return window.checkoutConfig && window.checkoutConfig.quoteData && window.checkoutConfig.quoteData.is_virtual
             },
 
-            observePayment() {
-                // only checkout page reach this function
-                this.loadPayment()
-                window.addEventListener('hashchange', async () => {
-                    if (window.location.hash === '#payment') {
-                        Airwallex.destroyElement('googlePayButton');
-                        // we need update quote, because we choose shipping method last step
-                        await this.fetchQuote();
-                        this.createGooglepay()
-                    }
-                });
-            },
-
             async fetchQuote() {
                 let subUrl = 'rest/V1/airwallex/payments/get-quote';
                 if (this.isProductPage()) {
@@ -277,6 +265,10 @@ define(
             },
 
             initMinicartClickEvents() {
+                if (!$(this.showMinicartSelector).length) {
+                    return
+                }
+
                 let recreateGooglepay = async () => {
                     Airwallex.destroyElement('googlePayButton');
                     await this.fetchQuote();
@@ -337,19 +329,15 @@ define(
             },
 
             async loadPayment(from) {
-                // there can only one express checkout button
-                if (from === 'minicart') {
-                    if (this.isCartPage() || this.isProductPage()) {
-                        $(this.minicartExpressSelector).remove()
+                if (this.isCartPage() || this.isProductPage()) {
+                    $(this.minicartExpressSelector).remove()
+                    // there can only one express
+                    if (window !== from) {
                         return
                     }
-                    this.initMinicartClickEvents()
                 }
 
-                if (this.isExpressLoaded) {
-                    return;
-                }
-                this.isExpressLoaded = true
+                this.initMinicartClickEvents()
 
                 this.initModal()
                 this.initProductPageFormClickEvents()
@@ -369,6 +357,15 @@ define(
                 });
 
                 this.createGooglepay()
+
+                window.addEventListener('hashchange', async () => {
+                    if (window.location.hash === '#payment') {
+                        Airwallex.destroyElement('googlePayButton');
+                        // we need update quote, because we choose shipping method last step
+                        await this.fetchQuote();
+                        this.createGooglepay()
+                    }
+                });
             },
 
             createGooglepay() {
