@@ -24,18 +24,27 @@ use Airwallex\Payments\Model\Methods\CardMethod;
 use Airwallex\Payments\Plugin\ReCaptchaValidationPlugin;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
+use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Checkout\Api\GuestPaymentInformationManagementInterface;
 use Magento\Checkout\Api\PaymentInformationManagementInterface;
 use Magento\Checkout\Helper\Data as CheckoutData;
 use Magento\Framework\App\CacheInterface;
+use Magento\Framework\App\RequestInterface;
+use Magento\Framework\DataObject;
 use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Payment\Model\MethodInterface;
+use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Quote\Api\Data\AddressInterface;
 use Magento\Quote\Api\Data\PaymentInterface;
 use Magento\Quote\Model\QuoteIdToMaskedQuoteIdInterface;
+use Magento\Quote\Model\ResourceModel\Quote\QuoteIdMask as QuoteIdMaskResourceModel;
 use Magento\Store\Model\StoreManagerInterface;
+use Magento\Framework\Serialize\SerializerInterface;
+use Magento\Framework\Filter\LocalizedToNormalized;
+use Magento\Framework\Locale\Resolver;
+use Magento\Quote\Model\QuoteIdMaskFactory;
 
 class Service implements ServiceInterface
 {
@@ -48,6 +57,15 @@ class Service implements ServiceInterface
     protected CacheInterface $cache;
     protected QuoteIdToMaskedQuoteIdInterface $quoteIdToMaskedQuoteId;
     protected StoreManagerInterface $storeManager;
+    protected RequestInterface $request;
+    protected ProductRepositoryInterface $productRepository;
+    private SerializerInterface $serializer;
+
+    private LocalizedToNormalized $localizedToNormalized;
+    private Resolver $localeResolver;
+    private CartRepositoryInterface $quoteRepository;
+    private QuoteIdMaskFactory $quoteIdMaskFactory;
+    private QuoteIdMaskResourceModel $quoteIdMaskResourceModel;
 
     /**
      * Index constructor.
@@ -69,9 +87,16 @@ class Service implements ServiceInterface
         PlaceOrderResponseInterfaceFactory $placeOrderResponseFactory,
         CacheInterface $cache,
         QuoteIdToMaskedQuoteIdInterface $quoteIdToMaskedQuoteId,
-        StoreManagerInterface $storeManager
-    )
-    {
+        StoreManagerInterface $storeManager,
+        RequestInterface $request,
+        ProductRepositoryInterface $productRepository,
+        SerializerInterface $serializer,
+        LocalizedToNormalized $localizedToNormalized,
+        Resolver $localeResolver,
+        CartRepositoryInterface $quoteRepository,
+        QuoteIdMaskFactory $quoteIdMaskFactory,
+        QuoteIdMaskResourceModel $quoteIdMaskResourceModel
+    ) {
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
         $this->checkoutHelper = $checkoutHelper;
@@ -81,8 +106,15 @@ class Service implements ServiceInterface
         $this->cache = $cache;
         $this->quoteIdToMaskedQuoteId = $quoteIdToMaskedQuoteId;
         $this->storeManager = $storeManager;
+        $this->request = $request;
+        $this->productRepository = $productRepository;
+        $this->serializer = $serializer;
+        $this->localizedToNormalized = $localizedToNormalized;
+        $this->localeResolver = $localeResolver;
+        $this->quoteRepository = $quoteRepository;
+        $this->quoteIdMaskFactory = $quoteIdMaskFactory;
+        $this->quoteIdMaskResourceModel = $quoteIdMaskResourceModel;
     }
-
     /**
      * Return URL
      *
@@ -134,8 +166,7 @@ class Service implements ServiceInterface
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
         string $intentId = null
-    ): PlaceOrderResponseInterface
-    {
+    ): PlaceOrderResponseInterface {
         /** @var PlaceOrderResponse $response */
         $response = $this->placeOrderResponseFactory->create();
         if ($intentId === null) {
@@ -176,8 +207,7 @@ class Service implements ServiceInterface
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
         string $intentId = null
-    ): PlaceOrderResponseInterface
-    {
+    ): PlaceOrderResponseInterface {
         /** @var PlaceOrderResponse $response */
         $response = $this->placeOrderResponseFactory->create();
         if ($intentId === null) {
@@ -218,18 +248,23 @@ class Service implements ServiceInterface
             $maskCartId = '';
         }
 
-        return json_encode([
+        $taxAmount = $quote->isVirtual()
+            ? $quote->getBillingAddress()->getTaxAmount()
+            : $quote->getShippingAddress()->getTaxAmount();
+
+        $res = [
             'subtotal' => $quote->getSubtotal() ?? 0,
             'grand_total' => $quote->getGrandTotal() ?? 0,
             'shipping_amount' => $quote->getShippingAddress()->getShippingAmount() ?? 0,
-            'tax_amount' => $quote->getShippingAddress()->getTaxAmount() ?? 0,
-            'grand_subtotal_with_discount' => $quote->getSubtotalWithDiscount() ?? 0,
+            'tax_amount' => $taxAmount ?: 0,
+            'subtotal_with_discount' => $quote->getSubtotalWithDiscount() ?? 0,
             'cart_id' => $cartId,
             'mask_cart_id' => $maskCartId,
             'is_virtual' => $quote->isVirtual(),
             'customer_id' => $quote->getCustomer()->getId(),
-            'quote_currency_code' => $quote->getQuoteCurrencyCode() ?: $quote->getStore()->getBaseCurrencyCode(),
+            'quote_currency_code' => $quote->getQuoteCurrencyCode(),
             'email' => $quote->getCustomer()->getEmail(),
+            'items_qty' => $quote->getItemsQty() ?? 0,
             'settings' => [
                 'mode' => $this->configuration->getMode(),
                 'express_seller_name' => $this->configuration->getExpressSellerName(),
@@ -239,8 +274,95 @@ class Service implements ServiceInterface
                 'express_style' => $this->configuration->getExpressStyle(),
                 'express_button_sort' => $this->configuration->getExpressButtonSort(),
                 'country_code' => $this->configuration->getCountryCode(),
-                'store_code' => $this->storeManager->getStore()->getCode()
+                'store_code' => $this->storeManager->getStore()->getCode(),
             ]
-        ]);
+        ];
+
+        if ($this->request->getParam("is_product_page") === '1') {
+            $res['product_type'] = $this->getProductType();
+        }
+
+        return json_encode($res);
+    }
+
+    private function getProductType()
+    {
+        $product = $this->productRepository->getById(
+            $this->request->getParam("product_id"),
+            false,
+            $this->storeManager->getStore()->getId(),
+            false
+        );
+        return $product->getTypeId();
+    }
+
+    /**
+     * @return string
+     */
+    public function addToCart()
+    {
+        $params = $this->request->getParams();
+        $productId = $params['product'];
+        $related = $params['related_product'];
+
+        if (isset($params['qty'])) {
+            $this->localizedToNormalized->setOptions(['locale' => $this->localeResolver->getLocale()]);
+            $params['qty'] = $this->localizedToNormalized->filter((string)$params['qty']);
+        }
+
+        $quote = $this->checkoutHelper->getQuote();
+
+        try {
+            // Get Product
+            $storeId = $this->storeManager->getStore()->getId();
+            $product = $this->productRepository->getById($productId, false, $storeId);
+
+            $groupedProductIds = [];
+            if (!empty($params['super_group']) && is_array($params['super_group'])) {
+                $groupedProductSelections = $params['super_group'];
+                $groupedProductIds = array_keys($groupedProductSelections);
+            }
+
+            // Check is update required
+            foreach ($quote->getAllItems() as $item) {
+                if ($item->getProductId() == $productId || in_array($item->getProductId(), $groupedProductIds)) {
+                    $item = $this->checkoutHelper->getQuote()->removeItem($item->getId());
+                }
+            }
+
+            // Add Product to Cart
+            $item = $this->checkoutHelper->getQuote()->addProduct($product, new DataObject($params));
+
+            if (!empty($related)) {
+                $productIds = explode(',', $related);
+                $this->checkoutHelper->getQuote()->addProductsByIds($productIds);
+            }
+
+            $this->quoteRepository->save($quote);
+
+            // Update totals
+            $quote->setTotalsCollectedFlag(false);
+            $quote->collectTotals();
+            $this->quoteRepository->save($quote);
+
+
+            try {
+                $maskCartId = $this->quoteIdToMaskedQuoteId->execute($quote->getId());
+            } catch (NoSuchEntityException $e) {
+                $maskCartId = '';
+            }
+            if ($maskCartId === '') {
+                $quoteIdMask = $this->quoteIdMaskFactory->create();
+                $quoteIdMask->setQuoteId($quote->getId());
+                $this->quoteIdMaskResourceModel->save($quoteIdMask);
+                $maskCartId = $this->quoteIdToMaskedQuoteId->execute($quote->getId());
+            }
+            return $this->serializer->serialize([
+                'cart_id' => $quote->getId(),
+                'mask_cart_id' => $maskCartId,
+            ]);
+        } catch (\Exception $e) {
+            throw new CouldNotSaveException(__($e->getMessage()), $e);
+        }
     }
 }

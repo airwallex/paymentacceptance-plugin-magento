@@ -184,7 +184,6 @@ abstract class AbstractMethod extends Adapter
             }
         }
 
-
         return $this;
     }
 
@@ -260,7 +259,7 @@ abstract class AbstractMethod extends Adapter
         $paymentTransactionId = str_replace('-capture', '', $paymentTransactionId);
         try {
             $this->refund
-                ->setInformation($paymentTransactionId, $amount)
+                ->setInformation($paymentTransactionId, $payment->getOrder()->getTotalOnlineRefunded())
                 ->send();
         } catch (GuzzleException $exception) {
             $this->logger->orderError($payment->getOrder(), 'refund', $exception->getMessage());

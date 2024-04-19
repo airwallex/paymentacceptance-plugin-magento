@@ -110,18 +110,18 @@ class Refund extends AbstractWebhook
         }
 
         $baseToOrderRate = $order->getBaseToOrderRate();
-        $baseTotalNotRefunded = $order->getBaseGrandTotal() - $order->getBaseTotalRefunded();
+        $totalNotRefunded = $order->getGrandTotal() - $order->getTotalRefunded();
 
         $creditMemo = $this->creditmemoFactory->createByOrder($order);
         $creditMemo->setInvoice($invoice);
 
-        if ($baseTotalNotRefunded > $refundAmount) {
-            $baseDiff = $baseTotalNotRefunded - $refundAmount;
-            $creditMemo->setAdjustmentPositive($baseDiff);
+        if ($totalNotRefunded > $refundAmount) {
+            $diff = $totalNotRefunded - $refundAmount;
+            $creditMemo->setAdjustmentPositive($diff);
         }
 
-        $creditMemo->setBaseGrandTotal($refundAmount);
-        $creditMemo->setGrandTotal($refundAmount * $baseToOrderRate);
+        $creditMemo->setBaseGrandTotal($refundAmount / $baseToOrderRate);
+        $creditMemo->setGrandTotal($refundAmount);
 
         $this->creditmemoService->refund($creditMemo, true);
         $order->addCommentToStatusHistory(__('Order refunded through Airwallex, Reason: %1', $reason));

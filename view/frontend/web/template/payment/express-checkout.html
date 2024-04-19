@@ -1,19 +1,13 @@
-<div class="airwallex-express-checkout" data-bind="if: isExpressActive">
+<div class="airwallex-express-checkout">
     <div data-role="title" class="express-title">
         <!-- ko i18n: 'Express Checkout' --><!-- /ko -->
     </div>
 
-    <div data-bind="foreach: getExpressButtonSort()">
-        <div data-bind="if: $data=='google'">
-            <div class="google-pay">
-                <div id="awx-google-pay"></div>
-            </div>
-        </div>
-        <div data-bind="if: $data=='apple'">
-            <div class="google-pay">
-                <div id="awx-apple-pay">here is apple pay</div>
-            </div>
-        </div>
+    <div class="google-pay">
+        <div id="awx-google-pay"></div>
+    </div>
+    <div class="google-pay">
+        <div id="awx-apple-pay">here is apple pay</div>
     </div>
 </div>
 <div data-bind="afterRender: observePayment"></div>

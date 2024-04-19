@@ -54,6 +54,20 @@
     color: #333333;
 }
 
-.cart-page-awx-express {
+.minicart-awx-express {
     margin: 0 10px 15px
+}
+
+.aws-button-mask {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 99999;
+    opacity: 0;
+}
+
+.airwallex-express-checkout {
+    position: relative;
 }

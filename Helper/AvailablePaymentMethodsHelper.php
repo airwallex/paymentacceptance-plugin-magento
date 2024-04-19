@@ -21,6 +21,7 @@ use Exception;
 use Magento\Framework\App\CacheInterface;
 use Magento\Framework\Serialize\SerializerInterface;
 use Magento\Store\Model\StoreManagerInterface;
+use Magento\Checkout\Helper\Data as CheckoutData;
 
 class AvailablePaymentMethodsHelper
 {
@@ -54,6 +55,9 @@ class AvailablePaymentMethodsHelper
     /**
      * @var array
      */
+
+    private CheckoutData $checkoutHelper;
+
     protected $methodsInExpress = [
         'googlepay',
         'applepay',
@@ -73,13 +77,15 @@ class AvailablePaymentMethodsHelper
         CacheInterface $cache,
         SerializerInterface $serializer,
         StoreManagerInterface $storeManager,
-        Configuration $configuration
+        Configuration $configuration,
+        CheckoutData $checkoutHelper,
     ) {
         $this->availablePaymentMethod = $availablePaymentMethod;
         $this->cache = $cache;
         $this->storeManager = $storeManager;
         $this->serializer = $serializer;
         $this->configuration = $configuration;
+        $this->checkoutHelper = $checkoutHelper;
     }
 
     /**
@@ -135,7 +141,6 @@ class AvailablePaymentMethodsHelper
             AbstractMethod::CACHE_TAGS,
             self::CACHE_TIME
         );
-
         return $methods;
     }
 
@@ -153,7 +158,7 @@ class AvailablePaymentMethodsHelper
     private function getCurrencyCode(): string
     {
         try {
-            return $this->storeManager->getStore()->getBaseCurrency()->getCode();
+            return $this->checkoutHelper->getQuote()->getQuoteCurrencyCode();
         } catch (Exception $exception) {
             return '';
         }

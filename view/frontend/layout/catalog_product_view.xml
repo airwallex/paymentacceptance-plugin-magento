@@ -2,7 +2,10 @@
 <page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
     <body>
         <referenceBlock name="product.info.addtocart.additional">
-            <block name="product.info.addtocart.instantPurchase.additional" template="Airwallex_Payments::product_express.phtml" before="-" />
+            <block name="product.info.addtocart.airwallex.additional" template="Airwallex_Payments::product_express.phtml" before="-" />
+        </referenceBlock>
+        <referenceBlock name="product.info.addtocart">
+            <block name="product.info.addtocart.airwallex" template="Airwallex_Payments::product_express.phtml" before="-" />
         </referenceBlock>
     </body>
 </page>

@@ -60,4 +60,9 @@ interface ServiceInterface
      * @return string
      */
     public function getQuote();
+
+    /**
+     * @return string
+     */
+    public function addToCart();
 }

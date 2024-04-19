@@ -16,13 +16,6 @@
  */
  -->
 <routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Webapi:etc/webapi.xsd">
-    <route url="/V1/airwallex/payments/get-quote" method="GET">
-        <service class="Airwallex\Payments\Api\ServiceInterface" method="getQuote"/>
-        <resources>
-            <resource ref="anonymous" />
-        </resources>
-    </route>
-
     <route url="/V1/airwallex/payments/guest-place-order" method="POST">
         <service class="Airwallex\Payments\Api\ServiceInterface" method="airwallexGuestPlaceOrder"/>
         <resources>
@@ -44,6 +37,20 @@
         <service class="Airwallex\Payments\Api\ServiceInterface" method="redirectUrl"/>
         <resources>
             <resource ref="anonymous"/>
+        </resources>
+    </route>
+
+    <route url="/V1/airwallex/payments/get-quote" method="GET">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="getQuote"/>
+        <resources>
+            <resource ref="anonymous" />
+        </resources>
+    </route>
+
+    <route url="/V1/airwallex/payments/add-to-cart" method="POST">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="addToCart"/>
+        <resources>
+            <resource ref="anonymous" />
         </resources>
     </route>
 </routes>
