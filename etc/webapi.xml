@@ -40,8 +40,8 @@
         </resources>
     </route>
 
-    <route url="/V1/airwallex/payments/get-quote" method="GET">
-        <service class="Airwallex\Payments\Api\ServiceInterface" method="getQuote"/>
+    <route url="/V1/airwallex/payments/express-data" method="GET">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="expressData"/>
         <resources>
             <resource ref="anonymous" />
         </resources>

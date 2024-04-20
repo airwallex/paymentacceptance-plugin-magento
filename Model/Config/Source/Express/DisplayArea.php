@@ -2,7 +2,7 @@
 
 namespace Airwallex\Payments\Model\Config\Source\Express;
 
-class WalletButton
+class DisplayArea
 {
     public function toOptionArray()
     {

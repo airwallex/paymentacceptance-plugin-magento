@@ -1,8 +1,7 @@
-<div class="airwallex-express-checkout" data-bind="if: isActive() && expressDisplayArea().indexOf(from) !== -1">
+<div class="airwallex-express-checkout minicart" data-bind="if: isShow">
     <div id="awx-modal">
         <div class="modal-body-content"></div>
     </div>
-
 
     <div class="aws-button-mask"></div>
     <div data-role="title" class="express-title">
@@ -12,7 +11,7 @@
     <div data-bind="foreach: buttonSort">
         <div data-bind="if: $data=='google'">
             <div class="google-pay">
-                <div id="awx-google-pay"></div>
+                <div id="awx-google-pay-minicart"></div>
             </div>
         </div>
         <div data-bind="if: $data=='apple'">

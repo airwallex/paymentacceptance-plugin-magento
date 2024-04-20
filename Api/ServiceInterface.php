@@ -57,9 +57,11 @@ interface ServiceInterface
     public function redirectUrl(): string;
 
     /**
+     * Get express data when initialize and quote data updated
+     *
      * @return string
      */
-    public function getQuote();
+    public function expressData();
 
     /**
      * @return string

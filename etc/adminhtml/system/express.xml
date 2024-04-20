@@ -14,8 +14,8 @@
         </field>
         <field id="locations" translate="label" type="multiselect" sortOrder="5" showInDefault="1" showInWebsite="1" showInStore="1">
           <label>Locations</label>
-          <source_model>Airwallex\Payments\Model\Config\Source\Express\WalletButton</source_model>
-          <config_path>payment/airwallex_payments_express/enabled</config_path>
+          <source_model>Airwallex\Payments\Model\Config\Source\Express\DisplayArea</source_model>
+          <config_path>payment/airwallex_payments_express/display_area</config_path>
           <depends>
             <field id="active">1</field>
           </depends>

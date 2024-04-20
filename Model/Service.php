@@ -146,8 +146,7 @@ class Service implements ServiceInterface
         $data = [];
 
         if ($method === CardMethod::CODE) {
-            $paymentAction = $this->configuration->getCardPaymentAction();
-            $data['card']['auto_capture'] = $paymentAction === MethodInterface::ACTION_AUTHORIZE_CAPTURE;
+            $data['card']['auto_capture'] = $this->configuration->isCardCaptureEnabled();
         }
 
         return $data;
@@ -236,9 +235,11 @@ class Service implements ServiceInterface
     }
 
     /**
+     * Get express data when initialize and quote data updated
+     *
      * @return string
      */
-    public function getQuote()
+    public function expressData()
     {
         $quote = $this->checkoutHelper->getQuote();
         $cartId = $quote->getId() ?? 0;
@@ -275,6 +276,7 @@ class Service implements ServiceInterface
                 'express_button_sort' => $this->configuration->getExpressButtonSort(),
                 'country_code' => $this->configuration->getCountryCode(),
                 'store_code' => $this->storeManager->getStore()->getCode(),
+                'display_area' => $this->configuration->expressDisplayArea()
             ]
         ];
 

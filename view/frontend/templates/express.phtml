@@ -9,7 +9,8 @@ require __DIR__ . '/../web/template/payment/express-checkout.html';
             "Magento_Ui/js/core/app": {
                 "components": {
                     "airwallex-express": {
-                        "component": "Airwallex_Payments/js/view/payment/method-renderer/express-checkout"
+                        "component": "Airwallex_Payments/js/view/payment/method-renderer/express-checkout",
+                        "from": "<?=$block->getData('from')?>"
                     }
                 }
             }

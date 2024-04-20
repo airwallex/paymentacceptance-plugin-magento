@@ -15,7 +15,8 @@
                                 <item name="extra_info" xsi:type="array">
                                     <item name="component" xsi:type="string">Airwallex_Payments/js/view/payment/method-renderer/express-checkout</item>
                                     <item name="config" xsi:type="array">
-                                        <item name="template" xsi:type="string">Airwallex_Payments/payment/express-checkout</item>
+                                        <item name="template" xsi:type="string">Airwallex_Payments/payment/express-checkout-minicart</item>
+                                        <item name="from" xsi:type="string">minicart</item>
                                     </item>
                                 </item>
                             </item>
