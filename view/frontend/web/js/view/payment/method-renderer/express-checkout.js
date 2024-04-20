@@ -10,6 +10,7 @@ define(
         'Magento_Customer/js/model/authentication-popup',
         'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
         'Airwallex_Payments/js/view/payment/method-renderer/express/utils',
+        'Airwallex_Payments/js/view/payment/method-renderer/express/googlepay',
     ],
 
     function (
@@ -23,110 +24,24 @@ define(
         popup,
         addressHandler,
         utils,
+        googlepay,
     ) {
         'use strict';
 
         return Component.extend({
+            code: 'airwallex_payments_express',
             defaults: {
-                code: 'airwallex_payments_express',
                 paymentConfig: {},
                 recaptcha: null,
                 googlepay: null,
                 expressData: {},
                 guestEmail: "",
                 billingAddress: {},
-                shippingMethods: [],
-                methods: [],
                 showMinicartSelector: '.showcart',
-                isPaymentLoaded: false,
                 isShow: ko.observable(false),
                 isActive: ko.observable(false),
                 expressDisplayArea: ko.observable(''), // displayArea is a key word
-                utils: utils,
                 buttonSort: ko.observable([])
-            },
-
-            getOptions() {
-                return {
-                    mode: 'payment',
-                    buttonColor: this.paymentConfig.express_style.google_pay_button_theme,
-                    buttonType: this.paymentConfig.express_style.google_pay_button_type,
-                    emailRequired: true,
-                    billingAddressRequired: true,
-                    billingAddressParameters: {
-                        format: 'FULL',
-                        phoneNumberRequired: this.paymentConfig.is_express_phone_required
-                    },
-                    merchantInfo: {
-                        merchantName: this.paymentConfig.express_seller_name || '',
-                    },
-                    autoCapture: this.paymentConfig.is_express_capture_enabled,
-                }
-            },
-
-            getGooglePayRequestOptions() {
-                let paymentDataRequest = this.getOptions()
-                paymentDataRequest.callbackIntents = ['PAYMENT_AUTHORIZATION'];
-                if (utils.isRequireShippingAddress()) {
-                    paymentDataRequest.callbackIntents.push('SHIPPING_ADDRESS');
-                    paymentDataRequest.shippingAddressRequired = true;
-                    paymentDataRequest.shippingAddressParameters = {
-                        phoneNumberRequired: this.paymentConfig.is_express_phone_required,
-                    };
-                }
-
-                if (utils.isRequireShippingOption()) {
-                    paymentDataRequest.callbackIntents.push('SHIPPING_OPTION');
-                    paymentDataRequest.shippingOptionRequired = true;
-                }
-
-                const transactionInfo = {
-                    amount: {
-                        value: utils.formatCurrency(this.expressData.grand_total),
-                        currency: $('[property="product:price:currency"]').attr("content") || this.expressData.quote_currency_code,
-                    },
-                    countryCode: this.paymentConfig.country_code,
-                    displayItems: this.getDisplayItems(),
-                };
-
-                return Object.assign(paymentDataRequest, transactionInfo);
-            },
-
-            getDisplayItems() {
-                let res = [];
-                for (let key in this.expressData) {
-                    if (this.expressData[key] === '0.0000' || !this.expressData[key]) {
-                        continue
-                    }
-                    if (key === 'shipping_amount') {
-                        res.push({
-                            'label': 'Shipping',
-                            'type': 'LINE_ITEM',
-                            'price': utils.formatCurrency(this.expressData[key])
-                        })
-                    } else if (key === 'tax_amount') {
-                        res.push({
-                            'label': 'Tax',
-                            'type': 'TAX',
-                            'price': utils.formatCurrency(this.expressData[key])
-                        })
-                    } else if (key === 'subtotal') {
-                        res.push({
-                            'label': 'Subtotal',
-                            'type': 'SUBTOTAL',
-                            'price': utils.formatCurrency(this.expressData[key])
-                        })
-                    } else if (key === 'subtotal_with_discount') {
-                        if (this.expressData[key] !== this.expressData['subtotal']) {
-                            res.push({
-                                'label': 'Discount',
-                                'type': 'LINE_ITEM',
-                                'price': '-' + utils.getDiscount(this.expressData['subtotal'], this.expressData['subtotal_with_discount']).toString()
-                            })
-                        }
-                    }
-                }
-                return res
             },
 
             setGuestEmail(email) {
@@ -144,6 +59,8 @@ define(
                 this.paymentConfig = Object.assign(this.paymentConfig, obj.settings)
                 utils.expressData = obj
                 utils.paymentConfig = this.paymentConfig
+                googlepay.expressData = obj
+                googlepay.paymentConfig = this.paymentConfig
             },
 
             initMinicartClickEvents() {
@@ -160,7 +77,7 @@ define(
                     if (this.from === 'minicart' && utils.isCartEmpty(this.expressData)) {
                         return
                     }
-                    this.createGooglepay()
+                    googlepay.create(this)
                 }
 
                 let cartData = customerData.get('cart')
@@ -174,6 +91,8 @@ define(
 
             async initialize() {
                 this._super();
+
+                googlepay.from = this.from
 
                 await this.fetchExpressData()
                 this.buttonSort(this.paymentConfig.express_button_sort)
@@ -215,80 +134,15 @@ define(
                 if (this.from === 'minicart' && utils.isCartEmpty(this.expressData)) {
                     return
                 }
-                this.createGooglepay()
+                googlepay.create(this)
 
                 window.addEventListener('hashchange', async () => {
                     if (window.location.hash === '#payment') {
                         Airwallex.destroyElement('googlePayButton');
                         // we need update quote, because we choose shipping method last step
                         await this.fetchExpressData();
-                        this.createGooglepay()
+                        googlepay.create(this)
                     }
-                });
-            },
-
-            createGooglepay() {
-                this.googlepay = Airwallex.createElement('googlePayButton', this.getGooglePayRequestOptions())
-                let mountId = this.from === 'minicart' ? 'awx-google-pay-minicart' : 'awx-google-pay'
-                this.googlepay.mount(mountId);
-                this.attachEventsToGooglepay()
-            },
-
-            attachEventsToGooglepay() {
-                let updateQuoteByShipment = async (event) => {
-                    if (utils.isProductPage() && utils.isSetActiveInProductPage()) {
-                        try {
-                            let res = await $.ajax(utils.addToCartOptions())
-                            Object.assign(this.expressData, JSON.parse(res))
-                        } catch (res) {
-                            utils.error(res)
-                        }
-                        customerData.invalidate(['cart']);
-                        customerData.reload(['cart'], true);
-                    }
-                    // 1. estimateShippingMethods
-                    if (utils.isRequireShippingAddress()) {
-                        let addr = addressHandler.getIntermediateShippingAddressFromGoogle(event.detail.intermediatePaymentData.shippingAddress)
-                        this.methods = await addressHandler.estimateShippingMethods(addr, utils.isLoggedIn(), utils.getCartId())
-                    }
-
-                    // 2. postShippingInformation
-                    let {information, selectedMethod} = addressHandler.constructAddressInformationFromGoogle(
-                        utils.isRequireShippingAddress(), event.detail.intermediatePaymentData, this.methods
-                    )
-                    await addressHandler.postShippingInformation(information, utils.isLoggedIn(), utils.getCartId())
-
-                    // 3. update quote
-                    await this.fetchExpressData()
-
-                    let options = this.getGooglePayRequestOptions();
-                    if (utils.isRequireShippingOption()) {
-                        options.shippingOptionParameters = addressHandler.formatShippingMethodsToGoogle(this.methods, selectedMethod)
-                    }
-                    this.googlepay.update(options);
-                }
-
-                this.googlepay.on('shippingAddressChange', updateQuoteByShipment);
-
-                this.googlepay.on('shippingMethodChange', updateQuoteByShipment);
-
-                this.googlepay.on('authorized', async (event) => {
-                    this.setGuestEmail(event.detail.paymentData.email)
-
-                    if (utils.isRequireShippingAddress()) {
-                        // this time google provide full shipping address, we should post to magento
-                        let {information} = addressHandler.constructAddressInformationFromGoogle(
-                            utils.isRequireShippingAddress(), event.detail.paymentData, this.methods
-                        )
-                        await addressHandler.postShippingInformation(information, utils.isLoggedIn(), utils.getCartId())
-                    } else {
-                        await addressHandler.postBillingAddress({
-                            'cartId': utils.getCartId(),
-                            'address': addressHandler.getBillingAddressFromGoogle(event.detail.paymentData.paymentMethodData.info.billingAddress)
-                        }, utils.isLoggedIn(), utils.getCartId())
-                    }
-                    this.billingAddress = addressHandler.setIntentConfirmBillingAddressFromGoogle(event.detail.paymentData);
-                    this.placeOrder()
                 });
             },
 
@@ -337,7 +191,7 @@ define(
                         if (utils.isRequireShippingOption()) {
                             payload.billingAddress = addressHandler.getBillingAddressToPlaceOrder(this.billingAddress)
                         }
-                        await this.googlepay.confirmIntent(params);
+                        await googlepay.confirmIntent(params);
 
                         const endResult = await storage.post(
                             serviceUrl, JSON.stringify(payload), true, 'application/json', {}

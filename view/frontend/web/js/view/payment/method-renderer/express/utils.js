@@ -133,8 +133,6 @@ define([
         },
 
         error(response) {
-            console.log('error')
-            console.log(response)
             let modalSelector = $('#awx-modal')
             modal({title: 'Error'}, modalSelector);
 
