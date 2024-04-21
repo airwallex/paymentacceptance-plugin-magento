@@ -108,20 +108,31 @@ define([
             return !this.expressData.is_virtual
         },
 
-        addToCartOptions() {
+        postOptions(data, url) {
             let formData = new FormData();
-            let serializedArray = $(this.productFormSelector).serializeArray();
-            $.each(serializedArray, function (index, field) {
-                formData.append(field.name, field.value);
-            });
+            if (Array.isArray(data)) {
+                $.each(data, function (index, field) {
+                    formData.append(field.name, field.value);
+                });
+            } else {
+                for (let k in data) {
+                    formData.append(k, data[k]);
+                }
+            }
 
             return {
-                url: urlBuilder.build('rest/V1/airwallex/payments/add-to-cart'),
+                url,
                 data: formData,
                 processData: false,
                 contentType: false,
                 type: 'POST',
             };
+        },
+
+        addToCartOptions() {
+            let arr = $(this.productFormSelector).serializeArray();
+            let url = urlBuilder.build('rest/V1/airwallex/payments/add-to-cart')
+            return this.postOptions(arr, url)
         },
 
         getCartId() {

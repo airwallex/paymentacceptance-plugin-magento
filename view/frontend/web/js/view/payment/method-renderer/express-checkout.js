@@ -55,12 +55,43 @@ define(
                 }
                 const resp = await storage.get(url, undefined, 'application/json', {});
                 let obj = JSON.parse(resp)
-                this.expressData = obj
-                this.paymentConfig = Object.assign(this.paymentConfig, obj.settings)
-                utils.expressData = obj
-                utils.paymentConfig = this.paymentConfig
-                googlepay.expressData = obj
-                googlepay.paymentConfig = this.paymentConfig
+                this.updateExpressData(obj)
+                this.updatePaymentConfig(obj.settings)
+            },
+
+            async postAddress(address, methodId) {
+                let url = urlBuilder.build('rest/V1/airwallex/payments/post-address');
+                if (!utils.isLoggedIn()) {
+
+                }
+                let postOptions = utils.postOptions(address, url)
+                postOptions.data.append('methodId', methodId)
+                let resp = await $.ajax(postOptions)
+
+                let obj = JSON.parse(resp)
+                this.updateExpressData(obj.quote_data)
+                this.updateMethods(obj.methods, obj.selected_method)
+                addressHandler.regionId = obj.region_id
+                return obj
+            },
+
+            updateExpressData(expressData) {
+                Object.assign(this.expressData, expressData)
+                Object.assign(utils.expressData, expressData)
+                Object.assign(googlepay.expressData, expressData)
+            },
+
+            updatePaymentConfig(paymentConfig) {
+                this.paymentConfig = paymentConfig
+                utils.paymentConfig = paymentConfig
+                googlepay.paymentConfig = paymentConfig
+            },
+
+            updateMethods(methods, selectedMethod) {
+                addressHandler.methods = methods
+                googlepay.methods = methods
+                addressHandler.selectedMethod = selectedMethod
+                googlepay.selectedMethod = selectedMethod
             },
 
             initMinicartClickEvents() {
@@ -198,6 +229,8 @@ define(
                         );
                         resolve(endResult);
                     } catch (e) {
+                        Airwallex.destroyElement('googlePayButton');
+                        googlepay.create(this)
                         reject(e);
                     }
                 })).then(response => {

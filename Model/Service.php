@@ -25,18 +25,19 @@ use Airwallex\Payments\Plugin\ReCaptchaValidationPlugin;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Catalog\Api\ProductRepositoryInterface;
+use Magento\Checkout\Api\Data\ShippingInformationInterface;
 use Magento\Checkout\Api\GuestPaymentInformationManagementInterface;
 use Magento\Checkout\Api\PaymentInformationManagementInterface;
 use Magento\Checkout\Helper\Data as CheckoutData;
+use Magento\Directory\Model\RegionFactory;
 use Magento\Framework\App\CacheInterface;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\DataObject;
 use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
-use Magento\Payment\Model\MethodInterface;
-use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Quote\Api\Data\AddressInterface;
+use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Quote\Api\Data\PaymentInterface;
 use Magento\Quote\Model\QuoteIdToMaskedQuoteIdInterface;
 use Magento\Quote\Model\ResourceModel\Quote\QuoteIdMask as QuoteIdMaskResourceModel;
@@ -45,6 +46,10 @@ use Magento\Framework\Serialize\SerializerInterface;
 use Magento\Framework\Filter\LocalizedToNormalized;
 use Magento\Framework\Locale\Resolver;
 use Magento\Quote\Model\QuoteIdMaskFactory;
+use Magento\Quote\Api\ShipmentEstimationInterface;
+use Magento\Customer\Api\Data\RegionInterfaceFactory;
+use Magento\Checkout\Api\ShippingInformationManagementInterface;
+use Magento\Checkout\Api\Data\ShippingInformationInterfaceFactory;
 
 class Service implements ServiceInterface
 {
@@ -66,7 +71,11 @@ class Service implements ServiceInterface
     private CartRepositoryInterface $quoteRepository;
     private QuoteIdMaskFactory $quoteIdMaskFactory;
     private QuoteIdMaskResourceModel $quoteIdMaskResourceModel;
-
+    private ShipmentEstimationInterface $shipmentEstimation;
+    private RegionInterfaceFactory $regionInterfaceFactory;
+    private RegionFactory $regionFactory;
+    private ShippingInformationManagementInterface $shippingInformationManagement;
+    private ShippingInformationInterfaceFactory $shippingInformationFactory;
     /**
      * Index constructor.
      *
@@ -95,7 +104,12 @@ class Service implements ServiceInterface
         Resolver $localeResolver,
         CartRepositoryInterface $quoteRepository,
         QuoteIdMaskFactory $quoteIdMaskFactory,
-        QuoteIdMaskResourceModel $quoteIdMaskResourceModel
+        QuoteIdMaskResourceModel $quoteIdMaskResourceModel,
+        ShipmentEstimationInterface $shipmentEstimation,
+        RegionInterfaceFactory $regionInterfaceFactory,
+        RegionFactory $regionFactory,
+        ShippingInformationManagementInterface $shippingInformationManagement,
+        ShippingInformationInterfaceFactory $shippingInformationFactory
     ) {
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
@@ -114,6 +128,11 @@ class Service implements ServiceInterface
         $this->quoteRepository = $quoteRepository;
         $this->quoteIdMaskFactory = $quoteIdMaskFactory;
         $this->quoteIdMaskResourceModel = $quoteIdMaskResourceModel;
+        $this->shipmentEstimation = $shipmentEstimation;
+        $this->regionInterfaceFactory = $regionInterfaceFactory;
+        $this->regionFactory = $regionFactory;
+        $this->shippingInformationManagement = $shippingInformationManagement;
+        $this->shippingInformationFactory = $shippingInformationFactory;
     }
     /**
      * Return URL
@@ -178,17 +197,22 @@ class Service implements ServiceInterface
                 'client_secret' => $intent['clientSecret']
             ]);
         } else {
-            $orderId = $this->guestPaymentInformationManagement->savePaymentInformationAndPlaceOrder(
-                $cartId,
-                $email,
-                $paymentMethod,
-                $billingAddress
-            );
+            try {
+                $orderId = $this->guestPaymentInformationManagement->savePaymentInformationAndPlaceOrder(
+                    $cartId,
+                    $email,
+                    $paymentMethod,
+                    $billingAddress
+                );
 
-            $response->setData([
-                'response_type' => 'success',
-                'order_id' => $orderId
-            ]);
+                $response->setData([
+                    'response_type' => 'success',
+                    'order_id' => $orderId
+                ]);
+            } catch (CouldNotSaveException $e) {
+                $this->paymentIntents->removeIntents();
+                throw $e;
+            }
         }
 
         return $response;
@@ -219,16 +243,21 @@ class Service implements ServiceInterface
                 'client_secret' => $intent['clientSecret']
             ]);
         } else {
-            $orderId = $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
-                $cartId,
-                $paymentMethod,
-                $billingAddress
-            );
+            try {
+                $orderId = $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
+                    $cartId,
+                    $paymentMethod,
+                    $billingAddress
+                );
 
-            $response->setData([
-                'response_type' => 'success',
-                'order_id' => $orderId
-            ]);
+                $response->setData([
+                    'response_type' => 'success',
+                    'order_id' => $orderId
+                ]);
+            } catch (CouldNotSaveException $e) {
+                $this->paymentIntents->removeIntents();
+                throw $e;
+            }
         }
 
         return $response;
@@ -240,6 +269,23 @@ class Service implements ServiceInterface
      * @return string
      */
     public function expressData()
+    {
+        $res = $this->quoteData();
+        $res['settings'] = $this->settings();
+
+        if ($this->request->getParam("is_product_page") === '1') {
+            $res['product_type'] = $this->getProductType();
+        }
+
+        return json_encode($res);
+    }
+
+    /**
+     * Get quote data
+     *
+     * @return array
+     */
+    private function quoteData()
     {
         $quote = $this->checkoutHelper->getQuote();
         $cartId = $quote->getId() ?? 0;
@@ -253,7 +299,7 @@ class Service implements ServiceInterface
             ? $quote->getBillingAddress()->getTaxAmount()
             : $quote->getShippingAddress()->getTaxAmount();
 
-        $res = [
+        return [
             'subtotal' => $quote->getSubtotal() ?? 0,
             'grand_total' => $quote->getGrandTotal() ?? 0,
             'shipping_amount' => $quote->getShippingAddress()->getShippingAmount() ?? 0,
@@ -266,27 +312,35 @@ class Service implements ServiceInterface
             'quote_currency_code' => $quote->getQuoteCurrencyCode(),
             'email' => $quote->getCustomer()->getEmail(),
             'items_qty' => $quote->getItemsQty() ?? 0,
-            'settings' => [
-                'mode' => $this->configuration->getMode(),
-                'express_seller_name' => $this->configuration->getExpressSellerName(),
-                'is_express_active' => $this->configuration->isExpressActive(),
-                'is_express_phone_required' => $this->configuration->isExpressPhoneRequired(),
-                'is_express_capture_enabled' => $this->configuration->isExpressCaptureEnabled(),
-                'express_style' => $this->configuration->getExpressStyle(),
-                'express_button_sort' => $this->configuration->getExpressButtonSort(),
-                'country_code' => $this->configuration->getCountryCode(),
-                'store_code' => $this->storeManager->getStore()->getCode(),
-                'display_area' => $this->configuration->expressDisplayArea()
-            ]
         ];
-
-        if ($this->request->getParam("is_product_page") === '1') {
-            $res['product_type'] = $this->getProductType();
-        }
-
-        return json_encode($res);
     }
 
+    /**
+     * Get admin settings
+     *
+     * @return array
+     */
+    private function settings()
+    {
+        return [
+            'mode' => $this->configuration->getMode(),
+            'express_seller_name' => $this->configuration->getExpressSellerName(),
+            'is_express_active' => $this->configuration->isExpressActive(),
+            'is_express_phone_required' => $this->configuration->isExpressPhoneRequired(),
+            'is_express_capture_enabled' => $this->configuration->isExpressCaptureEnabled(),
+            'express_style' => $this->configuration->getExpressStyle(),
+            'express_button_sort' => $this->configuration->getExpressButtonSort(),
+            'country_code' => $this->configuration->getCountryCode(),
+            'store_code' => $this->storeManager->getStore()->getCode(),
+            'display_area' => $this->configuration->expressDisplayArea()
+        ];
+    }
+
+    /**
+     * Get product type from product_id from request
+     *
+     * @return string
+     */
     private function getProductType()
     {
         $product = $this->productRepository->getById(
@@ -299,6 +353,8 @@ class Service implements ServiceInterface
     }
 
     /**
+     * Add product when click pay in product page
+     *
      * @return string
      */
     public function addToCart()
@@ -347,7 +403,6 @@ class Service implements ServiceInterface
             $quote->collectTotals();
             $this->quoteRepository->save($quote);
 
-
             try {
                 $maskCartId = $this->quoteIdToMaskedQuoteId->execute($quote->getId());
             } catch (NoSuchEntityException $e) {
@@ -366,5 +421,81 @@ class Service implements ServiceInterface
         } catch (\Exception $e) {
             throw new CouldNotSaveException(__($e->getMessage()), $e);
         }
+    }
+
+    /**
+     * Post Address to get method and quote data
+     *
+     * @return string
+     */
+    public function postAddress(): string
+    {
+        $countryId = $this->request->getParam('country_id');
+        $regionName = $this->request->getParam('region');
+
+        $regionId = $this->regionFactory->create()->loadByName($regionName, $countryId)->getRegionId();
+        $region = $this->regionInterfaceFactory->create()->setRegion($regionName)->setRegionId($regionId);
+
+        $quote = $this->checkoutHelper->getQuote();
+
+        $cartId = $quote->getId();
+        if (!is_numeric($cartId)) {
+            $cartId = $this->quoteIdMaskFactory->create()->load($cartId, 'masked_id')->getQuoteId();
+        }
+
+        $address = $quote->getBillingAddress();
+        $address->setCountryId($this->request->getParam('country_id'));
+        $address->setCity($this->request->getParam('city'));
+        $address->setRegion($region->getRegion());
+        $address->setPostcode($this->request->getParam('postcode'));
+        $methods = $this->shipmentEstimation->estimateByExtendedAddress($cartId, $address);
+
+        if (!count($methods)) {
+            throw new \Exception(__('There are no available shipping method found.'));
+        }
+
+        $selectedMethod = $methods[0];
+        foreach ($methods as $method) {
+            if ($method->getMethodCode() === $this->request->getParam('methodId')) {
+                $selectedMethod = $method;
+                break;
+            }
+        }
+
+        $shippingInformation = $this->shippingInformationFactory->create([
+            'data' => [
+                ShippingInformationInterface::SHIPPING_ADDRESS => $address,
+                ShippingInformationInterface::SHIPPING_CARRIER_CODE => $selectedMethod->getCarrierCode(),
+                ShippingInformationInterface::SHIPPING_METHOD_CODE => $selectedMethod->getMethodCode(),
+            ],
+        ]);
+        $this->shippingInformationManagement->saveAddressInformation($cartId, $shippingInformation);
+
+        $res = [];
+        foreach ($methods as $method) {
+            if ($method->getAvailable()) {
+                $res['methods'][]=$this->formatShippingMethod($method);
+            }
+        }
+        $res['selected_method'] = $this->formatShippingMethod($selectedMethod);
+        $res['quote_data'] = $this->quoteData();
+        $res['region_id'] = $regionId; // we need this because magento internal bug
+        return json_encode($res);
+    }
+
+    /**
+     * Format shipping method
+     *
+     * @return array
+     */
+    private function formatShippingMethod($method)
+    {
+        return [
+            'carrier_code' => $method->getCarrierCode(),
+            'carrier_title' => $method->getCarrierTitle(),
+            'amount' => $method->getAmount(),
+            'method_code' => $method->getMethodCode(),
+            'method_title' => $method->getMethodTitle(),
+        ];
     }
 }

@@ -64,7 +64,16 @@ interface ServiceInterface
     public function expressData();
 
     /**
+     * Add to cart
+     *
      * @return string
      */
     public function addToCart();
+
+    /**
+     * Post Address to get method and quote data
+     *
+     * @return string
+     */
+    public function postAddress();
 }

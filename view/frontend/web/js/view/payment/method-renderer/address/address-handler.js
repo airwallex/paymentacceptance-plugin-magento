@@ -8,6 +8,9 @@ define([
     'use strict';
 
     return {
+        selectedMethod: {},
+        regionId: "",
+
         postBillingAddress(payload, isLoggedIn, cartId) {
             let url = 'rest/V1/carts/mine/billing-address';
             if (!isLoggedIn) {
@@ -61,16 +64,11 @@ define([
             }
         },
 
-        constructAddressInformationFromGoogle(isRequireShippingAddress, data, methods) {
+        constructAddressInformationFromGoogle(data) {
             let billingAddress = {}
             if (data.paymentMethodData) {
                 let addr = data.paymentMethodData.info.billingAddress
                 billingAddress = this.getBillingAddressFromGoogle(addr)
-            }
-
-            let selectedMethod = methods.find(item => item.carrier_code === data.shippingOptionData.id) || methods[0];
-            if (!selectedMethod) {
-                selectedMethod = {}
             }
 
             let firstname = '', lastname = ''
@@ -84,24 +82,23 @@ define([
                 "addressInformation": {
                     "shipping_address": {},
                     "billing_address": billingAddress,
-                    "shipping_method_code": selectedMethod.method_code,
-                    "shipping_carrier_code": selectedMethod.carrier_code,
+                    "shipping_method_code": this.selectedMethod.method_code,
+                    "shipping_carrier_code": this.selectedMethod.carrier_code,
                     "extension_attributes": {}
                 }
             }
-            if (isRequireShippingAddress) {
-                information.addressInformation.shipping_address = {
-                    "countryId": data.shippingAddress.countryCode,
-                    "region": data.shippingAddress.administrativeArea,
-                    "street": [data.shippingAddress.address1 + data.shippingAddress.address2 + data.shippingAddress.address3],
-                    "telephone": data.shippingAddress.phoneNumber,
-                    "postcode": data.shippingAddress.postalCode,
-                    "city": data.shippingAddress.locality,
-                    firstname,
-                    lastname,
-                }
+            information.addressInformation.shipping_address = {
+                "countryId": data.shippingAddress.countryCode,
+                "regionId": this.regionId,
+                "region": data.shippingAddress.administrativeArea,
+                "street": [data.shippingAddress.address1 + data.shippingAddress.address2 + data.shippingAddress.address3],
+                "telephone": data.shippingAddress.phoneNumber,
+                "postcode": data.shippingAddress.postalCode,
+                "city": data.shippingAddress.locality,
+                firstname,
+                lastname,
             }
-            return {information, selectedMethod}
+            return information
         },
 
         setIntentConfirmBillingAddressFromGoogle(data) {
@@ -140,15 +137,15 @@ define([
         formatShippingMethodsToGoogle(methods, selectedMethod) {
             const shippingOptions = methods.map(addr => {
                 return {
-                    id: addr.carrier_code,
-                    label: addr.method_code,
+                    id: addr.method_code,
+                    label: addr.method_title,
                     description: addr.carrier_title,
                 };
             });
 
             return {
                 shippingOptions,
-                defaultSelectedOptionId: selectedMethod.carrier_code
+                defaultSelectedOptionId: selectedMethod.method_code
             };
         },
     }

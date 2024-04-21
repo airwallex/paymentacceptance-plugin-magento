@@ -17,6 +17,7 @@ define([
         paymentConfig: {},
         from: '',
         methods: [],
+        selectedMethod: {},
 
         create(that) {
             this.googlepay = Airwallex.createElement('googlePayButton', this.getRequestOptions())
@@ -31,6 +32,7 @@ define([
 
         attachEvents(that) {
             let updateQuoteByShipment = async (event) => {
+                console.log(event);
                 if (utils.isProductPage() && utils.isSetActiveInProductPage()) {
                     try {
                         let res = await $.ajax(utils.addToCartOptions())
@@ -41,26 +43,19 @@ define([
                     customerData.invalidate(['cart']);
                     customerData.reload(['cart'], true);
                 }
-                // 1. estimateShippingMethods
-                if (utils.isRequireShippingAddress()) {
-                    let addr = addressHandler.getIntermediateShippingAddressFromGoogle(event.detail.intermediatePaymentData.shippingAddress)
-                    this.methods = await addressHandler.estimateShippingMethods(addr, utils.isLoggedIn(), utils.getCartId())
+
+                let addr = addressHandler.getIntermediateShippingAddressFromGoogle(event.detail.intermediatePaymentData.shippingAddress)
+
+                try {
+                    await that.postAddress(addr, event.detail.intermediatePaymentData.shippingOptionData.id);
+                    let options = this.getRequestOptions();
+                    if (utils.isRequireShippingOption()) {
+                        options.shippingOptionParameters = addressHandler.formatShippingMethodsToGoogle(this.methods, this.selectedMethod)
+                    }
+                    this.googlepay.update(options);
+                } catch (e) {
+                    utils.error(e)
                 }
-
-                // 2. postShippingInformation
-                let {information, selectedMethod} = addressHandler.constructAddressInformationFromGoogle(
-                    utils.isRequireShippingAddress(), event.detail.intermediatePaymentData, this.methods
-                )
-                await addressHandler.postShippingInformation(information, utils.isLoggedIn(), utils.getCartId())
-
-                // 3. update quote
-                await that.fetchExpressData()
-
-                let options = this.getRequestOptions();
-                if (utils.isRequireShippingOption()) {
-                    options.shippingOptionParameters = addressHandler.formatShippingMethodsToGoogle(this.methods, selectedMethod)
-                }
-                this.googlepay.update(options);
             }
 
             this.googlepay.on('shippingAddressChange', updateQuoteByShipment);
@@ -68,12 +63,13 @@ define([
             this.googlepay.on('shippingMethodChange', updateQuoteByShipment);
 
             this.googlepay.on('authorized', async (event) => {
+                console.log(event)
                 that.setGuestEmail(event.detail.paymentData.email)
 
                 if (utils.isRequireShippingAddress()) {
                     // this time google provide full shipping address, we should post to magento
-                    let {information} = addressHandler.constructAddressInformationFromGoogle(
-                        utils.isRequireShippingAddress(), event.detail.paymentData, this.methods
+                    let information = addressHandler.constructAddressInformationFromGoogle(
+                        event.detail.paymentData
                     )
                     await addressHandler.postShippingInformation(information, utils.isLoggedIn(), utils.getCartId())
                 } else {
