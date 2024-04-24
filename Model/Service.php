@@ -112,7 +112,7 @@ class Service implements ServiceInterface
         RegionFactory $regionFactory,
         ShippingInformationManagementInterface $shippingInformationManagement,
         ShippingInformationInterfaceFactory $shippingInformationFactory,
-        ConfigProvider $configProvider,
+        ConfigProvider $configProvider
     ) {
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
@@ -316,6 +316,16 @@ class Service implements ServiceInterface
             'quote_currency_code' => $quote->getQuoteCurrencyCode(),
             'email' => $quote->getCustomer()->getEmail(),
             'items_qty' => $quote->getItemsQty() ?? 0,
+            'billing_address' => $quote->getBillingAddress()->toArray([
+                'city',
+                'countryId',
+                'postcode',
+                'region',
+                'street',
+                'firstname',
+                'lastname',
+                'email',
+            ]),
         ];
     }
 

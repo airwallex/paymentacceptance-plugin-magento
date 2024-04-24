@@ -78,7 +78,7 @@ class AvailablePaymentMethodsHelper
         SerializerInterface $serializer,
         StoreManagerInterface $storeManager,
         Configuration $configuration,
-        CheckoutData $checkoutHelper,
+        CheckoutData $checkoutHelper
     ) {
         $this->availablePaymentMethod = $availablePaymentMethod;
         $this->cache = $cache;

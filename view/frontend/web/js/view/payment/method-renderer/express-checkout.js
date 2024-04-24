@@ -6,8 +6,6 @@ define(
         'Magento_Customer/js/customer-data',
         'mage/url',
         'uiComponent',
-        'Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry',
-        'Magento_ReCaptchaWebapiUi/js/webapiReCaptcha',
         'Magento_Customer/js/model/authentication-popup',
         'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
         'Airwallex_Payments/js/view/payment/method-renderer/express/utils',
@@ -21,8 +19,6 @@ define(
         customerData,
         urlBuilder,
         Component,
-        recaptchaRegistry,
-        recaptchaFactory,
         popup,
         addressHandler,
         utils,
@@ -36,18 +32,11 @@ define(
                 paymentConfig: {},
                 googlepay: null,
                 expressData: {},
-                guestEmail: "",
-                billingAddress: {},
                 showMinicartSelector: '.showcart',
                 isShow: false,
                 expressDisplayArea: ko.observable(''), // displayArea is a key word
                 buttonSort: ko.observableArray([]),
-                recaptchaId: 'recaptcha-checkout-place-order',
                 isShowRecaptcha: ko.observable(false),
-            },
-
-            setGuestEmail(email) {
-                this.guestEmail = email
             },
 
             async fetchExpressData() {
@@ -103,6 +92,7 @@ define(
                     if (!$(this.showMinicartSelector).hasClass('active')) {
                         return
                     }
+
                     Airwallex.destroyElement('googlePayButton');
                     await this.fetchExpressData();
                     if (this.from === 'minicart' && utils.isCartEmpty(this.expressData)) {
@@ -150,7 +140,6 @@ define(
                 this.initMinicartClickEvents()
                 utils.initProductPageFormClickEvents()
                 this.initHashPaymentEvent()
-                this.loadRecaptcha()
             },
 
             async loadPayment() {
@@ -158,22 +147,6 @@ define(
                     return
                 }
                 googlepay.create(this)
-            },
-
-            loadRecaptcha() {
-                if (this.paymentConfig.is_recaptcha_enabled && !utils.isCheckoutPage() && !window.grecaptcha) {
-                    this.isShowRecaptcha(true)
-                    let re = recaptchaFactory()
-                    re.reCaptchaId = this.recaptchaId
-                    re.settings = this.paymentConfig.recaptcha_settings
-                    re.renderReCaptcha()
-                    if (!utils.isCheckoutPage()) {
-                        $(".airwallex-recaptcha").css({
-                            'visibility': 'hidden',
-                            'position': 'absolute'
-                        })
-                    }
-                }
             },
 
             initHashPaymentEvent() {
@@ -209,15 +182,10 @@ define(
 
                 (new Promise(async (resolve, reject) => {
                     try {
-                        payload.xReCaptchaValue = await new Promise((resolve, reject) => {
-                            recaptchaRegistry.addListener(this.recaptchaId, (token) => {
-                                resolve(token);
-                            });
-                            recaptchaRegistry.triggers[this.recaptchaId]();
-                        });
+                        payload.xReCaptchaValue = await utils.recaptchaToken()
 
                         if (!utils.isLoggedIn()) {
-                            payload.email = utils.isCheckoutPage() ? $("#customer-email").val() : this.guestEmail;
+                            payload.email = utils.isCheckoutPage() ? $("#customer-email").val() : googlepay.guestEmail;
                         }
 
                         const intentResponse = await storage.post(
@@ -228,13 +196,14 @@ define(
                         params.id = intentResponse.intent_id;
                         params.client_secret = intentResponse.client_secret;
                         params.payment_method = {};
-                        params.payment_method.billing = this.billingAddress;
-
-                        payload.intent_id = intentResponse.intent_id;
-                        if (utils.isRequireShippingOption()) {
-                            payload.billingAddress = addressHandler.getBillingAddressToPlaceOrder(this.billingAddress)
+                        params.payment_method.billing = addressHandler.intentConfirmBillingAddressFromGoogle;
+                        if (utils.isCheckoutPage()) {
+                            addressHandler.setIntentConfirmBillingAddressFromOfficial(this.expressData.billing_address)
+                            params.payment_method.billing = addressHandler.intentConfirmBillingAddressFromOfficial;
                         }
                         await googlepay.confirmIntent(params);
+
+                        payload.intent_id = intentResponse.intent_id;
 
                         const endResult = await storage.post(
                             serviceUrl, JSON.stringify(payload), true, 'application/json', {}

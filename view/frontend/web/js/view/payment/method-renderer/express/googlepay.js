@@ -18,11 +18,13 @@ define([
         from: '',
         methods: [],
         selectedMethod: {},
+        guestEmail: '',
 
         create(that) {
             this.googlepay = Airwallex.createElement('googlePayButton', this.getRequestOptions())
             this.googlepay.mount('awx-google-pay-' + this.from);
             this.attachEvents(that)
+            utils.loadRecaptcha(that.isShowRecaptcha)
         },
 
         confirmIntent(params) {
@@ -61,8 +63,7 @@ define([
             this.googlepay.on('shippingMethodChange', updateQuoteByShipment);
 
             this.googlepay.on('authorized', async (event) => {
-                that.setGuestEmail(event.detail.paymentData.email)
-
+                this.guestEmail = event.detail.paymentData.email
                 if (utils.isRequireShippingAddress()) {
                     // this time google provide full shipping address, we should post to magento
                     let information = addressHandler.constructAddressInformationFromGoogle(
@@ -75,7 +76,7 @@ define([
                         'address': addressHandler.getBillingAddressFromGoogle(event.detail.paymentData.paymentMethodData.info.billingAddress)
                     }, utils.isLoggedIn(), utils.getCartId())
                 }
-                that.billingAddress = addressHandler.setIntentConfirmBillingAddressFromGoogle(event.detail.paymentData);
+                addressHandler.setIntentConfirmBillingAddressFromGoogle(event.detail.paymentData);
                 that.placeOrder()
             });
         },

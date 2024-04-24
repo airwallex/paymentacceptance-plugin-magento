@@ -3,13 +3,15 @@ define([
     'jquery',
     'Magento_Customer/js/model/authentication-popup',
     'Magento_Ui/js/modal/modal',
-    'Magento_Customer/js/customer-data'
+    'Magento_ReCaptchaWebapiUi/js/webapiReCaptcha',
+    'Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry',
 ], function (
     urlBuilder,
     $,
     popup,
     modal,
-    customerData,
+    webapiReCaptcha,
+    webapiRecaptchaRegistry,
 ) {
     'use strict';
 
@@ -22,6 +24,8 @@ define([
         expressSelector: '.airwallex-express-checkout',
         expressData: {},
         paymentConfig: {},
+        recaptchaSelector: '.airwallex-recaptcha',
+        recaptchaId: 'recaptcha-checkout-place-order',
 
         getDiscount(subtotal, subtotal_with_discount) {
             let diff = subtotal - subtotal_with_discount
@@ -58,6 +62,7 @@ define([
 
         validateProductOptions() {
             if (this.checkProductForm()) {
+                $(this.productFormSelector).valid()
                 $(this.buttonMaskSelector).hide()
             } else {
                 $(this.buttonMaskSelector).show()
@@ -80,6 +85,32 @@ define([
                     $(this.productFormSelector).valid()
                 })
             }
+        },
+
+        loadRecaptcha(isShowRecaptcha) {
+            if (!$(this.recaptchaSelector).length) {
+                return
+            }
+            if (this.paymentConfig.is_recaptcha_enabled && !this.isCheckoutPage() && !window.grecaptcha) {
+                isShowRecaptcha(true)
+                let re = webapiReCaptcha()
+                re.reCaptchaId = this.recaptchaId
+                re.settings = this.paymentConfig.recaptcha_settings
+                re.renderReCaptcha()
+                $(this.recaptchaSelector).css({
+                    'visibility': 'hidden',
+                    'position': 'absolute'
+                })
+            }
+        },
+
+        async recaptchaToken() {
+            return await new Promise((resolve, reject) => {
+                webapiRecaptchaRegistry.addListener(this.recaptchaId, (token) => {
+                    resolve(token);
+                });
+                webapiRecaptchaRegistry.triggers[this.recaptchaId]();
+            });
         },
 
         toggleMaskFormLogin() {

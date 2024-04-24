@@ -73,7 +73,7 @@ define(
                         country_code: billingAddress.countryId,
                         postcode: billingAddress.postcode,
                         state: billingAddress.region,
-                        street: billingAddress.street[0]
+                        street: billingAddress.street.join(', ')
                     },
                     first_name: billingAddress.firstname,
                     last_name: billingAddress.lastname,

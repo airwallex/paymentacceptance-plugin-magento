@@ -10,6 +10,8 @@ define([
     return {
         selectedMethod: {},
         regionId: "",
+        intentConfirmBillingAddressFromGoogle: {},
+        intentConfirmBillingAddressFromOfficial: {},
 
         postBillingAddress(payload, isLoggedIn, cartId) {
             let url = 'rest/V1/carts/mine/billing-address';
@@ -94,7 +96,7 @@ define([
         setIntentConfirmBillingAddressFromGoogle(data) {
             let addr = data.paymentMethodData.info.billingAddress
             let names = addr.name.split(' ')
-            return {
+            this.intentConfirmBillingAddressFromGoogle = {
                 address: {
                     city: addr.locality,
                     country_code: addr.countryCode,
@@ -109,18 +111,18 @@ define([
             }
         },
 
-        getBillingAddressToPlaceOrder(billingAddress) {
-            return {
-                "countryId": billingAddress.address.country_code,
-                "regionCode": billingAddress.address.state,
-                "street": [
-                    billingAddress.address.street[0],
-                ],
-                "telephone": billingAddress.telephone,
-                "postcode": billingAddress.address.postcode,
-                "city": billingAddress.address.city,
-                "firstname": billingAddress.first_name,
-                "lastname": billingAddress.last_name,
+        setIntentConfirmBillingAddressFromOfficial: function (billingAddress) {
+            this.intentConfirmBillingAddressFromOfficial = {
+                address: {
+                    city: billingAddress.city,
+                    country_code: billingAddress.countryId,
+                    postcode: billingAddress.postcode,
+                    state: billingAddress.region,
+                    street: Array.isArray(billingAddress.street) ? billingAddress.street.join(', ') : billingAddress.street
+                },
+                first_name: billingAddress.firstname,
+                last_name: billingAddress.lastname,
+                email: billingAddress.email
             }
         },
 

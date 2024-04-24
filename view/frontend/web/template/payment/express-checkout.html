@@ -12,10 +12,10 @@
 
     <div data-bind="foreach: buttonSort">
         <div data-bind="attr: {class: 'awx-pay-' + $data}">
-            <div data-bind="attr: {id: 'awx-google-pay-' + $parent.from}"></div>
+            <div data-bind="attr: {id: 'awx-' + $data + '-pay-' + $parent.from}"></div>
         </div>
+        <div style="height: 1px;"></div>
     </div>
-
     <div class="airwallex-recaptcha" data-bind="if: isShowRecaptcha">
         <div id="recaptcha-checkout-place-order-wrapper">
             <div class="g-recaptcha" id="recaptcha-checkout-place-order"></div>
@@ -24,4 +24,3 @@
 
     <div data-bind="afterRender: loadPayment"></div>
 </div>
-

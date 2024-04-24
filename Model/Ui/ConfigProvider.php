@@ -81,9 +81,14 @@ class ConfigProvider implements ConfigProviderInterface
      */
     public function getReCaptchaConfig()
     {
+        if (!$this->isReCaptchaEnabled()) {
+            return [];
+        }
+
         $this->reCaptchaBlock->setData([
             'recaptcha_for' => self::AIRWALLEX_RECAPTCHA_FOR
         ]);
+
         return $this->reCaptchaBlock->getCaptchaUiConfig();
     }
 
