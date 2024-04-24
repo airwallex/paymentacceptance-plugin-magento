@@ -31,16 +31,6 @@ define([
             );
         },
 
-        estimateShippingMethods(address, isLoggedIn, cartId) {
-            let url = 'rest/V1/carts/mine/estimate-shipping-methods';
-            if (!isLoggedIn) {
-                url = 'rest/V1/guest-carts/' + cartId + '/estimate-shipping-methods'
-            }
-            return storage.post(
-                urlBuilder.build(url), JSON.stringify({address}), undefined, 'application/json', {}
-            );
-        },
-
         getIntermediateShippingAddressFromGoogle(addr) {
             return {
                 "region": addr.administrativeArea,

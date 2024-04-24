@@ -50,6 +50,7 @@ use Magento\Quote\Api\ShipmentEstimationInterface;
 use Magento\Customer\Api\Data\RegionInterfaceFactory;
 use Magento\Checkout\Api\ShippingInformationManagementInterface;
 use Magento\Checkout\Api\Data\ShippingInformationInterfaceFactory;
+use Airwallex\Payments\Model\Ui\ConfigProvider;
 
 class Service implements ServiceInterface
 {
@@ -76,6 +77,7 @@ class Service implements ServiceInterface
     private RegionFactory $regionFactory;
     private ShippingInformationManagementInterface $shippingInformationManagement;
     private ShippingInformationInterfaceFactory $shippingInformationFactory;
+    private ConfigProvider $configProvider;
     /**
      * Index constructor.
      *
@@ -109,7 +111,8 @@ class Service implements ServiceInterface
         RegionInterfaceFactory $regionInterfaceFactory,
         RegionFactory $regionFactory,
         ShippingInformationManagementInterface $shippingInformationManagement,
-        ShippingInformationInterfaceFactory $shippingInformationFactory
+        ShippingInformationInterfaceFactory $shippingInformationFactory,
+        ConfigProvider $configProvider,
     ) {
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
@@ -133,6 +136,7 @@ class Service implements ServiceInterface
         $this->regionFactory = $regionFactory;
         $this->shippingInformationManagement = $shippingInformationManagement;
         $this->shippingInformationFactory = $shippingInformationFactory;
+        $this->configProvider = $configProvider;
     }
     /**
      * Return URL
@@ -274,7 +278,7 @@ class Service implements ServiceInterface
         $res['settings'] = $this->settings();
 
         if ($this->request->getParam("is_product_page") === '1') {
-            $res['product_type'] = $this->getProductType();
+            $res['product_is_virtual'] = $this->getProductIsVirtual();
         }
 
         return json_encode($res);
@@ -332,7 +336,9 @@ class Service implements ServiceInterface
             'express_button_sort' => $this->configuration->getExpressButtonSort(),
             'country_code' => $this->configuration->getCountryCode(),
             'store_code' => $this->storeManager->getStore()->getCode(),
-            'display_area' => $this->configuration->expressDisplayArea()
+            'display_area' => $this->configuration->expressDisplayArea(),
+            'recaptcha_settings' => $this->configProvider->getReCaptchaConfig(),
+            'is_recaptcha_enabled' => $this->configProvider->isReCaptchaEnabled(),
         ];
     }
 
@@ -341,7 +347,7 @@ class Service implements ServiceInterface
      *
      * @return string
      */
-    private function getProductType()
+    private function getProductIsVirtual()
     {
         $product = $this->productRepository->getById(
             $this->request->getParam("product_id"),
@@ -349,7 +355,7 @@ class Service implements ServiceInterface
             $this->storeManager->getStore()->getId(),
             false
         );
-        return $product->getTypeId();
+        return $product->isVirtual();
     }
 
     /**
@@ -371,7 +377,6 @@ class Service implements ServiceInterface
         $quote = $this->checkoutHelper->getQuote();
 
         try {
-            // Get Product
             $storeId = $this->storeManager->getStore()->getId();
             $product = $this->productRepository->getById($productId, false, $storeId);
 
@@ -381,14 +386,12 @@ class Service implements ServiceInterface
                 $groupedProductIds = array_keys($groupedProductSelections);
             }
 
-            // Check is update required
             foreach ($quote->getAllItems() as $item) {
                 if ($item->getProductId() == $productId || in_array($item->getProductId(), $groupedProductIds)) {
                     $item = $this->checkoutHelper->getQuote()->removeItem($item->getId());
                 }
             }
 
-            // Add Product to Cart
             $item = $this->checkoutHelper->getQuote()->addProduct($product, new DataObject($params));
 
             if (!empty($related)) {
@@ -398,7 +401,6 @@ class Service implements ServiceInterface
 
             $this->quoteRepository->save($quote);
 
-            // Update totals
             $quote->setTotalsCollectedFlag(false);
             $quote->collectTotals();
             $this->quoteRepository->save($quote);

@@ -1,26 +1,27 @@
-<div class="airwallex-express-checkout" data-bind="if: isActive() && expressDisplayArea().indexOf(from) !== -1">
+<div class="airwallex-express-checkout" data-bind="if: isShow">
     <div id="awx-modal">
         <div class="modal-body-content"></div>
     </div>
 
-
     <div class="aws-button-mask"></div>
+    <div class="aws-button-mask-for-login"></div>
+
     <div data-role="title" class="express-title">
         <!-- ko i18n: 'Express Checkout' --><!-- /ko -->
     </div>
 
     <div data-bind="foreach: buttonSort">
-        <div data-bind="if: $data=='google'">
-            <div class="google-pay">
-                <div id="awx-google-pay"></div>
-            </div>
-        </div>
-        <div data-bind="if: $data=='apple'">
-            <div class="google-pay">
-                <div id="awx-apple-pay">here is apple pay</div>
-            </div>
+        <div data-bind="attr: {class: 'awx-pay-' + $data}">
+            <div data-bind="attr: {id: 'awx-google-pay-' + $parent.from}"></div>
         </div>
     </div>
-</div>
 
+    <div class="airwallex-recaptcha" data-bind="if: isShowRecaptcha">
+        <div id="recaptcha-checkout-place-order-wrapper">
+            <div class="g-recaptcha" id="recaptcha-checkout-place-order"></div>
+        </div>
+    </div>
+
+    <div data-bind="afterRender: loadPayment"></div>
+</div>
 

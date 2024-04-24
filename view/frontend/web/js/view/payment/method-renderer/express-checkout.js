@@ -6,7 +6,8 @@ define(
         'Magento_Customer/js/customer-data',
         'mage/url',
         'uiComponent',
-        'Airwallex_Payments/js/view/payment/method-renderer/card-method-recaptcha', //
+        'Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry',
+        'Magento_ReCaptchaWebapiUi/js/webapiReCaptcha',
         'Magento_Customer/js/model/authentication-popup',
         'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
         'Airwallex_Payments/js/view/payment/method-renderer/express/utils',
@@ -20,7 +21,8 @@ define(
         customerData,
         urlBuilder,
         Component,
-        cardMethodRecaptcha,
+        recaptchaRegistry,
+        recaptchaFactory,
         popup,
         addressHandler,
         utils,
@@ -32,16 +34,16 @@ define(
             code: 'airwallex_payments_express',
             defaults: {
                 paymentConfig: {},
-                recaptcha: null,
                 googlepay: null,
                 expressData: {},
                 guestEmail: "",
                 billingAddress: {},
                 showMinicartSelector: '.showcart',
-                isShow: ko.observable(false),
-                isActive: ko.observable(false),
+                isShow: false,
                 expressDisplayArea: ko.observable(''), // displayArea is a key word
-                buttonSort: ko.observable([])
+                buttonSort: ko.observableArray([]),
+                recaptchaId: 'recaptcha-checkout-place-order',
+                isShowRecaptcha: ko.observable(false),
             },
 
             setGuestEmail(email) {
@@ -61,9 +63,6 @@ define(
 
             async postAddress(address, methodId) {
                 let url = urlBuilder.build('rest/V1/airwallex/payments/post-address');
-                if (!utils.isLoggedIn()) {
-
-                }
                 let postOptions = utils.postOptions(address, url)
                 postOptions.data.append('methodId', methodId)
                 let resp = await $.ajax(postOptions)
@@ -79,6 +78,7 @@ define(
                 Object.assign(this.expressData, expressData)
                 Object.assign(utils.expressData, expressData)
                 Object.assign(googlepay.expressData, expressData)
+                utils.toggleMaskFormLogin()
             },
 
             updatePaymentConfig(paymentConfig) {
@@ -123,50 +123,60 @@ define(
             async initialize() {
                 this._super();
 
-                googlepay.from = this.from
+                this.isShow = ko.observable(false)
 
                 await this.fetchExpressData()
-                this.buttonSort(this.paymentConfig.express_button_sort)
 
-                this.isActive(this.paymentConfig.is_express_active)
-                if (!this.paymentConfig.is_express_active) {
+                if (!this.paymentConfig.is_express_active || this.paymentConfig.display_area.indexOf(this.from) === -1) {
                     return
                 }
 
-                this.expressDisplayArea(this.paymentConfig.display_area)
-                if (this.paymentConfig.display_area.indexOf(this.from) === -1) {
-                    return
-                }
                 if (utils.isFromMinicartAndShouldNotShow(this.from)) {
                     return
                 }
 
-                await this.loadPayment()
-            },
-
-            async loadPayment() {
-                // only apply in minicart
-                if (this.from === 'minicart') {
-                    this.isShow(true)
-                }
-
-                this.initMinicartClickEvents()
-                utils.initProductPageFormClickEvents()
-
-
-                this.recaptcha = cardMethodRecaptcha();
-                // this.recaptcha.renderReCaptcha();
+                googlepay.from = this.from
+                this.paymentConfig.express_button_sort.forEach(v => {
+                    this.buttonSort.push(v)
+                })
 
                 Airwallex.init({
                     env: this.paymentConfig.mode,
                     origin: window.location.origin,
                 });
 
+                this.isShow(true)
+
+                this.initMinicartClickEvents()
+                utils.initProductPageFormClickEvents()
+                this.initHashPaymentEvent()
+                this.loadRecaptcha()
+            },
+
+            async loadPayment() {
                 if (this.from === 'minicart' && utils.isCartEmpty(this.expressData)) {
                     return
                 }
                 googlepay.create(this)
+            },
 
+            loadRecaptcha() {
+                if (this.paymentConfig.is_recaptcha_enabled && !utils.isCheckoutPage() && !window.grecaptcha) {
+                    this.isShowRecaptcha(true)
+                    let re = recaptchaFactory()
+                    re.reCaptchaId = this.recaptchaId
+                    re.settings = this.paymentConfig.recaptcha_settings
+                    re.renderReCaptcha()
+                    if (!utils.isCheckoutPage()) {
+                        $(".airwallex-recaptcha").css({
+                            'visibility': 'hidden',
+                            'position': 'absolute'
+                        })
+                    }
+                }
+            },
+
+            initHashPaymentEvent() {
                 window.addEventListener('hashchange', async () => {
                     if (window.location.hash === '#payment') {
                         Airwallex.destroyElement('googlePayButton');
@@ -199,9 +209,12 @@ define(
 
                 (new Promise(async (resolve, reject) => {
                     try {
-                        payload.xReCaptchaValue = await (new Promise((resolve) => {
-                            this.getRecaptchaToken(resolve);
-                        }));
+                        payload.xReCaptchaValue = await new Promise((resolve, reject) => {
+                            recaptchaRegistry.addListener(this.recaptchaId, (token) => {
+                                resolve(token);
+                            });
+                            recaptchaRegistry.triggers[this.recaptchaId]();
+                        });
 
                         if (!utils.isLoggedIn()) {
                             payload.email = utils.isCheckoutPage() ? $("#customer-email").val() : this.guestEmail;
@@ -218,7 +231,6 @@ define(
                         params.payment_method.billing = this.billingAddress;
 
                         payload.intent_id = intentResponse.intent_id;
-                        payload.xReCaptchaValue = null;
                         if (utils.isRequireShippingOption()) {
                             payload.billingAddress = addressHandler.getBillingAddressToPlaceOrder(this.billingAddress)
                         }
@@ -255,34 +267,10 @@ define(
                 }).catch(
                     utils.error.bind(utils)
                 ).finally(() => {
-                    this.recaptcha.reset();
                     setTimeout(() => {
                         $('body').trigger('processStop')
                     }, 3000)
                 });
-            },
-
-            getRecaptchaToken(callback) {
-                if (!this.isRecaptchaEnabled) {
-                    return callback();
-                }
-
-                const reCaptchaId = this.recaptcha.getReCaptchaId()
-                const registry = this.recaptcha.getRegistry();
-
-                if (registry.tokens.hasOwnProperty(reCaptchaId)) {
-                    const response = registry.tokens[reCaptchaId];
-                    if (typeof response === 'object' && typeof response.then === 'function') {
-                        response.then(token => {
-                            callback(token);
-                        });
-                    } else {
-                        callback(response);
-                    }
-                } else {
-                    registry._listeners[reCaptchaId] = callback;
-                    registry.triggers[reCaptchaId]();
-                }
             },
         });
     }

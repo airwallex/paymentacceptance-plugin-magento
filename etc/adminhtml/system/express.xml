@@ -27,19 +27,6 @@
             </comment>
             <config_path>payment/airwallex_payments_express/seller_name</config_path>
         </field>
-<!--        <field id="button_height" translate="label" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">-->
-<!--            <label>Button height</label>-->
-<!--            <config_path>payment/airwallex_payments_express/button_height</config_path>-->
-<!--            <frontend_class>validate-number</frontend_class>-->
-<!--            <comment>-->
-<!--                <![CDATA[You can override this to specify a custom button height in the range of 40px-55px.]]>-->
-<!--            </comment>-->
-<!--        </field>-->
-<!--        <field id="airwallex_payment_action" translate="label" type="select" sortOrder="30" showInDefault="1" showInWebsite="0" showInStore="0">-->
-<!--            <label>Payment Action</label>-->
-<!--            <source_model>Airwallex\Payments\Model\Config\Source\PaymentAction</source_model>-->
-<!--            <config_path>payment/airwallex_payments_express/airwallex_payment_action</config_path>-->
-<!--        </field>-->
         <include path="Airwallex_Payments::system/express/apple_pay.xml"/>
         <include path="Airwallex_Payments::system/express/google_pay.xml"/>
     </group>

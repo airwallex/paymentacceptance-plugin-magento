@@ -26,7 +26,7 @@ use Magento\ReCaptchaUi\Model\IsCaptchaEnabledInterface;
 
 class ConfigProvider implements ConfigProviderInterface
 {
-    const AIRWALLEX_RECAPTCHA_FOR = 'airwallex_card';
+    const AIRWALLEX_RECAPTCHA_FOR = 'place_order';
 
     protected Configuration $configuration;
     protected IsCaptchaEnabledInterface $isCaptchaEnabled;
@@ -42,8 +42,7 @@ class ConfigProvider implements ConfigProviderInterface
         Configuration             $configuration,
         IsCaptchaEnabledInterface $isCaptchaEnabled,
         ReCaptcha                 $reCaptchaBlock
-    )
-    {
+    ) {
         $this->configuration = $configuration;
         $this->isCaptchaEnabled = $isCaptchaEnabled;
         $this->reCaptchaBlock = $reCaptchaBlock;
@@ -57,7 +56,7 @@ class ConfigProvider implements ConfigProviderInterface
      */
     public function getConfig(): array
     {
-        $recaptchaEnabled = $this->isCaptchaEnabled->isCaptchaEnabledFor(self::AIRWALLEX_RECAPTCHA_FOR);
+        $recaptchaEnabled = $this->isReCaptchaEnabled();
         $config = [
             'payment' => [
                 'airwallex_payments' => [
@@ -69,13 +68,32 @@ class ConfigProvider implements ConfigProviderInterface
         ];
 
         if ($recaptchaEnabled) {
-            $this->reCaptchaBlock->setData([
-                'recaptcha_for' => self::AIRWALLEX_RECAPTCHA_FOR
-            ]);
-            $config['payment']['airwallex_payments']['recaptcha_settings']
-                = $this->reCaptchaBlock->getCaptchaUiConfig();
+            $config['payment']['airwallex_payments']['recaptcha_settings'] = $this->getReCaptchaConfig();
         }
 
         return $config;
+    }
+
+    /**
+     * Get reCaptcha config
+     *
+     * @return array
+     */
+    public function getReCaptchaConfig()
+    {
+        $this->reCaptchaBlock->setData([
+            'recaptcha_for' => self::AIRWALLEX_RECAPTCHA_FOR
+        ]);
+        return $this->reCaptchaBlock->getCaptchaUiConfig();
+    }
+
+    /**
+     * Get is reCaptcha enabled
+     *
+     * @return bool
+     */
+    public function isReCaptchaEnabled()
+    {
+        return $this->isCaptchaEnabled->isCaptchaEnabledFor(self::AIRWALLEX_RECAPTCHA_FOR);
     }
 }

@@ -21,8 +21,7 @@ define([
 
         create(that) {
             this.googlepay = Airwallex.createElement('googlePayButton', this.getRequestOptions())
-            let mountId = this.from === 'minicart' ? 'awx-google-pay-minicart' : 'awx-google-pay'
-            this.googlepay.mount(mountId);
+            this.googlepay.mount('awx-google-pay-' + this.from);
             this.attachEvents(that)
         },
 
@@ -32,7 +31,6 @@ define([
 
         attachEvents(that) {
             let updateQuoteByShipment = async (event) => {
-                console.log(event);
                 if (utils.isProductPage() && utils.isSetActiveInProductPage()) {
                     try {
                         let res = await $.ajax(utils.addToCartOptions())
@@ -63,7 +61,6 @@ define([
             this.googlepay.on('shippingMethodChange', updateQuoteByShipment);
 
             this.googlepay.on('authorized', async (event) => {
-                console.log(event)
                 that.setGuestEmail(event.detail.paymentData.email)
 
                 if (utils.isRequireShippingAddress()) {

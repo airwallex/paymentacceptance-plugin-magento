@@ -1,11 +1,15 @@
 define([
     'mage/url',
     'jquery',
+    'Magento_Customer/js/model/authentication-popup',
     'Magento_Ui/js/modal/modal',
+    'Magento_Customer/js/customer-data'
 ], function (
     urlBuilder,
     $,
+    popup,
     modal,
+    customerData,
 ) {
     'use strict';
 
@@ -14,6 +18,7 @@ define([
         cartPageIdentitySelector: '.cart-summary',
         checkoutPageIdentitySelector: '#co-payment-form',
         buttonMaskSelector: '.aws-button-mask',
+        buttonMaskSelectorForLogin: '.aws-button-mask-for-login',
         expressSelector: '.airwallex-express-checkout',
         expressData: {},
         paymentConfig: {},
@@ -43,30 +48,50 @@ define([
             return !!$(this.checkoutPageIdentitySelector).length
         },
 
-        validateProductOptions() {
+        checkProductForm() {
             let formSelector = $(this.productFormSelector);
             if (formSelector.length === 0 || !formSelector.validate) {
-                return
+                return true
             }
-            if ($(formSelector).validate().checkForm()) {
+            return $(formSelector).validate().checkForm()
+        },
+
+        validateProductOptions() {
+            if (this.checkProductForm()) {
                 $(this.buttonMaskSelector).hide()
             } else {
                 $(this.buttonMaskSelector).show()
             }
         },
 
+        showLoginForm(e) {
+            e.preventDefault()
+            popup.showModal()
+        },
+
         initProductPageFormClickEvents() {
             if (this.isProductPage() && this.isSetActiveInProductPage()) {
-                $(this.expressSelector).on("mouseover", () => {
-                    this.validateProductOptions();
-                })
-                $(this.productFormSelector).on('click', () => {
+                this.validateProductOptions();
+                $(this.productFormSelector).on("click", () => {
                     this.validateProductOptions();
                 })
                 $(this.buttonMaskSelector).on('click', (e) => {
                     e.stopPropagation()
                     $(this.productFormSelector).valid()
                 })
+            }
+        },
+
+        toggleMaskFormLogin() {
+            if (this.isLoggedIn()) {
+                return
+            }
+            if ((this.isProductPage() && this.expressData.product_is_virtual) || this.expressData.is_virtual) {
+                $(this.buttonMaskSelectorForLogin).show()
+                $(this.buttonMaskSelectorForLogin).on('click', this.showLoginForm)
+            } else {
+                $(this.buttonMaskSelectorForLogin).remove('click', this.showLoginForm)
+                $(this.buttonMaskSelectorForLogin).hide()
             }
         },
 
@@ -85,15 +110,15 @@ define([
             if (this.isProductPage() && this.isSetActiveInProductPage()) {
                 return true
             }
-            return !!(this.isCartPage() && this.isSetActiveInCartPage());
+            return this.isCartPage() && this.isSetActiveInCartPage()
         },
 
         isRequireShippingOption() {
             if (this.isProductPage()) {
                 if (this.isCartEmpty()) {
-                    return this.expressData.product_type !== 'virtual'
+                    return !this.expressData.product_is_virtual
                 }
-                return !this.expressData.is_virtual || this.expressData.product_type !== 'virtual'
+                return !this.expressData.is_virtual || !this.expressData.product_is_virtual
             }
             return this.isRequireShippingAddress()
         },
