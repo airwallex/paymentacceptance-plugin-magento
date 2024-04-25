@@ -31,8 +31,8 @@ use Magento\ReCaptchaWebapiApi\Api\WebapiValidationConfigProviderInterface;
 class WebapiConfigProvider implements WebapiValidationConfigProviderInterface
 {
     const PROTECTED_METHODS = [
-        'guestSavePaymentInformationAndPlaceOrder' => true,
-        'savePaymentInformationAndPlaceOrder' => true
+        'airwallexGuestPlaceOrder' => true,
+        'airwallexPlaceOrder' => true
     ];
     protected IsCaptchaEnabledInterface $isEnabled;
     protected ValidationConfigResolverInterface $configResolver;
