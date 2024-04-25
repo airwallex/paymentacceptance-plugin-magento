@@ -139,7 +139,7 @@ class Configuration extends AbstractHelper
      */
     public function getExpressSellerName(): string
     {
-        return $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'seller_name');
+        return $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'seller_name') ?: '';
     }
 
     /**

@@ -318,7 +318,7 @@ class Service implements ServiceInterface
             'items_qty' => $quote->getItemsQty() ?? 0,
             'billing_address' => $quote->getBillingAddress()->toArray([
                 'city',
-                'countryId',
+                'country_id',
                 'postcode',
                 'region',
                 'street',

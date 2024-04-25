@@ -182,7 +182,9 @@ define(
 
                 (new Promise(async (resolve, reject) => {
                     try {
-                        payload.xReCaptchaValue = await utils.recaptchaToken()
+                        if (this.paymentConfig.is_recaptcha_enabled) {
+                            payload.xReCaptchaValue = await utils.recaptchaToken()
+                        }
 
                         if (!utils.isLoggedIn()) {
                             payload.email = utils.isCheckoutPage() ? $("#customer-email").val() : googlepay.guestEmail;

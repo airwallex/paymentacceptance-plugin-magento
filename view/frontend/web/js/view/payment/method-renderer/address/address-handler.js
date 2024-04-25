@@ -111,11 +111,11 @@ define([
             }
         },
 
-        setIntentConfirmBillingAddressFromOfficial: function (billingAddress) {
+        setIntentConfirmBillingAddressFromOfficial(billingAddress) {
             this.intentConfirmBillingAddressFromOfficial = {
                 address: {
                     city: billingAddress.city,
-                    country_code: billingAddress.countryId,
+                    country_code: billingAddress.country_id,
                     postcode: billingAddress.postcode,
                     state: billingAddress.region,
                     street: Array.isArray(billingAddress.street) ? billingAddress.street.join(', ') : billingAddress.street
