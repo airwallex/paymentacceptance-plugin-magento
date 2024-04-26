@@ -206,7 +206,7 @@ class Service implements ServiceInterface
         $resp = $this->intentGet->setPaymentIntentId($id)->send();
 
         $respArr = json_decode($resp, true);
-        if (!in_array($respArr['status'], ["SUCCEEDED","REQUIRES_CAPTURE"])) {
+        if (!in_array($respArr['status'], ["SUCCEEDED","REQUIRES_CAPTURE"], true)) {
             throw new \Exception("Something went wrong while processing your request. Please try again later.");
         }
     }
