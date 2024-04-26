@@ -168,6 +168,9 @@ define(
                             payload.xReCaptchaValue = null;
 
                             const airwallexResponse = await Airwallex.confirmPaymentIntent(params);
+                            payload.paymentMethod.additional_data.amount = airwallexResponse.amount
+                            payload.paymentMethod.additional_data.intent_status = airwallexResponse.status
+                            payload.paymentMethod.additional_data.intent_id = airwallexResponse.id
 
                             const endResult = await storage.post(
                                 serviceUrl, JSON.stringify(payload), true, 'application/json', headers

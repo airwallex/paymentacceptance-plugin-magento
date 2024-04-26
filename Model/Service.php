@@ -34,6 +34,7 @@ use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Payment\Model\MethodInterface;
 use Magento\Quote\Api\Data\AddressInterface;
 use Magento\Quote\Api\Data\PaymentInterface;
+use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 
 class Service implements ServiceInterface
 {
@@ -44,6 +45,7 @@ class Service implements ServiceInterface
     protected PaymentInformationManagementInterface $paymentInformationManagement;
     protected PlaceOrderResponseInterfaceFactory $placeOrderResponseFactory;
     protected CacheInterface $cache;
+    protected Get $intentGet;
 
     /**
      * Index constructor.
@@ -63,7 +65,8 @@ class Service implements ServiceInterface
         GuestPaymentInformationManagementInterface $guestPaymentInformationManagement,
         PaymentInformationManagementInterface $paymentInformationManagement,
         PlaceOrderResponseInterfaceFactory $placeOrderResponseFactory,
-        CacheInterface $cache
+        CacheInterface $cache,
+        Get $intentGet
     ) {
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
@@ -72,6 +75,7 @@ class Service implements ServiceInterface
         $this->paymentInformationManagement = $paymentInformationManagement;
         $this->placeOrderResponseFactory = $placeOrderResponseFactory;
         $this->cache = $cache;
+        $this->intentGet = $intentGet;
     }
 
     /**
@@ -138,6 +142,7 @@ class Service implements ServiceInterface
                 'client_secret' => $intent['clientSecret']
             ]);
         } else {
+            $this->checkIntent($intentId);
             $orderId = $this->guestPaymentInformationManagement->savePaymentInformationAndPlaceOrder(
                 $cartId,
                 $email,
@@ -169,6 +174,7 @@ class Service implements ServiceInterface
     ): PlaceOrderResponseInterface {
         /** @var PlaceOrderResponse $response */
         $response = $this->placeOrderResponseFactory->create();
+
         if ($intentId === null) {
             $intent = $this->paymentIntents->getIntents();
             $this->cache->save(1, ReCaptchaValidationPlugin::getCacheKey($intent['id']), [], 3600);
@@ -179,6 +185,7 @@ class Service implements ServiceInterface
                 'client_secret' => $intent['clientSecret']
             ]);
         } else {
+            $this->checkIntent($intentId);
             $orderId = $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
                 $cartId,
                 $paymentMethod,
@@ -192,5 +199,15 @@ class Service implements ServiceInterface
         }
 
         return $response;
+    }
+
+    protected function checkIntent($id)
+    {
+        $resp = $this->intentGet->setPaymentIntentId($id)->send();
+
+        $respArr = json_decode($resp, true);
+        if (!in_array($respArr['status'], ["SUCCEEDED","REQUIRES_CAPTURE"], true)) {
+            throw new \Exception("Something went wrong while processing your request. Please try again later.");
+        }
     }
 }
