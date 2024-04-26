@@ -54,7 +54,7 @@ class Get extends AbstractClient implements BearerAuthenticationInterface
      */
     protected function parseResponse(ResponseInterface $request): string
     {
-        return $request->getBody()->getContents();
+        return $request->getBody();
     }
 
     /**
