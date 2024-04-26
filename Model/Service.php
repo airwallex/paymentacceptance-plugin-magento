@@ -20,8 +20,8 @@ use Airwallex\Payments\Api\Data\PlaceOrderResponseInterface;
 use Airwallex\Payments\Api\Data\PlaceOrderResponseInterfaceFactory;
 use Airwallex\Payments\Api\ServiceInterface;
 use Airwallex\Payments\Helper\Configuration;
-use Airwallex\Payments\Model\Methods\CardMethod;
 use Airwallex\Payments\Plugin\ReCaptchaValidationPlugin;
+use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Catalog\Api\ProductRepositoryInterface;
@@ -51,6 +51,7 @@ use Magento\Customer\Api\Data\RegionInterfaceFactory;
 use Magento\Checkout\Api\ShippingInformationManagementInterface;
 use Magento\Checkout\Api\Data\ShippingInformationInterfaceFactory;
 use Airwallex\Payments\Model\Ui\ConfigProvider;
+use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 
 class Service implements ServiceInterface
 {
@@ -66,6 +67,7 @@ class Service implements ServiceInterface
     protected RequestInterface $request;
     protected ProductRepositoryInterface $productRepository;
     private SerializerInterface $serializer;
+    protected Get $intentGet;
 
     private LocalizedToNormalized $localizedToNormalized;
     private Resolver $localeResolver;
@@ -78,6 +80,7 @@ class Service implements ServiceInterface
     private ShippingInformationManagementInterface $shippingInformationManagement;
     private ShippingInformationInterfaceFactory $shippingInformationFactory;
     private ConfigProvider $configProvider;
+
     /**
      * Index constructor.
      *
@@ -88,6 +91,23 @@ class Service implements ServiceInterface
      * @param PaymentInformationManagementInterface $paymentInformationManagement
      * @param PlaceOrderResponseInterfaceFactory $placeOrderResponseFactory
      * @param CacheInterface $cache
+     * @param QuoteIdToMaskedQuoteIdInterface $quoteIdToMaskedQuoteId
+     * @param StoreManagerInterface $storeManager
+     * @param RequestInterface $request
+     * @param ProductRepositoryInterface $productRepository
+     * @param SerializerInterface $serializer
+     * @param LocalizedToNormalized $localizedToNormalized
+     * @param Resolver $localeResolver
+     * @param CartRepositoryInterface $quoteRepository
+     * @param QuoteIdMaskFactory $quoteIdMaskFactory
+     * @param QuoteIdMaskResourceModel $quoteIdMaskResourceModel
+     * @param ShipmentEstimationInterface $shipmentEstimation
+     * @param RegionInterfaceFactory $regionInterfaceFactory
+     * @param RegionFactory $regionFactory
+     * @param ShippingInformationManagementInterface $shippingInformationManagement
+     * @param ShippingInformationInterfaceFactory $shippingInformationFactory
+     * @param ConfigProvider $configProvider
+     * @param Get $intentGet
      */
     public function __construct(
         PaymentIntents $paymentIntents,
@@ -112,7 +132,8 @@ class Service implements ServiceInterface
         RegionFactory $regionFactory,
         ShippingInformationManagementInterface $shippingInformationManagement,
         ShippingInformationInterfaceFactory $shippingInformationFactory,
-        ConfigProvider $configProvider
+        ConfigProvider $configProvider,
+        Get $intentGet
     ) {
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
@@ -137,6 +158,7 @@ class Service implements ServiceInterface
         $this->shippingInformationManagement = $shippingInformationManagement;
         $this->shippingInformationFactory = $shippingInformationFactory;
         $this->configProvider = $configProvider;
+        $this->intentGet = $intentGet;
     }
     /**
      * Return URL
@@ -155,24 +177,6 @@ class Service implements ServiceInterface
         }
 
         return $checkout->getAirwallexPaymentsRedirectUrl();
-    }
-
-    /**
-     * Checks if payment should be captured on order placement
-     *
-     * @param string $method
-     *
-     * @return array
-     */
-    private function getExtraConfiguration(string $method): array
-    {
-        $data = [];
-
-        if ($method === CardMethod::CODE) {
-            $data['card']['auto_capture'] = $this->configuration->isCardCaptureEnabled();
-        }
-
-        return $data;
     }
 
     /**
@@ -202,6 +206,7 @@ class Service implements ServiceInterface
             ]);
         } else {
             try {
+                $this->checkIntent($intentId);
                 $orderId = $this->guestPaymentInformationManagement->savePaymentInformationAndPlaceOrder(
                     $cartId,
                     $email,
@@ -213,7 +218,7 @@ class Service implements ServiceInterface
                     'response_type' => 'success',
                     'order_id' => $orderId
                 ]);
-            } catch (CouldNotSaveException $e) {
+            } catch (Exception $e) {
                 $this->paymentIntents->removeIntents();
                 throw $e;
             }
@@ -237,6 +242,7 @@ class Service implements ServiceInterface
     ): PlaceOrderResponseInterface {
         /** @var PlaceOrderResponse $response */
         $response = $this->placeOrderResponseFactory->create();
+
         if ($intentId === null) {
             $intent = $this->paymentIntents->getIntents();
             $this->cache->save(1, ReCaptchaValidationPlugin::getCacheKey($intent['id']), [], 3600);
@@ -248,6 +254,7 @@ class Service implements ServiceInterface
             ]);
         } else {
             try {
+                $this->checkIntent($intentId);
                 $orderId = $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
                     $cartId,
                     $paymentMethod,
@@ -258,7 +265,7 @@ class Service implements ServiceInterface
                     'response_type' => 'success',
                     'order_id' => $orderId
                 ]);
-            } catch (CouldNotSaveException $e) {
+            } catch (Exception $e) {
                 $this->paymentIntents->removeIntents();
                 throw $e;
             }
@@ -271,8 +278,9 @@ class Service implements ServiceInterface
      * Get express data when initialize and quote data updated
      *
      * @return string
+     * @throws NoSuchEntityException
      */
-    public function expressData()
+    public function expressData(): string
     {
         $res = $this->quoteData();
         $res['settings'] = $this->settings();
@@ -289,7 +297,7 @@ class Service implements ServiceInterface
      *
      * @return array
      */
-    private function quoteData()
+    private function quoteData(): array
     {
         $quote = $this->checkoutHelper->getQuote();
         $cartId = $quote->getId() ?? 0;
@@ -333,8 +341,9 @@ class Service implements ServiceInterface
      * Get admin settings
      *
      * @return array
+     * @throws NoSuchEntityException
      */
-    private function settings()
+    private function settings(): array
     {
         return [
             'mode' => $this->configuration->getMode(),
@@ -356,8 +365,9 @@ class Service implements ServiceInterface
      * Get product type from product_id from request
      *
      * @return string
+     * @throws NoSuchEntityException
      */
-    private function getProductIsVirtual()
+    private function getProductIsVirtual(): string
     {
         $product = $this->productRepository->getById(
             $this->request->getParam("product_id"),
@@ -372,8 +382,9 @@ class Service implements ServiceInterface
      * Add product when click pay in product page
      *
      * @return string
+     * @throws CouldNotSaveException
      */
-    public function addToCart()
+    public function addToCart(): string
     {
         $params = $this->request->getParams();
         $productId = $params['product'];
@@ -398,11 +409,11 @@ class Service implements ServiceInterface
 
             foreach ($quote->getAllItems() as $item) {
                 if ($item->getProductId() == $productId || in_array($item->getProductId(), $groupedProductIds)) {
-                    $item = $this->checkoutHelper->getQuote()->removeItem($item->getId());
+                    $this->checkoutHelper->getQuote()->removeItem($item->getId());
                 }
             }
 
-            $item = $this->checkoutHelper->getQuote()->addProduct($product, new DataObject($params));
+            $this->checkoutHelper->getQuote()->addProduct($product, new DataObject($params));
 
             if (!empty($related)) {
                 $productIds = explode(',', $related);
@@ -430,7 +441,7 @@ class Service implements ServiceInterface
                 'cart_id' => $quote->getId(),
                 'mask_cart_id' => $maskCartId,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             throw new CouldNotSaveException(__($e->getMessage()), $e);
         }
     }
@@ -439,6 +450,7 @@ class Service implements ServiceInterface
      * Post Address to get method and quote data
      *
      * @return string
+     * @throws Exception
      */
     public function postAddress(): string
     {
@@ -463,7 +475,7 @@ class Service implements ServiceInterface
         $methods = $this->shipmentEstimation->estimateByExtendedAddress($cartId, $address);
 
         if (!count($methods)) {
-            throw new \Exception(__('There are no available shipping method found.'));
+            throw new Exception(__('There are no available shipping method found.'));
         }
 
         $selectedMethod = $methods[0];
@@ -498,9 +510,10 @@ class Service implements ServiceInterface
     /**
      * Format shipping method
      *
+     * @param $method
      * @return array
      */
-    private function formatShippingMethod($method)
+    private function formatShippingMethod($method): array
     {
         return [
             'carrier_code' => $method->getCarrierCode(),
@@ -509,5 +522,20 @@ class Service implements ServiceInterface
             'method_code' => $method->getMethodCode(),
             'method_title' => $method->getMethodTitle(),
         ];
+    }
+
+    /**
+     * @throws GuzzleException
+     * @throws JsonException
+     * @throws Exception
+     */
+    protected function checkIntent($id)
+    {
+        $resp = $this->intentGet->setPaymentIntentId($id)->send();
+
+        $respArr = json_decode($resp, true);
+        if (!in_array($respArr['status'], ["SUCCEEDED", "REQUIRES_CAPTURE"], true)) {
+            throw new Exception(__('Something went wrong while processing your request. Please try again later.'));
+        }
     }
 }
