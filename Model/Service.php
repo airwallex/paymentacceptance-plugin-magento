@@ -475,39 +475,38 @@ class Service implements ServiceInterface
         $methods = $this->shipmentEstimation->estimateByExtendedAddress($cartId, $address);
 
         $res = [];
+        if (!$quote->isVirtual()) {
+            if (!count($methods)) {
+                throw new Exception(__('There are no available shipping method found.'));
+            }
+
+            $selectedMethod = $methods[0];
+            foreach ($methods as $method) {
+                if ($method->getMethodCode() === $this->request->getParam('methodId')) {
+                    $selectedMethod = $method;
+                    break;
+                }
+            }
+
+            $shippingInformation = $this->shippingInformationFactory->create([
+                'data' => [
+                    ShippingInformationInterface::SHIPPING_ADDRESS => $address,
+                    ShippingInformationInterface::SHIPPING_CARRIER_CODE => $selectedMethod->getCarrierCode(),
+                    ShippingInformationInterface::SHIPPING_METHOD_CODE => $selectedMethod->getMethodCode(),
+                ],
+            ]);
+            $this->shippingInformationManagement->saveAddressInformation($cartId, $shippingInformation);
+
+            foreach ($methods as $method) {
+                if ($method->getAvailable()) {
+                    $res['methods'][]=$this->formatShippingMethod($method);
+                }
+            }
+            $res['selected_method'] = $this->formatShippingMethod($selectedMethod);
+        }
         $res['quote_data'] = $this->quoteData();
         $res['region_id'] = $regionId; // we need this because magento internal bug
-        if ($quote->isVirtual()) {
-            return json_encode($res);
-        }
 
-        if (!count($methods)) {
-            throw new Exception(__('There are no available shipping method found.'));
-        }
-
-        $selectedMethod = $methods[0];
-        foreach ($methods as $method) {
-            if ($method->getMethodCode() === $this->request->getParam('methodId')) {
-                $selectedMethod = $method;
-                break;
-            }
-        }
-
-        $shippingInformation = $this->shippingInformationFactory->create([
-            'data' => [
-                ShippingInformationInterface::SHIPPING_ADDRESS => $address,
-                ShippingInformationInterface::SHIPPING_CARRIER_CODE => $selectedMethod->getCarrierCode(),
-                ShippingInformationInterface::SHIPPING_METHOD_CODE => $selectedMethod->getMethodCode(),
-            ],
-        ]);
-        $this->shippingInformationManagement->saveAddressInformation($cartId, $shippingInformation);
-
-        foreach ($methods as $method) {
-            if ($method->getAvailable()) {
-                $res['methods'][]=$this->formatShippingMethod($method);
-            }
-        }
-        $res['selected_method'] = $this->formatShippingMethod($selectedMethod);
         return json_encode($res);
     }
 

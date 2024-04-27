@@ -158,7 +158,7 @@ class AvailablePaymentMethodsHelper
     private function getCurrencyCode(): string
     {
         try {
-            return $this->checkoutHelper->getQuote()->getQuoteCurrencyCode();
+            return $this->checkoutHelper->getQuote()->getQuoteCurrencyCode() ?: '';
         } catch (Exception $exception) {
             return '';
         }
