@@ -40,6 +40,7 @@ use Magento\Payment\Model\Method\Adapter;
 use Magento\Quote\Api\Data\CartInterface;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
+use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 
 /**
  * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
@@ -54,7 +55,7 @@ abstract class AbstractMethod extends Adapter
     /**
      * @var LoggerInterface|null
      */
-    protected $logger;
+    protected ?LoggerInterface $logger;
 
     /**
      * @var Refund
@@ -100,6 +101,8 @@ abstract class AbstractMethod extends Adapter
      */
     protected PaymentIntents $paymentIntents;
 
+    protected Get $intentGet;
+
     /**
      * Payment constructor.
      *
@@ -118,6 +121,7 @@ abstract class AbstractMethod extends Adapter
      * @param AvailablePaymentMethodsHelper $availablePaymentMethodsHelper
      * @param CancelHelper $cancelHelper
      * @param PaymentIntentRepository $paymentIntentRepository
+     * @param Get $intentGet
      * @param CommandPoolInterface|null $commandPool
      * @param ValidatorPoolInterface|null $validatorPool
      * @param CommandManagerInterface|null $commandExecutor
@@ -139,6 +143,7 @@ abstract class AbstractMethod extends Adapter
         AvailablePaymentMethodsHelper $availablePaymentMethodsHelper,
         CancelHelper $cancelHelper,
         PaymentIntentRepository $paymentIntentRepository,
+        Get $intentGet,
         CommandPoolInterface $commandPool = null,
         ValidatorPoolInterface $validatorPool = null,
         CommandManagerInterface $commandExecutor = null,
@@ -154,7 +159,7 @@ abstract class AbstractMethod extends Adapter
             $commandPool,
             $validatorPool,
             $commandExecutor,
-            $logger
+            $logger,
         );
         $this->paymentIntents = $paymentIntents;
         $this->logger = $logger;
@@ -166,6 +171,7 @@ abstract class AbstractMethod extends Adapter
         $this->cancelHelper = $cancelHelper;
         $this->confirm = $confirm;
         $this->checkoutHelper = $checkoutHelper;
+        $this->intentGet = $intentGet;
     }
 
     /**
@@ -312,14 +318,5 @@ abstract class AbstractMethod extends Adapter
     protected function getPaymentMethodCode(): string
     {
         return str_replace(self::PAYMENT_PREFIX, '', $this->getCode());
-    }
-
-    /**
-     * @return string
-     * @throws LocalizedException
-     */
-    protected function getIntentStatus(): string
-    {
-        return $this->getInfoInstance()->getAdditionalInformation('intent_status');
     }
 }

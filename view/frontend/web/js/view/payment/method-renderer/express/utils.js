@@ -117,6 +117,12 @@ define([
             if (this.isLoggedIn()) {
                 return
             }
+            if (this.isCheckoutPage()) {
+                return
+            }
+            if (!$(this.buttonMaskSelectorForLogin).length) {
+                return
+            }
             if ((this.isProductPage() && this.expressData.product_is_virtual) || this.expressData.is_virtual) {
                 $(this.buttonMaskSelectorForLogin).show()
                 $(this.buttonMaskSelectorForLogin).on('click', this.showLoginForm)

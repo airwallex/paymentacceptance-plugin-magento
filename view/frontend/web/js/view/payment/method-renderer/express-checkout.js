@@ -137,6 +137,9 @@ define(
 
                 this.isShow(true)
 
+                // dom loaded
+                utils.toggleMaskFormLogin()
+
                 this.initMinicartClickEvents()
                 utils.initProductPageFormClickEvents()
                 this.initHashPaymentEvent()
@@ -165,11 +168,7 @@ define(
                 const payload = {
                     cartId: utils.getCartId(),
                     paymentMethod: {
-                        method: this.code,
-                        additional_data: {
-                            amount: 0,
-                            intent_status: 0
-                        }
+                        method: this.code
                     }
                 };
 

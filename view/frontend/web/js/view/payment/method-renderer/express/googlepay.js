@@ -47,7 +47,11 @@ define([
                 let addr = addressHandler.getIntermediateShippingAddressFromGoogle(event.detail.intermediatePaymentData.shippingAddress)
 
                 try {
-                    await that.postAddress(addr, event.detail.intermediatePaymentData.shippingOptionData.id);
+                    let methodId = "";
+                    if (event.detail.intermediatePaymentData.shippingOptionData) {
+                        methodId = event.detail.intermediatePaymentData.shippingOptionData.id;
+                    }
+                    await that.postAddress(addr, methodId);
                     let options = this.getRequestOptions();
                     if (utils.isRequireShippingOption()) {
                         options.shippingOptionParameters = addressHandler.formatShippingMethodsToGoogle(this.methods, this.selectedMethod)

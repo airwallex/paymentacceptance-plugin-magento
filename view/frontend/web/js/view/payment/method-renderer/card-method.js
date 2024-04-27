@@ -170,8 +170,6 @@ define(
                             payload.intent_id = intentResponse.intent_id;
 
                             const airwallexResponse = await Airwallex.confirmPaymentIntent(params);
-                            payload.paymentMethod.additional_data.amount = airwallexResponse.amount
-                            payload.paymentMethod.additional_data.intent_status = airwallexResponse.status
                             payload.paymentMethod.additional_data.intent_id = airwallexResponse.id
 
                             const endResult = await storage.post(

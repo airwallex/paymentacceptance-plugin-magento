@@ -364,10 +364,10 @@ class Service implements ServiceInterface
     /**
      * Get product type from product_id from request
      *
-     * @return string
+     * @return bool
      * @throws NoSuchEntityException
      */
-    private function getProductIsVirtual(): string
+    private function getProductIsVirtual(): bool
     {
         $product = $this->productRepository->getById(
             $this->request->getParam("product_id"),
@@ -474,6 +474,13 @@ class Service implements ServiceInterface
         $address->setPostcode($this->request->getParam('postcode'));
         $methods = $this->shipmentEstimation->estimateByExtendedAddress($cartId, $address);
 
+        $res = [];
+        $res['quote_data'] = $this->quoteData();
+        $res['region_id'] = $regionId; // we need this because magento internal bug
+        if ($quote->isVirtual()) {
+            return json_encode($res);
+        }
+
         if (!count($methods)) {
             throw new Exception(__('There are no available shipping method found.'));
         }
@@ -495,15 +502,12 @@ class Service implements ServiceInterface
         ]);
         $this->shippingInformationManagement->saveAddressInformation($cartId, $shippingInformation);
 
-        $res = [];
         foreach ($methods as $method) {
             if ($method->getAvailable()) {
                 $res['methods'][]=$this->formatShippingMethod($method);
             }
         }
         $res['selected_method'] = $this->formatShippingMethod($selectedMethod);
-        $res['quote_data'] = $this->quoteData();
-        $res['region_id'] = $regionId; // we need this because magento internal bug
         return json_encode($res);
     }
 

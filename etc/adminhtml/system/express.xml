@@ -27,7 +27,7 @@
             </comment>
             <config_path>payment/airwallex_payments_express/seller_name</config_path>
         </field>
-        <include path="Airwallex_Payments::system/express/apple_pay.xml"/>
+<!--        <include path="Airwallex_Payments::system/express/apple_pay.xml"/>-->
         <include path="Airwallex_Payments::system/express/google_pay.xml"/>
     </group>
 </include>

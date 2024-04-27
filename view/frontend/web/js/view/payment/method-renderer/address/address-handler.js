@@ -47,6 +47,7 @@ define([
             return {
                 countryId: addr.countryCode,
                 region: addr.administrativeArea,
+                regionId: 0,
                 street: [addr.address1 + addr.address2 + addr.address3],
                 telephone: addr.phoneNumber,
                 postcode: addr.postalCode,
@@ -74,8 +75,8 @@ define([
                 "addressInformation": {
                     "shipping_address": {},
                     "billing_address": billingAddress,
-                    "shipping_method_code": this.selectedMethod.method_code,
-                    "shipping_carrier_code": this.selectedMethod.carrier_code,
+                    "shipping_method_code": this.selectedMethod ? this.selectedMethod.method_code : "",
+                    "shipping_carrier_code": this.selectedMethod ? this.selectedMethod.carrier_code : "",
                     "extension_attributes": {}
                 }
             }
