@@ -13,6 +13,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+
 namespace Airwallex\Payments\Model;
 
 use Airwallex\Payments\Logger\Logger;
@@ -28,6 +29,7 @@ use Magento\Framework\Serialize\SerializerInterface;
 use Magento\Framework\UrlInterface;
 use Magento\Quote\Model\Quote;
 use Magento\Quote\Model\QuoteRepository;
+use JsonException;
 
 /**
  * @SuppressWarnings(PHPMD.CookieAndSessionMisuse)
@@ -77,15 +79,16 @@ class PaymentIntents
     private UrlInterface $urlInterface;
 
     public function __construct(
-        Create $paymentIntentsCreate,
-        Cancel $paymentIntentsCancel,
-        Session $checkoutSession,
+        Create              $paymentIntentsCreate,
+        Cancel              $paymentIntentsCancel,
+        Session             $checkoutSession,
         SerializerInterface $serializer,
-        QuoteRepository $quoteRepository,
-        CacheInterface $cache,
-        UrlInterface $urlInterface,
-        Logger $logger
-    ) {
+        QuoteRepository     $quoteRepository,
+        CacheInterface      $cache,
+        UrlInterface        $urlInterface,
+        Logger              $logger
+    )
+    {
         $this->paymentIntentsCancel = $paymentIntentsCancel;
         $this->paymentIntentsCreate = $paymentIntentsCreate;
         $this->checkoutSession = $checkoutSession;
@@ -101,7 +104,7 @@ class PaymentIntents
      * @throws GuzzleException
      * @throws LocalizedException
      * @throws NoSuchEntityException
-     * @throws \JsonException
+     * @throws JsonException
      */
     public function getIntents(): array
     {
@@ -174,9 +177,9 @@ class PaymentIntents
      * @throws GuzzleException
      * @throws LocalizedException
      * @throws NoSuchEntityException
-     * @throws \JsonException
+     * @throws JsonException
      */
-    public function cancelIntent(string $intentId)
+    public function cancelIntent(string $intentId): mixed
     {
         try {
             $response = $this->paymentIntentsCancel

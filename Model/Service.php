@@ -20,6 +20,7 @@ use Airwallex\Payments\Api\Data\PlaceOrderResponseInterface;
 use Airwallex\Payments\Api\Data\PlaceOrderResponseInterfaceFactory;
 use Airwallex\Payments\Api\ServiceInterface;
 use Airwallex\Payments\Helper\Configuration;
+use Airwallex\Payments\Model\Client\Request\ApplePayValidateMerchant;
 use Airwallex\Payments\Plugin\ReCaptchaValidationPlugin;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
@@ -80,6 +81,7 @@ class Service implements ServiceInterface
     private ShippingInformationManagementInterface $shippingInformationManagement;
     private ShippingInformationInterfaceFactory $shippingInformationFactory;
     private ConfigProvider $configProvider;
+    private ApplePayValidateMerchant $validateMerchant;
 
     /**
      * Index constructor.
@@ -108,6 +110,7 @@ class Service implements ServiceInterface
      * @param ShippingInformationInterfaceFactory $shippingInformationFactory
      * @param ConfigProvider $configProvider
      * @param Get $intentGet
+     * @param ApplePayValidateMerchant $validateMerchant
      */
     public function __construct(
         PaymentIntents $paymentIntents,
@@ -133,7 +136,8 @@ class Service implements ServiceInterface
         ShippingInformationManagementInterface $shippingInformationManagement,
         ShippingInformationInterfaceFactory $shippingInformationFactory,
         ConfigProvider $configProvider,
-        Get $intentGet
+        Get $intentGet,
+        ApplePayValidateMerchant $validateMerchant
     ) {
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
@@ -159,6 +163,7 @@ class Service implements ServiceInterface
         $this->shippingInformationFactory = $shippingInformationFactory;
         $this->configProvider = $configProvider;
         $this->intentGet = $intentGet;
+        $this->validateMerchant = $validateMerchant;
     }
     /**
      * Return URL
@@ -508,6 +513,30 @@ class Service implements ServiceInterface
         $res['region_id'] = $regionId; // we need this because magento internal bug
 
         return json_encode($res);
+    }
+
+    /**
+     * Apple pay validate merchant
+     *
+     * @return string
+     * @throws Exception
+     */
+    public function validateMerchant()
+    {
+        $validationUrl = $this->request->getParam('validationUrl');
+        if ( empty( $validationUrl ) ) {
+            throw new Exception( 'Validation URL is empty.' );
+        }
+
+        $initiativeContext = $this->request->getParam('origin');
+        if ( empty( $initiativeContext ) ) {
+            throw new Exception( 'Initiative Context is empty.' );
+        }
+
+        return $this->validateMerchant->setInitiativeParams([
+            'validation_url' => $validationUrl,
+            'initiative_context' => $initiativeContext,
+        ])->send();
     }
 
     /**

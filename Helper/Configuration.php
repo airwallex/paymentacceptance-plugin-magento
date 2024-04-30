@@ -55,7 +55,7 @@ class Configuration extends AbstractHelper
      */
     public function isRequestLoggerEnable(): bool
     {
-        return (bool) $this->scopeConfig->getValue('airwallex/general/request_logger');
+        return (bool)$this->scopeConfig->getValue('airwallex/general/request_logger');
     }
 
     /**
@@ -112,6 +112,16 @@ class Configuration extends AbstractHelper
     }
 
     /**
+     * Card enabled
+     *
+     * @return bool
+     */
+    public function isCardActive(): bool
+    {
+        return !!$this->scopeConfig->getValue('payment/airwallex_payments_card/active');
+    }
+
+    /**
      * Express capture enabled
      *
      * @return bool
@@ -165,6 +175,9 @@ class Configuration extends AbstractHelper
      */
     public function isExpressActive(): bool
     {
+        if (!$this->isCardActive()) {
+            return false;
+        }
         return !!$this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'active');
     }
 

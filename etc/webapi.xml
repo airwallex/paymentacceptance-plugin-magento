@@ -60,4 +60,11 @@
             <resource ref="anonymous" />
         </resources>
     </route>
+
+    <route url="/V1/airwallex/payments/validate-merchant" method="POST">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="validateMerchant"/>
+        <resources>
+            <resource ref="anonymous" />
+        </resources>
+    </route>
 </routes>

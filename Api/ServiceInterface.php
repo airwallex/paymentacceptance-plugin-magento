@@ -16,6 +16,7 @@
 namespace Airwallex\Payments\Api;
 
 use Airwallex\Payments\Api\Data\PlaceOrderResponseInterface;
+use Exception;
 use Magento\Quote\Api\Data\AddressInterface;
 use Magento\Quote\Api\Data\PaymentInterface;
 
@@ -76,4 +77,12 @@ interface ServiceInterface
      * @return string
      */
     public function postAddress();
+
+    /**
+     * Apple pay validate merchant
+     *
+     * @return string
+     * @throws Exception
+     */
+    public function validateMerchant();
 }

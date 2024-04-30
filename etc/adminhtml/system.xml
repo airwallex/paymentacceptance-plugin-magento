@@ -27,7 +27,6 @@
                 <include path="Airwallex_Payments::system/basic.xml"/>
                 <include path="Airwallex_Payments::system/card.xml"/>
                 <include path="Airwallex_Payments::system/redirect.xml"/>
-                <include path="Airwallex_Payments::system/express.xml"/>
             </group>
         </section>
     </system>

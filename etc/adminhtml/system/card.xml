@@ -53,5 +53,6 @@
             <frontend_class>validate-number</frontend_class>
             <config_path>payment/airwallex_payments_card/sort_order</config_path>
         </field>
+        <include path="Airwallex_Payments::system/express.xml"/>
     </group>
 </include>

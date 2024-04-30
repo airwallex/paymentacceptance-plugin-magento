@@ -1,33 +1,46 @@
 <?xml version="1.0"?>
 <include xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_include.xsd">
-    <group id="express" translate="label" type="text" sortOrder="11" showInDefault="1" showInWebsite="1" showInStore="1">
+    <group id="express" translate="label" type="text" sortOrder="311" showInDefault="1" showInWebsite="1" showInStore="1">
+        <depends>
+            <field id="active">1</field>
+        </depends>
         <label>Express Checkout</label>
-        <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1" canRestore="1">
+        <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1"
+               canRestore="1">
             <label>Enable</label>
             <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
             <config_path>payment/airwallex_payments_express/active</config_path>
         </field>
-        <field id="airwallex_payment_action" translate="label" type="select" sortOrder="30" showInDefault="1" showInWebsite="0" showInStore="0">
+        <field id="airwallex_payment_action" translate="label" type="select" sortOrder="30" showInDefault="1"
+               showInWebsite="0" showInStore="0">
             <label>Payment Action</label>
             <source_model>Airwallex\Payments\Model\Config\Source\PaymentAction</source_model>
             <config_path>payment/airwallex_payments_express/airwallex_payment_action</config_path>
+            <depends>
+                <field id="active">1</field>
+            </depends>
         </field>
-        <field id="locations" translate="label" type="multiselect" sortOrder="5" showInDefault="1" showInWebsite="1" showInStore="1">
-          <label>Locations</label>
-          <source_model>Airwallex\Payments\Model\Config\Source\Express\DisplayArea</source_model>
-          <config_path>payment/airwallex_payments_express/display_area</config_path>
-          <depends>
-            <field id="active">1</field>
-          </depends>
+        <field id="locations" translate="label" type="multiselect" sortOrder="5" showInDefault="1" showInWebsite="1"
+               showInStore="1">
+            <label>Locations</label>
+            <source_model>Airwallex\Payments\Model\Config\Source\Express\DisplayArea</source_model>
+            <config_path>payment/airwallex_payments_express/display_area</config_path>
+            <depends>
+                <field id="active">1</field>
+            </depends>
         </field>
-        <field id="seller_name" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+        <field id="seller_name" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1"
+               showInStore="1">
             <label>Seller name</label>
             <comment>
                 <![CDATA[This is the text that appears as PAY SELLER NAME in the payment modal.]]>
             </comment>
             <config_path>payment/airwallex_payments_express/seller_name</config_path>
+            <depends>
+                <field id="active">1</field>
+            </depends>
         </field>
-<!--        <include path="Airwallex_Payments::system/express/apple_pay.xml"/>-->
+        <include path="Airwallex_Payments::system/express/apple_pay.xml"/>
         <include path="Airwallex_Payments::system/express/google_pay.xml"/>
     </group>
 </include>

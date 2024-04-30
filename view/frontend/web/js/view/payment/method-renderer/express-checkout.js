@@ -6,10 +6,10 @@ define(
         'Magento_Customer/js/customer-data',
         'mage/url',
         'uiComponent',
-        'Magento_Customer/js/model/authentication-popup',
         'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
         'Airwallex_Payments/js/view/payment/method-renderer/express/utils',
         'Airwallex_Payments/js/view/payment/method-renderer/express/googlepay',
+        'Airwallex_Payments/js/view/payment/method-renderer/express/applepay',
     ],
 
     function (
@@ -19,10 +19,10 @@ define(
         customerData,
         urlBuilder,
         Component,
-        popup,
         addressHandler,
         utils,
         googlepay,
+        applepay,
     ) {
         'use strict';
 
@@ -30,126 +30,142 @@ define(
             code: 'airwallex_payments_express',
             defaults: {
                 paymentConfig: {},
-                googlepay: null,
                 expressData: {},
                 showMinicartSelector: '.showcart',
                 isShow: false,
-                expressDisplayArea: ko.observable(''), // displayArea is a key word
                 buttonSort: ko.observableArray([]),
                 isShowRecaptcha: ko.observable(false),
+                guestEmail: "",
+            },
+
+            setGuestEmail(email) {
+                this.guestEmail = email;
+            },
+
+            expressDataObjects() {
+                return [this, utils, applepay, googlepay];
+            },
+
+            methodsObjects() {
+                return [addressHandler, applepay, googlepay];
+
             },
 
             async fetchExpressData() {
                 let url = urlBuilder.build('rest/V1/airwallex/payments/express-data');
                 if (utils.isProductPage()) {
-                    url += "?is_product_page=1&product_id=" + $("input[name=product]").val()
+                    url += "?is_product_page=1&product_id=" + $("input[name=product]").val();
                 }
                 const resp = await storage.get(url, undefined, 'application/json', {});
-                let obj = JSON.parse(resp)
-                this.updateExpressData(obj)
-                this.updatePaymentConfig(obj.settings)
+                let obj = JSON.parse(resp);
+                this.updateExpressData(obj);
+                this.updatePaymentConfig(obj.settings);
             },
 
-            async postAddress(address, methodId) {
+            async postAddress(address, methodId = "") {
                 let url = urlBuilder.build('rest/V1/airwallex/payments/post-address');
-                let postOptions = utils.postOptions(address, url)
-                postOptions.data.append('methodId', methodId)
-                let resp = await $.ajax(postOptions)
+                let postOptions = utils.postOptions(address, url);
+                if (methodId) {
+                    postOptions.data.append('methodId', methodId);
+                }
+                let resp = await $.ajax(postOptions);
 
-                let obj = JSON.parse(resp)
-                this.updateExpressData(obj.quote_data)
-                this.updateMethods(obj.methods, obj.selected_method)
-                addressHandler.regionId = obj.region_id
-                return obj
+                let obj = JSON.parse(resp);
+                this.updateExpressData(obj.quote_data);
+                this.updateMethods(obj.methods, obj.selected_method);
+                addressHandler.regionId = obj.region_id;
+                return obj;
             },
 
             updateExpressData(expressData) {
-                Object.assign(this.expressData, expressData)
-                Object.assign(utils.expressData, expressData)
-                Object.assign(googlepay.expressData, expressData)
-                utils.toggleMaskFormLogin()
+                this.expressDataObjects().forEach(o => {
+                    Object.assign(o.expressData, expressData);
+                });
+                utils.toggleMaskFormLogin();
             },
 
             updatePaymentConfig(paymentConfig) {
-                this.paymentConfig = paymentConfig
-                utils.paymentConfig = paymentConfig
-                googlepay.paymentConfig = paymentConfig
+                this.expressDataObjects().forEach(o => {
+                    o.paymentConfig = paymentConfig;
+                });
             },
 
             updateMethods(methods, selectedMethod) {
-                addressHandler.methods = methods
-                googlepay.methods = methods
-                addressHandler.selectedMethod = selectedMethod
-                googlepay.selectedMethod = selectedMethod
+                this.methodsObjects().forEach(o => {
+                    o.methods = methods;
+                    o.selectedMethod = selectedMethod;
+                });
             },
 
             initMinicartClickEvents() {
                 if (!$(this.showMinicartSelector).length) {
-                    return
+                    return;
                 }
 
                 let recreateGooglepay = async () => {
                     if (!$(this.showMinicartSelector).hasClass('active')) {
-                        return
+                        return;
                     }
 
                     Airwallex.destroyElement('googlePayButton');
                     await this.fetchExpressData();
                     if (this.from === 'minicart' && utils.isCartEmpty(this.expressData)) {
-                        return
+                        return;
                     }
-                    googlepay.create(this)
-                }
+                    googlepay.create(this);
+                };
 
-                let cartData = customerData.get('cart')
+                let cartData = customerData.get('cart');
                 cartData.subscribe(recreateGooglepay, this);
 
                 if (this.from !== 'minicart' || utils.isFromMinicartAndShouldNotShow(this.from)) {
-                    return
+                    return;
                 }
-                $(this.showMinicartSelector).on("click", recreateGooglepay)
+                $(this.showMinicartSelector).on("click", recreateGooglepay);
             },
 
             async initialize() {
                 this._super();
 
-                this.isShow = ko.observable(false)
+                this.isShow = ko.observable(false);
 
-                await this.fetchExpressData()
+                await this.fetchExpressData();
 
                 if (!this.paymentConfig.is_express_active || this.paymentConfig.display_area.indexOf(this.from) === -1) {
-                    return
+                    return;
                 }
 
                 if (utils.isFromMinicartAndShouldNotShow(this.from)) {
-                    return
+                    return;
                 }
 
-                googlepay.from = this.from
+                googlepay.from = this.from;
+                applepay.from = this.from;
                 this.paymentConfig.express_button_sort.forEach(v => {
-                    this.buttonSort.push(v)
-                })
+                    this.buttonSort.push(v);
+                });
 
                 Airwallex.init({
                     env: this.paymentConfig.mode,
                     origin: window.location.origin,
                 });
 
-                this.isShow(true)
+                this.isShow(true);
 
                 // dom loaded
-                utils.toggleMaskFormLogin()
+                utils.toggleMaskFormLogin();
 
-                this.initMinicartClickEvents()
-                utils.initProductPageFormClickEvents()
-                this.initHashPaymentEvent()
+                this.initMinicartClickEvents();
+                utils.initProductPageFormClickEvents();
+                this.initHashPaymentEvent();
             },
 
             async loadPayment() {
                 if (this.from === 'minicart' && utils.isCartEmpty(this.expressData)) {
-                    return
+                    return;
                 }
-                googlepay.create(this)
+                googlepay.create(this);
+                applepay.create(this);
             },
 
             initHashPaymentEvent() {
@@ -158,7 +174,7 @@ define(
                         Airwallex.destroyElement('googlePayButton');
                         // we need update quote, because we choose shipping method last step
                         await this.fetchExpressData();
-                        googlepay.create(this)
+                        googlepay.create(this);
                     }
                 });
             },
@@ -172,7 +188,7 @@ define(
                     }
                 };
 
-                let serviceUrl = urlBuilder.build('rest/V1/airwallex/payments/guest-place-order')
+                let serviceUrl = urlBuilder.build('rest/V1/airwallex/payments/guest-place-order');
                 if (utils.isLoggedIn()) {
                     serviceUrl = urlBuilder.build('rest/V1/airwallex/payments/place-order');
                 }
@@ -182,11 +198,11 @@ define(
                 (new Promise(async (resolve, reject) => {
                     try {
                         if (this.paymentConfig.is_recaptcha_enabled) {
-                            payload.xReCaptchaValue = await utils.recaptchaToken()
+                            payload.xReCaptchaValue = await utils.recaptchaToken();
                         }
 
                         if (!utils.isLoggedIn()) {
-                            payload.email = utils.isCheckoutPage() ? $("#customer-email").val() : googlepay.guestEmail;
+                            payload.email = utils.isCheckoutPage() ? $("#customer-email").val() : this.guestEmail;
                         }
 
                         const intentResponse = await storage.post(
@@ -199,20 +215,20 @@ define(
                         params.payment_method = {};
                         params.payment_method.billing = addressHandler.intentConfirmBillingAddressFromGoogle;
                         if (utils.isCheckoutPage()) {
-                            addressHandler.setIntentConfirmBillingAddressFromOfficial(this.expressData.billing_address)
+                            addressHandler.setIntentConfirmBillingAddressFromOfficial(this.expressData.billing_address);
                             params.payment_method.billing = addressHandler.intentConfirmBillingAddressFromOfficial;
                         }
-                        await googlepay.confirmIntent(params);
+                        await applepay.confirmIntent(params);
 
                         payload.intent_id = intentResponse.intent_id;
-
                         const endResult = await storage.post(
                             serviceUrl, JSON.stringify(payload), true, 'application/json', {}
                         );
+
                         resolve(endResult);
                     } catch (e) {
                         Airwallex.destroyElement('googlePayButton');
-                        googlepay.create(this)
+                        googlepay.create(this);
                         reject(e);
                     }
                 })).then(response => {
@@ -238,8 +254,8 @@ define(
                     utils.error.bind(utils)
                 ).finally(() => {
                     setTimeout(() => {
-                        $('body').trigger('processStop')
-                    }, 3000)
+                        $('body').trigger('processStop');
+                    }, 3000);
                 });
             },
         });
