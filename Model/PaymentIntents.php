@@ -154,7 +154,7 @@ class PaymentIntents
      */
     private function getCacheKey(Quote $quote): string
     {
-        return 'airwallex-intent-' . $quote->getId();
+        return 'airwallex-intent-' . $quote->getId() . '-' . sprintf("%.4f", $quote->getGrandTotal());
     }
 
     /**

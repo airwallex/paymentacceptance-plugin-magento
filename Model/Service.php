@@ -472,7 +472,7 @@ class Service implements ServiceInterface
             $cartId = $this->quoteIdMaskFactory->create()->load($cartId, 'masked_id')->getQuoteId();
         }
 
-        $address = $quote->getBillingAddress();
+        $address = $quote->getShippingAddress();
         $address->setCountryId($this->request->getParam('country_id'));
         $address->setCity($this->request->getParam('city'));
         $address->setRegion($region->getRegion());
@@ -519,7 +519,7 @@ class Service implements ServiceInterface
      * Apple pay validate merchant
      *
      * @return string
-     * @throws Exception
+     * @throws Exception|GuzzleException
      */
     public function validateMerchant()
     {
@@ -566,7 +566,8 @@ class Service implements ServiceInterface
         $resp = $this->intentGet->setPaymentIntentId($id)->send();
 
         $respArr = json_decode($resp, true);
-        if (!in_array($respArr['status'], ["SUCCEEDED", "REQUIRES_CAPTURE"], true)) {
+        $okStatus = [$this->intentGet::INTENT_STATUS_SUCCESS, $this->intentGet::INTENT_STATUS_REQUIRES_CAPTURE];
+        if (!in_array($respArr['status'], $okStatus, true)) {
             throw new Exception(__('Something went wrong while processing your request. Please try again later.'));
         }
     }

@@ -102,26 +102,26 @@ define(
                     return;
                 }
 
-                let recreateGooglepay = async () => {
+                let recreatePays = async () => {
                     if (!$(this.showMinicartSelector).hasClass('active')) {
                         return;
                     }
 
-                    Airwallex.destroyElement('googlePayButton');
+                    this.destroyElement()
                     await this.fetchExpressData();
                     if (this.from === 'minicart' && utils.isCartEmpty(this.expressData)) {
                         return;
                     }
-                    googlepay.create(this);
+                    this.createPays()
                 };
 
                 let cartData = customerData.get('cart');
-                cartData.subscribe(recreateGooglepay, this);
+                cartData.subscribe(recreatePays, this);
 
                 if (this.from !== 'minicart' || utils.isFromMinicartAndShouldNotShow(this.from)) {
                     return;
                 }
-                $(this.showMinicartSelector).on("click", recreateGooglepay);
+                $(this.showMinicartSelector).on("click", recreatePays);
             },
 
             async initialize() {
@@ -164,22 +164,31 @@ define(
                 if (this.from === 'minicart' && utils.isCartEmpty(this.expressData)) {
                     return;
                 }
-                googlepay.create(this);
-                applepay.create(this);
+                this.createPays()
             },
 
             initHashPaymentEvent() {
                 window.addEventListener('hashchange', async () => {
                     if (window.location.hash === '#payment') {
-                        Airwallex.destroyElement('googlePayButton');
+                        this.destroyElement()
                         // we need update quote, because we choose shipping method last step
                         await this.fetchExpressData();
-                        googlepay.create(this);
+                        this.createPays()
                     }
                 });
             },
 
-            placeOrder() {
+            destroyElement() {
+                Airwallex.destroyElement('googlePayButton');
+                Airwallex.destroyElement('applePayButton');
+            },
+
+            createPays() {
+                googlepay.create(this);
+                applepay.create(this);
+            },
+
+            placeOrder(pay) {
                 $('body').trigger('processStart');
                 const payload = {
                     cartId: utils.getCartId(),
@@ -218,7 +227,8 @@ define(
                             addressHandler.setIntentConfirmBillingAddressFromOfficial(this.expressData.billing_address);
                             params.payment_method.billing = addressHandler.intentConfirmBillingAddressFromOfficial;
                         }
-                        await applepay.confirmIntent(params);
+
+                        await eval(pay).confirmIntent(params)
 
                         payload.intent_id = intentResponse.intent_id;
                         const endResult = await storage.post(
@@ -227,8 +237,8 @@ define(
 
                         resolve(endResult);
                     } catch (e) {
-                        Airwallex.destroyElement('googlePayButton');
-                        googlepay.create(this);
+                        this.destroyElement()
+                        this.createPays()
                         reject(e);
                     }
                 })).then(response => {

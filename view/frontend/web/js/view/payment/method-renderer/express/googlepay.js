@@ -69,7 +69,7 @@ define([
                     }, utils.isLoggedIn(), utils.getCartId());
                 }
                 addressHandler.setIntentConfirmBillingAddressFromGoogle(event.detail.paymentData);
-                that.placeOrder();
+                that.placeOrder('googlepay');
             });
         },
 

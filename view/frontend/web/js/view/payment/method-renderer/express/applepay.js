@@ -19,16 +19,13 @@ define([
         methods: [],
         selectedMethod: {},
         intermediateShippingAddress: {},
-        applePayRequiredBillingContactFields: [
+        requiredShippingContactFields: [
             'email',
             'name',
             'phone',
             'postalAddress',
         ],
-        applePayRequiredShippingContactFields: [
-            'email',
-            'name',
-            'phone',
+        requiredBillingContactFields: [
             'postalAddress',
         ],
 
@@ -100,12 +97,16 @@ define([
                     }, utils.isLoggedIn(), utils.getCartId());
                 }
                 addressHandler.setIntentConfirmBillingAddressFromApple(billing, shipping.emailAddress);
-                that.placeOrder();
+                that.placeOrder('applepay');
             });
         },
 
         getRequestOptions() {
             let paymentDataRequest = this.getOptions();
+
+            if (!utils.isRequireShippingOption()) {
+                paymentDataRequest.requiredShippingContactFields = this.requiredShippingContactFields.filter(e => e !== 'postalAddress');
+            }
 
             const transactionInfo = {
                 amount: {
@@ -126,8 +127,8 @@ define([
                 origin: window.location.origin,
                 totalPriceLabel: this.paymentConfig.express_seller_name || '',
                 countryCode: this.paymentConfig.country_code,
-                requiredBillingContactFields: this.applePayRequiredBillingContactFields,
-                requiredShippingContactFields: this.applePayRequiredShippingContactFields,
+                requiredBillingContactFields: this.requiredBillingContactFields,
+                requiredShippingContactFields: this.requiredShippingContactFields,
                 autoCapture: this.paymentConfig.is_express_capture_enabled,
             };
         },
