@@ -482,9 +482,6 @@ class Service implements ServiceInterface
         $regionId = $this->regionFactory->create()->loadByName($region, $countryId)->getRegionId();
         if (!$regionId) {
             $regionId = $this->regionFactory->create()->loadByCode($region, $countryId)->getRegionId();
-            if (!$regionId) {
-                throw new Exception(__('Region is required.'));
-            }
         }
 
         $region = $this->regionInterfaceFactory->create()->setRegion($region)->setRegionId($regionId);
