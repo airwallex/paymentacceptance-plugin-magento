@@ -3,12 +3,12 @@
     <group id="apple_pay" translate="label" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
         <label>Apple Pay</label>
         <field id="button_theme" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
-            <label>Button theme</label>
+            <label>Button Theme</label>
             <source_model>Airwallex\Payments\Model\Config\Source\Express\ApplePay\ButtonTheme</source_model>
             <config_path>payment/airwallex_payments_express/apple_pay_button_theme</config_path>
         </field>
         <field id="button_type" translate="label" type="select" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
-            <label>Button type</label>
+            <label>Call To Action</label>
             <source_model>Airwallex\Payments\Model\Config\Source\Express\ApplePay\ButtonType</source_model>
             <config_path>payment/airwallex_payments_express/apple_pay_button_type</config_path>
         </field>
