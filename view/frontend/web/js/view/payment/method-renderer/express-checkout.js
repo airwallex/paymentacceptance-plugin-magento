@@ -211,6 +211,9 @@ define(
 
                         if (!utils.isLoggedIn()) {
                             payload.email = utils.isCheckoutPage() ? $(utils.guestEmailSelector).val() : this.guestEmail;
+                            if (!payload.email) {
+                                throw new Error('Email is required!');
+                            }
                         }
 
                         const intentResponse = await storage.post(
