@@ -6,6 +6,7 @@ define([
     'Magento_ReCaptchaWebapiUi/js/webapiReCaptcha',
     'Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry',
     'Magento_Customer/js/customer-data',
+    'Magento_Ui/js/modal/alert',
 ], function (
     urlBuilder,
     $,
@@ -14,11 +15,13 @@ define([
     webapiReCaptcha,
     webapiRecaptchaRegistry,
     customerData,
+    alert,
 ) {
     'use strict';
 
     return {
         productFormSelector: "#product_addtocart_form",
+        guestEmailSelector: "#customer-email",
         cartPageIdentitySelector: '.cart-summary',
         checkoutPageIdentitySelector: '#co-payment-form',
         buttonMaskSelector: '.aws-button-mask',
@@ -73,6 +76,35 @@ define([
         showLoginForm(e) {
             e.preventDefault();
             popup.showModal();
+            if (popup.modalWindow) {
+                popup.showModal();
+            } else {
+                alert({
+                    content: $.mage.__('Guest checkout is disabled.')
+                });
+            }
+        },
+
+        initCheckoutPageExpressCheckoutClick() {
+            if (this.isCheckoutPage() && !this.isLoggedIn() && this.expressData.is_virtual) {
+                this.checkGuestEmailInput();
+                $(this.guestEmailSelector).on('input', () => {
+                    this.checkGuestEmailInput();
+                });
+                $(this.buttonMaskSelector).on('click', (e) => {
+                    e.stopPropagation();
+                    $($(this.guestEmailSelector).closest('form')).valid();
+                    this.checkGuestEmailInput();
+                });
+            }
+        },
+
+        checkGuestEmailInput() {
+            if ($(this.guestEmailSelector).closest('form').validate().checkForm()) {
+                $(this.buttonMaskSelector).hide();
+            } else {
+                $(this.buttonMaskSelector).show();
+            }
         },
 
         initProductPageFormClickEvents() {
@@ -84,6 +116,12 @@ define([
                 $(this.buttonMaskSelector).on('click', (e) => {
                     e.stopPropagation();
                     $(this.productFormSelector).valid();
+                    this.validateProductOptions();
+                });
+                $.each($(this.productFormSelector)[0].elements, (index, element) => {
+                    $(element).on('change', () => {
+                        this.validateProductOptions();
+                    });
                 });
             }
         },
@@ -93,7 +131,7 @@ define([
                 return;
             }
 
-            if (this.paymentConfig.is_recaptcha_enabled && !this.isCheckoutPage() && !window.grecaptcha && !window.isShowAwxGrecaptcha) {
+            if (this.paymentConfig.is_recaptcha_enabled && !$('#recaptcha-checkout-place-order').length) {
                 window.isShowAwxGrecaptcha = true;
                 isShowRecaptcha(true);
                 let re = webapiReCaptcha();
@@ -126,11 +164,10 @@ define([
             if (!$(this.buttonMaskSelectorForLogin).length) {
                 return;
             }
+            $(this.buttonMaskSelectorForLogin).off('click').on('click', this.showLoginForm);
             if ((this.isProductPage() && this.expressData.product_is_virtual) || this.expressData.is_virtual) {
                 $(this.buttonMaskSelectorForLogin).show();
-                $(this.buttonMaskSelectorForLogin).on('click', this.showLoginForm);
             } else {
-                $(this.buttonMaskSelectorForLogin).remove('click', this.showLoginForm);
                 $(this.buttonMaskSelectorForLogin).hide();
             }
         },

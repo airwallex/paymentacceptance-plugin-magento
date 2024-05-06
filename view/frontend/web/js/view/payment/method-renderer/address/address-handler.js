@@ -80,7 +80,7 @@ define([
                 "addressInformation": {
                     "shipping_address": {
                         "countryId": data.shippingAddress.countryCode,
-                        "regionId": this.regionId,
+                        "regionId": this.regionId || 0,
                         "region": data.shippingAddress.administrativeArea,
                         "street": [data.shippingAddress.address1 + ' ' + data.shippingAddress.address2 + ' ' + data.shippingAddress.address3],
                         "telephone": data.shippingAddress.phoneNumber,
@@ -102,7 +102,7 @@ define([
                 "addressInformation": {
                     "shipping_address": {
                         "countryId": data.shippingContact.countryCode,
-                        "regionId": this.regionId,
+                        "regionId": this.regionId || 0,
                         "region": data.shippingContact.administrativeArea,
                         "street": data.shippingContact.addressLines,
                         "telephone": data.shippingContact.phoneNumber,

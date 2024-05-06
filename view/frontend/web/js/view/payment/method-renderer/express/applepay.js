@@ -104,7 +104,7 @@ define([
         getRequestOptions() {
             let paymentDataRequest = this.getOptions();
 
-            if (!utils.isRequireShippingOption()) {
+            if (!utils.isRequireShippingOption() && !utils.isProductPage()) {
                 paymentDataRequest.requiredShippingContactFields = this.requiredShippingContactFields.filter(e => e !== 'postalAddress');
             }
 

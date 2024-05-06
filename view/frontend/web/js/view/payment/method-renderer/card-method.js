@@ -98,6 +98,13 @@ define(
                 );
             },
 
+            getRecaptchaId() {
+                if ($('#recaptcha-checkout-place-order').length) {
+                    return this.recaptchaId;
+                }
+                return $('.airwallex-card-container .g-recaptcha').attr('id')
+            },
+
             initiateOrderPlacement: async function () {
                 const self = this;
 
@@ -149,10 +156,10 @@ define(
                         try {
                             if (self.isRecaptchaEnabled) {
                                 payload.xReCaptchaValue = await new Promise((resolve, reject) => {
-                                    recaptchaRegistry.addListener(self.recaptchaId, (token) => {
+                                    recaptchaRegistry.addListener(self.getRecaptchaId(), (token) => {
                                         resolve(token);
                                     });
-                                    recaptchaRegistry.triggers[self.recaptchaId]();
+                                    recaptchaRegistry.triggers[self.getRecaptchaId()]();
                                 });
                             }
 

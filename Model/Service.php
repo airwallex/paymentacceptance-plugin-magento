@@ -460,10 +460,34 @@ class Service implements ServiceInterface
     public function postAddress(): string
     {
         $countryId = $this->request->getParam('country_id');
-        $regionName = $this->request->getParam('region');
+        if (!$countryId) {
+            throw new Exception(__('Country is required.'));
+        }
 
-        $regionId = $this->regionFactory->create()->loadByName($regionName, $countryId)->getRegionId();
-        $region = $this->regionInterfaceFactory->create()->setRegion($regionName)->setRegionId($regionId);
+        $region = $this->request->getParam('region');
+        if (!$region) {
+            throw new Exception(__('Region is required.'));
+        }
+
+        $city = $this->request->getParam('city');
+        if (!$city) {
+            throw new Exception(__('City is required.'));
+        }
+
+        $postcode = $this->request->getParam('postcode');
+        if (!$postcode) {
+            throw new Exception(__('Postal code is required.'));
+        }
+
+        $regionId = $this->regionFactory->create()->loadByName($region, $countryId)->getRegionId();
+        if (!$regionId) {
+            $regionId = $this->regionFactory->create()->loadByCode($region, $countryId)->getRegionId();
+            if (!$regionId) {
+                throw new Exception(__('Region is required.'));
+            }
+        }
+
+        $region = $this->regionInterfaceFactory->create()->setRegion($region)->setRegionId($regionId);
 
         $quote = $this->checkoutHelper->getQuote();
 
@@ -473,10 +497,10 @@ class Service implements ServiceInterface
         }
 
         $address = $quote->getShippingAddress();
-        $address->setCountryId($this->request->getParam('country_id'));
-        $address->setCity($this->request->getParam('city'));
+        $address->setCountryId($countryId);
+        $address->setCity($city);
         $address->setRegion($region->getRegion());
-        $address->setPostcode($this->request->getParam('postcode'));
+        $address->setPostcode($postcode);
         $methods = $this->shipmentEstimation->estimateByExtendedAddress($cartId, $address);
 
         $res = [];

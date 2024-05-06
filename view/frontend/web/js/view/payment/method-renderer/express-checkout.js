@@ -73,7 +73,7 @@ define(
                 let obj = JSON.parse(resp);
                 this.updateExpressData(obj.quote_data);
                 this.updateMethods(obj.methods, obj.selected_method);
-                addressHandler.regionId = obj.region_id;
+                addressHandler.regionId = obj.region_id || 0;
                 return obj;
             },
 
@@ -107,12 +107,12 @@ define(
                         return;
                     }
 
-                    this.destroyElement()
+                    this.destroyElement();
                     await this.fetchExpressData();
                     if (this.from === 'minicart' && utils.isCartEmpty(this.expressData)) {
                         return;
                     }
-                    this.createPays()
+                    this.createPays();
                 };
 
                 let cartData = customerData.get('cart');
@@ -151,29 +151,28 @@ define(
                 });
 
                 this.isShow(true);
-
-                // dom loaded
-                utils.toggleMaskFormLogin();
-
-                this.initMinicartClickEvents();
-                utils.initProductPageFormClickEvents();
-                this.initHashPaymentEvent();
             },
 
             async loadPayment() {
+                utils.toggleMaskFormLogin();
+                this.initMinicartClickEvents();
+                utils.initProductPageFormClickEvents();
+                this.initHashPaymentEvent();
+                utils.initCheckoutPageExpressCheckoutClick();
+
                 if (this.from === 'minicart' && utils.isCartEmpty(this.expressData)) {
                     return;
                 }
-                this.createPays()
+                this.createPays();
             },
 
             initHashPaymentEvent() {
                 window.addEventListener('hashchange', async () => {
                     if (window.location.hash === '#payment') {
-                        this.destroyElement()
+                        this.destroyElement();
                         // we need update quote, because we choose shipping method last step
                         await this.fetchExpressData();
-                        this.createPays()
+                        this.createPays();
                     }
                 });
             },
@@ -185,7 +184,7 @@ define(
 
             createPays() {
                 googlepay.create(this);
-                applepay.create(this);
+                // applepay.create(this);
             },
 
             placeOrder(pay) {
@@ -211,7 +210,7 @@ define(
                         }
 
                         if (!utils.isLoggedIn()) {
-                            payload.email = utils.isCheckoutPage() ? $("#customer-email").val() : this.guestEmail;
+                            payload.email = utils.isCheckoutPage() ? $(utils.guestEmailSelector).val() : this.guestEmail;
                         }
 
                         const intentResponse = await storage.post(
@@ -228,7 +227,7 @@ define(
                             params.payment_method.billing = addressHandler.intentConfirmBillingAddressFromOfficial;
                         }
 
-                        await eval(pay).confirmIntent(params)
+                        await eval(pay).confirmIntent(params);
 
                         payload.intent_id = intentResponse.intent_id;
                         const endResult = await storage.post(
@@ -237,8 +236,8 @@ define(
 
                         resolve(endResult);
                     } catch (e) {
-                        this.destroyElement()
-                        this.createPays()
+                        this.destroyElement();
+                        this.createPays();
                         reject(e);
                     }
                 })).then(response => {
