@@ -82,9 +82,7 @@ class Capture extends AbstractWebhook
             throw new WebhookException(__('Payment Intent: ' . $paymentIntentId . ': Can\'t find Order'));
         }
 
-        $paid = $order->getGrandTotal() - $order->getTotalPaid();
-
-        if ($paid === 0.0) {
+        if ($order->getTotalPaid()) {
             return;
         }
 
