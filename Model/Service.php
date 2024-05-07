@@ -53,7 +53,7 @@ use Magento\Checkout\Api\ShippingInformationManagementInterface;
 use Magento\Checkout\Api\Data\ShippingInformationInterfaceFactory;
 use Airwallex\Payments\Model\Ui\ConfigProvider;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
-use Magento\Customer\Model\Address\Validator\Country;
+use Magento\Quote\Model\ValidationRules\ShippingAddressValidationRule;
 
 class Service implements ServiceInterface
 {
@@ -83,7 +83,7 @@ class Service implements ServiceInterface
     private ShippingInformationInterfaceFactory $shippingInformationFactory;
     private ConfigProvider $configProvider;
     private ApplePayValidateMerchant $validateMerchant;
-    private Country $country;
+    private ShippingAddressValidationRule $rule;
 
     /**
      * Index constructor.
@@ -113,7 +113,7 @@ class Service implements ServiceInterface
      * @param ConfigProvider $configProvider
      * @param Get $intentGet
      * @param ApplePayValidateMerchant $validateMerchant
-     * @param Country $country
+     * @param ShippingAddressValidationRule $rule
      */
     public function __construct(
         PaymentIntents $paymentIntents,
@@ -141,7 +141,7 @@ class Service implements ServiceInterface
         ConfigProvider $configProvider,
         Get $intentGet,
         ApplePayValidateMerchant $validateMerchant,
-        Country $country
+        ShippingAddressValidationRule $rule
     ) {
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
@@ -168,7 +168,7 @@ class Service implements ServiceInterface
         $this->configProvider = $configProvider;
         $this->intentGet = $intentGet;
         $this->validateMerchant = $validateMerchant;
-        $this->country = $country;
+        $this->rule = $rule;
     }
     /**
      * Return URL
@@ -470,16 +470,8 @@ class Service implements ServiceInterface
         }
 
         $region = $this->request->getParam('region');
-
         $city = $this->request->getParam('city');
-        if (!$city) {
-            throw new Exception(__('City is required.'));
-        }
-
         $postcode = $this->request->getParam('postcode');
-        if (!$postcode) {
-            throw new Exception(__('Postal code is required.'));
-        }
 
         $regionId = $this->regionFactory->create()->loadByName($region, $countryId)->getRegionId();
         if (!$regionId) {
@@ -501,10 +493,13 @@ class Service implements ServiceInterface
         $address->setRegion($region->getRegion());
         $address->setPostcode($postcode);
 
-        $errors = $this->country->validate($address);
+        $errors = $this->rule->validate($quote);
         if (count($errors)) {
-            $msg = implode(' ', $errors);
-            throw new Exception(__(str_replace('"regionId" is required', 'Shippment region is incorrect', $msg)));
+            foreach ($errors as $error) {
+                foreach($error->getErrors() as $e) {
+                    throw new Exception(__($e));
+                }
+            }
         }
 
         $methods = $this->shipmentEstimation->estimateByExtendedAddress($cartId, $address);
