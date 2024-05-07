@@ -53,6 +53,7 @@ use Magento\Checkout\Api\ShippingInformationManagementInterface;
 use Magento\Checkout\Api\Data\ShippingInformationInterfaceFactory;
 use Airwallex\Payments\Model\Ui\ConfigProvider;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
+use Magento\Customer\Model\Address\Validator\Country;
 
 class Service implements ServiceInterface
 {
@@ -82,6 +83,7 @@ class Service implements ServiceInterface
     private ShippingInformationInterfaceFactory $shippingInformationFactory;
     private ConfigProvider $configProvider;
     private ApplePayValidateMerchant $validateMerchant;
+    private Country $country;
 
     /**
      * Index constructor.
@@ -111,6 +113,7 @@ class Service implements ServiceInterface
      * @param ConfigProvider $configProvider
      * @param Get $intentGet
      * @param ApplePayValidateMerchant $validateMerchant
+     * @param Country $country
      */
     public function __construct(
         PaymentIntents $paymentIntents,
@@ -137,7 +140,8 @@ class Service implements ServiceInterface
         ShippingInformationInterfaceFactory $shippingInformationFactory,
         ConfigProvider $configProvider,
         Get $intentGet,
-        ApplePayValidateMerchant $validateMerchant
+        ApplePayValidateMerchant $validateMerchant,
+        Country $country
     ) {
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
@@ -164,6 +168,7 @@ class Service implements ServiceInterface
         $this->configProvider = $configProvider;
         $this->intentGet = $intentGet;
         $this->validateMerchant = $validateMerchant;
+        $this->country = $country;
     }
     /**
      * Return URL
@@ -498,6 +503,13 @@ class Service implements ServiceInterface
         $address->setCity($city);
         $address->setRegion($region->getRegion());
         $address->setPostcode($postcode);
+
+        $errors = $this->country->validate($address);
+        if (count($errors)) {
+            $msg = implode(' ', $errors);
+            throw new Exception(__(str_replace('"regionId" is required', 'Shippment region is incorrect', $msg)));
+        }
+
         $methods = $this->shipmentEstimation->estimateByExtendedAddress($cartId, $address);
 
         $res = [];
