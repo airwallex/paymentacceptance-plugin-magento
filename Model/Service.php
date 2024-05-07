@@ -470,9 +470,6 @@ class Service implements ServiceInterface
         }
 
         $region = $this->request->getParam('region');
-        if (!$region) {
-            throw new Exception(__('Region is required.'));
-        }
 
         $city = $this->request->getParam('city');
         if (!$city) {
