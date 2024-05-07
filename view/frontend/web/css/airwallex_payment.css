@@ -84,3 +84,13 @@
 #co-payment-form .airwallex-express-checkout .express-title {
     display: block;
 }
+
+@media screen and (min-width: 768px) {
+    @media (min-width: 769px), print {
+        .box-tocart .airwallex-express-checkout {
+            margin-bottom: 15px;
+            width: 49%;
+            min-width: 240px;
+        }
+    }
+}

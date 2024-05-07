@@ -7,7 +7,7 @@
         <label>Express Checkout</label>
         <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1"
                canRestore="1">
-            <label>Enable/Disable</label>
+            <label>Enable</label>
             <comment>
                 <![CDATA[Enable Express Checkout]]>
             </comment>
@@ -43,7 +43,7 @@
                 <field id="active">1</field>
             </depends>
         </field>
-<!--        <include path="Airwallex_Payments::system/express/apple_pay.xml"/>-->
+        <!-- <include path="Airwallex_Payments::system/express/apple_pay.xml"/> -->
         <include path="Airwallex_Payments::system/express/google_pay.xml"/>
     </group>
 </include>

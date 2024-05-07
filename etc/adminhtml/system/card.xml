@@ -19,7 +19,7 @@
     <group id="card" translate="label" type="text" sortOrder="1" showInDefault="1" showInWebsite="1" showInStore="1">
         <label>Credit Card</label>
         <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1" canRestore="1">
-            <label>Enable/Disable</label>
+            <label>Enable</label>
             <comment>Enable Credit Card</comment>
             <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
             <config_path>payment/airwallex_payments_card/active</config_path>

@@ -35,10 +35,10 @@ class ButtonType
                 'value' => 'pay',
                 'label' => __('Pay')
             ],
-            [
-                'value' => 'plain',
-                'label' => __('Plain')
-            ],
+            // [
+            //     'value' => 'plain',
+            //     'label' => __('Plain')
+            // ],
             [
                 'value' => 'subscribe',
                 'label' => __('Subscribe')

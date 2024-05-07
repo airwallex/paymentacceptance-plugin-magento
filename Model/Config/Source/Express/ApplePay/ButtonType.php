@@ -39,10 +39,10 @@ class ButtonType
                 'value' => 'order',
                 'label' => __('Order')
             ],
-            [
-                'value' => 'plain',
-                'label' => __('Plain')
-            ],
+            // [
+            //     'value' => 'plain',
+            //     'label' => __('Plain')
+            // ],
             [
                 'value' => 'reload',
                 'label' => __('Reload')
