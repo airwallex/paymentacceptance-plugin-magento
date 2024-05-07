@@ -35,10 +35,10 @@ define([
 
         getIntermediateShippingAddress(addr) {
             return {
-                "region": addr.administrativeArea,
+                "region": addr.administrativeArea || '',
                 "country_id": addr.countryCode,
-                "postcode": addr.postalCode,
-                "city": addr.locality,
+                "postcode": addr.postalCode || '',
+                "city": addr.locality || '',
             };
         },
 

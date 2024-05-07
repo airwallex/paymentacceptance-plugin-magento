@@ -53,7 +53,8 @@ use Magento\Checkout\Api\ShippingInformationManagementInterface;
 use Magento\Checkout\Api\Data\ShippingInformationInterfaceFactory;
 use Airwallex\Payments\Model\Ui\ConfigProvider;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
-use Magento\Quote\Model\ValidationRules\ShippingAddressValidationRule;
+use Magento\Customer\Model\Address\Validator\Country;
+use Magento\Customer\Model\Address\Validator\Postcode;
 
 class Service implements ServiceInterface
 {
@@ -83,7 +84,8 @@ class Service implements ServiceInterface
     private ShippingInformationInterfaceFactory $shippingInformationFactory;
     private ConfigProvider $configProvider;
     private ApplePayValidateMerchant $validateMerchant;
-    private ShippingAddressValidationRule $rule;
+    private Country $countryValidator;
+    private Postcode $postcodeValidator;
 
     /**
      * Index constructor.
@@ -113,7 +115,8 @@ class Service implements ServiceInterface
      * @param ConfigProvider $configProvider
      * @param Get $intentGet
      * @param ApplePayValidateMerchant $validateMerchant
-     * @param ShippingAddressValidationRule $rule
+     * @param Country $countryValidator
+     * @param Postcode $postcodeValidator
      */
     public function __construct(
         PaymentIntents $paymentIntents,
@@ -141,7 +144,8 @@ class Service implements ServiceInterface
         ConfigProvider $configProvider,
         Get $intentGet,
         ApplePayValidateMerchant $validateMerchant,
-        ShippingAddressValidationRule $rule
+        Country $countryValidator,
+        Postcode $postcodeValidator
     ) {
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
@@ -168,7 +172,8 @@ class Service implements ServiceInterface
         $this->configProvider = $configProvider;
         $this->intentGet = $intentGet;
         $this->validateMerchant = $validateMerchant;
-        $this->rule = $rule;
+        $this->countryValidator = $countryValidator;
+        $this->postcodeValidator = $postcodeValidator;
     }
     /**
      * Return URL
@@ -468,17 +473,18 @@ class Service implements ServiceInterface
         if (!$countryId) {
             throw new Exception(__('Country is required.'));
         }
+        $city = $this->request->getParam('city');
+        if (!$city) {
+            throw new Exception(__('City is required.'));
+        }
 
         $region = $this->request->getParam('region');
-        $city = $this->request->getParam('city');
         $postcode = $this->request->getParam('postcode');
 
         $regionId = $this->regionFactory->create()->loadByName($region, $countryId)->getRegionId();
         if (!$regionId) {
             $regionId = $this->regionFactory->create()->loadByCode($region, $countryId)->getRegionId();
         }
-
-        $region = $this->regionInterfaceFactory->create()->setRegion($region)->setRegionId($regionId);
 
         $quote = $this->checkoutHelper->getQuote();
 
@@ -490,16 +496,17 @@ class Service implements ServiceInterface
         $address = $quote->getShippingAddress();
         $address->setCountryId($countryId);
         $address->setCity($city);
-        $address->setRegion($region->getRegion());
+        if ($regionId) {
+            $address->setRegionId($regionId);
+        } else {
+            $address->setRegion($region);
+        }
         $address->setPostcode($postcode);
 
-        $errors = $this->rule->validate($quote);
-        if (count($errors)) {
-            foreach ($errors as $error) {
-                foreach($error->getErrors() as $e) {
-                    throw new Exception(__($e));
-                }
-            }
+        $errors = $this->countryValidator->validate($address);
+        $isPostcodeValid = $this->postcodeValidator->isValid($address->getCountryId(), $postcode);
+        if (count($errors) || !$isPostcodeValid) {
+            throw new Exception(__('Please check the shipping address information.'));
         }
 
         $methods = $this->shipmentEstimation->estimateByExtendedAddress($cartId, $address);
