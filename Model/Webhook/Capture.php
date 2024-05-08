@@ -82,16 +82,14 @@ class Capture extends AbstractWebhook
             throw new WebhookException(__('Payment Intent: ' . $paymentIntentId . ': Can\'t find Order'));
         }
 
-        $paid = $order->getBaseGrandTotal() - $order->getBaseTotalPaid();
-
-        if ($paid === 0.0) {
+        if ($order->getTotalPaid()) {
             return;
         }
 
         $amount = $data->captured_amount;
         $invoice = $this->invoiceService->prepareInvoice($order);
-        $invoice->setBaseSubtotal($amount);
-        $invoice->setBaseGrandTotal($amount);
+        $invoice->setSubtotal($amount);
+        $invoice->setGrandTotal($amount);
         $invoice->setTransactionId($paymentIntentId);
         $invoice->setRequestedCaptureCase(Invoice::CAPTURE_OFFLINE);
         $invoice->register();

@@ -19,6 +19,7 @@ use Airwallex\Payments\Api\Data\PaymentIntentInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Payment\Model\InfoInterface;
+use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 
 class CardMethod extends AbstractMethod
 {
@@ -37,9 +38,13 @@ class CardMethod extends AbstractMethod
 
         $payment->setTransactionId($intentId);
 
-        $status = $this->getIntentStatus();
+        $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
+        $respArr = json_decode($resp, true);
+        if (!isset($respArr['status'])) {
+            throw new LocalizedException(__('Something went wrong while trying to capture the payment.'));
+        }
 
-        if ($status === PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE) {
+        if ($respArr['status'] === PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE) {
             try {
                 $result = $this->capture
                     ->setPaymentIntentId($intentId)
@@ -51,7 +56,6 @@ class CardMethod extends AbstractMethod
                 $this->logger->orderError($payment->getOrder(), 'capture', $exception->getMessage());
             }
         }
-
 
         return $this;
     }

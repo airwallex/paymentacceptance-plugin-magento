@@ -31,7 +31,8 @@ define(
         'Magento_Checkout/js/model/full-screen-loader',
         'Magento_Checkout/js/model/url-builder',
         'Magento_Customer/js/model/customer',
-        'Airwallex_Payments/js/view/payment/method-renderer/card-method-recaptcha'
+        'Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry'
+
     ],
     function (
         $,
@@ -47,7 +48,7 @@ define(
         fullScreenLoader,
         urlBuilder,
         customer,
-        cardMethodRecaptcha
+        recaptchaRegistry
     ) {
         'use strict';
 
@@ -58,7 +59,7 @@ define(
             cardElement: undefined,
             validationError: ko.observable(),
             isRecaptchaEnabled: !!window.checkoutConfig?.payment?.airwallex_payments?.recaptcha_enabled,
-            recaptcha: null,
+            recaptchaId: 'recaptcha-checkout-place-order',
             defaults: {
                 template: 'Airwallex_Payments/payment/card-method'
             },
@@ -72,7 +73,7 @@ define(
                         country_code: billingAddress.countryId,
                         postcode: billingAddress.postcode,
                         state: billingAddress.region,
-                        street: billingAddress.street[0]
+                        street: billingAddress.street.join(', ')
                     },
                     first_name: billingAddress.firstname,
                     last_name: billingAddress.lastname,
@@ -88,8 +89,6 @@ define(
                     }
                 );
                 this.cardElement.mount(this.mountElement);
-                this.recaptcha = cardMethodRecaptcha();
-                this.recaptcha.renderReCaptcha();
 
                 window.addEventListener(
                     'onReady',
@@ -97,6 +96,13 @@ define(
                         $('body').trigger('processStop');
                     }
                 );
+            },
+
+            getRecaptchaId() {
+                if ($('#recaptcha-checkout-place-order').length) {
+                    return this.recaptchaId;
+                }
+                return $('.airwallex-card-container .g-recaptcha').attr('id')
             },
 
             initiateOrderPlacement: async function () {
@@ -148,10 +154,14 @@ define(
 
                     (new Promise(async function (resolve, reject) {
                         try {
-                            const xReCaptchaValue = await (new Promise(function (resolve) {
-                                self.getRecaptchaToken(resolve);
-                            }));
-                            payload.xReCaptchaValue = xReCaptchaValue;
+                            if (self.isRecaptchaEnabled) {
+                                payload.xReCaptchaValue = await new Promise((resolve, reject) => {
+                                    recaptchaRegistry.addListener(self.getRecaptchaId(), (token) => {
+                                        resolve(token);
+                                    });
+                                    recaptchaRegistry.triggers[self.getRecaptchaId()]();
+                                });
+                            }
 
                             const intentResponse = await storage.post(
                                 serviceUrl, JSON.stringify(payload), true, 'application/json', headers
@@ -165,11 +175,8 @@ define(
                             params.element = self.cardElement;
 
                             payload.intent_id = intentResponse.intent_id;
-                            payload.xReCaptchaValue = null;
 
                             const airwallexResponse = await Airwallex.confirmPaymentIntent(params);
-                            payload.paymentMethod.additional_data.amount = airwallexResponse.amount
-                            payload.paymentMethod.additional_data.intent_status = airwallexResponse.status
                             payload.paymentMethod.additional_data.intent_id = airwallexResponse.id
 
                             const endResult = await storage.post(
@@ -207,7 +214,6 @@ define(
                         self.processPlaceOrderError.bind(self)
                     ).finally(
                         function () {
-                            self.recaptcha.reset();
                             fullScreenLoader.stopLoader();
                             $('body').trigger('processStop');
                             _.each(placeOrderHooks.afterRequestListeners, function (listener) {
@@ -241,28 +247,5 @@ define(
                     this.validationError(response.message);
                 }
             },
-
-            getRecaptchaToken: function (callback) {
-                if (!this.isRecaptchaEnabled) {
-                    return callback();
-                }
-
-                const reCaptchaId = this.recaptcha.getReCaptchaId(),
-                      registry = this.recaptcha.getRegistry();
-
-                if (registry.tokens.hasOwnProperty(reCaptchaId)) {
-                    const response = registry.tokens[reCaptchaId];
-                    if (typeof response === 'object' && typeof response.then === 'function') {
-                        response.then(function (token) {
-                            callback(token);
-                        });
-                    } else {
-                        callback(response);
-                    }
-                } else {
-                    registry._listeners[reCaptchaId] = callback;
-                    registry.triggers[reCaptchaId]();
-                }
-            }
         });
     });

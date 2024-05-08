@@ -20,6 +20,7 @@
         <label>Credit Card</label>
         <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1" canRestore="1">
             <label>Enable</label>
+            <comment>Enable Credit Card</comment>
             <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
             <config_path>payment/airwallex_payments_card/active</config_path>
         </field>
@@ -29,7 +30,7 @@
             <config_path>payment/airwallex_payments_card/title</config_path>
         </field>
         <field id="airwallex_payment_action" translate="label" type="select" sortOrder="30" showInDefault="1" showInWebsite="0" showInStore="0">
-            <label>Payment Action</label>
+            <label>Capture Preferences</label>
             <source_model>Airwallex\Payments\Model\Config\Source\PaymentAction</source_model>
             <config_path>payment/airwallex_payments_card/airwallex_payment_action</config_path>
         </field>
@@ -53,5 +54,6 @@
             <frontend_class>validate-number</frontend_class>
             <config_path>payment/airwallex_payments_card/sort_order</config_path>
         </field>
+        <include path="Airwallex_Payments::system/express.xml"/>
     </group>
 </include>

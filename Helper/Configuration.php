@@ -13,6 +13,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+
 namespace Airwallex\Payments\Helper;
 
 use Airwallex\Payments\Model\Config\Source\Mode;
@@ -25,7 +26,11 @@ class Configuration extends AbstractHelper
     private const DEMO_BASE_URL = 'https://pci-api-demo.airwallex.com/api/v1/';
     private const PRODUCTION_BASE_URL = 'https://pci-api.airwallex.com/api/v1/';
 
+    private const EXPRESS_PREFIX = 'payment/airwallex_payments_express/';
+
     /**
+     * Client id
+     *
      * @return string|null
      */
     public function getClientId(): ?string
@@ -34,6 +39,8 @@ class Configuration extends AbstractHelper
     }
 
     /**
+     * Api key
+     *
      * @return string|null
      */
     public function getApiKey(): ?string
@@ -42,14 +49,18 @@ class Configuration extends AbstractHelper
     }
 
     /**
+     * Is request logger enabled
+     *
      * @return bool
      */
     public function isRequestLoggerEnable(): bool
     {
-        return (bool) $this->scopeConfig->getValue('airwallex/general/request_logger');
+        return (bool)$this->scopeConfig->getValue('airwallex/general/request_logger');
     }
 
     /**
+     * Webhook secret key
+     *
      * @return string
      */
     public function getWebhookSecretKey(): string
@@ -60,6 +71,8 @@ class Configuration extends AbstractHelper
     }
 
     /**
+     * Mode
+     *
      * @return string
      */
     public function getMode(): string
@@ -68,14 +81,8 @@ class Configuration extends AbstractHelper
     }
 
     /**
-     * @return string
-     */
-    public function getCardPaymentAction(): string
-    {
-        return $this->scopeConfig->getValue('payment/airwallex_payments_card/airwallex_payment_action');
-    }
-
-    /**
+     * Api url
+     *
      * @return string
      */
     public function getApiUrl(): string
@@ -84,6 +91,8 @@ class Configuration extends AbstractHelper
     }
 
     /**
+     * Is demo mode
+     *
      * @return bool
      */
     private function isDemoMode(): bool
@@ -92,10 +101,118 @@ class Configuration extends AbstractHelper
     }
 
     /**
+     * Card capture enabled
+     *
      * @return bool
      */
-    public function isCaptureEnabled()
+    public function isCardCaptureEnabled(): bool
     {
-        return $this->scopeConfig->getValue('payment/airwallex_payments_card/airwallex_payment_action') === MethodInterface::ACTION_AUTHORIZE_CAPTURE;
+        return $this->scopeConfig->getValue('payment/airwallex_payments_card/airwallex_payment_action')
+            === MethodInterface::ACTION_AUTHORIZE_CAPTURE;
+    }
+
+    /**
+     * Card enabled
+     *
+     * @return bool
+     */
+    public function isCardActive(): bool
+    {
+        return !!$this->scopeConfig->getValue('payment/airwallex_payments_card/active');
+    }
+
+    /**
+     * Express capture enabled
+     *
+     * @return bool
+     */
+    public function isExpressCaptureEnabled(): bool
+    {
+        return $this->scopeConfig->getValue('payment/airwallex_payments_express/airwallex_payment_action')
+            === MethodInterface::ACTION_AUTHORIZE_CAPTURE;
+    }
+
+    /**
+     * Express display area
+     *
+     * @return string
+     */
+    public function expressDisplayArea(): string
+    {
+        return $this->scopeConfig->getValue('payment/airwallex_payments_express/display_area');
+    }
+
+    /**
+     * Express seller name
+     *
+     * @return string
+     */
+    public function getExpressSellerName(): string
+    {
+        return $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'seller_name') ?: '';
+    }
+
+    /**
+     * Express style
+     *
+     * @return array
+     */
+    public function getExpressStyle(): array
+    {
+        return [
+            "button_height" => $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'button_height'),
+            "apple_pay_button_theme" => $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'apple_pay_button_theme'),
+            "google_pay_button_theme" => $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'google_pay_button_theme'),
+            "apple_pay_button_type" => $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'apple_pay_button_type'),
+            "google_pay_button_type" => $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'google_pay_button_type'),
+        ];
+    }
+
+    /**
+     * Is express active
+     *
+     * @return bool
+     */
+    public function isExpressActive(): bool
+    {
+        if (!$this->isCardActive()) {
+            return false;
+        }
+        return !!$this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'active');
+    }
+
+    /**
+     * Is express phone required
+     *
+     * @return bool
+     */
+    public function isExpressPhoneRequired(): bool
+    {
+        return $this->scopeConfig->getValue('customer/address/telephone_show') === "req";
+    }
+
+    /**
+     * Country code
+     *
+     * @return string
+     */
+    public function getCountryCode(): string
+    {
+        return $this->scopeConfig->getValue('paypal/general/merchant_country')
+            ?: $this->scopeConfig->getValue('general/country/default');
+    }
+
+    /**
+     * Express button sort
+     *
+     * @return array
+     */
+    public function getExpressButtonSort(): array
+    {
+        $sorts = [];
+        $sorts['google'] = (int)$this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'google_pay_sort_order');
+        $sorts['apple'] = (int)$this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'apple_pay_sort_order');
+        asort($sorts);
+        return array_keys($sorts);
     }
 }

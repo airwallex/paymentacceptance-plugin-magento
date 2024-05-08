@@ -8,11 +8,11 @@
  * to newer versions in the future.
  *
  * @copyright Copyright (c) 2021 Magebit,
-Ltd. (https://magebit.com/)
+ * Ltd. (https://magebit.com/)
  * @license   GNU General Public License ("GPL") v3.0
  *
  * For the full copyright and license information,
-please view the LICENSE
+ * please view the LICENSE
  * file that was distributed with this source code.
  */
 
@@ -26,7 +26,7 @@ use Magento\ReCaptchaUi\Model\IsCaptchaEnabledInterface;
 
 class ConfigProvider implements ConfigProviderInterface
 {
-    const AIRWALLEX_RECAPTCHA_FOR = 'airwallex_card';
+    const AIRWALLEX_RECAPTCHA_FOR = 'place_order';
 
     protected Configuration $configuration;
     protected IsCaptchaEnabledInterface $isCaptchaEnabled;
@@ -39,9 +39,9 @@ class ConfigProvider implements ConfigProviderInterface
      * @param ReCaptcha $reCaptchaBlock
      */
     public function __construct(
-        Configuration $configuration,
+        Configuration             $configuration,
         IsCaptchaEnabledInterface $isCaptchaEnabled,
-        ReCaptcha $reCaptchaBlock
+        ReCaptcha                 $reCaptchaBlock
     ) {
         $this->configuration = $configuration;
         $this->isCaptchaEnabled = $isCaptchaEnabled;
@@ -56,25 +56,49 @@ class ConfigProvider implements ConfigProviderInterface
      */
     public function getConfig(): array
     {
-        $recaptchaEnabled = $this->isCaptchaEnabled->isCaptchaEnabledFor(self::AIRWALLEX_RECAPTCHA_FOR);
+        $recaptchaEnabled = $this->isReCaptchaEnabled();
         $config = [
             'payment' => [
                 'airwallex_payments' => [
                     'mode' => $this->configuration->getMode(),
-                    'cc_auto_capture' => $this->configuration->isCaptureEnabled(),
-                    'recaptcha_enabled' => !!$recaptchaEnabled
+                    'cc_auto_capture' => $this->configuration->isCardCaptureEnabled(),
+                    'recaptcha_enabled' => !!$recaptchaEnabled,
                 ]
             ]
         ];
 
         if ($recaptchaEnabled) {
-            $this->reCaptchaBlock->setData([
-                'recaptcha_for' => self::AIRWALLEX_RECAPTCHA_FOR
-            ]);
-            $config['payment']['airwallex_payments']['recaptcha_settings']
-                = $this->reCaptchaBlock->getCaptchaUiConfig();
+            $config['payment']['airwallex_payments']['recaptcha_settings'] = $this->getReCaptchaConfig();
         }
 
         return $config;
+    }
+
+    /**
+     * Get reCaptcha config
+     *
+     * @return array
+     */
+    public function getReCaptchaConfig()
+    {
+        if (!$this->isReCaptchaEnabled()) {
+            return [];
+        }
+
+        $this->reCaptchaBlock->setData([
+            'recaptcha_for' => self::AIRWALLEX_RECAPTCHA_FOR
+        ]);
+
+        return $this->reCaptchaBlock->getCaptchaUiConfig();
+    }
+
+    /**
+     * Get is reCaptcha enabled
+     *
+     * @return bool
+     */
+    public function isReCaptchaEnabled()
+    {
+        return $this->isCaptchaEnabled->isCaptchaEnabledFor(self::AIRWALLEX_RECAPTCHA_FOR);
     }
 }

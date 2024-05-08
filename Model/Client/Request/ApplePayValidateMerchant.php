@@ -13,52 +13,20 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
-namespace Airwallex\Payments\Model\Client\Request\PaymentIntents;
+namespace Airwallex\Payments\Model\Client\Request;
 
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
 use Psr\Http\Message\ResponseInterface;
 
-class Get extends AbstractClient implements BearerAuthenticationInterface
+class ApplePayValidateMerchant extends AbstractClient implements BearerAuthenticationInterface
 {
-    public const INTENT_STATUS_SUCCESS = 'SUCCEEDED';
-
-    public const INTENT_STATUS_REQUIRES_CAPTURE = 'REQUIRES_CAPTURE';
-
-    /**
-     * @var string
-     */
-    private string $paymentIntentId;
-
-    /**
-     * @param string $id
-     *
-     * @return $this
-     */
-    public function setPaymentIntentId(string $id): self
-    {
-        $this->paymentIntentId = $id;
-
-        return $this;
-    }
-
     /**
      * @return string
      */
     protected function getUri(): string
     {
-        return 'pa/payment_intents/' . $this->paymentIntentId;
-    }
-
-    /**
-     * @param ResponseInterface $request
-     *
-     * @return string
-     * @throws \JsonException
-     */
-    protected function parseResponse(ResponseInterface $request): string
-    {
-        return $request->getBody();
+        return 'pa/payment_session/start';
     }
 
     /**
@@ -66,6 +34,22 @@ class Get extends AbstractClient implements BearerAuthenticationInterface
      */
     protected function getMethod(): string
     {
-        return 'GET';
+        return 'POST';
+    }
+
+    /**
+     * @param ResponseInterface $request
+     *
+     * @return string
+     */
+    protected function parseResponse(ResponseInterface $request): string
+    {
+        return $request->getBody();
+    }
+
+    public function setInitiativeParams($initiative): AbstractClient
+    {
+        $this->setParams($initiative);
+        return $this;
     }
 }
