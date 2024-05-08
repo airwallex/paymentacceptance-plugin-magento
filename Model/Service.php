@@ -484,9 +484,6 @@ class Service implements ServiceInterface
             throw new Exception(__('Country is required.'));
         }
         $city = $this->request->getParam('city');
-        if (!$city) {
-            throw new Exception(__('City is required.'));
-        }
 
         $region = $this->request->getParam('region');
         $postcode = $this->request->getParam('postcode');
@@ -513,12 +510,6 @@ class Service implements ServiceInterface
             $address->setRegion($region);
         }
         $address->setPostcode($postcode);
-
-        $errors = $this->countryValidator->validate($address);
-        $isPostcodeValid = $this->postcodeValidator->isValid($address->getCountryId(), $postcode);
-        if (count($errors) || !$isPostcodeValid) {
-            throw new Exception(__('Please check the shipping address information.'));
-        }
 
         $methods = $this->shipmentEstimation->estimateByExtendedAddress($cartId, $address);
 
@@ -593,11 +584,11 @@ class Service implements ServiceInterface
         $quote = $this->checkoutHelper->getQuote();
         $errors = $this->shippingAddressValidationRule->validate($quote);
         if ($errors and $errors[0]->getErrors()) {
-            throw new Exception(__("Please check the shipping address information."));
+            throw new Exception(__(implode(' ', $errors[0]->getErrors())));
         }
         $errors = $this->billingAddressValidationRule->validate($quote);
         if ($errors and $errors[0]->getErrors()) {
-            throw new Exception(__("Please check the billing address information."));
+            throw new Exception(__(implode(' ', $errors[0]->getErrors())));
         }
         return 'ok';
     }
