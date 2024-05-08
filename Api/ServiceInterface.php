@@ -85,4 +85,12 @@ interface ServiceInterface
      * @throws Exception
      */
     public function validateMerchant();
+
+    /**
+     * Validate addresses before placing order
+     *
+     * @return string
+     * @throws Exception
+     */
+    public function validateAddresses();
 }

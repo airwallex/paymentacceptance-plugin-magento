@@ -55,6 +55,8 @@ use Airwallex\Payments\Model\Ui\ConfigProvider;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Magento\Customer\Model\Address\Validator\Country;
 use Magento\Customer\Model\Address\Validator\Postcode;
+use Magento\Quote\Model\ValidationRules\ShippingAddressValidationRule;
+use Magento\Quote\Model\ValidationRules\BillingAddressValidationRule;
 
 class Service implements ServiceInterface
 {
@@ -86,6 +88,8 @@ class Service implements ServiceInterface
     private ApplePayValidateMerchant $validateMerchant;
     private Country $countryValidator;
     private Postcode $postcodeValidator;
+    private ShippingAddressValidationRule $shippingAddressValidationRule;
+    private BillingAddressValidationRule $billingAddressValidationRule;
 
     /**
      * Index constructor.
@@ -117,6 +121,8 @@ class Service implements ServiceInterface
      * @param ApplePayValidateMerchant $validateMerchant
      * @param Country $countryValidator
      * @param Postcode $postcodeValidator
+     * @param ShippingAddressValidationRule $shippingAddressValidationRule
+     * @param BillingAddressValidationRule $billingAddressValidationRule
      */
     public function __construct(
         PaymentIntents $paymentIntents,
@@ -145,7 +151,9 @@ class Service implements ServiceInterface
         Get $intentGet,
         ApplePayValidateMerchant $validateMerchant,
         Country $countryValidator,
-        Postcode $postcodeValidator
+        Postcode $postcodeValidator,
+        ShippingAddressValidationRule $shippingAddressValidationRule,
+        BillingAddressValidationRule $billingAddressValidationRule
     ) {
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
@@ -174,6 +182,8 @@ class Service implements ServiceInterface
         $this->validateMerchant = $validateMerchant;
         $this->countryValidator = $countryValidator;
         $this->postcodeValidator = $postcodeValidator;
+        $this->shippingAddressValidationRule = $shippingAddressValidationRule;
+        $this->billingAddressValidationRule = $billingAddressValidationRule;
     }
     /**
      * Return URL
@@ -499,6 +509,7 @@ class Service implements ServiceInterface
         if ($regionId) {
             $address->setRegionId($regionId);
         } else {
+            $address->setRegionId(0);
             $address->setRegion($region);
         }
         $address->setPostcode($postcode);
@@ -569,6 +580,26 @@ class Service implements ServiceInterface
             'validation_url' => $validationUrl,
             'initiative_context' => $initiativeContext,
         ])->send();
+    }
+
+    /**
+     * Validate addresses before placing order
+     *
+     * @return string
+     * @throws Exception
+     */
+    public function validateAddresses()
+    {
+        $quote = $this->checkoutHelper->getQuote();
+        $errors = $this->shippingAddressValidationRule->validate($quote);
+        if ($errors and $errors[0]->getErrors()) {
+            throw new Exception(__("Please check the shipping address information."));
+        }
+        $errors = $this->billingAddressValidationRule->validate($quote);
+        if ($errors and $errors[0]->getErrors()) {
+            throw new Exception(__("Please check the billing address information."));
+        }
+        return 'ok';
     }
 
     /**

@@ -187,6 +187,11 @@ define(
                 // applepay.create(this);
             },
 
+            async validateAddresses() {
+                let url = urlBuilder.build('rest/V1/airwallex/payments/validate-addresses');
+                await storage.get(url, undefined, 'application/json', {});
+            },
+
             placeOrder(pay) {
                 $('body').trigger('processStart');
                 const payload = {
@@ -205,6 +210,8 @@ define(
 
                 (new Promise(async (resolve, reject) => {
                     try {
+                        await this.validateAddresses();
+                        
                         if (this.paymentConfig.is_recaptcha_enabled) {
                             payload.xReCaptchaValue = await utils.recaptchaToken();
                         }

@@ -67,4 +67,11 @@
             <resource ref="anonymous" />
         </resources>
     </route>
+
+    <route url="/V1/airwallex/payments/validate-addresses" method="GET">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="validateAddresses"/>
+        <resources>
+            <resource ref="anonymous" />
+        </resources>
+    </route>
 </routes>

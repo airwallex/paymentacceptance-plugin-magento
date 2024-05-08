@@ -40,14 +40,15 @@ define([
                         methodId = event.detail.intermediatePaymentData.shippingOptionData.id;
                     }
                     await that.postAddress(addr, methodId);
-                    let options = this.getRequestOptions();
-                    if (utils.isRequireShippingOption()) {
-                        options.shippingOptionParameters = addressHandler.formatShippingMethodsToGoogle(this.methods, this.selectedMethod);
-                    }
-                    this.googlepay.update(options);
                 } catch (e) {
                     utils.error(e);
                 }
+
+                let options = this.getRequestOptions();
+                if (utils.isRequireShippingOption()) {
+                    options.shippingOptionParameters = addressHandler.formatShippingMethodsToGoogle(this.methods, this.selectedMethod);
+                }
+                this.googlepay.update(options);
             };
 
             this.googlepay.on('shippingAddressChange', updateQuoteByShipment);
@@ -55,20 +56,19 @@ define([
             this.googlepay.on('shippingMethodChange', updateQuoteByShipment);
 
             this.googlepay.on('authorized', async (event) => {
-                that.setGuestEmail(event.detail.paymentData.email);
+                let data = event.detail.paymentData;
+                that.setGuestEmail(data.email);
                 if (utils.isRequireShippingAddress()) {
                     // this time google provide full shipping address, we should post to magento
-                    let information = addressHandler.constructAddressInformationFromGoogle(
-                        event.detail.paymentData
-                    );
+                    let information = addressHandler.constructAddressInformationFromGoogle(data);
                     await addressHandler.postShippingInformation(information, utils.isLoggedIn(), utils.getCartId());
                 } else {
                     await addressHandler.postBillingAddress({
                         'cartId': utils.getCartId(),
-                        'address': addressHandler.getBillingAddressFromGoogle(event.detail.paymentData.paymentMethodData.info.billingAddress)
+                        'address': addressHandler.getBillingAddressFromGoogle(data.paymentMethodData.info.billingAddress)
                     }, utils.isLoggedIn(), utils.getCartId());
                 }
-                addressHandler.setIntentConfirmBillingAddressFromGoogle(event.detail.paymentData);
+                addressHandler.setIntentConfirmBillingAddressFromGoogle(data);
                 that.placeOrder('googlepay');
             });
         },
