@@ -59,25 +59,25 @@ define([
                 this.intermediateShippingAddress = addressHandler.getIntermediateShippingAddress(event.detail.shippingAddress);
                 try {
                     await that.postAddress(this.intermediateShippingAddress);
-                    let options = this.getRequestOptions();
-                    if (utils.isRequireShippingOption()) {
-                        options.shippingMethods = addressHandler.formatShippingMethodsToApple(this.methods, this.selectedMethod);
-                    }
-                    this.applepay.update(options);
                 } catch (e) {
                     utils.error(e);
                 }
+                let options = this.getRequestOptions();
+                if (utils.isRequireShippingOption()) {
+                    options.shippingMethods = addressHandler.formatShippingMethodsToApple(this.methods, this.selectedMethod);
+                }
+                this.applepay.update(options);
             });
 
             this.applepay.on('shippingMethodChange', async (event) => {
                 try {
                     await that.postAddress(this.intermediateShippingAddress, event.detail.shippingMethod.identifier);
-                    let options = this.getRequestOptions();
-                    options.shippingMethods = addressHandler.formatShippingMethodsToApple(this.methods, this.selectedMethod);
-                    this.applepay.update(options);
                 } catch (e) {
                     utils.error(e);
                 }
+                let options = this.getRequestOptions();
+                options.shippingMethods = addressHandler.formatShippingMethodsToApple(this.methods, this.selectedMethod);
+                this.applepay.update(options);
             });
 
             this.applepay.on('authorized', async (event) => {
