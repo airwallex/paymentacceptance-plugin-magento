@@ -71,6 +71,10 @@ define(
                 let resp = await $.ajax(postOptions);
 
                 let obj = JSON.parse(resp);
+                if (obj.type && obj.type === 'error') {
+                    throw new Error(obj.message);
+                }
+                
                 this.updateExpressData(obj.quote_data);
                 this.updateMethods(obj.methods, obj.selected_method);
                 addressHandler.regionId = obj.region_id || 0;
@@ -189,7 +193,7 @@ define(
 
             async validateAddresses() {
                 let url = urlBuilder.build('rest/V1/airwallex/payments/validate-addresses');
-                await storage.get(url, undefined, 'application/json', {});
+                return await storage.get(url, undefined, 'application/json', {});
             },
 
             placeOrder(pay) {
@@ -210,7 +214,11 @@ define(
 
                 (new Promise(async (resolve, reject) => {
                     try {
-                        await this.validateAddresses();
+                        let resp = await this.validateAddresses();
+                        let obj = JSON.parse(resp);
+                        if (obj.type && obj.type === 'error') {
+                            throw new Error(obj.message);
+                        }
                         
                         if (this.paymentConfig.is_recaptcha_enabled) {
                             payload.xReCaptchaValue = await utils.recaptchaToken();
