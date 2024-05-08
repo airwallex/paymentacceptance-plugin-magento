@@ -471,6 +471,13 @@ class Service implements ServiceInterface
         }
     }
 
+    private function error($message) {
+        return json_encode([
+           'type' => 'error',
+           'message' => $message
+        ]);
+    }
+
     /**
      * Post Address to get method and quote data
      *
@@ -481,7 +488,7 @@ class Service implements ServiceInterface
     {
         $countryId = $this->request->getParam('country_id');
         if (!$countryId) {
-            throw new Exception(__('Country is required.'));
+            return $this->error(__('Country is required.'));
         }
         $city = $this->request->getParam('city');
 
@@ -516,7 +523,7 @@ class Service implements ServiceInterface
         $res = [];
         if (!$quote->isVirtual()) {
             if (!count($methods)) {
-                throw new Exception(__('There are no available shipping method found.'));
+                return $this->error(__('There are no available shipping method found.'));
             }
 
             $selectedMethod = $methods[0];
@@ -584,13 +591,13 @@ class Service implements ServiceInterface
         $quote = $this->checkoutHelper->getQuote();
         $errors = $this->shippingAddressValidationRule->validate($quote);
         if ($errors and $errors[0]->getErrors()) {
-            throw new Exception(__(implode(' ', $errors[0]->getErrors())));
+            return $this->error(__(implode(' ', $errors[0]->getErrors())));
         }
         $errors = $this->billingAddressValidationRule->validate($quote);
         if ($errors and $errors[0]->getErrors()) {
-            throw new Exception(__(implode(' ', $errors[0]->getErrors())));
+            return $this->error(__(implode(' ', $errors[0]->getErrors())));
         }
-        return 'ok';
+        return '{"type": "success"}';
     }
 
     /**
