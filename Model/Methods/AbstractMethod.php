@@ -41,6 +41,7 @@ use Magento\Quote\Api\Data\CartInterface;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
+use Magento\Directory\Model\PriceCurrency;
 
 /**
  * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
@@ -103,6 +104,8 @@ abstract class AbstractMethod extends Adapter
 
     protected Get $intentGet;
 
+    protected PriceCurrency $priceCurrency;
+
     /**
      * Payment constructor.
      *
@@ -147,7 +150,8 @@ abstract class AbstractMethod extends Adapter
         CommandPoolInterface $commandPool = null,
         ValidatorPoolInterface $validatorPool = null,
         CommandManagerInterface $commandExecutor = null,
-        LoggerInterface $logger = null
+        LoggerInterface $logger = null,
+        PriceCurrency $priceCurrency
     ) {
         parent::__construct(
             $eventManager,
@@ -172,6 +176,7 @@ abstract class AbstractMethod extends Adapter
         $this->confirm = $confirm;
         $this->checkoutHelper = $checkoutHelper;
         $this->intentGet = $intentGet;
+        $this->priceCurrency = $priceCurrency;
     }
 
     /**

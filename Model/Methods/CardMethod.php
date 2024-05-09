@@ -36,6 +36,9 @@ class CardMethod extends AbstractMethod
     {
         $intentId = $this->getIntentId();
 
+        $order = $payment->getOrder();
+        $targetAmount = $this->priceCurrency->convert($amount, $order->getStore(), $order->getOrderCurrencyCode());
+
         $payment->setTransactionId($intentId);
 
         $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
@@ -48,7 +51,7 @@ class CardMethod extends AbstractMethod
             try {
                 $result = $this->capture
                     ->setPaymentIntentId($intentId)
-                    ->setInformation($amount)
+                    ->setInformation($this->priceCurrency->convert($targetAmount))
                     ->send();
                 $this->logger->error(sprintf('Credit Card: Payment Intent %s, Capture information', $intentId));
                 $this->getInfoInstance()->setAdditionalInformation('intent_status', $result->status);
