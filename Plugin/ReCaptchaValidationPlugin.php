@@ -71,15 +71,15 @@ class ReCaptchaValidationPlugin
             return false;
         }
 
-        if ($this->cache->load(self::getCacheKey($intentId))) {
-            $this->cache->remove(self::getCacheKey($intentId));
+        if ($this->cache->load($this->getCacheKey($intentId))) {
+            $this->cache->remove($this->getCacheKey($intentId));
             return true;
         }
 
         return false;
     }
 
-    public static function getCacheKey(string $intentId): string
+    public function getCacheKey(string $intentId): string
     {
         return implode('_', [self::CACHE_PREFIX, $intentId]);
     }

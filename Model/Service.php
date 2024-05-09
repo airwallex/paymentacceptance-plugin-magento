@@ -90,6 +90,7 @@ class Service implements ServiceInterface
     private Postcode $postcodeValidator;
     private ShippingAddressValidationRule $shippingAddressValidationRule;
     private BillingAddressValidationRule $billingAddressValidationRule;
+    private ReCaptchaValidationPlugin $reCaptchaValidationPlugin;
 
     /**
      * Index constructor.
@@ -123,6 +124,7 @@ class Service implements ServiceInterface
      * @param Postcode $postcodeValidator
      * @param ShippingAddressValidationRule $shippingAddressValidationRule
      * @param BillingAddressValidationRule $billingAddressValidationRule
+     * @param ReCaptchaValidationPlugin $reCaptchaValidationPlugin
      */
     public function __construct(
         PaymentIntents $paymentIntents,
@@ -153,7 +155,8 @@ class Service implements ServiceInterface
         Country $countryValidator,
         Postcode $postcodeValidator,
         ShippingAddressValidationRule $shippingAddressValidationRule,
-        BillingAddressValidationRule $billingAddressValidationRule
+        BillingAddressValidationRule $billingAddressValidationRule,
+        ReCaptchaValidationPlugin $reCaptchaValidationPlugin
     ) {
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
@@ -184,6 +187,7 @@ class Service implements ServiceInterface
         $this->postcodeValidator = $postcodeValidator;
         $this->shippingAddressValidationRule = $shippingAddressValidationRule;
         $this->billingAddressValidationRule = $billingAddressValidationRule;
+        $this->reCaptchaValidationPlugin = $reCaptchaValidationPlugin;
     }
     /**
      * Return URL
@@ -222,7 +226,7 @@ class Service implements ServiceInterface
         $response = $this->placeOrderResponseFactory->create();
         if ($intentId === null) {
             $intent = $this->paymentIntents->getIntents();
-            $this->cache->save(1, ReCaptchaValidationPlugin::getCacheKey($intent['id']), [], 3600);
+            $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
 
             $response->setData([
                 'response_type' => 'confirmation_required',
@@ -270,7 +274,7 @@ class Service implements ServiceInterface
 
         if ($intentId === null) {
             $intent = $this->paymentIntents->getIntents();
-            $this->cache->save(1, ReCaptchaValidationPlugin::getCacheKey($intent['id']), [], 3600);
+            $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
 
             $response->setData([
                 'response_type' => 'confirmation_required',
