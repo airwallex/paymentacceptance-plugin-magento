@@ -22,9 +22,8 @@ class ExpressDisabled implements MessageInterface
      *
      * @param Configuration $configuration
      */
-    public function __construct(
-        Configuration $configuration
-    ){
+    public function __construct(Configuration $configuration)
+    {
         $this->configuration = $configuration;
         $this->expressDisabled();
     }
@@ -64,9 +63,11 @@ class ExpressDisabled implements MessageInterface
     /**
      * @return void
      */
-    private function expressDisabled(): void {
+    private function expressDisabled(): void
+    {
         if (!$this->configuration->isCardActive()) {
-            $this->displayedText = __('Airwallex Express Checkout is also disabled. To use Express Checkout, you must first enable Credit Card payments.');
+            $this->displayedText = __('Airwallex Express Checkout is also disabled.'
+            . ' To use Express Checkout, you must first enable Credit Card payments.');
         }
     }
 }

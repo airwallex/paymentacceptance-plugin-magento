@@ -87,8 +87,7 @@ class PaymentIntents
         CacheInterface      $cache,
         UrlInterface        $urlInterface,
         Logger              $logger
-    )
-    {
+    ) {
         $this->paymentIntentsCancel = $paymentIntentsCancel;
         $this->paymentIntentsCreate = $paymentIntentsCreate;
         $this->checkoutSession = $checkoutSession;

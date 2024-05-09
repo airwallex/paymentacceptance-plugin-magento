@@ -90,6 +90,7 @@ class Service implements ServiceInterface
     private Postcode $postcodeValidator;
     private ShippingAddressValidationRule $shippingAddressValidationRule;
     private BillingAddressValidationRule $billingAddressValidationRule;
+    private ReCaptchaValidationPlugin $reCaptchaValidationPlugin;
 
     /**
      * Index constructor.
@@ -123,6 +124,7 @@ class Service implements ServiceInterface
      * @param Postcode $postcodeValidator
      * @param ShippingAddressValidationRule $shippingAddressValidationRule
      * @param BillingAddressValidationRule $billingAddressValidationRule
+     * @param ReCaptchaValidationPlugin $reCaptchaValidationPlugin
      */
     public function __construct(
         PaymentIntents $paymentIntents,
@@ -153,7 +155,8 @@ class Service implements ServiceInterface
         Country $countryValidator,
         Postcode $postcodeValidator,
         ShippingAddressValidationRule $shippingAddressValidationRule,
-        BillingAddressValidationRule $billingAddressValidationRule
+        BillingAddressValidationRule $billingAddressValidationRule,
+        ReCaptchaValidationPlugin $reCaptchaValidationPlugin
     ) {
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
@@ -184,6 +187,7 @@ class Service implements ServiceInterface
         $this->postcodeValidator = $postcodeValidator;
         $this->shippingAddressValidationRule = $shippingAddressValidationRule;
         $this->billingAddressValidationRule = $billingAddressValidationRule;
+        $this->reCaptchaValidationPlugin = $reCaptchaValidationPlugin;
     }
     /**
      * Return URL
@@ -222,7 +226,7 @@ class Service implements ServiceInterface
         $response = $this->placeOrderResponseFactory->create();
         if ($intentId === null) {
             $intent = $this->paymentIntents->getIntents();
-            $this->cache->save(1, ReCaptchaValidationPlugin::getCacheKey($intent['id']), [], 3600);
+            $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
 
             $response->setData([
                 'response_type' => 'confirmation_required',
@@ -270,7 +274,7 @@ class Service implements ServiceInterface
 
         if ($intentId === null) {
             $intent = $this->paymentIntents->getIntents();
-            $this->cache->save(1, ReCaptchaValidationPlugin::getCacheKey($intent['id']), [], 3600);
+            $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
 
             $response->setData([
                 'response_type' => 'confirmation_required',
@@ -471,7 +475,8 @@ class Service implements ServiceInterface
         }
     }
 
-    private function error($message) {
+    private function error($message)
+    {
         return json_encode([
            'type' => 'error',
            'message' => $message
@@ -565,13 +570,13 @@ class Service implements ServiceInterface
     public function validateMerchant()
     {
         $validationUrl = $this->request->getParam('validationUrl');
-        if ( empty( $validationUrl ) ) {
-            throw new Exception( 'Validation URL is empty.' );
+        if (empty($validationUrl)) {
+            return $this->error('Validation URL is empty.');
         }
 
         $initiativeContext = $this->request->getParam('origin');
-        if ( empty( $initiativeContext ) ) {
-            throw new Exception( 'Initiative Context is empty.' );
+        if (empty($initiativeContext)) {
+            return $this->error('Initiative Context is empty.');
         }
 
         return $this->validateMerchant->setInitiativeParams([
@@ -590,11 +595,11 @@ class Service implements ServiceInterface
     {
         $quote = $this->checkoutHelper->getQuote();
         $errors = $this->shippingAddressValidationRule->validate($quote);
-        if ($errors and $errors[0]->getErrors()) {
+        if ($errors && $errors[0]->getErrors()) {
             return $this->error(__(implode(' ', $errors[0]->getErrors())));
         }
         $errors = $this->billingAddressValidationRule->validate($quote);
-        if ($errors and $errors[0]->getErrors()) {
+        if ($errors && $errors[0]->getErrors()) {
             return $this->error(__(implode(' ', $errors[0]->getErrors())));
         }
         return '{"type": "success"}';
@@ -629,7 +634,8 @@ class Service implements ServiceInterface
         $respArr = json_decode($resp, true);
         $okStatus = [$this->intentGet::INTENT_STATUS_SUCCESS, $this->intentGet::INTENT_STATUS_REQUIRES_CAPTURE];
         if (!in_array($respArr['status'], $okStatus, true)) {
-            throw new Exception(__('Something went wrong while processing your request. Please try again later.'));
+            $msg = 'Something went wrong while processing your request. Please try again later.';
+            throw new GuzzleException(__($msg));
         }
     }
 }
