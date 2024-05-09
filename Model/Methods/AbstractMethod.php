@@ -266,11 +266,14 @@ abstract class AbstractMethod extends Adapter
      */
     public function refund(InfoInterface $payment, $amount): self
     {
+        $order = $payment->getOrder();
+        $targetAmount = $this->priceCurrency->convert($amount, $order->getStore(), $order->getOrderCurrencyCode());
+
         $paymentTransactionId = str_replace('-refund', '', $payment->getTransactionId());
         $paymentTransactionId = str_replace('-capture', '', $paymentTransactionId);
         try {
             $this->refund
-                ->setInformation($paymentTransactionId, $amount)
+                ->setInformation($paymentTransactionId, $targetAmount)
                 ->send();
         } catch (GuzzleException $exception) {
             $this->logger->orderError($payment->getOrder(), 'refund', $exception->getMessage());
