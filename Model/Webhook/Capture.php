@@ -34,7 +34,7 @@ class Capture extends AbstractWebhook
      * Array of webhooks that trigger capture process.
      */
     public const WEBHOOK_NAMES = [
-        'payment_attempt.capture_requested',
+        // 'payment_attempt.capture_requested',
         'payment_intent.succeeded'
     ];
 
