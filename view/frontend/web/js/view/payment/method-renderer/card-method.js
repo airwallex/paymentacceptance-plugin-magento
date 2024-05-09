@@ -31,8 +31,8 @@ define(
         'Magento_Checkout/js/model/full-screen-loader',
         'Magento_Checkout/js/model/url-builder',
         'Magento_Customer/js/model/customer',
-        'Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry'
-
+        'Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry',
+        'Airwallex_Payments/js/view/customer/payment-consent'
     ],
     function (
         $,
@@ -48,7 +48,8 @@ define(
         fullScreenLoader,
         urlBuilder,
         customer,
-        recaptchaRegistry
+        recaptchaRegistry,
+        paymentConsent
     ) {
         'use strict';
 
@@ -56,10 +57,16 @@ define(
             code: 'airwallex_payments_card',
             type: 'card',
             mountElement: 'airwallex-payments-card-form',
+            cvcMountElement: 'airwallex-payments-cvc-form',
             cardElement: undefined,
+            cvcElement: undefined,
+            savedCards: ko.observableArray(),
             validationError: ko.observable(),
+            showNewCardForm: ko.observable(true),
+            showCvcForm: ko.observable(false),
             isRecaptchaEnabled: !!window.checkoutConfig?.payment?.airwallex_payments?.recaptcha_enabled,
             recaptchaId: 'recaptcha-checkout-place-order',
+            isCvcRequired: !!window?.checkoutConfig?.payment?.airwallex_payments?.cvc_required,
             defaults: {
                 template: 'Airwallex_Payments/payment/card-method'
             },
@@ -90,6 +97,10 @@ define(
                 );
                 this.cardElement.mount(this.mountElement);
 
+                if (this.isAirwallexCustomer()) {
+                    this.loadSavedCards().then();
+                }
+
                 window.addEventListener(
                     'onReady',
                     function () {
@@ -114,6 +125,64 @@ define(
                 this.validationError(undefined);
 
                 self.placeOrder();
+            },
+
+            initCvcForm: function() {
+                if (!this.isAirwallexCustomer() || !this.isCvcRequired || this.cvcElement !== undefined) {
+                    return;
+                }
+
+                this.cvcElement = Airwallex.createElement(
+                    'cvc',
+                    {
+                        autoCapture: window.checkoutConfig.payment.airwallex_payments.cc_auto_capture
+                    }
+                );
+                this.cvcElement.mount(this.cvcMountElement);
+            },
+
+            loadSavedCards: async function () {
+                const savedCards = await storage.get(urlBuilder.createUrl('/airwallex/saved_payments', {}));
+
+                if (savedCards && savedCards.length > 0) {
+                    savedCards.forEach((consent) => {
+                        const l4Pad = (consent.card_brand === 'american express')
+                            ? '**** ******* *'
+                            : '**** **** **** ';
+
+                        this.savedCards.push({ // TODO: add icon based on brand
+                            consent_id: consent.id,
+                            brand: consent.card_brand,
+                            expiry: consent.card_expiry_month + '/' + consent.card_expiry_year,
+                            last4: l4Pad + consent.card_last_four
+                        });
+                    })
+                }
+            },
+
+            selectSavedCard: function (consentId) {
+                let radioElement = $('[name="airwallex-selected-card"]:radio[value="' + consentId + '"]');
+                radioElement.prop('checked', true);
+
+                this.showNewCardForm(consentId === '__new_card__');
+            },
+
+            getSelectedSavedCard: function () {
+                const selectedConsentId = $('input[name="airwallex-selected-card"]:checked').val();
+
+                if (!selectedConsentId || selectedConsentId === '__new_card__') {
+                    return null;
+                }
+
+                return selectedConsentId;
+            },
+
+            isAirwallexCustomer: function () {
+                return !!paymentConsent.getCustomerId();
+            },
+
+            isSaveCardSelected: function () {
+                return $('#airwallex-payments-card-save')?.is(':checked');
             },
 
             placeOrder: function (data, event) {
@@ -167,17 +236,45 @@ define(
                                 serviceUrl, JSON.stringify(payload), true, 'application/json', headers
                             );
 
-                            const params = {};
-                            params.id = intentResponse.intent_id;
-                            params.client_secret = intentResponse.client_secret;
-                            params.payment_method = {};
-                            params.payment_method.billing = self.getBillingInformation();
-                            params.element = self.cardElement;
+                            const selectedConsentId = self.getSelectedSavedCard();
+                            if (selectedConsentId) {
+                                const response = await Airwallex.confirmPaymentIntent({
+                                    id: intentResponse.intent_id,
+                                    client_secret: intentResponse.client_secret,
+                                    payment_consent_id: selectedConsentId,
+                                    payment_method: {
+                                        billing: self.getBillingInformation()
+                                    },
+                                    element: self.isCvcRequired ? self.cvcElement : undefined
+                                });
+                            } else if (self.isSaveCardSelected()) {
+                                await Airwallex.createPaymentConsent({
+                                    intent_id: intentResponse.intent_id,
+                                    customer_id: paymentConsent.getCustomerId(),
+                                    client_secret: intentResponse.client_secret,
+                                    currency: quote.totals().quote_currency_code,
+                                    payment_method: {
+                                        billing: self.getBillingInformation()
+                                    },
+                                    element: self.cardElement,
+                                    next_triggered_by: 'customer',
+                                    requires_cvc: self.isCvcRequired
+                                });
+                            } else {
+                                await Airwallex.confirmPaymentIntent({
+                                    id: intentResponse.intent_id,
+                                    client_secret: intentResponse.client_secret,
+                                    payment_method: {
+                                        billing: self.getBillingInformation()
+                                    },
+                                    element: self.cardElement
+                                });
+                            }
 
                             payload.intent_id = intentResponse.intent_id;
 
-                            const airwallexResponse = await Airwallex.confirmPaymentIntent(params);
-                            payload.paymentMethod.additional_data.intent_id = airwallexResponse.id
+                            // const airwallexResponse = await Airwallex.confirmPaymentIntent(params);
+                            // payload.paymentMethod.additional_data.intent_id = airwallexResponse.id
 
                             const endResult = await storage.post(
                                 serviceUrl, JSON.stringify(payload), true, 'application/json', headers

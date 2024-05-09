@@ -17,6 +17,8 @@ namespace Airwallex\Payments\Model\Client\Request\PaymentIntents;
 
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
+use Airwallex\Payments\Model\PaymentConsents;
+use JsonException;
 use Magento\Quote\Model\Quote;
 use Magento\Quote\Model\Quote\Item;
 use Psr\Http\Message\ResponseInterface;
@@ -31,7 +33,9 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
      */
     public function setQuote(Quote $quote, string $returnUrl): self
     {
-        return $this->setParams([
+        $customer = $quote->getCustomer();
+
+        $params = [
             'amount' => $quote->getGrandTotal(),
             'currency' => $quote->getQuoteCurrencyCode(),
             'merchant_order_id' => $quote->getReservedOrderId(),
@@ -41,7 +45,14 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
                 'products' => array_values(array_filter($this->getQuoteProducts($quote))),
                 'shipping' => $this->getShippingAddress($quote)
             ]
-        ]);
+        ];
+
+        if ($customer
+            && $airwallexCustomerIdAttr = $customer->getCustomAttribute(PaymentConsents::KEY_AIRWALLEX_CUSTOMER_ID)) {
+            $params['customer_id'] = $airwallexCustomerIdAttr->getValue();
+        }
+
+        return $this->setParams($params);
     }
 
     /**
@@ -56,7 +67,7 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
      * @param ResponseInterface $request
      *
      * @return array
-     * @throws \JsonException
+     * @throws JsonException
      */
     protected function parseResponse(ResponseInterface $request): array
     {

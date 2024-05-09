@@ -99,16 +99,17 @@ class PaymentIntents
     }
 
     /**
+     * @param bool $useSavedCard
      * @return array
      * @throws GuzzleException
      * @throws LocalizedException
      * @throws NoSuchEntityException
      * @throws JsonException
      */
-    public function getIntents(): array
+    public function getIntents(bool $loggedInUser = false): array
     {
         $quote = $this->checkoutSession->getQuote();
-        $cacheKey = $this->getCacheKey($quote);
+        $cacheKey = $this->getCacheKey($quote, $loggedInUser);
 
         if ($response = $this->cache->load($cacheKey)) {
             return $this->serializer->unserialize($response);
@@ -148,12 +149,12 @@ class PaymentIntents
 
     /**
      * @param Quote $quote
-     *
+     * @param bool $loggedIn
      * @return string
      */
-    private function getCacheKey(Quote $quote): string
+    private function getCacheKey(Quote $quote, bool $loggedIn = false): string
     {
-        return 'airwallex-intent-' . $quote->getId() . '-' . sprintf("%.4f", $quote->getGrandTotal());
+        return 'airwallex-intent-' . $quote->getId() . '-' . sprintf("%.4f", $quote->getGrandTotal()) . ($loggedIn ? '' : '-guest');
     }
 
     /**

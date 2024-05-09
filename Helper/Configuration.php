@@ -215,4 +215,12 @@ class Configuration extends AbstractHelper
         asort($sorts);
         return array_keys($sorts);
     }
+
+    /**
+     * @return bool
+     */
+    public function isCvcRequired(): bool
+    {
+        return !!$this->scopeConfig->getValue('payment/airwallex_payments_card/cvc_required');
+    }
 }

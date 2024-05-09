@@ -94,3 +94,34 @@
         }
     }
 }
+
+#airwallex-payments-saved-card-list {
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.airwallex-payments-saved-card-item {
+    display: flex;
+    flex-direction: row;
+    padding: 10px 0;
+    border-top: 1px solid gray;
+    cursor: pointer;
+}
+
+.airwallex-payments-saved-card-item span {
+    display: inline-block;
+    padding: 0 5px;
+    flex-grow: 0;
+}
+
+.airwallex-payments-saved-card-item span.brand {
+    flex-grow: 1;
+}
+
+.airwallex-payments-saved-card-item span.last4 {
+    font-family: 'Courier New', Courier, monospace;
+}
+
+#airwallex-payments-card-save {
+    cursor: pointer;
+}

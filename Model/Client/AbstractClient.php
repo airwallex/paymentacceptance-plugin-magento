@@ -249,6 +249,10 @@ abstract class AbstractClient
             $options['json'] = $this->params;
         }
 
+        if ($method === 'GET') {
+            $options['query'] = $this->params;
+        }
+
         return $client->request($this->getMethod(), $this->getUri(), $options);
     }
 
