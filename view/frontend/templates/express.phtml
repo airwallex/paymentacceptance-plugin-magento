@@ -1,7 +1,5 @@
 <div data-bind="scope: 'airwallex-express'">
-<?php
-require __DIR__ . '/../web/template/payment/express-checkout.html';
-?>
+<!--  ko template: getTemplate()  --><!--   /ko     -->
 </div>
 <script type="text/x-magento-init">
     {
@@ -10,7 +8,8 @@ require __DIR__ . '/../web/template/payment/express-checkout.html';
                 "components": {
                     "airwallex-express": {
                         "component": "Airwallex_Payments/js/view/payment/method-renderer/express-checkout",
-                        "from": "<?=$block->getData('from')?>"
+                        "from": "<?= $block->escapeHtml($block->getData('from')) ?>",
+                        "template": "Airwallex_Payments/payment/express-checkout"
                     }
                 }
             }
