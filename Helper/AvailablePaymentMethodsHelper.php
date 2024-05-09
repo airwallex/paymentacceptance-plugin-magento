@@ -93,8 +93,7 @@ class AvailablePaymentMethodsHelper
      */
     public function canInitialize(): bool
     {
-        return !$this->configuration->getApiKey() === null &&
-            !$this->configuration->getClientId() === null;
+        return $this->configuration->getApiKey() && $this->configuration->getClientId();
     }
 
     /**
