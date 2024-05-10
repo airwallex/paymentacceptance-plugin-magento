@@ -19,7 +19,6 @@ use Airwallex\Payments\Api\Data\PaymentIntentInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Payment\Model\InfoInterface;
-use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 
 class CardMethod extends AbstractMethod
 {
@@ -34,7 +33,13 @@ class CardMethod extends AbstractMethod
      */
     public function capture(InfoInterface $payment, $amount): self
     {
+        if ($amount <= 0) {
+            return $this;
+        }
+
         $intentId = $this->getIntentId();
+
+        $order = $payment->getOrder();
 
         $payment->setTransactionId($intentId);
 
@@ -44,16 +49,17 @@ class CardMethod extends AbstractMethod
             throw new LocalizedException(__('Something went wrong while trying to capture the payment.'));
         }
 
+        // capture in frontend element will run here too, but can not go inside
         if ($respArr['status'] === PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE) {
             try {
                 $result = $this->capture
                     ->setPaymentIntentId($intentId)
-                    ->setInformation($amount)
+                    ->setInformation($order->getGrandTotal())
                     ->send();
-                $this->logger->error(sprintf('Credit Card: Payment Intent %s, Capture information', $intentId));
+                $this->logger->error(sprintf('Payment Intent %s, Capture information', $intentId));
                 $this->getInfoInstance()->setAdditionalInformation('intent_status', $result->status);
             } catch (GuzzleException $exception) {
-                $this->logger->orderError($payment->getOrder(), 'capture', $exception->getMessage());
+                $this->logger->orderError($order, 'capture', $exception->getMessage());
             }
         }
 

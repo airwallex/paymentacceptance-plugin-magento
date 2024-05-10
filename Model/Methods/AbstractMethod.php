@@ -252,6 +252,14 @@ abstract class AbstractMethod extends Adapter
         return $this;
     }
 
+    private function format($amount, $rate) : float {
+        if (empty($rate)) {
+            return $amount;
+        }
+        $ret = round(floatval($amount * $rate), 4);
+        return is_numeric($ret) ? $ret : 0;
+    }
+
     /**
      * @param InfoInterface $payment
      * @param float $amount
@@ -261,11 +269,20 @@ abstract class AbstractMethod extends Adapter
      */
     public function refund(InfoInterface $payment, $amount): self
     {
+        $order = $payment->getOrder();
+        $creditmemo = $payment->getCreditmemo();
+
+        if ($amount == $creditmemo->getBaseGrandTotal()) {
+            $targetAmount = $creditmemo->getGrandTotal();
+        } else {
+            $targetAmount = $this->format($amount, $order->getBaseToOrderRate());
+        }
+
         $paymentTransactionId = str_replace('-refund', '', $payment->getTransactionId());
         $paymentTransactionId = str_replace('-capture', '', $paymentTransactionId);
         try {
             $this->refund
-                ->setInformation($paymentTransactionId, $amount)
+                ->setInformation($paymentTransactionId, $targetAmount)
                 ->send();
         } catch (GuzzleException $exception) {
             $this->logger->orderError($payment->getOrder(), 'refund', $exception->getMessage());
