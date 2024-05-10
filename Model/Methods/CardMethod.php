@@ -37,7 +37,7 @@ class CardMethod extends AbstractMethod
         $intentId = $this->getIntentId();
 
         $order = $payment->getOrder();
-        $targetAmount = $this->priceCurrency->convert($amount, $order->getStore(), $order->getOrderCurrencyCode());
+        $targetAmount = (float)$amount * (float)$order->getBaseToOrderRate();
 
         $payment->setTransactionId($intentId);
 
