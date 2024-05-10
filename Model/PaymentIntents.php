@@ -106,10 +106,10 @@ class PaymentIntents
      * @throws NoSuchEntityException
      * @throws JsonException
      */
-    public function getIntents(bool $loggedInUser = false): array
+    public function getIntents(): array
     {
         $quote = $this->checkoutSession->getQuote();
-        $cacheKey = $this->getCacheKey($quote, $loggedInUser);
+        $cacheKey = $this->getCacheKey($quote);
 
         if ($response = $this->cache->load($cacheKey)) {
             return $this->serializer->unserialize($response);
@@ -152,9 +152,9 @@ class PaymentIntents
      * @param bool $loggedIn
      * @return string
      */
-    private function getCacheKey(Quote $quote, bool $loggedIn = false): string
+    private function getCacheKey(Quote $quote): string
     {
-        return 'airwallex-intent-' . $quote->getId() . '-' . sprintf("%.4f", $quote->getGrandTotal()) . ($loggedIn ? '' : '-guest');
+        return 'airwallex-intent-' . $quote->getId() . '-' . sprintf("%.4f", $quote->getGrandTotal());
     }
 
     /**
