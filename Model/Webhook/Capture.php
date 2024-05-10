@@ -88,8 +88,9 @@ class Capture extends AbstractWebhook
 
         $amount = $data->captured_amount;
         $invoice = $this->invoiceService->prepareInvoice($order);
-        $invoice->setSubtotal($amount);
-        $invoice->setGrandTotal($amount);
+        if ($amount != $order->getGrandTotal()) {
+            $invoice->setGrandTotal($amount);
+        }
         $invoice->setTransactionId($paymentIntentId);
         $invoice->setRequestedCaptureCase(Invoice::CAPTURE_OFFLINE);
         $invoice->register();
