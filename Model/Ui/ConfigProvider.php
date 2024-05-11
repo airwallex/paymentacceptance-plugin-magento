@@ -32,7 +32,7 @@ use Magento\ReCaptchaUi\Model\IsCaptchaEnabledInterface;
 
 class ConfigProvider implements ConfigProviderInterface
 {
-    const AIRWALLEX_RECAPTCHA_FOR = 'place_order';
+    public const AIRWALLEX_RECAPTCHA_FOR = 'place_order';
 
     protected Configuration $configuration;
     protected IsCaptchaEnabledInterface $isCaptchaEnabled;

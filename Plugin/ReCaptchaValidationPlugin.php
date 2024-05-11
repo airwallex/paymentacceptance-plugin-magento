@@ -27,12 +27,12 @@ use Magento\ReCaptchaValidationApi\Api\Data\ValidationConfigInterface;
  */
 class ReCaptchaValidationPlugin
 {
-    const WHITELIST_PATHS = [
+    public const WHITELIST_PATHS = [
         '/V1/airwallex/payments/guest-place-order' => true,
         '/V1/airwallex/payments/place-order' => true
     ];
 
-    const CACHE_PREFIX = 'RC_BYPASS';
+    public const CACHE_PREFIX = 'RC_BYPASS';
 
     protected RestRequest $request;
     protected CacheInterface $cache;

@@ -149,7 +149,6 @@ class PaymentIntents
 
     /**
      * @param Quote $quote
-     * @param bool $loggedIn
      * @return string
      */
     private function getCacheKey(Quote $quote): string

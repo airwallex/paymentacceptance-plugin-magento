@@ -30,10 +30,10 @@ use Magento\Framework\App\ProductMetadataInterface;
 
 class GetList extends AbstractClient implements BearerAuthenticationInterface
 {
-    const TRIGGER_REASON_SCHEDULED = 'scheduled';
-    const TRIGGER_REASON_UNSCHEDULED = 'unscheduled';
-    const TRIGGERED_BY_CUSTOMER = 'customer';
-    const TRIGGERED_BY_MERCHANT = 'merchant';
+    public const TRIGGER_REASON_SCHEDULED = 'scheduled';
+    public const TRIGGER_REASON_UNSCHEDULED = 'unscheduled';
+    public const TRIGGERED_BY_CUSTOMER = 'customer';
+    public const TRIGGERED_BY_MERCHANT = 'merchant';
 
     private SavedPaymentResponseInterfaceFactory $savedPaymentResponseFactory;
 

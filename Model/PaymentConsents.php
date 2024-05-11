@@ -35,9 +35,9 @@ use Magento\Customer\Model\Customer;
 
 class PaymentConsents implements PaymentConsentsInterface
 {
-    const CUSTOMER_ID_PREFIX = 'magento_';
+    public const CUSTOMER_ID_PREFIX = 'magento_';
 
-    const KEY_AIRWALLEX_CUSTOMER_ID = 'airwallex_customer_id';
+    public const KEY_AIRWALLEX_CUSTOMER_ID = 'airwallex_customer_id';
 
     private CreateCustomer $createCustomer;
     private GetList $paymentConsentList;
@@ -67,7 +67,8 @@ class PaymentConsents implements PaymentConsentsInterface
 
     private function customerIdToAirwallex(int $id): string
     {
-        return "magento-" . md5($this->encrypter->encrypt((string)$id)) . '-' . (string)$id;
+        $encrypted = $this->encrypter->encrypt((string)$id);
+        return "magento-" . substr($encrypted, 0, 32) . '-' . (string)$id;
     }
 
     /**
@@ -104,6 +105,8 @@ class PaymentConsents implements PaymentConsentsInterface
     }
 
     /**
+     * @param CustomerInterface $customer
+     * @param string $airwallexCustomerId
      * @throws InputMismatchException
      * @throws InputException
      * @throws LocalizedException
@@ -116,7 +119,7 @@ class PaymentConsents implements PaymentConsentsInterface
     }
 
     /**
-     * @param $customerId
+     * @param int $customerId
      * @return SavedPaymentResponseInterface[]|array
      * @throws LocalizedException
      * @throws NoSuchEntityException
@@ -139,8 +142,8 @@ class PaymentConsents implements PaymentConsentsInterface
     }
 
     /**
-     * @param $customerId
-     * @param $paymentConsentId
+     * @param int $customerId
+     * @param string $paymentConsentId
      * @return bool
      * @throws GuzzleException
      * @throws JsonException

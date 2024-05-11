@@ -209,6 +209,14 @@ class Service implements ServiceInterface
     }
 
     /**
+     * Guest place order
+     *
+     * @param string $cartId
+     * @param string $email
+     * @param PaymentInterface $paymentMethod
+     * @param AddressInterface $billingAddress
+     * @param string $intentId
+     * @return PlaceOrderResponseInterface
      * @throws NoSuchEntityException
      * @throws CouldNotSaveException
      * @throws GuzzleException
@@ -257,6 +265,13 @@ class Service implements ServiceInterface
     }
 
     /**
+     * Place order
+     *
+     * @param string $cartId
+     * @param PaymentInterface $paymentMethod
+     * @param AddressInterface $billingAddress
+     * @param string $intentId
+     * @return PlaceOrderResponseInterface
      * @throws NoSuchEntityException
      * @throws CouldNotSaveException
      * @throws GuzzleException
@@ -608,7 +623,7 @@ class Service implements ServiceInterface
     /**
      * Format shipping method
      *
-     * @param $method
+     * @param \Magento\Quote\Api\Data\ShippingMethodInterface $method
      * @return array
      */
     private function formatShippingMethod($method): array
@@ -623,6 +638,9 @@ class Service implements ServiceInterface
     }
 
     /**
+     * Check intent status if available to place order
+     *
+     * @param string $id
      * @throws GuzzleException
      * @throws JsonException
      * @throws Exception

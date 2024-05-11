@@ -71,6 +71,7 @@ class AvailablePaymentMethodsHelper
      * @param SerializerInterface $serializer
      * @param StoreManagerInterface $storeManager
      * @param Configuration $configuration
+     * @param CheckoutData $checkoutHelper
      */
     public function __construct(
         AvailablePaymentMethods $availablePaymentMethod,

@@ -80,6 +80,7 @@ abstract class AbstractClient
      * @param IdentityService $identityService
      * @param RequestLogger $requestLogger
      * @param Configuration $configuration
+     * @param ProductMetadataInterface $productMetada
      * @param ModuleListInterface $moduleList
      */
     public function __construct(

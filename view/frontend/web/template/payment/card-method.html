@@ -19,7 +19,7 @@
         <input type="radio"
                name="payment[method]"
                class="radio"
-               data-bind="attr: {'id': getCode()}, value: getCode(), checked: isChecked, click: selectPaymentMethod, visible: isRadioButtonVisible()"/>
+               data-bind="attr: {'id': getCode()}, value: getCode(), checked: isChecked, click: selectPaymentMethod, visible: isRadioButtonVisible()">
         <label data-bind="attr: {'for': getCode()}" class="label"><span data-bind="text: getTitle()"></span></label>
     </div>
 
@@ -79,7 +79,7 @@
              data-bind="css: {'error': validationError}, visible: showNewCardForm, afterRender: loadPayment"></div>
 
         <!-- ko if: (isAirwallexCustomer() && showNewCardForm) -->
-        <input id="airwallex-payments-card-save" type="checkbox" />
+        <input id="airwallex-payments-card-save" type="checkbox">
         <label for="airwallex-payments-card-save" data-bind="i18n: 'Save card on customer'"></label>
         <!-- /ko -->
 
