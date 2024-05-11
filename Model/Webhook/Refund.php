@@ -17,7 +17,6 @@ namespace Airwallex\Payments\Model\Webhook;
 
 use Airwallex\Payments\Exception\WebhookException;
 use Airwallex\Payments\Model\PaymentIntentRepository;
-use Airwallex\Payments\Model\Trait\HelperTrait as TraitHelperTrait;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
