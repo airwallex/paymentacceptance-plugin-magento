@@ -65,7 +65,8 @@ class PaymentConsents implements PaymentConsentsInterface
         $this->encrypter = $encrypter;
     }
 
-    private function customerIdToAirwallex(int $id): string {
+    private function customerIdToAirwallex(int $id): string
+    {
         return "magento-" . md5($this->encrypter->encrypt((string)$id)) . '-' . (string)$id;
     }
 

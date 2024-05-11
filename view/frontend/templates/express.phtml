@@ -8,7 +8,7 @@
                 "components": {
                     "airwallex-express": {
                         "component": "Airwallex_Payments/js/view/payment/method-renderer/express-checkout",
-                        "from": "<?= $block->escapeHtml($block->getData('from')) ?>",
+                        "from": "<?= $escaper->escapeHtml($block->getData('from')) ?>",
                         "template": "Airwallex_Payments/payment/express-checkout"
                     }
                 }
