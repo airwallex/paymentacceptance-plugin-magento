@@ -22,9 +22,12 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Sales\Model\Order\Invoice;
 use Magento\Sales\Model\OrderRepository;
 use Magento\Sales\Model\Service\InvoiceService;
+use Airwallex\Payments\Model\Traits\HelperTrait;
 
 class Capture extends AbstractWebhook
 {
+    use HelperTrait;
+
     /**
      * @deprecated No longer used. It is replaced by WEBHOOK_NAMES array.
      */
@@ -90,6 +93,11 @@ class Capture extends AbstractWebhook
         $invoice = $this->invoiceService->prepareInvoice($order);
         if ($amount != $order->getGrandTotal()) {
             $invoice->setGrandTotal($amount);
+            $targetAmount = $this->convertToDisplayCurrency($amount, $order->getBaseToOrderRate(), true);
+            if ($targetAmount > $order->getBaseGrandTotal()) {
+                $targetAmount = $order->getBaseGrandTotal();
+            }
+            $invoice->setBaseGrandTotal($targetAmount);
         }
         $invoice->setTransactionId($paymentIntentId);
         $invoice->setRequestedCaptureCase(Invoice::CAPTURE_OFFLINE);

@@ -25,9 +25,12 @@ use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\CreditmemoFactory;
 use Magento\Sales\Model\OrderRepository;
 use Magento\Sales\Model\Service\CreditmemoService;
+use Airwallex\Payments\Model\Traits\HelperTrait;
 
 class Refund extends AbstractWebhook
 {
+    use HelperTrait;
+
     public const WEBHOOK_SUCCESS_NAME = 'refund.succeeded';
 
     /**
@@ -109,7 +112,6 @@ class Refund extends AbstractWebhook
             return;
         }
 
-        $baseToOrderRate = $order->getBaseToOrderRate();
         $totalNotRefunded = $order->getGrandTotal() - $order->getTotalRefunded();
 
         $creditMemo = $this->creditmemoFactory->createByOrder($order);
@@ -120,7 +122,7 @@ class Refund extends AbstractWebhook
             $creditMemo->setAdjustmentPositive($diff);
         }
 
-        $creditMemo->setBaseGrandTotal($refundAmount / $baseToOrderRate);
+        $creditMemo->setBaseGrandTotal($this->convertToDisplayCurrency($refundAmount, $order->getBaseToOrderRate(), true));
         $creditMemo->setGrandTotal($refundAmount);
 
         $this->creditmemoService->refund($creditMemo, true);

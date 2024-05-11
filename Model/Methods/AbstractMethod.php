@@ -41,6 +41,7 @@ use Magento\Quote\Api\Data\CartInterface;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
+use Airwallex\Payments\Model\Traits\HelperTrait;
 
 /**
  * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
@@ -48,6 +49,8 @@ use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
  */
 abstract class AbstractMethod extends Adapter
 {
+    use HelperTrait;
+
     public const CACHE_TAGS = ['airwallex'];
     public const PAYMENT_PREFIX = 'airwallex_payments_';
     public const ADDITIONAL_DATA = ['intent_id', 'intent_status'];
@@ -252,14 +255,6 @@ abstract class AbstractMethod extends Adapter
         return $this;
     }
 
-    private function format($amount, $rate) : float {
-        if (empty($rate)) {
-            return $amount;
-        }
-        $ret = round(floatval($amount * $rate), 4);
-        return is_numeric($ret) ? $ret : 0;
-    }
-
     /**
      * @param InfoInterface $payment
      * @param float $amount
@@ -275,7 +270,7 @@ abstract class AbstractMethod extends Adapter
         if ($amount == $creditmemo->getBaseGrandTotal()) {
             $targetAmount = $creditmemo->getGrandTotal();
         } else {
-            $targetAmount = $this->format($amount, $order->getBaseToOrderRate());
+            $targetAmount = $this->convertToDisplayCurrency($amount, $order->getBaseToOrderRate());
         }
 
         $paymentTransactionId = str_replace('-refund', '', $payment->getTransactionId());
