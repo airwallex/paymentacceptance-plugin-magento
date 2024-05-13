@@ -118,6 +118,10 @@ class AvailablePaymentMethodsHelper
         return $this->canInitialize() && in_array($code, $this->getAllMethods(), true);
     }
 
+    private function fetch(){
+        return $this->availablePaymentMethod->setCurrency($this->getCurrencyCode())->setResources()->setActive()->send();
+    }
+
     /**
      * @return array
      */
@@ -130,7 +134,7 @@ class AvailablePaymentMethodsHelper
         }
 
         try {
-            $methods = $this->availablePaymentMethod->setCurrency($this->getCurrencyCode())->send();
+            $methods = $this->fetch();
         } catch (Exception $e) {
             $methods = [];
         }
@@ -142,6 +146,19 @@ class AvailablePaymentMethodsHelper
             self::CACHE_TIME
         );
         return $methods;
+    }
+    /**
+     * @return array
+     */
+    public function getAllPaymentMethodTypes(): array
+    {
+        $methods = $this->cache->load($this->availablePaymentMethod->cacheName);
+
+        if (!$methods) {
+            $this->fetch();
+            $methods = $this->cache->load($this->availablePaymentMethod->cacheName);
+        }
+        return json_decode($methods, true);
     }
 
     /**

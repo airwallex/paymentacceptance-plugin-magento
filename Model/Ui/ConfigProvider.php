@@ -19,6 +19,7 @@
 namespace Airwallex\Payments\Model\Ui;
 
 use Airwallex\Payments\Api\PaymentConsentsInterface;
+use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Model\PaymentConsents;
 use Magento\Checkout\Model\ConfigProviderInterface;
@@ -39,6 +40,7 @@ class ConfigProvider implements ConfigProviderInterface
     protected ReCaptcha $reCaptchaBlock;
     protected Session $customerSession;
     protected PaymentConsentsInterface $paymentConsents;
+    protected AvailablePaymentMethodsHelper $availablePaymentMethodsHelper;
 
     /**
      * ConfigProvider constructor.
@@ -53,13 +55,27 @@ class ConfigProvider implements ConfigProviderInterface
         IsCaptchaEnabledInterface $isCaptchaEnabled,
         ReCaptcha                 $reCaptchaBlock,
         Session                   $customerSession,
-        PaymentConsentsInterface  $paymentConsents
+        PaymentConsentsInterface  $paymentConsents,
+        AvailablePaymentMethodsHelper  $availablePaymentMethodsHelper
     ) {
         $this->configuration = $configuration;
         $this->isCaptchaEnabled = $isCaptchaEnabled;
         $this->reCaptchaBlock = $reCaptchaBlock;
         $this->customerSession = $customerSession;
-        $this->paymentConsents = $paymentConsents;
+        $this->availablePaymentMethodsHelper = $availablePaymentMethodsHelper;
+    }
+
+    public function getRecurringMehtods() {
+        $methods = $this->availablePaymentMethodsHelper->getAllPaymentMethodTypes();
+        if (!$methods) {
+            return [];
+        }
+        foreach ($methods['items'] as $method) {
+            if ($method['name'] === 'card' && $method['transaction_mode'] === "recurring") {
+                return $method['card_schemes'];
+            }
+        }
+        return [];
     }
 
     /**
@@ -77,7 +93,8 @@ class ConfigProvider implements ConfigProviderInterface
                     'mode' => $this->configuration->getMode(),
                     'cc_auto_capture' => $this->configuration->isCardCaptureEnabled(),
                     'recaptcha_enabled' => !!$recaptchaEnabled,
-                    'cvc_required' => $this->configuration->isCvcRequired()
+                    'cvc_required' => $this->configuration->isCvcRequired(),
+                    'recurring_methods' => $this->getRecurringMehtods()
                 ]
             ]
         ];

@@ -28,7 +28,6 @@ define(
         'Magento_Customer/js/customer-data',
         'Magento_Checkout/js/model/payment/place-order-hooks',
         'Magento_Checkout/js/model/error-processor',
-        'Magento_Checkout/js/model/full-screen-loader',
         'Magento_Checkout/js/model/url-builder',
         'Magento_Customer/js/model/customer',
         'Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry',
@@ -45,7 +44,6 @@ define(
         customerData,
         placeOrderHooks,
         errorProcessor,
-        fullScreenLoader,
         urlBuilder,
         customer,
         recaptchaRegistry,
@@ -68,6 +66,7 @@ define(
             recaptchaId: 'recaptcha-checkout-place-order',
             isCvcRequired: !!window?.checkoutConfig?.payment?.airwallex_payments?.cvc_required,
             autoCapture: !!window?.checkoutConfig?.payment?.airwallex_payments?.cc_auto_capture,
+            brandToIcons: {},
             defaults: {
                 template: 'Airwallex_Payments/payment/card-method'
             },
@@ -94,12 +93,14 @@ define(
             initPayment: async function() {
                 this.cardElement = Airwallex.createElement('card', {autoCapture: this.autoCapture});
                 this.cardElement.mount(this.mountElement);
-
+                window.checkoutConfig?.payment?.airwallex_payments.recurring_methods.forEach(method => {
+                    this.brandToIcons[method.name] = method;
+                })
+                console.log(this.brandToIcons)
                 if (this.getCustomerId()) {
                     await this.loadSavedCards();
                 }
-
-                window.addEventListener('onReady', () => { $('body').trigger('processStop'); });
+                $('body').trigger('processStop');
             },
 
             getRecaptchaId() {
@@ -134,13 +135,18 @@ define(
 
                 if (savedCards && savedCards.length) {
                     savedCards.forEach((consent) => {
-                        const l4Pad = consent.card_brand === 'american express' ? '**** ******* *' : '**** **** **** ';
+                        const l4Pad = consent.card_brand.toLowerCase() === 'american express' ? '**** ******* *' : '**** **** **** ';
+                        let icon = consent.card_brand.toLowerCase();
+                        if (consent.card_brand.toLowerCase() === 'american express') {
+                            icon = 'amex'
+                        }
 
-                        this.savedCards.push({ // TODO: add icon based on brand
+                        this.savedCards.push({
                             consent_id: consent.id,
                             brand: consent.card_brand,
                             expiry: consent.card_expiry_month + '/' + consent.card_expiry_year,
-                            last4: l4Pad + consent.card_last_four
+                            last4: l4Pad + consent.card_last_four,
+                            icon: this.brandToIcons[icon]?.resources?.logos?.png
                         });
                     })
                 }
@@ -180,7 +186,6 @@ define(
                 ) {
                     this.isPlaceOrderActionAllowed(false);
                     $('body').trigger('processStart');
-                    fullScreenLoader.startLoader();
 
                     const payload = {
                         cartId: quote.getQuoteId(),
@@ -292,7 +297,6 @@ define(
                         self.processPlaceOrderError.bind(self)
                     ).finally(
                         function () {
-                            fullScreenLoader.stopLoader();
                             $('body').trigger('processStop');
                             _.each(placeOrderHooks.afterRequestListeners, function (listener) {
                                 listener();
@@ -309,7 +313,6 @@ define(
             },
 
             processPlaceOrderError: function (response) {
-                fullScreenLoader.stopLoader();
                 $('body').trigger('processStop');
 
                 if (response?.getResponseHeader) {
