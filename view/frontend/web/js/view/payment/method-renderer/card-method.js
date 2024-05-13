@@ -32,7 +32,7 @@ define(
         'Magento_Checkout/js/model/url-builder',
         'Magento_Customer/js/model/customer',
         'Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry',
-        'Airwallex_Payments/js/view/customer/payment-consent'
+        'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
     ],
     function (
         $,
@@ -49,7 +49,7 @@ define(
         urlBuilder,
         customer,
         recaptchaRegistry,
-        paymentConsent
+        addressHandler,
     ) {
         'use strict';
 
@@ -67,53 +67,46 @@ define(
             isRecaptchaEnabled: !!window.checkoutConfig?.payment?.airwallex_payments?.recaptcha_enabled,
             recaptchaId: 'recaptcha-checkout-place-order',
             isCvcRequired: !!window?.checkoutConfig?.payment?.airwallex_payments?.cvc_required,
+            autoCapture: !!window?.checkoutConfig?.payment?.airwallex_payments?.cc_auto_capture,
             defaults: {
                 template: 'Airwallex_Payments/payment/card-method'
             },
 
-            getBillingInformation: function () {
-                const billingAddress = quote.billingAddress();
-
-                return {
-                    address: {
-                        city: billingAddress.city,
-                        country_code: billingAddress.countryId,
-                        postcode: billingAddress.postcode,
-                        state: billingAddress.region,
-                        street: billingAddress.street.join(', ')
-                    },
-                    first_name: billingAddress.firstname,
-                    last_name: billingAddress.lastname,
-                    email: quote.guestEmail
+            getCustomerId: function () {
+                if (!customer.isLoggedIn()) {
+                    return null;
                 }
+    
+                return window?.checkoutConfig?.payment?.airwallex_payments?.airwallex_customer_id;
             },
 
-            initPayment: async function () {
-                this.cardElement = Airwallex.createElement(
-                    this.type,
-                    {
-                        autoCapture: window.checkoutConfig.payment.airwallex_payments.cc_auto_capture
-                    }
-                );
+            isAirwallexCustomer() {
+                return !!this.getCustomerId();
+            },
+
+            getBillingInformation: function () {
+                const billingAddress = quote.billingAddress();
+                billingAddress.email = quote.guestEmail;
+                addressHandler.setIntentConfirmBillingAddressFromOfficial(billingAddress);
+                return addressHandler.intentConfirmBillingAddressFromOfficial;
+            },
+
+            initPayment: async function() {
+                this.cardElement = Airwallex.createElement('card', {autoCapture: this.autoCapture});
                 this.cardElement.mount(this.mountElement);
 
-                if (this.isAirwallexCustomer()) {
-                    this.loadSavedCards().then();
+                if (this.getCustomerId()) {
+                    await this.loadSavedCards();
                 }
 
-                window.addEventListener(
-                    'onReady',
-                    function () {
-                        $('body').trigger('processStop');
-                    }
-                );
+                window.addEventListener('onReady', () => { $('body').trigger('processStop'); });
             },
 
             getRecaptchaId() {
                 if ($('#recaptcha-checkout-place-order').length) {
                     return this.recaptchaId;
                 }
-                return $('.airwallex-card-container .g-recaptcha').attr('id')
+                return $('.airwallex-card-container .g-recaptcha').attr('id');
             },
 
             initiateOrderPlacement: async function () {
@@ -128,27 +121,20 @@ define(
             },
 
             initCvcForm: function() {
-                if (!this.isAirwallexCustomer() || !this.isCvcRequired || this.cvcElement !== undefined) {
+                if (!this.getCustomerId() || !this.isCvcRequired || this.cvcElement !== undefined) {
                     return;
                 }
 
-                this.cvcElement = Airwallex.createElement(
-                    'cvc',
-                    {
-                        autoCapture: window.checkoutConfig.payment.airwallex_payments.cc_auto_capture
-                    }
-                );
-                this.cvcElement.mount(this.cvcMountElement);
+                this.cvcElement = Airwallex.createElement('cvc');
+                this.cvcElement.mount(this.cvcMountElement, {autoCapture: this.autoCapture});
             },
 
             loadSavedCards: async function () {
                 const savedCards = await storage.get(urlBuilder.createUrl('/airwallex/saved_payments', {}));
 
-                if (savedCards && savedCards.length > 0) {
+                if (savedCards && savedCards.length) {
                     savedCards.forEach((consent) => {
-                        const l4Pad = (consent.card_brand === 'american express')
-                            ? '**** ******* *'
-                            : '**** **** **** ';
+                        const l4Pad = consent.card_brand === 'american express' ? '**** ******* *' : '**** **** **** ';
 
                         this.savedCards.push({ // TODO: add icon based on brand
                             consent_id: consent.id,
@@ -175,10 +161,6 @@ define(
                 }
 
                 return selectedConsentId;
-            },
-
-            isAirwallexCustomer: function () {
-                return !!paymentConsent.getCustomerId();
             },
 
             isSaveCardSelected: function () {
@@ -239,30 +221,32 @@ define(
                             const selectedConsentId = self.getSelectedSavedCard();
                             if (selectedConsentId) {
                                 const response = await Airwallex.confirmPaymentIntent({
-                                    id: intentResponse.intent_id,
+                                    intent_id: intentResponse.intent_id,
                                     client_secret: intentResponse.client_secret,
                                     payment_consent_id: selectedConsentId,
+                                    element: self.isCvcRequired ? self.cvcElement : undefined,
                                     payment_method: {
                                         billing: self.getBillingInformation()
                                     },
-                                    element: self.isCvcRequired ? self.cvcElement : undefined
+                                    payment_method_options: {
+                                        card: {
+                                            auto_capture: self.autoCapture
+                                        }
+                                    },
                                 });
                             } else if (self.isSaveCardSelected()) {
                                 await Airwallex.createPaymentConsent({
                                     intent_id: intentResponse.intent_id,
-                                    customer_id: paymentConsent.getCustomerId(),
+                                    customer_id: self.getCustomerId(),
                                     client_secret: intentResponse.client_secret,
                                     currency: quote.totals().quote_currency_code,
-                                    payment_method: {
-                                        billing: self.getBillingInformation()
-                                    },
+                                    billing: self.getBillingInformation(),
                                     element: self.cardElement,
                                     next_triggered_by: 'customer',
-                                    requires_cvc: self.isCvcRequired
                                 });
                             } else {
                                 await Airwallex.confirmPaymentIntent({
-                                    id: intentResponse.intent_id,
+                                    intent_id: intentResponse.intent_id,
                                     client_secret: intentResponse.client_secret,
                                     payment_method: {
                                         billing: self.getBillingInformation()
@@ -272,9 +256,6 @@ define(
                             }
 
                             payload.intent_id = intentResponse.intent_id;
-
-                            // const airwallexResponse = await Airwallex.confirmPaymentIntent(params);
-                            // payload.paymentMethod.additional_data.intent_id = airwallexResponse.id
 
                             const endResult = await storage.post(
                                 serviceUrl, JSON.stringify(payload), true, 'application/json', headers

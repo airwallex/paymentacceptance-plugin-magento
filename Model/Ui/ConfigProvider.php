@@ -91,7 +91,7 @@ class ConfigProvider implements ConfigProviderInterface
             if (!$airwallexCustomerId) {
                 $airwallexCustomerId = $this->paymentConsents->createAirwallexCustomer($customer->getId());
             }
-            $config['payment']['airwallex_payments']['customer_id'] = $airwallexCustomerId;
+            $config['payment']['airwallex_payments']['airwallex_customer_id'] = $airwallexCustomerId;
         }
 
         return $config;
