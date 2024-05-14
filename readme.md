@@ -1,6 +1,7 @@
 # Airwallex Payments
 
 ## Compatibility:
+
 This module was tested on:
 * Magento 2.4.3 @ PHP 7.4
 * Magento 2.4.6 @ PHP 8.1
@@ -8,7 +9,7 @@ This module was tested on:
 ## Installing/Getting started 
 
 ```bash
-composer require {futer_link}
+composer require airwallex/payments-plugin-magento
 ```
 
 Enable the module
@@ -23,6 +24,6 @@ bin/magento setup:upgrade
 
 Clean Magento Cache
 ```bash
-bin/magento module:enable cache:flush
+bin/magento cache:clean
 ```
 

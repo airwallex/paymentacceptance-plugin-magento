@@ -26,13 +26,14 @@ use Airwallex\Payments\Model\SavedPaymentResponse;
 use Magento\Framework\DataObject\IdentityService;
 use Magento\Framework\Module\ModuleListInterface;
 use Psr\Http\Message\ResponseInterface;
+use Magento\Framework\App\ProductMetadataInterface;
 
 class GetList extends AbstractClient implements BearerAuthenticationInterface
 {
-    const TRIGGER_REASON_SCHEDULED = 'scheduled';
-    const TRIGGER_REASON_UNSCHEDULED = 'unscheduled';
-    const TRIGGERED_BY_CUSTOMER = 'customer';
-    const TRIGGERED_BY_MERCHANT = 'merchant';
+    public const TRIGGER_REASON_SCHEDULED = 'scheduled';
+    public const TRIGGER_REASON_UNSCHEDULED = 'unscheduled';
+    public const TRIGGERED_BY_CUSTOMER = 'customer';
+    public const TRIGGERED_BY_MERCHANT = 'merchant';
 
     private SavedPaymentResponseInterfaceFactory $savedPaymentResponseFactory;
 
@@ -42,9 +43,10 @@ class GetList extends AbstractClient implements BearerAuthenticationInterface
         RequestLogger $requestLogger,
         Configuration $configuration,
         ModuleListInterface $moduleList,
+        ProductMetadataInterface $productMetada,
         SavedPaymentResponseInterfaceFactory $savedPaymentResponseFactory
     ) {
-        parent::__construct($authenticationHelper, $identityService, $requestLogger, $configuration, $moduleList);
+        parent::__construct($authenticationHelper, $identityService, $requestLogger, $configuration, $productMetada, $moduleList);
         $this->savedPaymentResponseFactory = $savedPaymentResponseFactory;
     }
 

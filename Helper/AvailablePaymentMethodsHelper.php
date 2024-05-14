@@ -21,6 +21,7 @@ use Exception;
 use Magento\Framework\App\CacheInterface;
 use Magento\Framework\Serialize\SerializerInterface;
 use Magento\Store\Model\StoreManagerInterface;
+use Magento\Checkout\Helper\Data as CheckoutData;
 
 class AvailablePaymentMethodsHelper
 {
@@ -52,6 +53,17 @@ class AvailablePaymentMethodsHelper
     private Configuration $configuration;
 
     /**
+     * @var array
+     */
+
+    private CheckoutData $checkoutHelper;
+
+    protected $methodsInExpress = [
+        'googlepay',
+        'applepay',
+    ];
+
+    /**
      * AvailablePaymentMethodsHelper constructor.
      *
      * @param AvailablePaymentMethods $availablePaymentMethod
@@ -59,19 +71,22 @@ class AvailablePaymentMethodsHelper
      * @param SerializerInterface $serializer
      * @param StoreManagerInterface $storeManager
      * @param Configuration $configuration
+     * @param CheckoutData $checkoutHelper
      */
     public function __construct(
         AvailablePaymentMethods $availablePaymentMethod,
         CacheInterface $cache,
         SerializerInterface $serializer,
         StoreManagerInterface $storeManager,
-        Configuration $configuration
+        Configuration $configuration,
+        CheckoutData $checkoutHelper
     ) {
         $this->availablePaymentMethod = $availablePaymentMethod;
         $this->cache = $cache;
         $this->storeManager = $storeManager;
         $this->serializer = $serializer;
         $this->configuration = $configuration;
+        $this->checkoutHelper = $checkoutHelper;
     }
 
     /**
@@ -79,8 +94,7 @@ class AvailablePaymentMethodsHelper
      */
     public function canInitialize(): bool
     {
-        return !is_null($this->configuration->getApiKey()) &&
-            !is_null($this->configuration->getClientId());
+        return $this->configuration->getApiKey() && $this->configuration->getClientId();
     }
 
     /**
@@ -98,7 +112,14 @@ class AvailablePaymentMethodsHelper
      */
     public function isAvailable(string $code): bool
     {
+        if ($code === 'express') {
+            return $this->canInitialize() && !!array_intersect($this->methodsInExpress, $this->getAllMethods());
+        }
         return $this->canInitialize() && in_array($code, $this->getAllMethods(), true);
+    }
+
+    private function fetch(){
+        return $this->availablePaymentMethod->setCurrency($this->getCurrencyCode())->setResources()->setActive()->send();
     }
 
     /**
@@ -113,7 +134,7 @@ class AvailablePaymentMethodsHelper
         }
 
         try {
-            $methods = $this->availablePaymentMethod->setCurrency($this->getCurrencyCode())->send();
+            $methods = $this->fetch();
         } catch (Exception $e) {
             $methods = [];
         }
@@ -124,8 +145,20 @@ class AvailablePaymentMethodsHelper
             AbstractMethod::CACHE_TAGS,
             self::CACHE_TIME
         );
-
         return $methods;
+    }
+    /**
+     * @return array
+     */
+    public function getAllPaymentMethodTypes(): array
+    {
+        $methods = $this->cache->load($this->availablePaymentMethod->cacheName);
+
+        if (!$methods) {
+            $this->fetch();
+            $methods = $this->cache->load($this->availablePaymentMethod->cacheName);
+        }
+        return json_decode($methods, true);
     }
 
     /**
@@ -142,7 +175,7 @@ class AvailablePaymentMethodsHelper
     private function getCurrencyCode(): string
     {
         try {
-            return $this->storeManager->getStore()->getBaseCurrency()->getCode();
+            return $this->checkoutHelper->getQuote()->getQuoteCurrencyCode() ?: '';
         } catch (Exception $exception) {
             return '';
         }

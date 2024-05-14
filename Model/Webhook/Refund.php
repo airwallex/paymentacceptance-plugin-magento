@@ -25,9 +25,12 @@ use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\CreditmemoFactory;
 use Magento\Sales\Model\OrderRepository;
 use Magento\Sales\Model\Service\CreditmemoService;
+use Airwallex\Payments\Model\Traits\HelperTrait;
 
 class Refund extends AbstractWebhook
 {
+    use HelperTrait;
+
     public const WEBHOOK_SUCCESS_NAME = 'refund.succeeded';
 
     /**
@@ -109,19 +112,18 @@ class Refund extends AbstractWebhook
             return;
         }
 
-        $baseToOrderRate = $order->getBaseToOrderRate();
-        $baseTotalNotRefunded = $order->getBaseGrandTotal() - $order->getBaseTotalRefunded();
+        $totalNotRefunded = $order->getGrandTotal() - $order->getTotalRefunded();
 
         $creditMemo = $this->creditmemoFactory->createByOrder($order);
         $creditMemo->setInvoice($invoice);
 
-        if ($baseTotalNotRefunded > $refundAmount) {
-            $baseDiff = $baseTotalNotRefunded - $refundAmount;
-            $creditMemo->setAdjustmentPositive($baseDiff);
+        if ($totalNotRefunded > $refundAmount) {
+            $diff = $totalNotRefunded - $refundAmount;
+            $creditMemo->setAdjustmentPositive($diff);
         }
 
-        $creditMemo->setBaseGrandTotal($refundAmount);
-        $creditMemo->setGrandTotal($refundAmount * $baseToOrderRate);
+        $creditMemo->setBaseGrandTotal($this->convertToDisplayCurrency($refundAmount, $order->getBaseToOrderRate(), true));
+        $creditMemo->setGrandTotal($refundAmount);
 
         $this->creditmemoService->refund($creditMemo, true);
         $order->addCommentToStatusHistory(__('Order refunded through Airwallex, Reason: %1', $reason));

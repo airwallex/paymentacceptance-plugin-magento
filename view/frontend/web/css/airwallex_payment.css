@@ -40,6 +40,61 @@
     color: red;
 }
 
+#threeDs {
+    z-index: 2147483647 !important;
+}
+
+#threeDsChallenge {
+    z-index: 2147483647 !important;
+}
+
+.express-title {
+    font-weight: 300;
+    font-size: 2.6rem;
+    color: #333333;
+}
+
+.minicart-awx-express {
+    margin: 0 10px 15px
+}
+
+.aws-button-mask, .aws-button-mask-for-login {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    opacity: 0;
+    display: none;
+}
+
+.airwallex-express-checkout {
+    position: relative;
+}
+
+#minicart-content-wrapper .airwallex-express-checkout {
+    margin: 0 10px 15px;
+}
+
+.airwallex-express-checkout .express-title {
+    display: none;
+}
+
+#co-payment-form .airwallex-express-checkout .express-title {
+    display: block;
+}
+
+@media screen and (min-width: 768px) {
+    @media (min-width: 769px), print {
+        .box-tocart .airwallex-express-checkout {
+            margin-bottom: 15px;
+            width: 49%;
+            min-width: 240px;
+        }
+    }
+}
+
 #airwallex-payments-saved-card-list {
     margin-bottom: 20px;
     width: 100%;
@@ -51,6 +106,7 @@
     padding: 10px 0;
     border-top: 1px solid gray;
     cursor: pointer;
+    align-items: center;
 }
 
 .airwallex-payments-saved-card-item span {
@@ -69,5 +125,11 @@
 
 #airwallex-payments-card-save {
     cursor: pointer;
+}
+
+.airwallex-payments-saved-card-item img {
+    height: 25px;
+    border: 1px solid lightgrey;
+    border-radius: 3px;
 }
 

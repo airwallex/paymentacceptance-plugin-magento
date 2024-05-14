@@ -29,31 +29,46 @@ use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\Exception\State\InputMismatchException;
+use Magento\Eav\Setup\EavSetupFactory;
+use Magento\Framework\Encryption\EncryptorInterface;
+use Magento\Customer\Model\Customer;
 
 class PaymentConsents implements PaymentConsentsInterface
 {
-    const CUSTOMER_ID_PREFIX = 'magento_';
+    public const CUSTOMER_ID_PREFIX = 'magento_';
 
-    const KEY_AIRWALLEX_CUSTOMER_ID = 'airwallex_customer_id';
+    public const KEY_AIRWALLEX_CUSTOMER_ID = 'airwallex_customer_id';
 
     private CreateCustomer $createCustomer;
     private GetList $paymentConsentList;
     private CustomerRepositoryInterface $customerRepository;
     private Disable $disablePaymentConsent;
     private Retrieve $retrievePaymentConsent;
+    private EavSetupFactory $eavSetupFactory;
+    private EncryptorInterface $encrypter;
 
     public function __construct(
         CreateCustomer $createCustomer,
         GetList $paymentConsentList,
         Disable $disablePaymentConsent,
         Retrieve $retrievePaymentConsent,
-        CustomerRepositoryInterface $customerRepository
+        CustomerRepositoryInterface $customerRepository,
+        EavSetupFactory $eavSetupFactory,
+        EncryptorInterface $encrypter
     ) {
         $this->createCustomer = $createCustomer;
         $this->paymentConsentList = $paymentConsentList;
         $this->customerRepository = $customerRepository;
         $this->disablePaymentConsent = $disablePaymentConsent;
         $this->retrievePaymentConsent = $retrievePaymentConsent;
+        $this->eavSetupFactory = $eavSetupFactory;
+        $this->encrypter = $encrypter;
+    }
+
+    private function customerIdToAirwallex(int $id): string
+    {
+        $encrypted = $this->encrypter->encrypt((string)$id);
+        return "magento-" . substr($encrypted, 0, 32) . '-' . (string)$id;
     }
 
     /**
@@ -66,24 +81,32 @@ class PaymentConsents implements PaymentConsentsInterface
      */
     public function createAirwallexCustomer($customerId): string
     {
+        $eavSetup = $this->eavSetupFactory->create([]);
+        $attr = $eavSetup->getAttribute(Customer::ENTITY, self::KEY_AIRWALLEX_CUSTOMER_ID);
+        if (!$attr) {
+            throw new LocalizedException(__('Airwallex Customer ID attribute not found.'));
+        }
+
+        $idToAwx = $this->customerIdToAirwallex($customerId);
+
         $customer = $this->customerRepository->getById($customerId);
 
         $airwallexCustomerIdAttribute = $customer->getCustomAttribute(self::KEY_AIRWALLEX_CUSTOMER_ID);
 
-        if ($airwallexCustomerIdAttribute) {
-            $airwallexCustomerId = $airwallexCustomerIdAttribute->getValue();
-        } else {
-            $airwallexCustomerId = $this->createCustomer
-                ->setMagentoCustomerId(self::CUSTOMER_ID_PREFIX . $customerId)
-                ->send();
-
-            $this->updateCustomerId($customer, $airwallexCustomerId);
+        if ($airwallexCustomerIdAttribute && $idToAwx === $airwallexCustomerIdAttribute->getValue()) {
+            return $idToAwx;
         }
+
+        $airwallexCustomerId = $this->createCustomer->setMagentoCustomerId($idToAwx)->send();
+
+        $this->updateCustomerId($customer, $airwallexCustomerId);
 
         return $airwallexCustomerId;
     }
 
     /**
+     * @param CustomerInterface $customer
+     * @param string $airwallexCustomerId
      * @throws InputMismatchException
      * @throws InputException
      * @throws LocalizedException
@@ -96,7 +119,7 @@ class PaymentConsents implements PaymentConsentsInterface
     }
 
     /**
-     * @param $customerId
+     * @param int $customerId
      * @return SavedPaymentResponseInterface[]|array
      * @throws LocalizedException
      * @throws NoSuchEntityException
@@ -119,8 +142,8 @@ class PaymentConsents implements PaymentConsentsInterface
     }
 
     /**
-     * @param $customerId
-     * @param $paymentConsentId
+     * @param int $customerId
+     * @param string $paymentConsentId
      * @return bool
      * @throws GuzzleException
      * @throws JsonException

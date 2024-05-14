@@ -22,9 +22,12 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Sales\Model\Order\Invoice;
 use Magento\Sales\Model\OrderRepository;
 use Magento\Sales\Model\Service\InvoiceService;
+use Airwallex\Payments\Model\Traits\HelperTrait;
 
 class Capture extends AbstractWebhook
 {
+    use HelperTrait;
+
     /**
      * @deprecated No longer used. It is replaced by WEBHOOK_NAMES array.
      */
@@ -34,7 +37,7 @@ class Capture extends AbstractWebhook
      * Array of webhooks that trigger capture process.
      */
     public const WEBHOOK_NAMES = [
-        'payment_attempt.capture_requested',
+        // 'payment_attempt.capture_requested',
         'payment_intent.succeeded'
     ];
 
@@ -82,16 +85,24 @@ class Capture extends AbstractWebhook
             throw new WebhookException(__('Payment Intent: ' . $paymentIntentId . ': Can\'t find Order'));
         }
 
-        $paid = $order->getBaseGrandTotal() - $order->getBaseTotalPaid();
-
-        if ($paid === 0.0) {
+        if ($order->getTotalPaid()) {
             return;
         }
 
         $amount = $data->captured_amount;
+
+        $grandTotal = $order->formatPrice($amount);
+        $order->addCommentToStatusHistory(sprintf('Captured amount of %s online. Transaction ID: "%s"', $grandTotal, $paymentIntentId));
+
         $invoice = $this->invoiceService->prepareInvoice($order);
-        $invoice->setBaseSubtotal($amount);
-        $invoice->setBaseGrandTotal($amount);
+        if ($amount != $order->getGrandTotal()) {
+            $invoice->setGrandTotal($amount);
+            $targetAmount = $this->convertToDisplayCurrency($amount, $order->getBaseToOrderRate(), true);
+            if ($targetAmount > $order->getBaseGrandTotal()) {
+                $targetAmount = $order->getBaseGrandTotal();
+            }
+            $invoice->setBaseGrandTotal($targetAmount);
+        }
         $invoice->setTransactionId($paymentIntentId);
         $invoice->setRequestedCaptureCase(Invoice::CAPTURE_OFFLINE);
         $invoice->register();

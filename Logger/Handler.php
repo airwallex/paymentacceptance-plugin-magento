@@ -26,7 +26,7 @@ class Handler extends Base
     protected $loggerType = Logger::NOTICE;
 
     /**
-     * File name
+     * File name of the log file
      * @var string
      */
     protected $fileName = '/var/log/airwallex_payments.log';

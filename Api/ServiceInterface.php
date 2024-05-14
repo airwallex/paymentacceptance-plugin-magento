@@ -16,6 +16,7 @@
 namespace Airwallex\Payments\Api;
 
 use Airwallex\Payments\Api\Data\PlaceOrderResponseInterface;
+use Exception;
 use Magento\Quote\Api\Data\AddressInterface;
 use Magento\Quote\Api\Data\PaymentInterface;
 
@@ -55,4 +56,41 @@ interface ServiceInterface
      * @return string
      */
     public function redirectUrl(): string;
+
+    /**
+     * Get express data when initialize and quote data updated
+     *
+     * @return string
+     */
+    public function expressData();
+
+    /**
+     * Add to cart
+     *
+     * @return string
+     */
+    public function addToCart();
+
+    /**
+     * Post Address to get method and quote data
+     *
+     * @return string
+     */
+    public function postAddress();
+
+    /**
+     * Apple pay validate merchant
+     *
+     * @return string
+     * @throws Exception
+     */
+    public function validateMerchant();
+
+    /**
+     * Validate addresses before placing order
+     *
+     * @return string
+     * @throws Exception
+     */
+    public function validateAddresses();
 }

@@ -18,10 +18,10 @@ namespace Airwallex\Payments\Api\Data;
 
 interface PlaceOrderResponseInterface
 {
-    const DATA_KEY_INTENT_ID = 'intent_id';
-    const DATA_KEY_CLIENT_SECRET = 'client_secret';
-    const DATA_KEY_RESPONSE_TYPE = 'response_type';
-    const DATA_KEY_ORDER_ID = 'order_id';
+    public const DATA_KEY_INTENT_ID = 'intent_id';
+    public const DATA_KEY_CLIENT_SECRET = 'client_secret';
+    public const DATA_KEY_RESPONSE_TYPE = 'response_type';
+    public const DATA_KEY_ORDER_ID = 'order_id';
 
     /**
      * @return string|null

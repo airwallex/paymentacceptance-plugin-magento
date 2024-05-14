@@ -96,6 +96,8 @@ class Fieldset extends AdminhtmlFieldset
     }
 
     /**
+     * _getExtraJs
+     *
      * @param AbstractElement $element
      * @return string
      * @SuppressWarnings(PHPMD.UnusedFormalParameter)

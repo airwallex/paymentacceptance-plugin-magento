@@ -18,12 +18,12 @@ namespace Airwallex\Payments\Api\Data;
 
 interface SavedPaymentResponseInterface
 {
-    const DATA_KEY_ID = 'id';
-    const DATA_KEY_CARD_BRAND = 'card_brand';
-    const DATA_KEY_CARD_EXPIRY_MONTH = 'card_expiry_month';
-    const DATA_KEY_CARD_EXPIRY_YEAR = 'card_expiry_year';
-    const DATA_KEY_CARD_LAST_FOUR = 'card_last_four';
-    const DATA_KEY_CARD_HOLDER_NAME = 'card_holder_name';
+    public const DATA_KEY_ID = 'id';
+    public const DATA_KEY_CARD_BRAND = 'card_brand';
+    public const DATA_KEY_CARD_EXPIRY_MONTH = 'card_expiry_month';
+    public const DATA_KEY_CARD_EXPIRY_YEAR = 'card_expiry_year';
+    public const DATA_KEY_CARD_LAST_FOUR = 'card_last_four';
+    public const DATA_KEY_CARD_HOLDER_NAME = 'card_holder_name';
 
     /**
      * @return string|null

@@ -14,9 +14,8 @@
  */
 
 .airwallex-admin-config .heading {
-    padding-left: 20rem;
     background: url('../img/airwallex_logo.svg') no-repeat 0 50% / 18rem auto;
-    height: 40px;
+    padding-left: 20rem;
 }
 
 .airwallex-admin-config .button-container {

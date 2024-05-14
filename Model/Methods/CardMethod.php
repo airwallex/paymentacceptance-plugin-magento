@@ -33,25 +33,35 @@ class CardMethod extends AbstractMethod
      */
     public function capture(InfoInterface $payment, $amount): self
     {
+        if ($amount <= 0) {
+            return $this;
+        }
+
         $intentId = $this->getIntentId();
+
+        $order = $payment->getOrder();
 
         $payment->setTransactionId($intentId);
 
-        $status = $this->getIntentStatus();
+        $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
+        $respArr = json_decode($resp, true);
+        if (!isset($respArr['status'])) {
+            throw new LocalizedException(__('Something went wrong while trying to capture the payment.'));
+        }
 
-        if ($status === PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE) {
+        // capture in frontend element will run here too, but can not go inside
+        if ($respArr['status'] === PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE) {
             try {
                 $result = $this->capture
                     ->setPaymentIntentId($intentId)
-                    ->setInformation($amount)
+                    ->setInformation($order->getGrandTotal())
                     ->send();
-                $this->logger->error(sprintf('Credit Card: Payment Intent %s, Capture information', $intentId));
+                $this->logger->error(sprintf('Payment Intent %s, Capture information', $intentId));
                 $this->getInfoInstance()->setAdditionalInformation('intent_status', $result->status);
             } catch (GuzzleException $exception) {
-                $this->logger->orderError($payment->getOrder(), 'capture', $exception->getMessage());
+                $this->logger->orderError($order, 'capture', $exception->getMessage());
             }
         }
-
 
         return $this;
     }

@@ -40,6 +40,8 @@ use Magento\Payment\Model\Method\Adapter;
 use Magento\Quote\Api\Data\CartInterface;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
+use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
+use Airwallex\Payments\Model\Traits\HelperTrait;
 
 /**
  * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
@@ -47,6 +49,8 @@ use RuntimeException;
  */
 abstract class AbstractMethod extends Adapter
 {
+    use HelperTrait;
+
     public const CACHE_TAGS = ['airwallex'];
     public const PAYMENT_PREFIX = 'airwallex_payments_';
     public const ADDITIONAL_DATA = ['intent_id', 'intent_status'];
@@ -54,7 +58,7 @@ abstract class AbstractMethod extends Adapter
     /**
      * @var LoggerInterface|null
      */
-    protected $logger;
+    protected ?LoggerInterface $logger;
 
     /**
      * @var Refund
@@ -100,6 +104,8 @@ abstract class AbstractMethod extends Adapter
      */
     protected PaymentIntents $paymentIntents;
 
+    protected Get $intentGet;
+
     /**
      * Payment constructor.
      *
@@ -118,6 +124,7 @@ abstract class AbstractMethod extends Adapter
      * @param AvailablePaymentMethodsHelper $availablePaymentMethodsHelper
      * @param CancelHelper $cancelHelper
      * @param PaymentIntentRepository $paymentIntentRepository
+     * @param Get $intentGet
      * @param CommandPoolInterface|null $commandPool
      * @param ValidatorPoolInterface|null $validatorPool
      * @param CommandManagerInterface|null $commandExecutor
@@ -139,6 +146,7 @@ abstract class AbstractMethod extends Adapter
         AvailablePaymentMethodsHelper $availablePaymentMethodsHelper,
         CancelHelper $cancelHelper,
         PaymentIntentRepository $paymentIntentRepository,
+        Get $intentGet,
         CommandPoolInterface $commandPool = null,
         ValidatorPoolInterface $validatorPool = null,
         CommandManagerInterface $commandExecutor = null,
@@ -154,7 +162,7 @@ abstract class AbstractMethod extends Adapter
             $commandPool,
             $validatorPool,
             $commandExecutor,
-            $logger
+            $logger,
         );
         $this->paymentIntents = $paymentIntents;
         $this->logger = $logger;
@@ -166,6 +174,7 @@ abstract class AbstractMethod extends Adapter
         $this->cancelHelper = $cancelHelper;
         $this->confirm = $confirm;
         $this->checkoutHelper = $checkoutHelper;
+        $this->intentGet = $intentGet;
     }
 
     /**
@@ -183,7 +192,6 @@ abstract class AbstractMethod extends Adapter
                 $info->setAdditionalInformation($additionalDatum, $additionalData[$additionalDatum]);
             }
         }
-
 
         return $this;
     }
@@ -256,11 +264,20 @@ abstract class AbstractMethod extends Adapter
      */
     public function refund(InfoInterface $payment, $amount): self
     {
+        $order = $payment->getOrder();
+        $creditmemo = $payment->getCreditmemo();
+
+        if ($amount == $creditmemo->getBaseGrandTotal()) {
+            $targetAmount = $creditmemo->getGrandTotal();
+        } else {
+            $targetAmount = $this->convertToDisplayCurrency($amount, $order->getBaseToOrderRate());
+        }
+
         $paymentTransactionId = str_replace('-refund', '', $payment->getTransactionId());
         $paymentTransactionId = str_replace('-capture', '', $paymentTransactionId);
         try {
             $this->refund
-                ->setInformation($paymentTransactionId, $amount)
+                ->setInformation($paymentTransactionId, $targetAmount)
                 ->send();
         } catch (GuzzleException $exception) {
             $this->logger->orderError($payment->getOrder(), 'refund', $exception->getMessage());
@@ -313,14 +330,5 @@ abstract class AbstractMethod extends Adapter
     protected function getPaymentMethodCode(): string
     {
         return str_replace(self::PAYMENT_PREFIX, '', $this->getCode());
-    }
-
-    /**
-     * @return string
-     * @throws LocalizedException
-     */
-    protected function getIntentStatus(): string
-    {
-        return $this->getInfoInstance()->getAdditionalInformation('intent_status');
     }
 }

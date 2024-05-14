@@ -8,17 +8,18 @@
  * to newer versions in the future.
  *
  * @copyright Copyright (c) 2021 Magebit,
-Ltd. (https://magebit.com/)
+ * Ltd. (https://magebit.com/)
  * @license   GNU General Public License ("GPL") v3.0
  *
  * For the full copyright and license information,
-please view the LICENSE
+ * please view the LICENSE
  * file that was distributed with this source code.
  */
 
 namespace Airwallex\Payments\Model\Ui;
 
 use Airwallex\Payments\Api\PaymentConsentsInterface;
+use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Model\PaymentConsents;
 use Magento\Checkout\Model\ConfigProviderInterface;
@@ -32,13 +33,14 @@ use Magento\ReCaptchaUi\Model\IsCaptchaEnabledInterface;
 
 class ConfigProvider implements ConfigProviderInterface
 {
-    const AIRWALLEX_RECAPTCHA_FOR = 'airwallex_card';
+    public const AIRWALLEX_RECAPTCHA_FOR = 'place_order';
 
     protected Configuration $configuration;
     protected IsCaptchaEnabledInterface $isCaptchaEnabled;
     protected ReCaptcha $reCaptchaBlock;
     protected Session $customerSession;
     protected PaymentConsentsInterface $paymentConsents;
+    protected AvailablePaymentMethodsHelper $availablePaymentMethodsHelper;
 
     /**
      * ConfigProvider constructor.
@@ -49,17 +51,31 @@ class ConfigProvider implements ConfigProviderInterface
      * @param PaymentConsentsInterface $paymentConsents
      */
     public function __construct(
-        Configuration $configuration,
+        Configuration             $configuration,
         IsCaptchaEnabledInterface $isCaptchaEnabled,
-        ReCaptcha $reCaptchaBlock,
-        Session $customerSession,
-        PaymentConsentsInterface $paymentConsents
+        ReCaptcha                 $reCaptchaBlock,
+        Session                   $customerSession,
+        PaymentConsentsInterface  $paymentConsents,
+        AvailablePaymentMethodsHelper  $availablePaymentMethodsHelper
     ) {
         $this->configuration = $configuration;
         $this->isCaptchaEnabled = $isCaptchaEnabled;
         $this->reCaptchaBlock = $reCaptchaBlock;
         $this->customerSession = $customerSession;
-        $this->paymentConsents = $paymentConsents;
+        $this->availablePaymentMethodsHelper = $availablePaymentMethodsHelper;
+    }
+
+    public function getRecurringMehtods() {
+        $methods = $this->availablePaymentMethodsHelper->getAllPaymentMethodTypes();
+        if (!$methods) {
+            return [];
+        }
+        foreach ($methods['items'] as $method) {
+            if ($method['name'] === 'card' && $method['transaction_mode'] === "recurring") {
+                return $method['card_schemes'];
+            }
+        }
+        return [];
     }
 
     /**
@@ -70,24 +86,21 @@ class ConfigProvider implements ConfigProviderInterface
      */
     public function getConfig(): array
     {
-        $recaptchaEnabled = $this->isCaptchaEnabled->isCaptchaEnabledFor(self::AIRWALLEX_RECAPTCHA_FOR);
+        $recaptchaEnabled = $this->isReCaptchaEnabled();
         $config = [
             'payment' => [
                 'airwallex_payments' => [
                     'mode' => $this->configuration->getMode(),
-                    'cc_auto_capture' => $this->configuration->isCaptureEnabled(),
+                    'cc_auto_capture' => $this->configuration->isCardCaptureEnabled(),
                     'recaptcha_enabled' => !!$recaptchaEnabled,
-                    'cvc_required' => $this->configuration->isCvcRequired()
+                    'cvc_required' => $this->configuration->isCvcRequired(),
+                    'recurring_methods' => $this->getRecurringMehtods()
                 ]
             ]
         ];
 
         if ($recaptchaEnabled) {
-            $this->reCaptchaBlock->setData([
-                'recaptcha_for' => self::AIRWALLEX_RECAPTCHA_FOR
-            ]);
-            $config['payment']['airwallex_payments']['recaptcha_settings']
-                = $this->reCaptchaBlock->getCaptchaUiConfig();
+            $config['payment']['airwallex_payments']['recaptcha_settings'] = $this->getReCaptchaConfig();
         }
 
         if ($this->customerSession->isLoggedIn() && $customer = $this->customerSession->getCustomer()) {
@@ -95,9 +108,37 @@ class ConfigProvider implements ConfigProviderInterface
             if (!$airwallexCustomerId) {
                 $airwallexCustomerId = $this->paymentConsents->createAirwallexCustomer($customer->getId());
             }
-            $config['payment']['airwallex_payments']['customer_id'] = $airwallexCustomerId;
+            $config['payment']['airwallex_payments']['airwallex_customer_id'] = $airwallexCustomerId;
         }
 
         return $config;
+    }
+
+    /**
+     * Get reCaptcha config
+     *
+     * @return array
+     */
+    public function getReCaptchaConfig()
+    {
+        if (!$this->isReCaptchaEnabled()) {
+            return [];
+        }
+
+        $this->reCaptchaBlock->setData([
+            'recaptcha_for' => self::AIRWALLEX_RECAPTCHA_FOR
+        ]);
+
+        return $this->reCaptchaBlock->getCaptchaUiConfig();
+    }
+
+    /**
+     * Get is reCaptcha enabled
+     *
+     * @return bool
+     */
+    public function isReCaptchaEnabled()
+    {
+        return $this->isCaptchaEnabled->isCaptchaEnabledFor(self::AIRWALLEX_RECAPTCHA_FOR);
     }
 }

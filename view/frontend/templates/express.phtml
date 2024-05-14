@@ -1,0 +1,18 @@
+<div data-bind="scope: 'airwallex-express'">
+<!--  ko template: getTemplate()  --><!--   /ko     -->
+</div>
+<script type="text/x-magento-init">
+    {
+        "*": {
+            "Magento_Ui/js/core/app": {
+                "components": {
+                    "airwallex-express": {
+                        "component": "Airwallex_Payments/js/view/payment/method-renderer/express-checkout",
+                        "from": "<?= $escaper->escapeHtml($block->getData('from')) ?>",
+                        "template": "Airwallex_Payments/payment/express-checkout"
+                    }
+                }
+            }
+        }
+    }
+</script>

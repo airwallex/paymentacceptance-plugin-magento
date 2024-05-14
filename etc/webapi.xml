@@ -40,6 +40,41 @@
         </resources>
     </route>
 
+    <route url="/V1/airwallex/payments/express-data" method="GET">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="expressData"/>
+        <resources>
+            <resource ref="anonymous" />
+        </resources>
+    </route>
+
+    <route url="/V1/airwallex/payments/add-to-cart" method="POST">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="addToCart"/>
+        <resources>
+            <resource ref="anonymous" />
+        </resources>
+    </route>
+
+    <route url="/V1/airwallex/payments/post-address" method="POST">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="postAddress"/>
+        <resources>
+            <resource ref="anonymous" />
+        </resources>
+    </route>
+
+    <route url="/V1/airwallex/payments/validate-merchant" method="POST">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="validateMerchant"/>
+        <resources>
+            <resource ref="anonymous" />
+        </resources>
+    </route>
+
+    <route url="/V1/airwallex/payments/validate-addresses" method="GET">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="validateAddresses"/>
+        <resources>
+            <resource ref="anonymous" />
+        </resources>
+    </route>
+
     <route url="/V1/airwallex/customer/create" method="POST">
         <service class="Airwallex\Payments\Api\PaymentConsentsInterface" method="createAirwallexCustomer"/>
         <resources>

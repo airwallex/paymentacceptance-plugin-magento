@@ -13,6 +13,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+
 namespace Airwallex\Payments\Model;
 
 use Airwallex\Payments\Logger\Logger;
@@ -28,6 +29,7 @@ use Magento\Framework\Serialize\SerializerInterface;
 use Magento\Framework\UrlInterface;
 use Magento\Quote\Model\Quote;
 use Magento\Quote\Model\QuoteRepository;
+use JsonException;
 
 /**
  * @SuppressWarnings(PHPMD.CookieAndSessionMisuse)
@@ -77,14 +79,14 @@ class PaymentIntents
     private UrlInterface $urlInterface;
 
     public function __construct(
-        Create $paymentIntentsCreate,
-        Cancel $paymentIntentsCancel,
-        Session $checkoutSession,
+        Create              $paymentIntentsCreate,
+        Cancel              $paymentIntentsCancel,
+        Session             $checkoutSession,
         SerializerInterface $serializer,
-        QuoteRepository $quoteRepository,
-        CacheInterface $cache,
-        UrlInterface $urlInterface,
-        Logger $logger
+        QuoteRepository     $quoteRepository,
+        CacheInterface      $cache,
+        UrlInterface        $urlInterface,
+        Logger              $logger
     ) {
         $this->paymentIntentsCancel = $paymentIntentsCancel;
         $this->paymentIntentsCreate = $paymentIntentsCreate;
@@ -102,12 +104,12 @@ class PaymentIntents
      * @throws GuzzleException
      * @throws LocalizedException
      * @throws NoSuchEntityException
-     * @throws \JsonException
+     * @throws JsonException
      */
-    public function getIntents(bool $loggedInUser = false): array
+    public function getIntents(): array
     {
         $quote = $this->checkoutSession->getQuote();
-        $cacheKey = $this->getCacheKey($quote, $loggedInUser);
+        $cacheKey = $this->getCacheKey($quote);
 
         if ($response = $this->cache->load($cacheKey)) {
             return $this->serializer->unserialize($response);
@@ -147,12 +149,11 @@ class PaymentIntents
 
     /**
      * @param Quote $quote
-     * @param bool $loggedIn
      * @return string
      */
-    private function getCacheKey(Quote $quote, bool $loggedIn = false): string
+    private function getCacheKey(Quote $quote): string
     {
-        return 'airwallex-intent-' . $quote->getId() . ($loggedIn ? '' : '-guest');
+        return 'airwallex-intent-' . $quote->getId() . '-' . sprintf("%.4f", $quote->getGrandTotal());
     }
 
     /**
@@ -175,9 +176,10 @@ class PaymentIntents
      * @throws GuzzleException
      * @throws LocalizedException
      * @throws NoSuchEntityException
-     * @throws \JsonException
+     * @throws JsonException
      */
-    public function cancelIntent(string $intentId) {
+    public function cancelIntent(string $intentId): mixed
+    {
         try {
             $response = $this->paymentIntentsCancel
                 ->setPaymentIntentId($intentId)
