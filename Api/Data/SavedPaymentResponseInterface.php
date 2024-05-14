@@ -24,6 +24,7 @@ interface SavedPaymentResponseInterface
     public const DATA_KEY_CARD_EXPIRY_YEAR = 'card_expiry_year';
     public const DATA_KEY_CARD_LAST_FOUR = 'card_last_four';
     public const DATA_KEY_CARD_HOLDER_NAME = 'card_holder_name';
+    public const DATA_KEY_CARD_ICON = 'card_icon';
 
     /**
      * @return string|null
@@ -90,4 +91,15 @@ interface SavedPaymentResponseInterface
      * @return $this
      */
     public function setCardHolderName(string $holderName = null);
+
+    /**
+     * @param string|null $icon
+     * @return $this
+     */
+    public function setCardIcon(string $icon = null);
+
+    /**
+     * @return string|null
+     */
+    public function getCardIcon();
 }

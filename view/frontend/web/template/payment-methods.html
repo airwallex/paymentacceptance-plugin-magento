@@ -25,14 +25,17 @@
 <table data-bind="visible: paymentMethods">
     <thead>
     <tr>
-        <th data-bind="i18n: 'Card'"></th>
-        <th data-bind="i18n: 'Last Four Digits'"></th>
+        <th data-bind="i18n: 'Card Number'"></th>
+        <th data-bind="i18n: 'Expiration Date'"></th>
+        <th data-bind="i18n: 'Type'"></th>
+        <!-- <th></th> -->
     </tr>
     </thead>
     <tbody data-bind="foreach: paymentMethods">
     <tr>
-        <td data-bind="text: $data.card_brand"></td>
-        <td data-bind="text: $data.card_last_four"></td>
+        <td data-bind="text: 'ending ' + $data.card_last_four"></td>
+        <td data-bind="text: $data.card_expiry_month + '/' + $data.card_expiry_year"></td>
+        <td><img data-bind="attr: {src: $data.card_icon}" class="icon" style="height: 22px;"></td>
         <td><a data-bind="i18n: 'Delete', click: $parent.deletePaymentMethod.bind($parent)"></a></td>
     </tr>
     </tbody>

@@ -58,7 +58,8 @@
     margin: 0 10px 15px
 }
 
-.aws-button-mask, .aws-button-mask-for-login {
+.aws-button-mask,
+.aws-button-mask-for-login {
     position: absolute;
     top: 0;
     right: 0;
@@ -86,7 +87,8 @@
 }
 
 @media screen and (min-width: 768px) {
-    @media (min-width: 769px), print {
+    @media (min-width: 769px),
+    print {
         .box-tocart .airwallex-express-checkout {
             margin-bottom: 15px;
             width: 49%;
@@ -101,11 +103,15 @@
 }
 
 .airwallex-payments-saved-card-item {
-    display: flex;
-    flex-direction: row;
-    padding: 10px 0;
     border-top: 1px solid gray;
     cursor: pointer;
+    width: 100%;
+    padding: 10px 3px;
+}
+
+.airwallex-payments-saved-card-item label {
+    width: 100%;
+    display: flex;
     align-items: center;
 }
 
@@ -133,3 +139,11 @@
     border-radius: 3px;
 }
 
+.cvc-underline {
+    margin: 0;
+    width: 26px;
+    color: black;
+    /* border: 1px solid; */
+    position: relative;
+    top: -6px;
+}

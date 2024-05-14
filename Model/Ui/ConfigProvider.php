@@ -18,16 +18,12 @@
 
 namespace Airwallex\Payments\Model\Ui;
 
-use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Model\PaymentConsents;
 use Magento\Checkout\Model\ConfigProviderInterface;
-use Magento\Customer\Api\CustomerRepositoryInterface;
 use Magento\Customer\Model\Session;
 use Magento\Framework\Exception\InputException;
-use Magento\Framework\Exception\LocalizedException;
-use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\ReCaptchaUi\Block\ReCaptcha;
 use Magento\ReCaptchaUi\Model\IsCaptchaEnabledInterface;
 
@@ -39,43 +35,29 @@ class ConfigProvider implements ConfigProviderInterface
     protected IsCaptchaEnabledInterface $isCaptchaEnabled;
     protected ReCaptcha $reCaptchaBlock;
     protected Session $customerSession;
-    protected PaymentConsentsInterface $paymentConsents;
     protected AvailablePaymentMethodsHelper $availablePaymentMethodsHelper;
 
     /**
      * ConfigProvider constructor.
-     * @param Configuration $configuration
-     * @param IsCaptchaEnabledInterface $isCaptchaEnabled
-     * @param ReCaptcha $reCaptchaBlock
-     * @param Session $customerSession
-     * @param PaymentConsentsInterface $paymentConsents
+     *
+     * @param Configuration                 $configuration
+     * @param IsCaptchaEnabledInterface     $isCaptchaEnabled
+     * @param ReCaptcha                     $reCaptchaBlock
+     * @param Session                       $customerSession
+     * @param AvailablePaymentMethodsHelper $availablePaymentMethodsHelper
      */
     public function __construct(
-        Configuration             $configuration,
-        IsCaptchaEnabledInterface $isCaptchaEnabled,
-        ReCaptcha                 $reCaptchaBlock,
-        Session                   $customerSession,
-        PaymentConsentsInterface  $paymentConsents,
-        AvailablePaymentMethodsHelper  $availablePaymentMethodsHelper
+        Configuration                 $configuration,
+        IsCaptchaEnabledInterface     $isCaptchaEnabled,
+        ReCaptcha                     $reCaptchaBlock,
+        Session                       $customerSession,
+        AvailablePaymentMethodsHelper $availablePaymentMethodsHelper
     ) {
         $this->configuration = $configuration;
         $this->isCaptchaEnabled = $isCaptchaEnabled;
         $this->reCaptchaBlock = $reCaptchaBlock;
         $this->customerSession = $customerSession;
         $this->availablePaymentMethodsHelper = $availablePaymentMethodsHelper;
-    }
-
-    public function getRecurringMehtods() {
-        $methods = $this->availablePaymentMethodsHelper->getAllPaymentMethodTypes();
-        if (!$methods) {
-            return [];
-        }
-        foreach ($methods['items'] as $method) {
-            if ($method['name'] === 'card' && $method['transaction_mode'] === "recurring") {
-                return $method['card_schemes'];
-            }
-        }
-        return [];
     }
 
     /**
@@ -94,7 +76,6 @@ class ConfigProvider implements ConfigProviderInterface
                     'cc_auto_capture' => $this->configuration->isCardCaptureEnabled(),
                     'recaptcha_enabled' => !!$recaptchaEnabled,
                     'cvc_required' => $this->configuration->isCvcRequired(),
-                    'recurring_methods' => $this->getRecurringMehtods()
                 ]
             ]
         ];

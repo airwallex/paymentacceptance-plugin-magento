@@ -21,7 +21,7 @@
             <block class="Magento\Customer\Block\Account\SortLinkInterface" name="airwallex-customer-payment-methods">
                 <arguments>
                     <argument name="path" xsi:type="string">airwallex_payments/customer/paymentmethods</argument>
-                    <argument name="label" xsi:type="string">Airwallex Payment Methods</argument>
+                    <argument name="label" xsi:type="string">Saved Cards</argument>
                     <argument name="sortOrder" xsi:type="number">170</argument>
                 </arguments>
             </block>

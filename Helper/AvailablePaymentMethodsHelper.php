@@ -118,7 +118,11 @@ class AvailablePaymentMethodsHelper
         return $this->canInitialize() && in_array($code, $this->getAllMethods(), true);
     }
 
-    private function fetch(){
+    /**
+     * @return mixed
+     */
+    private function fetch()
+    {
         return $this->availablePaymentMethod->setCurrency($this->getCurrencyCode())->setResources()->setActive()->send();
     }
 

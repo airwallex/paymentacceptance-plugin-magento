@@ -122,4 +122,21 @@ class SavedPaymentResponse extends DataObject implements SavedPaymentResponseInt
     {
         return $this->setData(self::DATA_KEY_CARD_HOLDER_NAME, $holderName);
     }
+
+    /**
+     * @return string|null
+     */
+    public function getCardIcon()
+    {
+        return $this->getData(self::DATA_KEY_CARD_ICON);
+    }
+
+    /**
+     * @param string|null $icon
+     * @return SavedPaymentResponse
+     */
+    public function setCardIcon(string $icon = null)
+    {
+        return $this->setData(self::DATA_KEY_CARD_ICON, $icon);
+    }
 }

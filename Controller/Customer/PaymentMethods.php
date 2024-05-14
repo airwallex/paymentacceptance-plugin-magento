@@ -50,7 +50,7 @@ class PaymentMethods implements HttpGetActionInterface
     {
         if ($this->customerSession->authenticate()) {
             $resultPage = $this->resultPageFactory->create();
-            $resultPage->getConfig()->getTitle()->prepend(__('Airwallex Payment Methods'));
+            $resultPage->getConfig()->getTitle()->prepend(__('Saved Cards'));
 
             return $resultPage;
         }

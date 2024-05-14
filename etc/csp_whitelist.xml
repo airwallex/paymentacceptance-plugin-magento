@@ -35,6 +35,10 @@
             <values>
                 <value id="airwallex-api" type="host">checkout.airwallex.com</value>
                 <value id="metrix" type="host">h.online-metrix.net/</value>
+                <value id="bws_demo_airwallex_default" type="host">bws-demo.airwallex.com</value>
+                <value id="bws_airwallex_default" type="host">bws.airwallex.com</value>
+                <value id="api_demo_airwallex_default" type="host">api-demo.airwallex.com</value>
+                <value id="api_airwallex_default" type="host">api.airwallex.com</value>
             </values>
         </policy>
         <policy id="frame-src">

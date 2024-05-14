@@ -66,7 +66,6 @@ define(
             recaptchaId: 'recaptcha-checkout-place-order',
             isCvcRequired: !!window?.checkoutConfig?.payment?.airwallex_payments?.cvc_required,
             autoCapture: !!window?.checkoutConfig?.payment?.airwallex_payments?.cc_auto_capture,
-            brandToIcons: {},
             defaults: {
                 template: 'Airwallex_Payments/payment/card-method'
             },
@@ -93,14 +92,16 @@ define(
             initPayment: async function() {
                 this.cardElement = Airwallex.createElement('card', {autoCapture: this.autoCapture});
                 this.cardElement.mount(this.mountElement);
-                window.checkoutConfig?.payment?.airwallex_payments.recurring_methods.forEach(method => {
-                    this.brandToIcons[method.name] = method;
-                })
-                console.log(this.brandToIcons)
+   
                 if (this.getCustomerId()) {
                     await this.loadSavedCards();
                 }
                 $('body').trigger('processStop');
+
+                $(".airwallex-payments-saved-card-item").click((e) => {
+                    var inputValue = $(e.currentTarget).find('input[type="radio"]').val();
+                    this.showNewCardForm(inputValue === '__new_card__');
+                })
             },
 
             getRecaptchaId() {
@@ -136,27 +137,16 @@ define(
                 if (savedCards && savedCards.length) {
                     savedCards.forEach((consent) => {
                         const l4Pad = consent.card_brand.toLowerCase() === 'american express' ? '**** ******* *' : '**** **** **** ';
-                        let icon = consent.card_brand.toLowerCase();
-                        if (consent.card_brand.toLowerCase() === 'american express') {
-                            icon = 'amex'
-                        }
 
                         this.savedCards.push({
                             consent_id: consent.id,
                             brand: consent.card_brand,
-                            expiry: consent.card_expiry_month + '/' + consent.card_expiry_year,
+                            expiry: '('+consent.card_expiry_month + '/' + consent.card_expiry_year.substring(2)+')',
                             last4: l4Pad + consent.card_last_four,
-                            icon: this.brandToIcons[icon]?.resources?.logos?.png
+                            icon: consent.card_icon
                         });
                     })
                 }
-            },
-
-            selectSavedCard: function (consentId) {
-                let radioElement = $('[name="airwallex-selected-card"]:radio[value="' + consentId + '"]');
-                radioElement.prop('checked', true);
-
-                this.showNewCardForm(consentId === '__new_card__');
             },
 
             getSelectedSavedCard: function () {

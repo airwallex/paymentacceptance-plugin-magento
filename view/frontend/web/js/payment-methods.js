@@ -62,7 +62,8 @@ define([
 
         deletePaymentMethod: function (method) {
             var removeUrl = this.savedPaymentsUrl + method.id;
-
+            $('body').trigger('processStart');
+        
             $.ajax({
                 url: removeUrl,
                 method: 'DELETE',
