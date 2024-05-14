@@ -123,6 +123,12 @@ define(
             },
 
             initCvcForm: function() {
+                Airwallex.init({
+                    env: window.checkoutConfig.payment.airwallex_payments.mode,
+                    origin: window.location.origin,
+                    fonts: this.fonts
+                });
+
                 if (!this.isAirwallexCustomer() || !this.isCvcRequired || this.cvcElement !== undefined) {
                     return;
                 }
