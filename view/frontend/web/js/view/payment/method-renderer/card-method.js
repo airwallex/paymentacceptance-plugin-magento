@@ -78,7 +78,8 @@ define(
                 return window?.checkoutConfig?.payment?.airwallex_payments?.airwallex_customer_id;
             },
 
-            isAirwallexCustomer() {
+            
+          () {
                 return !!this.getCustomerId();
             },
 
@@ -123,7 +124,13 @@ define(
             },
 
             initCvcForm: function() {
-                if (!this.getCustomerId() || !this.isCvcRequired || this.cvcElement !== undefined) {
+                Airwallex.init({
+                    env: window.checkoutConfig.payment.airwallex_payments.mode,
+                    origin: window.location.origin,
+                    fonts: this.fonts
+                });
+
+                if (!this.isAirwallexCustomer() || !this.isCvcRequired || this.cvcElement !== undefined) {
                     return;
                 }
 
