@@ -18,6 +18,7 @@
 
 namespace Airwallex\Payments\Model\Ui;
 
+use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Model\PaymentConsents;
@@ -35,6 +36,7 @@ class ConfigProvider implements ConfigProviderInterface
     protected IsCaptchaEnabledInterface $isCaptchaEnabled;
     protected ReCaptcha $reCaptchaBlock;
     protected Session $customerSession;
+    protected PaymentConsentsInterface $paymentConsents;
     protected AvailablePaymentMethodsHelper $availablePaymentMethodsHelper;
 
     /**
@@ -44,6 +46,7 @@ class ConfigProvider implements ConfigProviderInterface
      * @param IsCaptchaEnabledInterface     $isCaptchaEnabled
      * @param ReCaptcha                     $reCaptchaBlock
      * @param Session                       $customerSession
+     * @param PaymentConsentsInterface      $paymentConsents
      * @param AvailablePaymentMethodsHelper $availablePaymentMethodsHelper
      */
     public function __construct(
@@ -51,12 +54,14 @@ class ConfigProvider implements ConfigProviderInterface
         IsCaptchaEnabledInterface     $isCaptchaEnabled,
         ReCaptcha                     $reCaptchaBlock,
         Session                       $customerSession,
+        PaymentConsentsInterface      $paymentConsents,
         AvailablePaymentMethodsHelper $availablePaymentMethodsHelper
     ) {
         $this->configuration = $configuration;
         $this->isCaptchaEnabled = $isCaptchaEnabled;
         $this->reCaptchaBlock = $reCaptchaBlock;
         $this->customerSession = $customerSession;
+        $this->paymentConsents = $paymentConsents;
         $this->availablePaymentMethodsHelper = $availablePaymentMethodsHelper;
     }
 
