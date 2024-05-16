@@ -26,7 +26,6 @@
                 <value id="static_demo_airwallex" type="host">static-demo.airwallex.com</value>
                 <value id="static_airwallex" type="host">static.airwallex.com</value>
                 <value id="cdn_scripts_signifyd" type="host">cdn-scripts.signifyd.com</value>
-                <value id="imgs_signifyd" type="host">imgs.signifyd.com</value>
                 <value id="bws_demo_airwallex" type="host">bws-demo.airwallex.com</value>
                 <value id="bws_airwallex" type="host">bws.airwallex.com</value>
             </values>

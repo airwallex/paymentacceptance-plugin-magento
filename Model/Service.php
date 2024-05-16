@@ -529,13 +529,19 @@ class Service implements ServiceInterface
 
         $address = $quote->getShippingAddress();
         $address->setCountryId($countryId);
-        $address->setCity($city);
+
         if ($regionId) {
             $address->setRegionId($regionId);
         } else {
             $address->setRegionId(0);
             $address->setRegion($region);
         }
+
+        if (!$city) {
+            $city = $region ?: $countryId;
+        }
+        $address->setCity($city);
+
         $address->setPostcode($postcode);
 
         $methods = $this->shipmentEstimation->estimateByExtendedAddress($cartId, $address);

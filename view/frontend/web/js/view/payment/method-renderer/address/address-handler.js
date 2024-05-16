@@ -38,7 +38,7 @@ define([
                 "region": addr.administrativeArea || '',
                 "country_id": addr.countryCode,
                 "postcode": addr.postalCode || '',
-                "city": addr.locality || '',
+                "city": this.setCity(addr),
             };
         },
 
@@ -51,7 +51,7 @@ define([
                 street: [addr.address1 + ' ' + addr.address2 + ' ' + addr.address3],
                 telephone: addr.phoneNumber,
                 postcode: addr.postalCode,
-                city: addr.locality,
+                city: this.setCity(addr),
                 firstname: names[0],
                 lastname: names.length > 1 ? names[names.length - 1] : names[0],
             };
@@ -65,7 +65,7 @@ define([
                 street: addr.addressLines,
                 telephone: phone,
                 postcode: addr.postalCode,
-                city: addr.locality,
+                city: this.setCity(addr),
                 firstname: addr.givenName,
                 lastname: addr.familyName,
             };
@@ -85,7 +85,7 @@ define([
                         "street": [data.shippingAddress.address1 + ' ' + data.shippingAddress.address2 + ' ' + data.shippingAddress.address3],
                         "telephone": data.shippingAddress.phoneNumber,
                         "postcode": data.shippingAddress.postalCode,
-                        "city": data.shippingAddress.locality,
+                        "city": this.setCity(data.shippingAddress),
                         firstname,
                         lastname,
                     },
@@ -107,7 +107,7 @@ define([
                         "street": data.shippingContact.addressLines,
                         "telephone": data.shippingContact.phoneNumber,
                         "postcode": data.shippingContact.postalCode,
-                        "city": data.shippingContact.locality,
+                        "city": this.setCity(data.shippingContact),
                         "firstname": data.shippingContact.givenName,
                         "lastname": data.shippingContact.familyName,
                     },
@@ -119,12 +119,16 @@ define([
             };
         },
 
+        setCity(addr) {
+            return addr.locality || addr.administrativeArea || addr.countryCode;
+        },
+
         setIntentConfirmBillingAddressFromGoogle(data) {
             let addr = data.paymentMethodData.info.billingAddress;
             let names = addr.name.split(' ');
             this.intentConfirmBillingAddressFromGoogle = {
                 address: {
-                    city: addr.locality,
+                    city: this.setCity(addr),
                     country_code: addr.countryCode,
                     postcode: addr.postalCode,
                     state: addr.administrativeArea,
@@ -140,7 +144,7 @@ define([
         setIntentConfirmBillingAddressFromApple(addr, email) {
             this.intentConfirmBillingAddressFromGoogle = {
                 address: {
-                    city: addr.locality,
+                    city: this.setCity(addr),
                     country_code: addr.countryCode,
                     postcode: addr.postalCode,
                     state: addr.administrativeArea,

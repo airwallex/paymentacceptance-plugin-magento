@@ -49,6 +49,8 @@ class CardMethod extends AbstractMethod
             throw new LocalizedException(__('Something went wrong while trying to capture the payment.'));
         }
 
+        $this->insertIntentWithOrder($payment);
+
         // capture in frontend element will run here too, but can not go inside
         if ($respArr['status'] === PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE) {
             try {

@@ -101,7 +101,9 @@ define(
                 $(".airwallex-payments-saved-card-item").click((e) => {
                     var inputValue = $(e.currentTarget).find('input[type="radio"]').val();
                     this.showNewCardForm(inputValue === '__new_card__');
-                })
+                });
+
+                $("input[value=__new_card__]").prop('checked', true);
             },
 
             getRecaptchaId() {

@@ -25,7 +25,7 @@ define([
 
     return Component.extend({
         defaults: {
-            template:          'Airwallex_Payments/payment-methods',
+            template:          'Airwallex_Payments/saved-cards',
             savedPaymentsUrl:  url.build('rest/V1/airwallex/saved_payments/'),
             paymentMethods:    null
         },

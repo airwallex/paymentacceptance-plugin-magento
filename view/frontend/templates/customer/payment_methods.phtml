@@ -14,15 +14,15 @@
  * file that was distributed with this source code.
  */
 ?>
-<div id="payment-methods" data-bind="scope:'paymentMethods'">
+<div id="saved-cards" data-bind="scope:'savedCards'">
     <!-- ko template: getTemplate() --><!-- /ko -->
     <script type="text/x-magento-init">
         {
-            "#payment-methods": {
+            "#saved-cards": {
                 "Magento_Ui/js/core/app": {
                    "components": {
                         "paymentMethods": {
-                            "component": "Airwallex_Payments/js/payment-methods"
+                            "component": "Airwallex_Payments/js/saved-cards"
                         }
                     }
                 }
