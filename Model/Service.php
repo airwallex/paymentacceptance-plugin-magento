@@ -53,8 +53,6 @@ use Magento\Checkout\Api\ShippingInformationManagementInterface;
 use Magento\Checkout\Api\Data\ShippingInformationInterfaceFactory;
 use Airwallex\Payments\Model\Ui\ConfigProvider;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
-use Magento\Customer\Model\Address\Validator\Country;
-use Magento\Customer\Model\Address\Validator\Postcode;
 use Magento\Quote\Model\ValidationRules\ShippingAddressValidationRule;
 use Magento\Quote\Model\ValidationRules\BillingAddressValidationRule;
 
@@ -86,8 +84,6 @@ class Service implements ServiceInterface
     private ShippingInformationInterfaceFactory $shippingInformationFactory;
     private ConfigProvider $configProvider;
     private ApplePayValidateMerchant $validateMerchant;
-    private Country $countryValidator;
-    private Postcode $postcodeValidator;
     private ShippingAddressValidationRule $shippingAddressValidationRule;
     private BillingAddressValidationRule $billingAddressValidationRule;
     private ReCaptchaValidationPlugin $reCaptchaValidationPlugin;
@@ -120,8 +116,6 @@ class Service implements ServiceInterface
      * @param ConfigProvider $configProvider
      * @param Get $intentGet
      * @param ApplePayValidateMerchant $validateMerchant
-     * @param Country $countryValidator
-     * @param Postcode $postcodeValidator
      * @param ShippingAddressValidationRule $shippingAddressValidationRule
      * @param BillingAddressValidationRule $billingAddressValidationRule
      * @param ReCaptchaValidationPlugin $reCaptchaValidationPlugin
@@ -152,8 +146,6 @@ class Service implements ServiceInterface
         ConfigProvider $configProvider,
         Get $intentGet,
         ApplePayValidateMerchant $validateMerchant,
-        Country $countryValidator,
-        Postcode $postcodeValidator,
         ShippingAddressValidationRule $shippingAddressValidationRule,
         BillingAddressValidationRule $billingAddressValidationRule,
         ReCaptchaValidationPlugin $reCaptchaValidationPlugin
@@ -183,8 +175,6 @@ class Service implements ServiceInterface
         $this->configProvider = $configProvider;
         $this->intentGet = $intentGet;
         $this->validateMerchant = $validateMerchant;
-        $this->countryValidator = $countryValidator;
-        $this->postcodeValidator = $postcodeValidator;
         $this->shippingAddressValidationRule = $shippingAddressValidationRule;
         $this->billingAddressValidationRule = $billingAddressValidationRule;
         $this->reCaptchaValidationPlugin = $reCaptchaValidationPlugin;
