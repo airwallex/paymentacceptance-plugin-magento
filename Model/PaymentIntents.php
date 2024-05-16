@@ -99,6 +99,7 @@ class PaymentIntents
     }
 
     /**
+     * @param bool $useSavedCard
      * @return array
      * @throws GuzzleException
      * @throws LocalizedException
@@ -148,7 +149,6 @@ class PaymentIntents
 
     /**
      * @param Quote $quote
-     *
      * @return string
      */
     private function getCacheKey(Quote $quote): string

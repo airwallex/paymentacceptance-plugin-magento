@@ -7,7 +7,7 @@ define(
         'mage/url',
         'uiComponent',
         'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
-        'Airwallex_Payments/js/view/payment/method-renderer/express/utils',
+        'Airwallex_Payments/js/view/payment/utils',
         'Airwallex_Payments/js/view/payment/method-renderer/express/googlepay',
         'Airwallex_Payments/js/view/payment/method-renderer/express/applepay',
     ],

@@ -90,9 +90,11 @@ class Capture extends AbstractWebhook
         }
 
         $amount = $data->captured_amount;
+
+        $grandTotal = $order->formatPrice($amount);
+        $order->addCommentToStatusHistory(sprintf('Captured amount of %s online. Transaction ID: "%s"', $grandTotal, $paymentIntentId));
+
         $invoice = $this->invoiceService->prepareInvoice($order);
-        $invoice->setSubtotal($amount);
-        $invoice->setGrandTotal($amount);
         if ($amount != $order->getGrandTotal()) {
             $invoice->setGrandTotal($amount);
             $targetAmount = $this->convertToDisplayCurrency($amount, $order->getBaseToOrderRate(), true);

@@ -89,10 +89,7 @@ define([
                 this.initPayment().then(() => {
                     this.readyLoaded[this.code] = true;
                 });
-            } else {
-                $('body').trigger('processStop');
             }
-
         },
 
         paymentSuccess: function (intent) {

@@ -206,17 +206,24 @@ abstract class AbstractMethod extends Adapter
      */
     public function authorize(InfoInterface $payment, $amount): self
     {
+        $this->insertIntentWithOrder($payment);
+        return $this;
+    }
+
+    /**
+     * @param InfoInterface $payment
+     *
+     * @return void
+     * @throws AlreadyExistsException|LocalizedException
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
+     */
+    protected function insertIntentWithOrder(InfoInterface $payment) {
         $intentId = $this->getIntentId();
 
         $payment->setTransactionId($intentId);
         $payment->setIsTransactionClosed(false);
 
-        $this->paymentIntentRepository->save(
-            $payment->getOrder()->getIncrementId(),
-            $intentId
-        );
-
-        return $this;
+        $this->paymentIntentRepository->save($payment->getOrder()->getIncrementId(), $intentId);
     }
 
     /**
@@ -228,6 +235,7 @@ abstract class AbstractMethod extends Adapter
      */
     public function capture(InfoInterface $payment, $amount): self
     {
+        $this->insertIntentWithOrder($payment);
         return $this;
     }
 

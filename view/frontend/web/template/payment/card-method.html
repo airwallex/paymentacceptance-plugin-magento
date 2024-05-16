@@ -19,7 +19,7 @@
         <input type="radio"
                name="payment[method]"
                class="radio"
-               data-bind="attr: {'id': getCode()}, value: getCode(), checked: isChecked, click: selectPaymentMethod, visible: isRadioButtonVisible()"/>
+               data-bind="attr: {'id': getCode()}, value: getCode(), checked: isChecked, click: selectPaymentMethod, visible: isRadioButtonVisible()">
         <label data-bind="attr: {'for': getCode()}" class="label"><span data-bind="text: getTitle()"></span></label>
     </div>
 
@@ -38,7 +38,50 @@
             <!--/ko-->
         </div>
 
-        <div id='airwallex-payments-card-form' class="airwallex-payment-frame airwallex-card" data-bind="css: {'error': validationError}, afterRender: loadPayment"></div>
+        <!-- ko if: (isAirwallexCustomer() && savedCards().length) -->
+        <style>
+            #airwallex-payments-saved-card-list tr.selected {
+                background: red;
+            }
+        </style>
+
+        <h4 data-bind="i18n: 'Saved Cards'"></h4>
+        <div id="airwallex-payments-saved-card-list">
+            <!-- ko foreach: savedCards -->
+            <div class="airwallex-payments-saved-card-item">
+                <label>
+                    <input type="radio" name="airwallex-selected-card" data-bind="value: consent_id">
+                    <img data-bind="attr: {src: icon}" class="icon">
+                    <span data-bind="text: brand" class="brand"></span>
+                    <span data-bind="text: last4" class="last4"></span>
+                    <span data-bind="text: expiry" class="expiry"></span>
+                </label>
+            </div>
+            <!--/ko-->
+
+            <div class="airwallex-payments-saved-card-item new-card">
+                <label>
+                    <input type="radio" name="airwallex-selected-card" data-bind="value: '__new_card__'">
+                    <span data-bind="i18n: 'New Card'"></span>
+                </label>
+            </div>
+        </div>
+        <!-- /ko -->
+
+        <!-- ko if: (isCvcRequired) -->
+        <label for="airwallex-payments-cvc-form" data-bind="i18n: 'Card Verification Code', hidden: showNewCardForm"></label>
+        <div id="airwallex-payments-cvc-form" class="airwallex-payment-frame airwallex-cvc"
+             data-bind="hidden: showNewCardForm, afterRender: initCvcForm"></div>
+        <hr class="cvc-underline" data-bind="hidden: showNewCardForm">
+        <!-- /ko -->
+
+        <div id="airwallex-payments-card-form" class="airwallex-payment-frame airwallex-card"
+             data-bind="css: {'error': validationError}, visible: showNewCardForm, afterRender: loadPayment"></div>
+
+        <!-- ko if: (isAirwallexCustomer() && showNewCardForm) -->
+        <input id="airwallex-payments-card-save" type="checkbox" checked>
+        <label for="airwallex-payments-card-save" data-bind="i18n: 'Save for future use'"></label>
+        <!-- /ko -->
 
         <p class="airwallex-error" data-bind="visible: validationError, text: validationError"></p>
 

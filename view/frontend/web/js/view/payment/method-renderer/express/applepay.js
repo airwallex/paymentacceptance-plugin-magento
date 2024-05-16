@@ -1,6 +1,6 @@
 define([
     'jquery',
-    'Airwallex_Payments/js/view/payment/method-renderer/express/utils',
+    'Airwallex_Payments/js/view/payment/utils',
     'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
     'mage/url',
 ], function (

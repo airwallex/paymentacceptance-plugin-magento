@@ -71,6 +71,7 @@ class AvailablePaymentMethodsHelper
      * @param SerializerInterface $serializer
      * @param StoreManagerInterface $storeManager
      * @param Configuration $configuration
+     * @param CheckoutData $checkoutHelper
      */
     public function __construct(
         AvailablePaymentMethods $availablePaymentMethod,
@@ -118,6 +119,14 @@ class AvailablePaymentMethodsHelper
     }
 
     /**
+     * @return mixed
+     */
+    private function fetch()
+    {
+        return $this->availablePaymentMethod->setCurrency($this->getCurrencyCode())->setResources()->setActive()->send();
+    }
+
+    /**
      * @return array
      */
     private function getAllMethods(): array
@@ -129,7 +138,7 @@ class AvailablePaymentMethodsHelper
         }
 
         try {
-            $methods = $this->availablePaymentMethod->setCurrency($this->getCurrencyCode())->send();
+            $methods = $this->fetch();
         } catch (Exception $e) {
             $methods = [];
         }
@@ -141,6 +150,19 @@ class AvailablePaymentMethodsHelper
             self::CACHE_TIME
         );
         return $methods;
+    }
+    /**
+     * @return array
+     */
+    public function getAllPaymentMethodTypes(): array
+    {
+        $methods = $this->cache->load($this->availablePaymentMethod->cacheName);
+
+        if (!$methods) {
+            $this->fetch();
+            $methods = $this->cache->load($this->availablePaymentMethod->cacheName);
+        }
+        return json_decode($methods, true);
     }
 
     /**

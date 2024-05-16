@@ -21,6 +21,7 @@ use Airwallex\Payments\Logger\Guzzle\RequestLogger;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use Magento\Framework\App\CacheInterface;
 use Magento\Framework\App\ProductMetadataInterface;
 use Magento\Framework\DataObject\IdentityService;
 use Magento\Framework\Module\ModuleListInterface;
@@ -37,6 +38,8 @@ abstract class AbstractClient
         'Content-Type' => 'application/json',
         'region' => 'string'
     ];
+
+    protected CacheInterface $cache;
 
     /**
      * @var AuthenticationHelper
@@ -80,7 +83,9 @@ abstract class AbstractClient
      * @param IdentityService $identityService
      * @param RequestLogger $requestLogger
      * @param Configuration $configuration
+     * @param ProductMetadataInterface $productMetada
      * @param ModuleListInterface $moduleList
+     * @param CacheInterface $cache
      */
     public function __construct(
         AuthenticationHelper $authenticationHelper,
@@ -88,7 +93,8 @@ abstract class AbstractClient
         RequestLogger $requestLogger,
         Configuration $configuration,
         ProductMetadataInterface $productMetada,
-        ModuleListInterface $moduleList
+        ModuleListInterface $moduleList,
+        CacheInterface $cache
     ) {
         $this->authenticationHelper = $authenticationHelper;
         $this->identityService = $identityService;
@@ -96,6 +102,7 @@ abstract class AbstractClient
         $this->configuration = $configuration;
         $this->productMetada = $productMetada;
         $this->moduleList = $moduleList;
+        $this->cache = $cache;
     }
 
     /**
@@ -247,6 +254,10 @@ abstract class AbstractClient
             $this->params['referrer_data'] = $this->getReferrerData();
             $this->params['metadata'] = $this->getMetadata();
             $options['json'] = $this->params;
+        }
+
+        if ($method === 'GET') {
+            $options['query'] = $this->params;
         }
 
         return $client->request($this->getMethod(), $this->getUri(), $options);

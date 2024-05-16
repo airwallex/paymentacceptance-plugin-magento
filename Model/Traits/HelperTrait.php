@@ -2,8 +2,10 @@
 
 namespace Airwallex\Payments\Model\Traits;
 
-trait HelperTrait {
-    public function convertToDisplayCurrency(float $amount, $rate, $reverse = false) : float {
+trait HelperTrait
+{
+    public function convertToDisplayCurrency(float $amount, $rate, $reverse = false) : float
+    {
         if (empty($rate)) {
             return $amount;
         }

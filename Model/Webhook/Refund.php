@@ -31,7 +31,7 @@ class Refund extends AbstractWebhook
 {
     use HelperTrait;
 
-    public const WEBHOOK_SUCCESS_NAME = 'refund.succeeded';
+    public const WEBHOOK_SUCCESS_NAME = 'refund.accepted';
 
     /**
      * @var CreditmemoFactory

@@ -23,6 +23,8 @@ class AvailablePaymentMethods extends AbstractClient implements BearerAuthentica
 {
     private const TRANSACTION_MODE = 'oneoff';
 
+    public $cacheName = 'available_payment_method_types';
+
     /**
      * @var string
      */
@@ -35,9 +37,17 @@ class AvailablePaymentMethods extends AbstractClient implements BearerAuthentica
      */
     public function setCurrency(string $currency): self
     {
-        $this->currency = $currency;
+        return $this->setParam('currency', $currency);
+    }
 
-        return $this;
+    public function setResources(): self
+    {
+        return $this->setParam('__resources', 'true');
+    }
+
+    public function setActive(): self
+    {
+        return $this->setParam('active', 'true');
     }
 
     /**
@@ -45,13 +55,7 @@ class AvailablePaymentMethods extends AbstractClient implements BearerAuthentica
      */
     protected function getUri(): string
     {
-        $params = http_build_query([
-            'transaction_mode' => self::TRANSACTION_MODE,
-            'transaction_currency' => $this->currency,
-            'active' => true,
-        ]);
-
-        return 'pa/config/payment_method_types?' . $params;
+        return 'pa/config/payment_method_types';
     }
 
     /**
@@ -70,6 +74,13 @@ class AvailablePaymentMethods extends AbstractClient implements BearerAuthentica
      */
     protected function parseResponse(ResponseInterface $request): array
     {
+        $this->cache->save(
+            $request->getBody(),
+            $this->cacheName,
+            [],
+            60
+        );
+
         $response = $this->parseJson($request);
 
         return array_map(static function (object $item) {

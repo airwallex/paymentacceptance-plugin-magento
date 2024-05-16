@@ -58,7 +58,8 @@
     margin: 0 10px 15px
 }
 
-.aws-button-mask, .aws-button-mask-for-login {
+.aws-button-mask,
+.aws-button-mask-for-login {
     position: absolute;
     top: 0;
     right: 0;
@@ -86,11 +87,63 @@
 }
 
 @media screen and (min-width: 768px) {
-    @media (min-width: 769px), print {
+    @media (min-width: 769px),
+    print {
         .box-tocart .airwallex-express-checkout {
             margin-bottom: 15px;
             width: 49%;
             min-width: 240px;
         }
     }
+}
+
+#airwallex-payments-saved-card-list {
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.airwallex-payments-saved-card-item {
+    border-top: 1px solid gray;
+    cursor: pointer;
+    width: 100%;
+    padding: 10px 3px;
+}
+
+.airwallex-payments-saved-card-item label {
+    width: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.airwallex-payments-saved-card-item span {
+    display: inline-block;
+    padding: 0 5px;
+    flex-grow: 0;
+}
+
+.airwallex-payments-saved-card-item span.brand {
+    flex-grow: 1;
+}
+
+.airwallex-payments-saved-card-item span.last4 {
+    font-family: 'Courier New', Courier, monospace;
+}
+
+#airwallex-payments-card-save {
+    cursor: pointer;
+}
+
+.airwallex-payments-saved-card-item img {
+    height: 25px;
+    border: 1px solid lightgrey;
+    border-radius: 3px;
+}
+
+.cvc-underline {
+    margin: 0;
+    width: 26px;
+    color: black;
+    /* border: 1px solid; */
+    position: relative;
+    top: -6px;
 }
