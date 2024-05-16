@@ -134,7 +134,7 @@ define(
             },
 
             loadSavedCards: async function () {
-                const savedCards = await storage.get(urlBuilder.createUrl('/airwallex/saved_payments', {}));
+                const savedCards = await storage.get(urlBuilder.createUrl('/airwallex/saved_cards', {}));
 
                 if (savedCards && savedCards.length) {
                     savedCards.forEach((consent) => {

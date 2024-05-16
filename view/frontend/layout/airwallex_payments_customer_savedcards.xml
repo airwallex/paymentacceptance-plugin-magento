@@ -19,8 +19,8 @@
     <update handle="customer_account"/>
     <body>
         <referenceContainer name="content">
-            <block class="Magento\Framework\View\Element\Template" name="airwallex_payment_methods"
-                   template="Airwallex_Payments::customer/payment_methods.phtml"/>
+            <block class="Magento\Framework\View\Element\Template" name="airwallex_saved_cards"
+                   template="Airwallex_Payments::customer/saved_cards.phtml"/>
         </referenceContainer>
     </body>
 </page>

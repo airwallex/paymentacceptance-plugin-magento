@@ -32,7 +32,7 @@ interface PaymentConsentsInterface
      * @param int $customerId
      * @return SavedPaymentResponseInterface[]
      */
-    public function getSavedPayments($customerId);
+    public function getSavedCards($customerId);
 
     /**
      * @param int $customerId

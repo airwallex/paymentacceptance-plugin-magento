@@ -85,8 +85,8 @@
         </data>
     </route>
 
-    <route url="/V1/airwallex/saved_payments" method="GET">
-        <service class="Airwallex\Payments\Api\PaymentConsentsInterface" method="getSavedPayments"/>
+    <route url="/V1/airwallex/saved_cards" method="GET">
+        <service class="Airwallex\Payments\Api\PaymentConsentsInterface" method="getSavedCards"/>
         <resources>
             <resource ref="self"/>
         </resources>
@@ -95,7 +95,7 @@
         </data>
     </route>
 
-    <route url="/V1/airwallex/saved_payments/:paymentConsentId" method="DELETE">
+    <route url="/V1/airwallex/saved_cards/:paymentConsentId" method="DELETE">
         <service class="Airwallex\Payments\Api\PaymentConsentsInterface" method="disablePaymentConsent"/>
         <resources>
             <resource ref="self"/>

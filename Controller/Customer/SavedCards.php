@@ -26,7 +26,7 @@ use Magento\Framework\Controller\ResultInterface;
 use Magento\Framework\Exception\SessionException;
 use Magento\Framework\View\Result\PageFactory;
 
-class PaymentMethods implements HttpGetActionInterface
+class SavedCards implements HttpGetActionInterface
 {
     private PageFactory $resultPageFactory;
     private Session $customerSession;

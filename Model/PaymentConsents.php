@@ -124,7 +124,7 @@ class PaymentConsents implements PaymentConsentsInterface
      * @throws LocalizedException
      * @throws NoSuchEntityException
      */
-    public function getSavedPayments($customerId)
+    public function getSavedCards($customerId)
     {
         $customer = $this->customerRepository->getById($customerId);
         $airwallexCustomerIdAttribute = $customer->getCustomAttribute(self::KEY_AIRWALLEX_CUSTOMER_ID);
