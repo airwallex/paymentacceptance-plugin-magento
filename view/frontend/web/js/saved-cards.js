@@ -60,8 +60,8 @@ define([
             });
         },
 
-        deletePaymentMethod: function (method) {
-            var removeUrl = this.savedPaymentsUrl + method.id;
+        delete(card) {
+            let removeUrl = this.savedPaymentsUrl + card.id;
             $('body').trigger('processStart');
         
             $.ajax({
@@ -71,9 +71,31 @@ define([
                     location.reload();
                 }).bind(this),
                 error: function(xhr, status, error) {
-                    console.error(status, error);
+                    $('.modal-content div').html('');
                 }
             });
+        },
+
+        deletePaymentMethod(card) {
+            let that = this;
+            $.mage.confirm({
+                title: $.mage.__('Delete saved card'),
+                buttons: [{
+                    text: $.mage.__('Delete'),
+                    class: 'action-primary action-accept',
+                    click: function() {
+                        that.delete(card);
+                    }
+                }, {
+                    text: $.mage.__('Cancel'),
+                    click: function(event) {
+                        this.closeModal(event, true);
+                        $('.modal-content div').html('');
+                    }
+                }]
+            });
+            let msg = 'You are deleting your saved ' + card.card_brand + ' card ending in ' + card.card_last_four + '.';
+            $('.modal-content div').html($.mage.__(msg));
         }
     });
 });
