@@ -78,7 +78,6 @@ define([
         },
 
         loadPayment: function () {
-            $('body').trigger('processStart');
             if (this.type !== 'redirect') {
                 Airwallex.init({
                     env: window.checkoutConfig.payment.airwallex_payments.mode,
