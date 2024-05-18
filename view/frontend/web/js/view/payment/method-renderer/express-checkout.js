@@ -248,6 +248,8 @@ define(
                         await eval(pay).confirmIntent(params);
 
                         payload.intent_id = intentResponse.intent_id;
+                        payload.paymentMethod.additional_data = {intent_id: intentResponse.intent_id};
+                        
                         const endResult = await storage.post(
                             serviceUrl, JSON.stringify(payload), true, 'application/json', {}
                         );

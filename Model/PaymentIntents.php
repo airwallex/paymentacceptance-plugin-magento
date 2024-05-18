@@ -36,7 +36,7 @@ use JsonException;
  */
 class PaymentIntents
 {
-    private const CACHE_TIME = 60;
+    private const CACHE_TIME = 1800;
 
     /**
      * @var Create
