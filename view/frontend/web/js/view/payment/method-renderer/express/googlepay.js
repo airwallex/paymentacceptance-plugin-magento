@@ -32,7 +32,7 @@ define([
             let updateQuoteByShipment = async (event) => {
                 await utils.addToCart(that);
 
-                let addr = addressHandler.getIntermediateShippingAddress(event.detail.intermediatePaymentData.shippingAddress);
+                let addr = addressHandler.getIntermediateShippingAddress(event.detail.intermediatePaymentData.shippingAddress, 'google');
 
                 try {
                     let methodId = "";

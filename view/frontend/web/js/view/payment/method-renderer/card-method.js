@@ -62,10 +62,10 @@ define(
             validationError: ko.observable(),
             showNewCardForm: ko.observable(true),
             showCvcForm: ko.observable(false),
-            isRecaptchaEnabled: !!window.checkoutConfig?.payment?.airwallex_payments?.recaptcha_enabled,
+            isRecaptchaEnabled: !!window.checkoutConfig.payment.airwallex_payments.recaptcha_enabled,
             recaptchaId: 'recaptcha-checkout-place-order',
-            isCvcRequired: !!window?.checkoutConfig?.payment?.airwallex_payments?.cvc_required,
-            autoCapture: !!window?.checkoutConfig?.payment?.airwallex_payments?.cc_auto_capture,
+            isCvcRequired: !!window.checkoutConfig.payment.airwallex_payments.cvc_required,
+            autoCapture: !!window.checkoutConfig.payment.airwallex_payments.cc_auto_capture,
             defaults: {
                 template: 'Airwallex_Payments/payment/card-method'
             },
@@ -75,7 +75,7 @@ define(
                     return null;
                 }
     
-                return window?.checkoutConfig?.payment?.airwallex_payments?.airwallex_customer_id;
+                return window.checkoutConfig.payment.airwallex_payments.airwallex_customer_id;
             },
 
             isAirwallexCustomer() {
@@ -162,7 +162,7 @@ define(
             },
 
             isSaveCardSelected: function () {
-                return $('#airwallex-payments-card-save')?.is(':checked');
+                return $('#airwallex-payments-card-save').is(':checked');
             },
 
             placeOrder: function (data, event) {
@@ -275,7 +275,7 @@ define(
                             'newCustomerBillingAddress': null
                         };
 
-                        if (response?.responseType !== 'error') {
+                        if (response && response.responseType !== 'error') {
                             customerData.set('checkout-data', clearData);
                             customerData.invalidate(['cart']);
                             customerData.reload(['cart'], true);
@@ -308,7 +308,7 @@ define(
             processPlaceOrderError: function (response) {
                 $('body').trigger('processStop');
 
-                if (response?.getResponseHeader) {
+                if (response && response.getResponseHeader) {
                     errorProcessor.process(response, this.messageContainer);
                     const redirectURL = response.getResponseHeader('errorRedirectAction');
 
@@ -317,7 +317,7 @@ define(
                             errorProcessor.redirectTo(redirectURL);
                         }, 3000);
                     }
-                } else if (response?.message) {
+                } else if (response && response.message) {
                     this.validationError(response.message);
                 }
             },

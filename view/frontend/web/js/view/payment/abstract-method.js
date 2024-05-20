@@ -92,8 +92,10 @@ define([
         },
 
         paymentSuccess: function (intent) {
-            this.intentStatus(intent?.status);
-            this.amount(intent?.amount);
+            if (intent) {
+                this.intentStatus(intent.status);
+                this.amount(intent.amount);
+            }
             this.placeOrder();
         },
 

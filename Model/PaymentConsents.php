@@ -84,7 +84,8 @@ class PaymentConsents implements PaymentConsentsInterface
         $eavSetup = $this->eavSetupFactory->create([]);
         $attr = $eavSetup->getAttribute(Customer::ENTITY, self::KEY_AIRWALLEX_CUSTOMER_ID);
         if (!$attr) {
-            throw new LocalizedException(__('Airwallex Customer ID attribute not found.'));
+            // throw new LocalizedException(__('Airwallex Customer ID attribute not found.'));
+            return '';
         }
 
         $idToAwx = $this->customerIdToAirwallex($customerId);

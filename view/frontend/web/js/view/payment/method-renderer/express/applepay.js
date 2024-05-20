@@ -56,7 +56,7 @@ define([
             this.applepay.on('shippingAddressChange', async (event) => {
                 await utils.addToCart(that);
 
-                this.intermediateShippingAddress = addressHandler.getIntermediateShippingAddress(event.detail.shippingAddress);
+                this.intermediateShippingAddress = addressHandler.getIntermediateShippingAddress(event.detail.shippingAddress, 'apple');
                 try {
                     await that.postAddress(this.intermediateShippingAddress);
                 } catch (e) {

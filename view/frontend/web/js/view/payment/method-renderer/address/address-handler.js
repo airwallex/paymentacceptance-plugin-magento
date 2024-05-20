@@ -33,12 +33,12 @@ define([
             );
         },
 
-        getIntermediateShippingAddress(addr) {
+        getIntermediateShippingAddress(addr, from) {
             return {
                 "region": addr.administrativeArea || '',
                 "country_id": addr.countryCode,
-                "postcode": this.setPostcode(addr),
-                "city": this.setCity(addr),
+                "postcode": this.postcode(addr, from),
+                "city": this.city(addr, from)
             };
         },
 
@@ -50,8 +50,8 @@ define([
                 regionId: 0,
                 street: [addr.address1 + ' ' + addr.address2 + ' ' + addr.address3],
                 telephone: addr.phoneNumber,
-                postcode: this.setPostcode(addr),
-                city: this.setCity(addr),
+                postcode: this.postcode(addr, 'google'),
+                city: this.city(addr, 'google'),
                 firstname: names[0],
                 lastname: names.length > 1 ? names[names.length - 1] : names[0],
             };
@@ -64,8 +64,8 @@ define([
                 regionId: 0,
                 street: addr.addressLines,
                 telephone: phone,
-                postcode: this.setPostcode(addr),
-                city: this.setCity(addr),
+                postcode: this.postcode(addr),
+                city: this.city(addr),
                 firstname: addr.givenName,
                 lastname: addr.familyName,
             };
@@ -84,8 +84,8 @@ define([
                         "region": data.shippingAddress.administrativeArea,
                         "street": [data.shippingAddress.address1 + ' ' + data.shippingAddress.address2 + ' ' + data.shippingAddress.address3],
                         "telephone": data.shippingAddress.phoneNumber,
-                        "postcode": this.setPostcode(data.shippingAddress),
-                        "city": this.setCity(data.shippingAddress),
+                        "postcode": this.postcode(data.shippingAddress, 'google'),
+                        "city": this.city(data.shippingAddress, 'google'),
                         firstname,
                         lastname,
                     },
@@ -106,8 +106,8 @@ define([
                         "region": data.shippingContact.administrativeArea,
                         "street": data.shippingContact.addressLines,
                         "telephone": data.shippingContact.phoneNumber,
-                        "postcode": this.setPostcode(data.shippingContact),
-                        "city": this.setCity(data.shippingContact),
+                        "postcode": this.postcode(data.shippingContact),
+                        "city": this.city(data.shippingContact),
                         "firstname": data.shippingContact.givenName,
                         "lastname": data.shippingContact.familyName,
                     },
@@ -119,12 +119,18 @@ define([
             };
         },
 
-        setCity(addr) {
-            return addr.locality || addr.administrativeArea || addr.countryCode;
+        city(addr, type) {
+            if (type === 'google') {
+                return addr.locality || addr.administrativeArea || addr.countryCode;
+            }
+            return addr.locality;
         },
 
-        setPostcode(addr) {
-            return addr.postalCode || '00000';
+        postcode(addr, type) {
+            if (type === 'google') {
+                return addr.postalCode || '00000';
+            }
+            return addr.postalCode;
         },
 
         setIntentConfirmBillingAddressFromGoogle(data) {
@@ -132,9 +138,9 @@ define([
             let names = addr.name.split(' ');
             this.intentConfirmBillingAddressFromGoogle = {
                 address: {
-                    city: this.setCity(addr),
+                    city: this.city(addr, 'google'),
                     country_code: addr.countryCode,
-                    postcode: this.setPostcode(addr),
+                    postcode: this.postcode(addr, 'google'),
                     state: addr.administrativeArea,
                     street: [addr.address1 + ' ' + addr.address2 + ' ' + addr.address3],
                 },
@@ -148,9 +154,9 @@ define([
         setIntentConfirmBillingAddressFromApple(addr, email) {
             this.intentConfirmBillingAddressFromGoogle = {
                 address: {
-                    city: this.setCity(addr),
+                    city: this.city(addr),
                     country_code: addr.countryCode,
-                    postcode: this.setPostcode(addr),
+                    postcode: this.postcode(addr),
                     state: addr.administrativeArea,
                     street: addr.addressLines,
                 },

@@ -272,7 +272,7 @@ define(
                         'newCustomerBillingAddress': null
                     };
 
-                    if (response?.responseType !== 'error') {
+                    if (response && response.responseType !== 'error') {
                         customerData.set('checkout-data', clearData);
                         customerData.invalidate(['cart']);
                         customerData.reload(['cart'], true);
