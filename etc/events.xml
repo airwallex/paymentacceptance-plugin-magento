@@ -22,4 +22,7 @@
     <event name="checkout_onepage_controller_success_action">
         <observer name="quote_success_clear_saved_intent_from_cache" instance="Airwallex\Payments\Observer\ClearSavedIntent"/>
     </event>
+    <event name="checkout_submit_all_after">
+        <observer name="airwallex_checkout_submit_all_after" instance="Airwallex\Payments\Observer\CheckoutSubmitAllAfter"/>
+    </event>
 </config>

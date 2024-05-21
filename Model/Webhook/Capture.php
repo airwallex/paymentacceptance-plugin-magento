@@ -23,6 +23,7 @@ use Magento\Sales\Model\Order\Invoice;
 use Magento\Sales\Model\OrderRepository;
 use Magento\Sales\Model\Service\InvoiceService;
 use Airwallex\Payments\Model\Traits\HelperTrait;
+use Magento\Sales\Model\Order;
 
 class Capture extends AbstractWebhook
 {
@@ -93,7 +94,10 @@ class Capture extends AbstractWebhook
 
         $grandTotal = $order->formatPrice($amount);
         $order->addCommentToStatusHistory(sprintf('Captured amount of %s online. Transaction ID: "%s"', $grandTotal, $paymentIntentId));
-
+        $order
+        ->setState(Order::STATE_PROCESSING)
+        ->setStatus(Order::STATE_PROCESSING)
+        ->save();
         $invoice = $this->invoiceService->prepareInvoice($order);
         if ($amount != $order->getGrandTotal()) {
             $invoice->setGrandTotal($amount);

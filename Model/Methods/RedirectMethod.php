@@ -49,6 +49,7 @@ class RedirectMethod extends AbstractMethod
         $detect = new Mobile_Detect();
 
         try {
+            $this->paymentIntents->removeIntents();
             $returnUrl = $this->confirm
                 ->setPaymentIntentId($this->getIntentId())
                 ->setInformation($this->getPaymentMethodCode(), $detect->isMobile(), $this->getMobileOS($detect))
