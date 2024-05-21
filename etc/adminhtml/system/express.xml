@@ -43,7 +43,7 @@
                 <field id="active">1</field>
             </depends>
         </field>
-        <!-- <include path="Airwallex_Payments::system/express/apple_pay.xml"/> -->
+        <include path="Airwallex_Payments::system/express/apple_pay.xml"/>
         <include path="Airwallex_Payments::system/express/google_pay.xml"/>
     </group>
 </include>

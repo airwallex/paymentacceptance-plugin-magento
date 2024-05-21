@@ -607,13 +607,25 @@ class Service implements ServiceInterface
         $quote = $this->checkoutHelper->getQuote();
         $errors = $this->shippingAddressValidationRule->validate($quote);
         if ($errors && $errors[0]->getErrors()) {
-            return $this->error(__(implode(' ', $errors[0]->getErrors())));
+            return $this->errorAboutAddress($errors, 'Shipping');
         }
         $errors = $this->billingAddressValidationRule->validate($quote);
         if ($errors && $errors[0]->getErrors()) {
-            return $this->error(__(implode(' ', $errors[0]->getErrors())));
+            return $this->errorAboutAddress($errors, 'billing');
         }
         return '{"type": "success"}';
+    }
+
+    private function errorAboutAddress($errors, $type)
+    {
+        $error = '';
+        if ($errors && $errors[0]->getErrors()) {
+            $error = implode(' ', $errors[0]->getErrors());
+            if (strstr($error, '"regionId" is required.')) {
+                $error = 'Please check the ' . $type . ' address information. Region is invalid.';
+            }
+        }
+        return $this->error(__($error));
     }
 
     /**

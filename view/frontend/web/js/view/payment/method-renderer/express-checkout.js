@@ -188,7 +188,7 @@ define(
 
             createPays() {
                 googlepay.create(this);
-                // applepay.create(this);
+                applepay.create(this);
             },
 
             async validateAddresses() {
