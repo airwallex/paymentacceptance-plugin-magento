@@ -32,6 +32,7 @@ use Magento\Framework\Exception\State\InputMismatchException;
 use Magento\Eav\Setup\EavSetupFactory;
 use Magento\Framework\Encryption\EncryptorInterface;
 use Magento\Customer\Model\Customer;
+use Airwallex\Payments\Helper\Configuration;
 
 class PaymentConsents implements PaymentConsentsInterface
 {
@@ -46,6 +47,7 @@ class PaymentConsents implements PaymentConsentsInterface
     private Retrieve $retrievePaymentConsent;
     private EavSetupFactory $eavSetupFactory;
     private EncryptorInterface $encrypter;
+    private Configuration $config;
 
     public function __construct(
         CreateCustomer $createCustomer,
@@ -54,7 +56,8 @@ class PaymentConsents implements PaymentConsentsInterface
         Retrieve $retrievePaymentConsent,
         CustomerRepositoryInterface $customerRepository,
         EavSetupFactory $eavSetupFactory,
-        EncryptorInterface $encrypter
+        EncryptorInterface $encrypter,
+        Configuration $config
     ) {
         $this->createCustomer = $createCustomer;
         $this->paymentConsentList = $paymentConsentList;
@@ -63,11 +66,12 @@ class PaymentConsents implements PaymentConsentsInterface
         $this->retrievePaymentConsent = $retrievePaymentConsent;
         $this->eavSetupFactory = $eavSetupFactory;
         $this->encrypter = $encrypter;
+        $this->config = $config;
     }
 
     private function customerIdToAirwallex(int $id): string
     {
-        $encrypted = $this->encrypter->encrypt((string)$id);
+        $encrypted = $this->encrypter->encrypt((string)$id . $this->config->getMode());
         return "magento-" . substr($encrypted, 0, 32) . '-' . (string)$id;
     }
 
@@ -91,12 +95,6 @@ class PaymentConsents implements PaymentConsentsInterface
         $idToAwx = $this->customerIdToAirwallex($customerId);
 
         $customer = $this->customerRepository->getById($customerId);
-
-        $airwallexCustomerIdAttribute = $customer->getCustomAttribute(self::KEY_AIRWALLEX_CUSTOMER_ID);
-
-        if ($airwallexCustomerIdAttribute && $idToAwx === $airwallexCustomerIdAttribute->getValue()) {
-            return $idToAwx;
-        }
 
         $airwallexCustomerId = $this->createCustomer->setMagentoCustomerId($idToAwx)->send();
 

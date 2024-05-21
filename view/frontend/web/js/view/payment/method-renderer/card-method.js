@@ -231,7 +231,7 @@ define(
                                         }
                                     },
                                 });
-                            } else if (self.isSaveCardSelected()) {
+                            } else if (self.isSaveCardSelected() && self.getCustomerId()) {
                                 await Airwallex.createPaymentConsent({
                                     intent_id: intentResponse.intent_id,
                                     customer_id: self.getCustomerId(),
