@@ -68,12 +68,11 @@
         </div>
         <!-- /ko -->
 
-        <!-- ko if: (isCvcRequired) -->
-        <label for="airwallex-payments-cvc-form" data-bind="i18n: 'Card Verification Code', hidden: showNewCardForm"></label>
-        <div id="airwallex-payments-cvc-form" class="airwallex-payment-frame airwallex-cvc"
-             data-bind="hidden: showNewCardForm, afterRender: initCvcForm"></div>
-        <hr class="cvc-underline" data-bind="hidden: showNewCardForm">
+        <!-- ko if: (isAirwallexCustomer() && showCvcForm) -->
+        <label for="airwallex-payments-cvc-form"  data-bind="i18n: 'Card Verification Code'"></label>
         <!-- /ko -->
+        <div id="airwallex-payments-cvc-form" class="airwallex-payment-frame airwallex-cvc" data-bind="visible: showCvcForm, afterRender: initCvcForm"></div>
+        <hr class="visible: showCvcForm, cvc-underline">
 
         <div id="airwallex-payments-card-form" class="airwallex-payment-frame airwallex-card"
              data-bind="css: {'error': validationError}, visible: showNewCardForm, afterRender: loadPayment"></div>

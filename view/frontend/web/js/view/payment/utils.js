@@ -3,8 +3,8 @@ define([
     'jquery',
     'Magento_Customer/js/model/authentication-popup',
     'Magento_Ui/js/modal/modal',
-    'Magento_ReCaptchaWebapiUi/js/webapiReCaptcha',
-    'Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry',
+    // 'Magento_ReCaptchaWebapiUi/js/webapiReCaptcha',
+    // 'Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry',
     'Magento_Customer/js/customer-data',
     'Magento_Ui/js/modal/alert',
 ], function (
@@ -12,8 +12,8 @@ define([
     $,
     popup,
     modal,
-    webapiReCaptcha,
-    webapiRecaptchaRegistry,
+    // webapiReCaptcha,
+    // webapiRecaptchaRegistry,
     customerData,
     alert,
 ) {

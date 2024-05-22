@@ -153,7 +153,7 @@ define(
                     env: this.paymentConfig.mode,
                     origin: window.location.origin,
                 });
-
+                
                 this.isShow(true);
             },
 

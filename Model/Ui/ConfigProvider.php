@@ -110,7 +110,9 @@ class ConfigProvider implements ConfigProviderInterface
         $airwallexCustomerId = $customer->getCustomAttribute(PaymentConsents::KEY_AIRWALLEX_CUSTOMER_ID);
         $obj = null;
         try {
-            $obj = $this->retrieveCustomer->setAirwallexCustomerId($airwallexCustomerId->getValue())->send();  
+            if ($airwallexCustomerId) {
+                $obj = $this->retrieveCustomer->setAirwallexCustomerId($airwallexCustomerId->getValue())->send();
+            }
         } catch (Exception $e) {
         }
         if ($obj) {

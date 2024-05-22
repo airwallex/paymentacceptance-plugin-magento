@@ -30,7 +30,7 @@ define(
         'Magento_Checkout/js/model/error-processor',
         'Magento_Checkout/js/model/url-builder',
         'Magento_Customer/js/model/customer',
-        'Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry',
+        // 'Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry',
         'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
     ],
     function (
@@ -46,7 +46,7 @@ define(
         errorProcessor,
         urlBuilder,
         customer,
-        recaptchaRegistry,
+        // recaptchaRegistry,
         addressHandler,
     ) {
         'use strict';
@@ -100,7 +100,9 @@ define(
 
                 $(".airwallex-payments-saved-card-item").click((e) => {
                     var inputValue = $(e.currentTarget).find('input[type="radio"]').val();
-                    this.showNewCardForm(inputValue === '__new_card__');
+                    let isShow = inputValue === '__new_card__';
+                    this.showNewCardForm(isShow);
+                    this.showCvcForm(!isShow);
                 });
 
                 $("input[value=__new_card__]").prop('checked', true);
@@ -125,7 +127,7 @@ define(
             },
 
             initCvcForm: function() {
-                if (!this.getCustomerId() || !this.isCvcRequired || this.cvcElement !== undefined) {
+                if (!this.getCustomerId() || this.cvcElement) {
                     return;
                 }
 
@@ -203,12 +205,19 @@ define(
                     (new Promise(async function (resolve, reject) {
                         try {
                             if (self.isRecaptchaEnabled) {
-                                payload.xReCaptchaValue = await new Promise((resolve, reject) => {
-                                    recaptchaRegistry.addListener(self.getRecaptchaId(), (token) => {
-                                        resolve(token);
-                                    });
-                                    recaptchaRegistry.triggers[self.getRecaptchaId()]();
-                                });
+                                await require(
+                                    ['Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry'],
+                                    async function (recaptchaRegistry) {
+                                        if (recaptchaRegistry) {
+                                            payload.xReCaptchaValue = await new Promise((resolve, reject) => {
+                                                recaptchaRegistry.addListener(self.getRecaptchaId(), (token) => {
+                                                    resolve(token);
+                                                });
+                                                recaptchaRegistry.triggers[self.getRecaptchaId()]();
+                                            });
+                                        }
+                                    }
+                                );
                             }
 
                             const intentResponse = await storage.post(
