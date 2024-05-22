@@ -205,19 +205,17 @@ define(
                     (new Promise(async function (resolve, reject) {
                         try {
                             if (self.isRecaptchaEnabled) {
-                                await require(
-                                    ['Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry'],
-                                    async function (recaptchaRegistry) {
-                                        if (recaptchaRegistry) {
-                                            payload.xReCaptchaValue = await new Promise((resolve, reject) => {
-                                                recaptchaRegistry.addListener(self.getRecaptchaId(), (token) => {
-                                                    resolve(token);
-                                                });
-                                                recaptchaRegistry.triggers[self.getRecaptchaId()]();
-                                            });
-                                        }
-                                    }
-                                );
+                                let recaptchaRegistry = require('Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry');
+
+                                if (recaptchaRegistry) {
+                                    payload.xReCaptchaValue = await new Promise((resolve, reject) => {
+                                        console.log(self.getRecaptchaId())
+                                        recaptchaRegistry.addListener(self.getRecaptchaId(), (token) => {
+                                            resolve(token);
+                                        });
+                                        recaptchaRegistry.triggers[self.getRecaptchaId()]();
+                                    });
+                                }
                             }
 
                             const intentResponse = await storage.post(
