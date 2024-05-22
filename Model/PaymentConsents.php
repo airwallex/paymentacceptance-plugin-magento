@@ -76,7 +76,7 @@ class PaymentConsents implements PaymentConsentsInterface
         $id = $customer->getId();
         $str = $email . '-' .(string)$id .'-'.$this->config->getMode();
         $encrypted = $this->encrypter->hash($str);
-        return substr($encrypted, 0, 32);
+        return substr($encrypted, 0, 64);
     }
 
     /**
