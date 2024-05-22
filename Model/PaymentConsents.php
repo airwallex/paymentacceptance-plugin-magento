@@ -31,8 +31,8 @@ use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\Exception\State\InputMismatchException;
 use Magento\Eav\Setup\EavSetupFactory;
 use Magento\Framework\Encryption\EncryptorInterface;
-use Magento\Customer\Model\Customer;
 use Airwallex\Payments\Helper\Configuration;
+use Magento\Customer\Model\Customer;
 
 class PaymentConsents implements PaymentConsentsInterface
 {
@@ -69,21 +69,24 @@ class PaymentConsents implements PaymentConsentsInterface
         $this->config = $config;
     }
 
-    private function customerIdToAirwallex(int $id): string
+    public function generateAirwallexCustomerId($customer)
     {
-        $encrypted = $this->encrypter->encrypt((string)$id . $this->config->getMode());
-        return "magento-" . substr($encrypted, 0, 32) . '-' . (string)$id;
+        $email = $customer->getEmail();
+        $id = $customer->getId();
+        $str = $email . '-' .(string)$id .'-'.$this->config->getMode();
+        $encrypted = $this->encrypter->hash($str);
+        return substr($encrypted, 0, 32);
     }
 
     /**
-     * @param int $customerId
+     * @param CustomerInterface $customer
      * @return string
      * @throws GuzzleException
      * @throws JsonException
      * @throws LocalizedException
      * @throws NoSuchEntityException
      */
-    public function createAirwallexCustomer($customerId): string
+    public function createAirwallexCustomer($customer): string
     {
         $eavSetup = $this->eavSetupFactory->create([]);
         $attr = $eavSetup->getAttribute(Customer::ENTITY, self::KEY_AIRWALLEX_CUSTOMER_ID);
@@ -92,11 +95,7 @@ class PaymentConsents implements PaymentConsentsInterface
             return '';
         }
 
-        $idToAwx = $this->customerIdToAirwallex($customerId);
-
-        $customer = $this->customerRepository->getById($customerId);
-
-        $airwallexCustomerId = $this->createCustomer->setMagentoCustomerId($idToAwx)->send();
+        $airwallexCustomerId = $this->createCustomer->setMagentoCustomerId($this->generateAirwallexCustomerId($customer))->send();
 
         $this->updateCustomerId($customer, $airwallexCustomerId);
 

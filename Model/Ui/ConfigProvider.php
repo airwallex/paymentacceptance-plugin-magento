@@ -27,6 +27,9 @@ use Magento\Customer\Model\Session;
 use Magento\Framework\Exception\InputException;
 use Magento\ReCaptchaUi\Block\ReCaptcha;
 use Magento\ReCaptchaUi\Model\IsCaptchaEnabledInterface;
+use Magento\Customer\Api\CustomerRepositoryInterface;
+use Airwallex\Payments\Model\Client\Request\RetrieveCustomer;
+use Exception;
 
 class ConfigProvider implements ConfigProviderInterface
 {
@@ -38,6 +41,8 @@ class ConfigProvider implements ConfigProviderInterface
     protected Session $customerSession;
     protected PaymentConsentsInterface $paymentConsents;
     protected AvailablePaymentMethodsHelper $availablePaymentMethodsHelper;
+    private   CustomerRepositoryInterface $customerRepository;
+    private   RetrieveCustomer $retrieveCustomer;
 
     /**
      * ConfigProvider constructor.
@@ -47,7 +52,8 @@ class ConfigProvider implements ConfigProviderInterface
      * @param ReCaptcha                     $reCaptchaBlock
      * @param Session                       $customerSession
      * @param PaymentConsentsInterface      $paymentConsents
-     * @param AvailablePaymentMethodsHelper $availablePaymentMethodsHelper
+     * @param CustomerRepositoryInterface   $customerRepository
+     * @param RetrieveCustomer              $retrieveCustomer
      */
     public function __construct(
         Configuration                 $configuration,
@@ -55,14 +61,16 @@ class ConfigProvider implements ConfigProviderInterface
         ReCaptcha                     $reCaptchaBlock,
         Session                       $customerSession,
         PaymentConsentsInterface      $paymentConsents,
-        AvailablePaymentMethodsHelper $availablePaymentMethodsHelper
+        CustomerRepositoryInterface   $customerRepository,
+        RetrieveCustomer              $retrieveCustomer
     ) {
         $this->configuration = $configuration;
         $this->isCaptchaEnabled = $isCaptchaEnabled;
         $this->reCaptchaBlock = $reCaptchaBlock;
         $this->customerSession = $customerSession;
         $this->paymentConsents = $paymentConsents;
-        $this->availablePaymentMethodsHelper = $availablePaymentMethodsHelper;
+        $this->customerRepository = $customerRepository;
+        $this->retrieveCustomer = $retrieveCustomer;
     }
 
     /**
@@ -89,15 +97,29 @@ class ConfigProvider implements ConfigProviderInterface
             $config['payment']['airwallex_payments']['recaptcha_settings'] = $this->getReCaptchaConfig();
         }
 
-        if ($this->customerSession->isLoggedIn() && $customer = $this->customerSession->getCustomer()) {
-            $airwallexCustomerId = $customer->getData(PaymentConsents::KEY_AIRWALLEX_CUSTOMER_ID);
-            if (!$airwallexCustomerId) {
-                $airwallexCustomerId = $this->paymentConsents->createAirwallexCustomer($customer->getId());
-            }
-            $config['payment']['airwallex_payments']['airwallex_customer_id'] = $airwallexCustomerId;
+        if ($this->customerSession->isLoggedIn()) {
+            $config['payment']['airwallex_payments']['airwallex_customer_id'] = $this->getAirwallexCustomerId();
         }
 
         return $config;
+    }
+
+
+    private function getAirwallexCustomerId(): string {
+        $customer = $this->customerRepository->getById($this->customerSession->getId());
+        $airwallexCustomerId = $customer->getCustomAttribute(PaymentConsents::KEY_AIRWALLEX_CUSTOMER_ID);
+        $obj = null;
+        try {
+            $obj = $this->retrieveCustomer->setAirwallexCustomerId($airwallexCustomerId->getValue())->send();  
+        } catch (Exception $e) {
+        }
+        if ($obj) {
+            $generated = $this->paymentConsents->generateAirwallexCustomerId($customer);
+            if ($generated === $obj->merchant_customer_id) {
+                return $airwallexCustomerId->getValue();
+            }
+        }
+        return $this->paymentConsents->createAirwallexCustomer($customer);
     }
 
     /**
