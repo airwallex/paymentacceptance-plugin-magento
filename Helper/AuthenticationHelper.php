@@ -16,6 +16,7 @@
 namespace Airwallex\Payments\Helper;
 
 use Airwallex\Payments\Model\Client\Request\Authentication;
+use Exception;
 use Magento\Framework\App\CacheInterface;
 use Magento\Framework\ObjectManagerInterface;
 
@@ -55,10 +56,14 @@ class AuthenticationHelper
         $token = $this->cache->load(self::CACHE_NAME);
 
         if (empty($token)) {
-            $authenticationData = $this->objectManager->create(Authentication::class)->send();
-            $token = $authenticationData->token;
-            $cacheLifetime = $this->getCacheLifetime($authenticationData->expires_at);
-            $this->cache->save($token, self::CACHE_NAME, [], $cacheLifetime);
+            try {
+                $authenticationData = $this->objectManager->create(Authentication::class)->send();
+                $token = $authenticationData->token;
+                $cacheLifetime = $this->getCacheLifetime($authenticationData->expires_at);
+                $this->cache->save($token, self::CACHE_NAME, [], $cacheLifetime);    
+            } catch (Exception $e){
+                return '';
+            }
         }
 
         return $token;

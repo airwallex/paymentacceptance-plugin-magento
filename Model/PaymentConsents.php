@@ -32,6 +32,7 @@ use Magento\Framework\Exception\State\InputMismatchException;
 use Magento\Eav\Setup\EavSetupFactory;
 use Magento\Framework\Encryption\EncryptorInterface;
 use Airwallex\Payments\Helper\Configuration;
+use Exception;
 use Magento\Customer\Model\Customer;
 
 class PaymentConsents implements PaymentConsentsInterface
@@ -95,7 +96,11 @@ class PaymentConsents implements PaymentConsentsInterface
             return '';
         }
 
-        $airwallexCustomerId = $this->createCustomer->setMagentoCustomerId($this->generateAirwallexCustomerId($customer))->send();
+        try {
+            $airwallexCustomerId = $this->createCustomer->setMagentoCustomerId($this->generateAirwallexCustomerId($customer))->send();
+        } catch (Exception $e) {
+            return '';
+        }
 
         $this->updateCustomerId($customer, $airwallexCustomerId);
 
