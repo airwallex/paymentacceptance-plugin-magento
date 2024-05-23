@@ -119,6 +119,11 @@ class PaymentConsents implements PaymentConsentsInterface
     {
         $customer = $this->customerRepository->getById($customerId);
 
+        $airwallexCustomerIdAttribute = $customer->getCustomAttribute(self::KEY_AIRWALLEX_CUSTOMER_ID);
+
+        if ($airwallexCustomerIdAttribute) {
+            return $airwallexCustomerIdAttribute->getValue();
+        }
         return $this->createAirwallexCustomer($customer);
     }
 

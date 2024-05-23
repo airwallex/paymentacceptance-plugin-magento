@@ -109,10 +109,14 @@ define(
             },
 
             getRecaptchaId() {
+                let id = $('.airwallex-card-container .g-recaptcha').attr('id');
+                if (id) {
+                    return id;
+                }
                 if ($('#recaptcha-checkout-place-order').length) {
                     return this.recaptchaId;
                 }
-                return $('.airwallex-card-container .g-recaptcha').attr('id');
+                return '';
             },
 
             initiateOrderPlacement: async function () {
@@ -215,7 +219,6 @@ define(
 
                                 if (recaptchaRegistry) {
                                     payload.xReCaptchaValue = await new Promise((resolve, reject) => {
-                                        console.log(self.getRecaptchaId())
                                         recaptchaRegistry.addListener(self.getRecaptchaId(), (token) => {
                                             resolve(token);
                                         });
