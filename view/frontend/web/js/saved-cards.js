@@ -19,8 +19,9 @@ define([
     'uiComponent',
     'ko',
     'Magento_Customer/js/model/customer',
+    'Magento_Customer/js/customer-data',
     'mage/url'
-],function ($, Component, ko, customer, url) {
+],function ($, Component, ko, customer, customerData, url) {
     'use strict';
 
     return Component.extend({
@@ -68,9 +69,20 @@ define([
                 url: removeUrl,
                 method: 'DELETE',
                 success: (function() {
-                    location.reload();
+                    $('body').trigger('processStop');
+                    let res = this.paymentMethods().filter(item => item.id !== card.id);
+                    this.paymentMethods((res && res.length) ? res : false);
+                    setTimeout(function() {
+                        customerData.set('messages', {
+                             messages: [{
+                                 type: 'success',
+                                 text: 'Your saved Visa card ending in ' + card.card_last_four + ' was successfully deleted.`'
+                                }]
+                         });
+                   }, 1000);
                 }).bind(this),
                 error: function(xhr, status, error) {
+                    $('body').trigger('processStop');
                     $('.modal-content div').html('');
                 }
             });
@@ -84,6 +96,7 @@ define([
                     text: $.mage.__('Delete'),
                     class: 'action-primary action-accept',
                     click: function() {
+                        this.closeModal(event, true);
                         that.delete(card);
                     }
                 }, {
