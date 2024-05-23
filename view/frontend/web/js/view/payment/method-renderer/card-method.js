@@ -98,7 +98,7 @@ define(
                 }
                 $('body').trigger('processStop');
 
-                $(".airwallex-payments-saved-card-item").click((e) => {
+                $(".airwallex-payments-saved-card-item label").click((e) => {
                     var inputValue = $(e.currentTarget).find('input[type="radio"]').val();
                     let isShow = inputValue === '__new_card__';
                     this.showNewCardForm(isShow);
