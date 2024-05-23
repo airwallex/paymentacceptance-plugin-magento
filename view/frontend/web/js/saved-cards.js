@@ -76,7 +76,7 @@ define([
                         customerData.set('messages', {
                              messages: [{
                                  type: 'success',
-                                 text: 'Your saved Visa card ending in ' + card.card_last_four + ' was successfully deleted.`'
+                                 text: 'Your saved Visa card ending in ' + card.card_last_four + ' was successfully deleted.'
                                 }]
                          });
                    }, 1000);
