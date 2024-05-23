@@ -122,6 +122,16 @@ class Configuration extends AbstractHelper
     }
 
     /**
+     * Card Vault enabled
+     *
+     * @return bool
+     */
+    public function isCardVaultActive(): bool
+    {
+        return !!$this->scopeConfig->getValue('payment/airwallex_payments_card_vault/active');
+    }
+
+    /**
      * Express capture enabled
      *
      * @return bool

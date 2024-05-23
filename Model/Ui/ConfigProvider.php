@@ -89,6 +89,7 @@ class ConfigProvider implements ConfigProviderInterface
                     'cc_auto_capture' => $this->configuration->isCardCaptureEnabled(),
                     'recaptcha_enabled' => !!$recaptchaEnabled,
                     'cvc_required' => $this->configuration->isCvcRequired(),
+                    'is_card_vault_active' => $this->configuration->isCardVaultActive(),
                 ]
             ]
         ];
@@ -97,7 +98,7 @@ class ConfigProvider implements ConfigProviderInterface
             $config['payment']['airwallex_payments']['recaptcha_settings'] = $this->getReCaptchaConfig();
         }
 
-        if ($this->customerSession->isLoggedIn()) {
+        if ($this->customerSession->isLoggedIn() && $this->configuration->isCardVaultActive()) {
             $config['payment']['airwallex_payments']['airwallex_customer_id'] = $this->getAirwallexCustomerId();
         }
 
@@ -108,19 +109,22 @@ class ConfigProvider implements ConfigProviderInterface
     private function getAirwallexCustomerId(): string {
         $customer = $this->customerRepository->getById($this->customerSession->getId());
         $airwallexCustomerId = $customer->getCustomAttribute(PaymentConsents::KEY_AIRWALLEX_CUSTOMER_ID);
-        $obj = null;
-        try {
-            if ($airwallexCustomerId) {
-                $obj = $this->retrieveCustomer->setAirwallexCustomerId($airwallexCustomerId->getValue())->send();
-            }
-        } catch (Exception $e) {
+        if ($airwallexCustomerId && $airwallexCustomerId->getValue()) {
+            return $airwallexCustomerId->getValue();
         }
-        if ($obj) {
-            $generated = $this->paymentConsents->generateAirwallexCustomerId($customer);
-            if ($generated === $obj->merchant_customer_id) {
-                return $airwallexCustomerId->getValue();
-            }
-        }
+        // $obj = null;
+        // try {
+        //     if ($airwallexCustomerId) {
+        //         $obj = $this->retrieveCustomer->setAirwallexCustomerId($airwallexCustomerId->getValue())->send();
+        //     }
+        // } catch (Exception $e) {
+        // }
+        // if ($obj) {
+        //     $generated = $this->paymentConsents->generateAirwallexCustomerId($customer);
+        //     if ($generated === $obj->merchant_customer_id) {
+        //         return $airwallexCustomerId->getValue();
+        //     }
+        // }
         return $this->paymentConsents->createAirwallexCustomer($customer);
     }
 

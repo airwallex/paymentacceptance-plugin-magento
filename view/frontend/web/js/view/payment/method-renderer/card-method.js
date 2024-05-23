@@ -92,7 +92,12 @@ define(
             initPayment: async function() {
                 this.cardElement = Airwallex.createElement('card', {autoCapture: this.autoCapture});
                 this.cardElement.mount(this.mountElement);
-   
+
+                if (!this.isCardVaultActive()) {
+                    $('body').trigger('processStop');
+                    return;
+                }
+
                 if (this.getCustomerId()) {
                     await this.loadSavedCards();
                 }
@@ -173,7 +178,14 @@ define(
                 return selectedConsentId;
             },
 
+            isCardVaultActive() {
+                return window.checkoutConfig.payment.airwallex_payments.is_card_vault_active;
+            },
+
             isSaveCardSelected: function () {
+                if (!this.isCardVaultActive()) {
+                    return false;
+                }
                 return $('#airwallex-payments-card-save').is(':checked');
             },
 
