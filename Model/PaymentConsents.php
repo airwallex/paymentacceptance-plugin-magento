@@ -108,6 +108,21 @@ class PaymentConsents implements PaymentConsentsInterface
     }
 
     /**
+     * @param int $customerId
+     * @return string
+     * @throws GuzzleException
+     * @throws JsonException
+     * @throws LocalizedException
+     * @throws NoSuchEntityException
+     */
+    public function createAirwallexCustomerById($customerId): string
+    {
+        $customer = $this->customerRepository->getById($customerId);
+
+        return $this->createAirwallexCustomer($customer);
+    }
+
+    /**
      * @param CustomerInterface $customer
      * @param string $airwallexCustomerId
      * @throws InputMismatchException

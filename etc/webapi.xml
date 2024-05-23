@@ -94,4 +94,34 @@
             <parameter name="customerId" force="true">%customer_id%</parameter>
         </data>
     </route>
+
+    <route url="/V1/airwallex/customer/create" method="POST">
+        <service class="Airwallex\Payments\Api\PaymentConsentsInterface" method="createAirwallexCustomerById"/>
+        <resources>
+            <resource ref="self"/>
+        </resources>
+        <data>
+            <parameter name="customerId" force="true">%customer_id%</parameter>
+        </data>
+    </route>
+
+    <route url="/V1/airwallex/saved_payments" method="GET">
+        <service class="Airwallex\Payments\Api\PaymentConsentsInterface" method="getSavedCards"/>
+        <resources>
+            <resource ref="self"/>
+        </resources>
+        <data>
+            <parameter name="customerId" force="true">%customer_id%</parameter>
+        </data>
+    </route>
+
+    <route url="/V1/airwallex/saved_payments/:paymentConsentId" method="DELETE">
+        <service class="Airwallex\Payments\Api\PaymentConsentsInterface" method="disablePaymentConsent"/>
+        <resources>
+            <resource ref="self"/>
+        </resources>
+        <data>
+            <parameter name="customerId" force="true">%customer_id%</parameter>
+        </data>
+    </route>
 </routes>

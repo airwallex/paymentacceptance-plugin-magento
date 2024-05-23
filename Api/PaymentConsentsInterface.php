@@ -21,6 +21,12 @@ use Magento\Customer\Api\Data\CustomerInterface;
 interface PaymentConsentsInterface
 {
     /**
+     * @param int $customerId
+     * @return string
+     */
+    public function createAirwallexCustomerById($customerId);
+
+    /**
      * @param CustomerInterface $customer
      * @return string
      */
