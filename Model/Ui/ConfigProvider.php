@@ -111,16 +111,15 @@ class ConfigProvider implements ConfigProviderInterface
         $airwallexCustomerId = $customer->getCustomAttribute(PaymentConsents::KEY_AIRWALLEX_CUSTOMER_ID);
 
         /**
-         * database no airwallex customer id
+         * database has no airwallex customer id
          *     create
          * database has airwallex customer id
-         *     ask for airwallex customer to test if exists
-         *           exists
-         *                return airwallex customer id
-         *           404 
-         *                create
-         *           other
-         *                throw Exception
+         *     throw exception
+         *         404 
+         *             create
+         *         other
+         *             throw Exception
+         *     return airwallex customer id
         */
         if (!$airwallexCustomerId || !$airwallexCustomerId->getValue()) {
             return $this->paymentConsents->createAirwallexCustomer($customer);
