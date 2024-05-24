@@ -109,23 +109,32 @@ class ConfigProvider implements ConfigProviderInterface
     private function getAirwallexCustomerId(): string {
         $customer = $this->customerRepository->getById($this->customerSession->getId());
         $airwallexCustomerId = $customer->getCustomAttribute(PaymentConsents::KEY_AIRWALLEX_CUSTOMER_ID);
-        if ($airwallexCustomerId && $airwallexCustomerId->getValue()) {
-            return $airwallexCustomerId->getValue();
+
+        /**
+         * database no airwallex customer id
+         *     create
+         * database has airwallex customer id
+         *     ask for airwallex customer to test if exists
+         *           exists
+         *                return airwallex customer id
+         *           404 
+         *                create
+         *           other
+         *                throw Exception
+        */
+        if (!$airwallexCustomerId || !$airwallexCustomerId->getValue()) {
+            return $this->paymentConsents->createAirwallexCustomer($customer);
         }
-        // $obj = null;
-        // try {
-        //     if ($airwallexCustomerId) {
-        //         $obj = $this->retrieveCustomer->setAirwallexCustomerId($airwallexCustomerId->getValue())->send();
-        //     }
-        // } catch (Exception $e) {
-        // }
-        // if ($obj) {
-        //     $generated = $this->paymentConsents->generateAirwallexCustomerId($customer);
-        //     if ($generated === $obj->merchant_customer_id) {
-        //         return $airwallexCustomerId->getValue();
-        //     }
-        // }
-        return $this->paymentConsents->createAirwallexCustomer($customer);
+
+        try {
+            $this->retrieveCustomer->setAirwallexCustomerId($airwallexCustomerId->getValue())->send();
+        } catch (Exception $e) {
+            if ($this->retrieveCustomer::NOT_FOUND === $e->getMessage()) {
+                return $this->paymentConsents->createAirwallexCustomer($customer);
+            }
+            throw $e;
+        }
+        return $airwallexCustomerId->getValue();
     }
 
     /**

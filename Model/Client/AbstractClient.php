@@ -29,6 +29,7 @@ use Psr\Http\Message\ResponseInterface;
 
 abstract class AbstractClient
 {
+    public const NOT_FOUND = '404 not found';
     private const JSON_DECODE_DEPTH = 512;
     private const SUCCESS_STATUS_START = 200;
     private const SUCCESS_STATUS_END = 299;
@@ -132,6 +133,9 @@ abstract class AbstractClient
         // If still invalid response, process error.
         if (!($statusCode >= self::SUCCESS_STATUS_START && $statusCode < self::SUCCESS_STATUS_END)) {
             $response = $this->parseJson($request);
+            if ($statusCode === 404) {
+                throw new RequestException(self::NOT_FOUND);
+            }
             throw new RequestException($response->message);
         }
 

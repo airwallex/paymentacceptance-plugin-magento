@@ -72,11 +72,11 @@ class PaymentConsents implements PaymentConsentsInterface
 
     public function generateAirwallexCustomerId($customer)
     {
-        $email = $customer->getEmail();
+        $timestamp = time();
         $id = $customer->getId();
-        $str = $email . '-' .(string)$id .'-'.$this->config->getMode();
-        $encrypted = $this->encrypter->hash($str);
-        return substr($encrypted, 0, 64);
+        $rand = rand(100000, 999999);
+        $str = (string)$timestamp . '-' .(string)$id . '-' . (string)$rand;
+        return substr($str, 0, 64);
     }
 
     /**
