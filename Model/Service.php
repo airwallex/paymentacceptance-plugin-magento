@@ -381,6 +381,7 @@ class Service implements ServiceInterface
     {
         return [
             'mode' => $this->configuration->getMode(),
+            'checkout' => $this->configuration->getCheckout(),
             'express_seller_name' => $this->configuration->getExpressSellerName(),
             'is_express_active' => $this->configuration->isExpressActive(),
             'is_express_phone_required' => $this->configuration->isExpressPhoneRequired(),

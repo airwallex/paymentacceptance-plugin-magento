@@ -182,13 +182,29 @@ define(
             },
 
             destroyElement() {
-                Airwallex.destroyElement('googlePayButton');
-                Airwallex.destroyElement('applePayButton');
+                if (this.isGooglePayActive()) {
+                    Airwallex.destroyElement('googlePayButton');
+                }
+                if (this.isApplePayActive()) {
+                    Airwallex.destroyElement('applePayButton');
+                }
+            },
+
+            isGooglePayActive() {
+                return this.paymentConfig.checkout.indexOf('google_pay') !== -1;
+            },
+
+            isApplePayActive() {
+                return this.paymentConfig.checkout.indexOf('apple_pay') !== -1;
             },
 
             createPays() {
-                googlepay.create(this);
-                applepay.create(this);
+                if (this.isGooglePayActive()) {
+                    googlepay.create(this);
+                }
+                if (this.isApplePayActive()) {
+                    applepay.create(this);
+                }
             },
 
             async validateAddresses() {

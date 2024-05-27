@@ -14,6 +14,15 @@
             <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
             <config_path>payment/airwallex_payments_express/active</config_path>
         </field>
+        <field id="checkout" translate="label" type="multiselect" sortOrder="5" showInDefault="1" showInWebsite="1"
+               showInStore="1">
+            <label>Express Checkout</label>
+            <source_model>Airwallex\Payments\Model\Config\Source\Express\Checkout</source_model>
+            <config_path>payment/airwallex_payments_express/checkout</config_path>
+            <depends>
+                <field id="active">1</field>
+            </depends>
+        </field>
         <field id="locations" translate="label" type="multiselect" sortOrder="5" showInDefault="1" showInWebsite="1"
                showInStore="1">
             <label>Show Button On</label>
@@ -43,7 +52,23 @@
                 <field id="active">1</field>
             </depends>
         </field>
-        <include path="Airwallex_Payments::system/express/apple_pay.xml"/>
-        <include path="Airwallex_Payments::system/express/google_pay.xml"/>
+        <field id="button_theme" translate="label" type="select" sortOrder="31" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Button Theme</label>
+            <source_model>Airwallex\Payments\Model\Config\Source\Express\ButtonTheme</source_model>
+            <config_path>payment/airwallex_payments_express/theme</config_path>
+            <depends>
+                <field id="active">1</field>
+            </depends>
+      </field>
+        <field id="button_type" translate="label" type="select" sortOrder="32" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Call To Action</label>
+            <source_model>Airwallex\Payments\Model\Config\Source\Express\ButtonType</source_model>
+            <config_path>payment/airwallex_payments_express/calltoaction</config_path>
+            <depends>
+                <field id="active">1</field>
+            </depends>
+       </field>
+        <!-- <include path="Airwallex_Payments::system/express/apple_pay.xml"/> -->
+        <!-- <include path="Airwallex_Payments::system/express/google_pay.xml"/> -->
     </group>
 </include>

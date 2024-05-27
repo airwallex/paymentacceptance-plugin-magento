@@ -104,8 +104,8 @@ define([
         getOptions() {
             return {
                 mode: 'payment',
-                buttonColor: this.paymentConfig.express_style.google_pay_button_theme,
-                buttonType: this.paymentConfig.express_style.google_pay_button_type,
+                buttonColor: this.paymentConfig.express_style.theme,
+                buttonType: this.paymentConfig.express_style.call_to_action,
                 emailRequired: true,
                 billingAddressRequired: true,
                 billingAddressParameters: {

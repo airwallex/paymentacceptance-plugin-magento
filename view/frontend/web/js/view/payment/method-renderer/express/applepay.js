@@ -120,10 +120,10 @@ define([
         },
 
         getOptions() {
-            return {
+            let options = {
                 mode: 'payment',
-                buttonColor: this.paymentConfig.express_style.apple_pay_button_theme,
-                buttonType: this.paymentConfig.express_style.apple_pay_button_type,
+                buttonColor: this.paymentConfig.express_style.theme,
+                buttonType: this.paymentConfig.express_style.call_to_action,
                 origin: window.location.origin,
                 totalPriceLabel: this.paymentConfig.express_seller_name || '',
                 countryCode: this.paymentConfig.country_code,
@@ -131,6 +131,10 @@ define([
                 requiredShippingContactFields: this.requiredShippingContactFields,
                 autoCapture: this.paymentConfig.is_express_capture_enabled,
             };
+            if (options.buttonType === 'checkout') {
+                options.buttonType = 'check-out';
+            }
+            return options;
         },
 
         getDisplayItems() {
