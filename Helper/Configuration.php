@@ -128,7 +128,7 @@ class Configuration extends AbstractHelper
      */
     public function isCardVaultActive(): bool
     {
-        return !!$this->scopeConfig->getValue('payment/airwallex_payments_card_vault/active');
+        return !!$this->scopeConfig->getValue('payment/airwallex_payments_card/vault_active');
     }
 
     /**

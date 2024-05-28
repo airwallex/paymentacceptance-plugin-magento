@@ -18,7 +18,7 @@
 <page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
     <body>
         <referenceBlock name="customer_account_navigation">
-            <block class="Magento\Customer\Block\Account\SortLinkInterface" name="airwallex-customer-saved-cards" ifconfig="payment/airwallex_payments_card_vault/active">
+            <block class="Magento\Customer\Block\Account\SortLinkInterface" name="airwallex-customer-saved-cards" ifconfig="payment/airwallex_payments_card/vault_active">
                 <arguments>
                     <argument name="path" xsi:type="string">airwallex_payments/customer/savedcards</argument>
                     <argument name="label" xsi:type="string">Saved Cards</argument>

@@ -55,6 +55,7 @@
             </airwallex_payments_express>
             <airwallex_payments_card>
                 <active>0</active>
+                <vault_active>1</vault_active>
                 <model>AirwallexPaymentsCardsGatewayFacade</model>
                 <allowspecific>0</allowspecific>
                 <title>Pay by Card (Airwallex)</title>
