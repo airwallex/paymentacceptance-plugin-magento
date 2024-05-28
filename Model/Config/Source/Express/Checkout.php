@@ -8,13 +8,12 @@ class Checkout
     {
         return [
             [
+                'value' => "apple_pay",
+                'label' => __('Apple Pay'),
+            ], [
                 'value' => "google_pay",
                 'label' => __('Google Pay'),
             ],
-            [
-                'value' => "apple_pay",
-                'label' => __('Apple Pay'),
-            ]
         ];
     }
 }

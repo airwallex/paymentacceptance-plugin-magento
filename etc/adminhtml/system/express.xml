@@ -5,6 +5,35 @@
             <field id="active">1</field>
         </depends>
         <label>Express Checkout</label>
+        <comment>
+<![CDATA[
+Apple Pay and Google Pay express checkout
+<br />
+<b>Apple Pay</b>
+<br />
+To use Apple Pay, you'll need to register your domain with Apple.
+<br />
+1. Go to <a class='airwallex-add-domain' href=''>Airwallex</a> to specify the domain names that you'll register with Apple.
+<script type="text/javascript">
+function change_airwallex_url_by_env() {
+    let env = document.querySelector('#payment_us_airwallex_payments_basic_mode').value;
+    if (env === 'prod') {
+        env = 'www';
+    }
+    let elements = document.querySelectorAll('.airwallex-add-domain');
+    elements.forEach(function(element) {
+        element.setAttribute('href', `https://${env}.airwallex.com/app/acquiring/settings/apple-pay/add-domain`);
+    });
+}
+
+change_airwallex_url_by_env();
+
+document.querySelector('#payment_us_airwallex_payments_basic_mode').addEventListener('change', change_airwallex_url_by_env);
+</script>
+<br />
+2. Add the Apple Pay domain association file to your server by following the instructions here.
+]]>
+        </comment>
         <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1"
                canRestore="1">
             <label>Enable</label>

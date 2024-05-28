@@ -145,7 +145,7 @@ define(
 
                 googlepay.from = this.from;
                 applepay.from = this.from;
-                this.paymentConfig.express_button_sort.forEach(v => {
+                this.paymentConfig.express_button_sort.sort().forEach(v => {
                     this.buttonSort.push(v);
                 });
 

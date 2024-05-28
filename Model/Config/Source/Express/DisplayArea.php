@@ -9,7 +9,7 @@ class DisplayArea
         return [
             [
                 'value' => "product_page",
-                'label' => __('Product pages')
+                'label' => __('Product detail pages')
             ],
             [
                 'value' => "minicart",
