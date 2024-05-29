@@ -14,9 +14,9 @@ Apple Pay and Google Pay express checkout
 <br />
 To use Apple Pay, you'll need to register your domain with Apple.
 <br />
-1. Add the Apple Pay domain association file to your server by following the instructions <a href='https://developer.apple.com/documentation/applepaywebmerchantregistrationapi/preparing_merchant_domains_for_verification'>here</a>.
+1. Add the Apple Pay domain association file to your server by following the instructions <a href='https://developer.apple.com/documentation/applepaywebmerchantregistrationapi/preparing_merchant_domains_for_verification' target="_blank">here</a>.
 <br />
-2. Go to <a class='airwallex-add-domain' href=''>Airwallex</a> to specify the domain names that you'll register with Apple.
+2. Go to <a class='airwallex-add-domain' href='' target="_blank">Airwallex</a> to specify the domain names that you'll register with Apple.
 <script type="text/javascript">
 function change_airwallex_url_by_env() {
     let env = document.querySelector('#payment_us_airwallex_payments_basic_mode').value;
