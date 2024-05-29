@@ -46,6 +46,12 @@
                                                                         <item name="from" xsi:type="string">checkout_page</item>
                                                                     </item>
                                                                 </item>
+                                                                <item name="airwallex_payments_save_card" xsi:type="array">
+                                                                    <item name="component" xsi:type="string">Airwallex_Payments/js/view/payment/method-renderer/save-card-payment</item>
+                                                                    <item name="config" xsi:type="array">
+                                                                        <item name="template" xsi:type="string">Airwallex_Payments/payment/save-card-payment</item>
+                                                                    </item>
+                                                                </item>
                                                             </item>
                                                         </item>
                                                         <!-- Merge these payment methods into the list of available methods at the checkout -->
