@@ -161,6 +161,9 @@ define([
             if (this.isCheckoutPage()) {
                 return;
             }
+            if (!this.isProductPage()) {
+                return;
+            }
             if (!$(this.buttonMaskSelectorForLogin).length) {
                 return;
             }
