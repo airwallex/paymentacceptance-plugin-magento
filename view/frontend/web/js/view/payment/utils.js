@@ -154,27 +154,6 @@ define([
             });
         },
 
-        toggleMaskFormLogin() {
-            if (this.isLoggedIn()) {
-                return;
-            }
-            if (this.isCheckoutPage()) {
-                return;
-            }
-            if (!this.isProductPage()) {
-                return;
-            }
-            if (!$(this.buttonMaskSelectorForLogin).length) {
-                return;
-            }
-            $(this.buttonMaskSelectorForLogin).off('click').on('click', this.showLoginForm);
-            if ((this.isProductPage() && this.expressData.product_is_virtual) || this.expressData.is_virtual) {
-                $(this.buttonMaskSelectorForLogin).show();
-            } else {
-                $(this.buttonMaskSelectorForLogin).hide();
-            }
-        },
-
         isSetActiveInProductPage() {
             return this.paymentConfig.display_area.indexOf('product_page') !== -1;
         },

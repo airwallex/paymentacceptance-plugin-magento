@@ -85,7 +85,6 @@ define(
                 this.expressDataObjects().forEach(o => {
                     Object.assign(o.expressData, expressData);
                 });
-                utils.toggleMaskFormLogin();
             },
 
             updatePaymentConfig(paymentConfig) {
@@ -158,7 +157,6 @@ define(
             },
 
             async loadPayment() {
-                utils.toggleMaskFormLogin();
                 this.initMinicartClickEvents();
                 utils.initProductPageFormClickEvents();
                 this.initHashPaymentEvent();
