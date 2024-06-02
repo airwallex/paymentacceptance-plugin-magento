@@ -41,6 +41,12 @@ define([
         },
 
         attachEvents(that) {
+            this.applepay.on('click', () => {
+                if (utils.isProductPage()) {
+                    $('#btn-minicart-close').click();
+                }
+            });
+
             this.applepay.on('validateMerchant', async (event) => {
                 try {
                     const merchantSession = await $.ajax(utils.postOptions({
