@@ -30,10 +30,11 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\Exception\State\InputMismatchException;
 use Magento\Eav\Setup\EavSetupFactory;
-use Magento\Framework\Encryption\EncryptorInterface;
-use Airwallex\Payments\Helper\Configuration;
 use Exception;
 use Magento\Customer\Model\Customer;
+use Airwallex\Payments\Model\Client\Request\RetrieveCustomerClientSecret;
+use Airwallex\Payments\Api\Data\ClientSecretResponseInterfaceFactory;
+use Airwallex\Payments\Api\Data\ClientSecretResponseInterface;
 
 class PaymentConsents implements PaymentConsentsInterface
 {
@@ -47,8 +48,8 @@ class PaymentConsents implements PaymentConsentsInterface
     private Disable $disablePaymentConsent;
     private Retrieve $retrievePaymentConsent;
     private EavSetupFactory $eavSetupFactory;
-    private EncryptorInterface $encrypter;
-    private Configuration $config;
+    private RetrieveCustomerClientSecret $retrieveCustomerClientSecret;
+    private ClientSecretResponseInterfaceFactory $clientSecretResponseFactory;
 
     public function __construct(
         CreateCustomer $createCustomer,
@@ -57,8 +58,8 @@ class PaymentConsents implements PaymentConsentsInterface
         Retrieve $retrievePaymentConsent,
         CustomerRepositoryInterface $customerRepository,
         EavSetupFactory $eavSetupFactory,
-        EncryptorInterface $encrypter,
-        Configuration $config
+        RetrieveCustomerClientSecret $retrieveCustomerClientSecret,
+        ClientSecretResponseInterfaceFactory $clientSecretResponseFactory
     ) {
         $this->createCustomer = $createCustomer;
         $this->paymentConsentList = $paymentConsentList;
@@ -66,8 +67,8 @@ class PaymentConsents implements PaymentConsentsInterface
         $this->disablePaymentConsent = $disablePaymentConsent;
         $this->retrievePaymentConsent = $retrievePaymentConsent;
         $this->eavSetupFactory = $eavSetupFactory;
-        $this->encrypter = $encrypter;
-        $this->config = $config;
+        $this->retrieveCustomerClientSecret = $retrieveCustomerClientSecret;
+        $this->clientSecretResponseFactory = $clientSecretResponseFactory;
     }
 
     public function generateAirwallexCustomerId($customer)
@@ -199,5 +200,29 @@ class PaymentConsents implements PaymentConsentsInterface
         return $this->disablePaymentConsent
             ->setPaymentConsentId($paymentConsentId)
             ->send();
+    }
+
+    /**
+     * @param int $customerId
+     * @return ClientSecretResponseInterface
+     */
+    public function generateClientSecret($customerId) {
+        $response = $this->clientSecretResponseFactory->create();
+        $customer = $this->customerRepository->getById($customerId);
+        $airwallexCustomerIdAttribute = $customer->getCustomAttribute(self::KEY_AIRWALLEX_CUSTOMER_ID);
+
+        if (!$airwallexCustomerIdAttribute || !($airwallexCustomerId = $airwallexCustomerIdAttribute->getValue())) {
+            return [];
+        }
+
+        $data = $this->retrieveCustomerClientSecret
+            ->setCustomerId($airwallexCustomerId)
+            ->send();
+
+        $response->setData([
+            ClientSecretResponseInterface::DATA_KEY_CLIENT_SECRET => $data->client_secret,
+            ClientSecretResponseInterface::DATA_KEY_EXPIRED_TIME => $data->expired_time,
+        ]);
+        return $response;
     }
 }

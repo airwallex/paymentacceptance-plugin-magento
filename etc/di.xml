@@ -20,6 +20,7 @@
     <preference for="Airwallex\Payments\Api\Data\PlaceOrderResponseInterface" type="Airwallex\Payments\Model\PlaceOrderResponse" />
     <preference for="Airwallex\Payments\Api\PaymentConsentsInterface" type="Airwallex\Payments\Model\PaymentConsents" />
     <preference for="Airwallex\Payments\Api\Data\SavedPaymentResponseInterface" type="Airwallex\Payments\Model\SavedPaymentResponse" />
+    <preference for="Airwallex\Payments\Api\Data\ClientSecretResponseInterface" type="Airwallex\Payments\Model\ClientSecretResponse" />
     <type name="Magento\Payment\Block\Form\Container">
         <plugin name="remove_methods_from_admin_reorder" type="Airwallex\Payments\Plugin\RemoveMethodsFromAdminReorder" sortOrder="1" />
     </type>
