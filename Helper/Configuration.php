@@ -128,7 +128,34 @@ class Configuration extends AbstractHelper
      */
     public function isCardVaultActive(): bool
     {
+        if (!$this->isCardActive()) return false;
         return !!$this->scopeConfig->getValue('payment/airwallex_payments_card/vault_active');
+    }
+
+    /**
+     * getCardFontSize
+     *
+     * @return int
+     */
+    public function getCardFontSize(): int
+    {
+        $size = (int)$this->scopeConfig->getValue('payment/airwallex_payments_card/fontsize');
+        if ($size < 12) $size = 12;
+        if ($size > 20) $size = 20;
+        return $size;
+    }
+
+    /**
+     * getCardMaxWidth
+     *
+     * @return int
+     */
+    public function getCardMaxWidth(): int
+    {
+        $size = (int)$this->scopeConfig->getValue('payment/airwallex_payments_card/max_width');
+        if ($size < 320) $size = 320;
+        if ($size > 1000) $size = 1000;
+        return $size;
     }
 
     /**

@@ -56,7 +56,11 @@
             <airwallex_payments_card>
                 <active>0</active>
                 <vault_active>1</vault_active>
+                <can_authorize_vault>1</can_authorize_vault>
+                <can_capture_vault>1</can_capture_vault>
                 <model>AirwallexPaymentsCardsGatewayFacade</model>
+                <max_width>380</max_width>
+                <fontsize>14</fontsize>
                 <allowspecific>0</allowspecific>
                 <title>Pay by Card (Airwallex)</title>
                 <payment_action>authorize</payment_action>
@@ -75,6 +79,11 @@
                 <cvc_required>1</cvc_required>
                 <sort_order>10</sort_order>
             </airwallex_payments_card>
+            <airwallex_cc_vault>
+                <model>AirwallexCreditCardVaultFacade</model>
+                <title>Saved Cards (Airwallex)</title>
+                <active>1</active>
+            </airwallex_cc_vault>            
 <!--            <airwallex_payments_wechatpay>-->
 <!--                <active>0</active>-->
 <!--                <model>AirwallexPaymentsWechatGatewayFacade</model>-->

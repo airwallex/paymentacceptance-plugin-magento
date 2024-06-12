@@ -54,6 +54,9 @@
                                                                 <item name="airwallex_payments" xsi:type="array">
                                                                     <item name="component" xsi:type="string">Airwallex_Payments/js/view/payment/payment</item>
                                                                     <item name="methods" xsi:type="array">
+                                                                        <item name="airwallex_cc_vault" xsi:type="array">
+                                                                            <item name="isBillingAddressRequired" xsi:type="boolean">true</item>
+                                                                        </item>
                                                                         <item name="airwallex_payments_card" xsi:type="array">
                                                                             <item name="isBillingAddressRequired" xsi:type="boolean">true</item>
                                                                         </item>

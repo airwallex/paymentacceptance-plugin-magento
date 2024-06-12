@@ -18,6 +18,7 @@ namespace Airwallex\Payments\Model;
 
 use Airwallex\Payments\Api\Data\PlaceOrderResponseInterface;
 use Airwallex\Payments\Api\Data\PlaceOrderResponseInterfaceFactory;
+use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Api\ServiceInterface;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Model\Client\Request\ApplePayValidateMerchant;
@@ -58,6 +59,7 @@ use Magento\Quote\Model\ValidationRules\BillingAddressValidationRule;
 
 class Service implements ServiceInterface
 {
+    protected PaymentConsentsInterface $paymentConsents;
     protected PaymentIntents $paymentIntents;
     protected Configuration $configuration;
     protected CheckoutData $checkoutHelper;
@@ -91,6 +93,7 @@ class Service implements ServiceInterface
     /**
      * Index constructor.
      *
+     * @param PaymentConsentsInterface $paymentConsents
      * @param PaymentIntents $paymentIntents
      * @param Configuration $configuration
      * @param CheckoutData $checkoutHelper
@@ -121,6 +124,7 @@ class Service implements ServiceInterface
      * @param ReCaptchaValidationPlugin $reCaptchaValidationPlugin
      */
     public function __construct(
+        PaymentConsentsInterface $paymentConsents,
         PaymentIntents $paymentIntents,
         Configuration $configuration,
         CheckoutData $checkoutHelper,
@@ -150,6 +154,7 @@ class Service implements ServiceInterface
         BillingAddressValidationRule $billingAddressValidationRule,
         ReCaptchaValidationPlugin $reCaptchaValidationPlugin
     ) {
+        $this->paymentConsents = $paymentConsents;
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
         $this->checkoutHelper = $checkoutHelper;
@@ -276,7 +281,6 @@ class Service implements ServiceInterface
     ): PlaceOrderResponseInterface {
         /** @var PlaceOrderResponse $response */
         $response = $this->placeOrderResponseFactory->create();
-
         if ($intentId === null) {
             $intent = $this->paymentIntents->getIntents();
             $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
@@ -294,6 +298,10 @@ class Service implements ServiceInterface
                     $paymentMethod,
                     $billingAddress
                 );
+
+                if ($this->configuration->isCardVaultActive()) {
+                    $this->paymentConsents->syncVault($this->checkoutHelper->getQuote()->getCustomer()->getId());
+                }
 
                 $response->setData([
                     'response_type' => 'success',
@@ -650,8 +658,6 @@ class Service implements ServiceInterface
      * Check intent status if available to place order
      *
      * @param string $id
-     * @throws GuzzleException
-     * @throws JsonException
      * @throws Exception
      */
     protected function checkIntent($id)
@@ -662,7 +668,7 @@ class Service implements ServiceInterface
         $okStatus = [$this->intentGet::INTENT_STATUS_SUCCESS, $this->intentGet::INTENT_STATUS_REQUIRES_CAPTURE];
         if (!in_array($respArr['status'], $okStatus, true)) {
             $msg = 'Something went wrong while processing your request. Please try again later.';
-            throw new GuzzleException(__($msg));
+            throw new Exception(__($msg));
         }
     }
 }

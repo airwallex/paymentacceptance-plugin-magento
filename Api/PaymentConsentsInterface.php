@@ -54,6 +54,12 @@ interface PaymentConsentsInterface
 
     /**
      * @param int $customerId
+     * @return bool
+     */
+    public function syncVault($customerId);
+
+    /**
+     * @param int $customerId
      * @return ClientSecretResponseInterface
      */
     public function generateClientSecret($customerId);

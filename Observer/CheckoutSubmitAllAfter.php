@@ -33,8 +33,9 @@ class CheckoutSubmitAllAfter implements ObserverInterface
     {
         $order = $observer->getOrder();
         if ($this->isRedirectMethodConstant($order->getPayment()->getMethod())) {
-            $order->addCommentToStatusHistory(sprintf('Status changed to %s, payment method is %s.', Order::STATE_PENDING_PAYMENT, 
-                $order->getPayment()->getMethod()));
+            $comment = sprintf('Status changed to %s, payment method is %s.', Order::STATE_PENDING_PAYMENT, 
+                $order->getPayment()->getMethod());
+            $order->addCommentToStatusHistory(__($comment));
             $order->setState(Order::STATE_PENDING_PAYMENT)->setStatus(Order::STATE_PENDING_PAYMENT)->save();
         }
     }

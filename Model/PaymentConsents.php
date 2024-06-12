@@ -1,18 +1,5 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
+
 namespace Airwallex\Payments\Model;
 
 use Airwallex\Payments\Api\Data\SavedPaymentResponseInterface;
@@ -32,9 +19,16 @@ use Magento\Framework\Exception\State\InputMismatchException;
 use Magento\Eav\Setup\EavSetupFactory;
 use Exception;
 use Magento\Customer\Model\Customer;
+use Magento\Vault\Api\PaymentTokenManagementInterface;
+use Magento\Vault\Model\PaymentTokenManagement;
+use Magento\Vault\Api\PaymentTokenRepositoryInterface;
+use Magento\Vault\Api\Data\PaymentTokenFactoryInterface;
+use Magento\Store\Model\StoreManagerInterface;
+use Airwallex\Payments\Model\Methods\Vault;
 use Airwallex\Payments\Model\Client\Request\RetrieveCustomerClientSecret;
 use Airwallex\Payments\Api\Data\ClientSecretResponseInterfaceFactory;
 use Airwallex\Payments\Api\Data\ClientSecretResponseInterface;
+use Magento\Framework\Encryption\EncryptorInterface;
 
 class PaymentConsents implements PaymentConsentsInterface
 {
@@ -48,6 +42,11 @@ class PaymentConsents implements PaymentConsentsInterface
     private Disable $disablePaymentConsent;
     private Retrieve $retrievePaymentConsent;
     private EavSetupFactory $eavSetupFactory;
+    private EncryptorInterface $encrypter;
+    private PaymentTokenRepositoryInterface $tokenRepository;
+    private PaymentTokenFactoryInterface $tokenFactory;
+    private StoreManagerInterface $storeManager;
+    private PaymentTokenManagement $tokenManagement;
     private RetrieveCustomerClientSecret $retrieveCustomerClientSecret;
     private ClientSecretResponseInterfaceFactory $clientSecretResponseFactory;
 
@@ -58,6 +57,11 @@ class PaymentConsents implements PaymentConsentsInterface
         Retrieve $retrievePaymentConsent,
         CustomerRepositoryInterface $customerRepository,
         EavSetupFactory $eavSetupFactory,
+        EncryptorInterface $encrypter,
+        PaymentTokenRepositoryInterface $tokenRepository,
+        PaymentTokenManagementInterface $tokenManagement,
+        PaymentTokenFactoryInterface $tokenFactory,
+        StoreManagerInterface $storeManager,
         RetrieveCustomerClientSecret $retrieveCustomerClientSecret,
         ClientSecretResponseInterfaceFactory $clientSecretResponseFactory
     ) {
@@ -67,6 +71,11 @@ class PaymentConsents implements PaymentConsentsInterface
         $this->disablePaymentConsent = $disablePaymentConsent;
         $this->retrievePaymentConsent = $retrievePaymentConsent;
         $this->eavSetupFactory = $eavSetupFactory;
+        $this->encrypter = $encrypter;
+        $this->tokenRepository = $tokenRepository;
+        $this->tokenManagement = $tokenManagement;
+        $this->tokenFactory = $tokenFactory;
+        $this->storeManager = $storeManager;
         $this->retrieveCustomerClientSecret = $retrieveCustomerClientSecret;
         $this->clientSecretResponseFactory = $clientSecretResponseFactory;
     }
@@ -202,6 +211,80 @@ class PaymentConsents implements PaymentConsentsInterface
             ->send();
     }
 
+    /**
+     * @param int $customerId
+     * @return bool
+     * @throws GuzzleException
+     * @throws JsonException
+     * @throws LocalizedException
+     */
+    public function syncVault($customerId)
+    {
+        $cards = $this->getSavedCards($customerId);
+        if (!$cards) {
+            return true;
+        }
+        $cloudCards = [];
+        foreach ($cards as $card) {
+            $cloudCards[$card->getId()] = [
+                'card_brand' => $card->getCardBrand(),
+                'card_expiry_month' => $card->getCardExpiryMonth(),
+                'card_expiry_year' => $card->getCardExpiryYear(),
+                'card_last_four' => $card->getCardLastFour(),
+                'card_icon' => $card->getCardIcon(),
+            ];
+        }
+        $tokens = $this->tokenManagement->getVisibleAvailableTokens($customerId);
+        $dbCards = [];
+        foreach ($tokens as $token) {
+            $dbCards[$token->getGatewayToken()] = true;
+        }
+        $dbCards2 = [];
+        foreach ($tokens as $token) {
+            $dbCards2[$token->getPublicHash()] = true;
+        }
+
+        $code = Vault::CODE;
+        $type = 'card';
+        foreach ($cloudCards as $index => $cloudCard) {
+            if (empty($dbCards[$index])) {
+                $token = $this->tokenFactory->create();
+                $token->setCustomerId($customerId);
+                $token->setWebsiteId($this->storeManager->getStore()->getWebsiteId());
+                $token->setPaymentMethodCode($code);
+                $token->setType($type);
+                $token->setGatewayToken($index);
+                $details = json_encode([
+                    'type' => $cloudCard['card_brand'],
+                    'icon' => $cloudCard['card_icon'],
+                    'id' => $index,
+                    'maskedCC' => $cloudCard['card_last_four'],
+                    'expirationDate' => $cloudCard['card_expiry_month'] . '/' . $cloudCard['card_expiry_year'],
+                ]);
+                $token->setTokenDetails($details);
+                $hash = $this->encrypter->getHash($customerId . $code . $type. $details);
+                $token->setPublicHash($hash);
+                $token->setExpiresAt(
+                    sprintf(
+                        '%s-%s-01 00:00:00',
+                        $cloudCard['card_expiry_year'],
+                        $cloudCard['card_expiry_month']
+                    )
+                );
+                if (!empty($dbCards2[$hash])) {
+                    continue;
+                }
+                $dbCards2[$hash] = true;
+                try {
+                    $this->tokenRepository->save($token);
+                } catch (\Exception $e){
+
+                }
+            }
+        }
+
+        return true;
+    }
     /**
      * @param int $customerId
      * @return ClientSecretResponseInterface
