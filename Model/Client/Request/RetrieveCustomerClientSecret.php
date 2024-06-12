@@ -12,6 +12,7 @@ class RetrieveCustomerClientSecret extends AbstractClient implements BearerAuthe
 
     /**
      * @param string $id
+     *
      * @return $this
      */
     public function setCustomerId(string $id)

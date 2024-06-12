@@ -46,11 +46,7 @@ class PaymentConsents implements PaymentConsentsInterface
     private PaymentTokenRepositoryInterface $tokenRepository;
     private PaymentTokenFactoryInterface $tokenFactory;
     private StoreManagerInterface $storeManager;
-
-    /**
-     * @var PaymentTokenManagement
-     */
-    private $tokenManagement;
+    private PaymentTokenManagement $tokenManagement;
     private RetrieveCustomerClientSecret $retrieveCustomerClientSecret;
     private ClientSecretResponseInterfaceFactory $clientSecretResponseFactory;
 
