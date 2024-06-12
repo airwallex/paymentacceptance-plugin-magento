@@ -236,11 +236,13 @@ class PaymentConsents implements PaymentConsentsInterface
         }
         $tokens = $this->tokenManagement->getVisibleAvailableTokens($customerId);
         $dbCards = [];
-        foreach ($tokens as $token) {
-            $dbCards[$token->getGatewayToken()] = true;
-        }
         $dbCards2 = [];
         foreach ($tokens as $token) {
+            if (empty($cloudCards[$token->getGatewayToken()])) {
+                $this->tokenRepository->delete($token);
+                continue;
+            }
+            $dbCards[$token->getGatewayToken()] = true;
             $dbCards2[$token->getPublicHash()] = true;
         }
 
@@ -248,6 +250,11 @@ class PaymentConsents implements PaymentConsentsInterface
         $type = 'card';
         foreach ($cloudCards as $index => $cloudCard) {
             if (empty($dbCards[$index])) {
+                if ($token = $this->tokenManagement->getByGatewayToken($index, Vault::CODE, $customerId)) {
+                    $token->setIsActive(true)->setIsVisible(true);
+                    $this->tokenRepository->save($token);
+                    continue;
+                }
                 $token = $this->tokenFactory->create();
                 $token->setCustomerId($customerId);
                 $token->setWebsiteId($this->storeManager->getStore()->getWebsiteId());

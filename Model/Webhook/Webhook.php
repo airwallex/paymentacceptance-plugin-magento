@@ -162,10 +162,10 @@ class Webhook
         if ($brand) $brand = ' Card Brand: ' . strtoupper($brand) . '.';
         $last4 = $respArr['latest_payment_attempt']['payment_method']['card']['last4'] ?? '';
         if ($last4) $last4 = ' Card Last Digits: ' . $last4 . '.';
-        $avs_check = $respArr['latest_payment_attempt']['payment_method']['card']['avs_check'] ?? '';
-        if ($avs_check) $avs_check = ' CVS Check: ' . $avs_check . '.';
-        $cvc_check = $respArr['latest_payment_attempt']['payment_method']['card']['cvc_check'] ?? '';
-        if ($cvc_check) $cvc_check = ' CVC Check: ' . $cvc_check . '.';
+        $avs_check = $respArr['latest_payment_attempt']['authentication_data']['avs_result'] ?? '';
+        if ($avs_check) $avs_check = ' AVS Result: ' . $avs_check . '.';
+        $cvc_check = $respArr['latest_payment_attempt']['authentication_data']['cvc_result'] ?? '';
+        if ($cvc_check) $cvc_check = ' CVC Result: ' . $cvc_check . '.';
         $log .= $brand . $last4 . $avs_check . $cvc_check;
         if ($log === $src) return;
         $order->addCommentToStatusHistory(__($log));
