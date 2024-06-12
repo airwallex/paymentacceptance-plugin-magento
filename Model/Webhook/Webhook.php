@@ -22,11 +22,16 @@ use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
+use Airwallex\Payments\Model\PaymentIntentRepository;
 use stdClass;
+use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
+use Magento\Sales\Model\OrderRepository;
 
 class Webhook
 {
     private const HASH_ALGORITHM = 'sha256';
+
+    public const AUTHORIZED_WEBHOOK_NAMES = ['payment_intent.requires_capture'];
 
     /**
      * @var Refund
@@ -49,6 +54,21 @@ class Webhook
     private Cancel $cancel;
 
     /**
+     * @var PaymentIntentRepository
+     */    
+    protected PaymentIntentRepository $paymentIntentRepository;
+
+    /**
+     * @var Get
+     */
+    public Get $intentGet;
+
+    /**
+     * @var OrderRepository
+     */
+    public OrderRepository $orderRepository;
+
+    /**
      * Webhook constructor.
      *
      * @param Configuration $configuration
@@ -56,12 +76,23 @@ class Webhook
      * @param Capture $capture
      * @param Cancel $cancel
      */
-    public function __construct(Configuration $configuration, Refund $refund, Capture $capture, Cancel $cancel)
+    public function __construct(
+        Configuration $configuration, 
+        Refund $refund, 
+        Capture $capture, 
+        Cancel $cancel,
+        PaymentIntentRepository $paymentIntentRepository,
+        Get $intentGet,
+        OrderRepository $orderRepository
+    )
     {
         $this->refund = $refund;
         $this->configuration = $configuration;
         $this->capture = $capture;
         $this->cancel = $cancel;
+        $this->paymentIntentRepository = $paymentIntentRepository;
+        $this->intentGet = $intentGet;
+        $this->orderRepository = $orderRepository;
     }
 
     /**
@@ -98,11 +129,46 @@ class Webhook
         }
 
         if (in_array($type, Capture::WEBHOOK_NAMES)) {
+            $this->addAVSResult($data);
             $this->capture->execute($data);
+        }
+
+        if (in_array($type, self::AUTHORIZED_WEBHOOK_NAMES)) {
+            $this->addAVSResult($data);
         }
 
         if ($type === Cancel::WEBHOOK_NAME) {
             $this->cancel->execute($data);
         }
+    }
+
+    protected function addAVSResult($data)
+    {
+        $id = $data->payment_intent_id ?? $data->id;
+        $order = $this->paymentIntentRepository->getOrder($id);
+        $histories = $order->getStatusHistories();
+        if (!$histories) {
+            return;
+        }
+        $log = $src = '[Address Verification Result] ';
+        foreach ($histories as $history) {
+            $history->getComment();
+            if (strstr($history->getComment(), $log)) return;
+        }
+        $resp = $this->intentGet->setPaymentIntentId($id)->send();
+
+        $respArr = json_decode($resp, true);
+        $brand = $respArr['latest_payment_attempt']['payment_method']['card']['brand'] ?? '';
+        if ($brand) $brand = ' Card Brand: ' . strtoupper($brand) . '.';
+        $last4 = $respArr['latest_payment_attempt']['payment_method']['card']['last4'] ?? '';
+        if ($last4) $last4 = ' Card Last Digits: ' . $last4 . '.';
+        $avs_check = $respArr['latest_payment_attempt']['payment_method']['card']['avs_check'] ?? '';
+        if ($avs_check) $avs_check = ' CVS Check: ' . $avs_check . '.';
+        $cvc_check = $respArr['latest_payment_attempt']['payment_method']['card']['cvc_check'] ?? '';
+        if ($cvc_check) $cvc_check = ' CVC Check: ' . $cvc_check . '.';
+        $log .= $brand . $last4 . $avs_check . $cvc_check;
+        if ($log === $src) return;
+        $order->addCommentToStatusHistory(__($log));
+        $this->orderRepository->save($order);
     }
 }

@@ -90,6 +90,8 @@ class ConfigProvider implements ConfigProviderInterface
                     'recaptcha_enabled' => !!$recaptchaEnabled,
                     'cvc_required' => $this->configuration->isCvcRequired(),
                     'is_card_vault_active' => $this->configuration->isCardVaultActive(),
+                    'card_max_width' => $this->configuration->getCardMaxWidth(),
+                    'card_fontsize' => $this->configuration->getCardFontSize(),
                 ]
             ]
         ];
@@ -100,6 +102,7 @@ class ConfigProvider implements ConfigProviderInterface
 
         if ($this->customerSession->isLoggedIn() && $this->configuration->isCardVaultActive()) {
             $config['payment']['airwallex_payments']['airwallex_customer_id'] = $this->getAirwallexCustomerId();
+            $this->paymentConsents->syncVault($this->customerSession->getId());
         }
 
         return $config;

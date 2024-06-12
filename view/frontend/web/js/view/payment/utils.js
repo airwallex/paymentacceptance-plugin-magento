@@ -7,6 +7,7 @@ define([
     'Airwallex_Payments/js/view/payment/recaptcha/webapiReCaptchaRegistry',
     'Magento_Customer/js/customer-data',
     'Magento_Ui/js/modal/alert',
+    'Magento_Checkout/js/model/error-processor'
 ], function (
     urlBuilder,
     $,
@@ -16,6 +17,7 @@ define([
     webapiRecaptchaRegistry,
     customerData,
     alert,
+    errorProcessor
 ) {
     'use strict';
 
@@ -30,6 +32,36 @@ define([
         paymentConfig: {},
         recaptchaSelector: '.airwallex-recaptcha',
         recaptchaId: 'recaptcha-checkout-place-order',
+
+        getRecaptchaId() {
+            let id = $('.airwallex-card-container .g-recaptcha').attr('id');
+            if (id) {
+                return id;
+            }
+            if ($('#recaptcha-checkout-place-order').length) {
+                return this.recaptchaId;
+            }
+            return '';
+        },
+
+        clearDataAfterPay(response, customerData) {
+            const clearData = {
+                'selectedShippingAddress': null,
+                'shippingAddressFromData': null,
+                'newCustomerShippingAddress': null,
+                'selectedShippingRate': null,
+                'selectedPaymentMethod': null,
+                'selectedBillingAddress': null,
+                'billingAddressFromData': null,
+                'newCustomerBillingAddress': null
+            };
+
+            if (response && response.responseType !== 'error') {
+                customerData.set('checkout-data', clearData);
+                customerData.invalidate(['cart']);
+                customerData.reload(['cart'], true);
+            }
+        },
 
         getDiscount(subtotal, subtotal_with_discount) {
             let diff = subtotal - subtotal_with_discount;
@@ -154,24 +186,6 @@ define([
             });
         },
 
-        toggleMaskFormLogin() {
-            if (this.isLoggedIn()) {
-                return;
-            }
-            if (this.isCheckoutPage()) {
-                return;
-            }
-            if (!$(this.buttonMaskSelectorForLogin).length) {
-                return;
-            }
-            $(this.buttonMaskSelectorForLogin).off('click').on('click', this.showLoginForm);
-            if ((this.isProductPage() && this.expressData.product_is_virtual) || this.expressData.is_virtual) {
-                $(this.buttonMaskSelectorForLogin).show();
-            } else {
-                $(this.buttonMaskSelectorForLogin).hide();
-            }
-        },
-
         isSetActiveInProductPage() {
             return this.paymentConfig.display_area.indexOf('product_page') !== -1;
         },
@@ -273,6 +287,22 @@ define([
 
             $("#awx-modal .modal-body-content").html(errorMessage);
             modalSelector.modal('openModal');
+        },
+
+        processPlaceOrderError: function (response) {
+            $('body').trigger('processStop');
+            if (response && response.getResponseHeader) {
+                errorProcessor.process(response, this.messageContainer);
+                const redirectURL = response.getResponseHeader('errorRedirectAction');
+
+                if (redirectURL) {
+                    setTimeout(function () {
+                        errorProcessor.redirectTo(redirectURL);
+                    }, 3000);
+                }
+            } else if (response && response.message) {
+                this.validationError(response.message);
+            }
         },
     };
 });

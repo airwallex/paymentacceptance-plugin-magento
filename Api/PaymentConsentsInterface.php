@@ -17,6 +17,7 @@ namespace Airwallex\Payments\Api;
 
 use Airwallex\Payments\Api\Data\SavedPaymentResponseInterface;
 use Magento\Customer\Api\Data\CustomerInterface;
+use Airwallex\Payments\Api\Data\ClientSecretResponseInterface;
 
 interface PaymentConsentsInterface
 {
@@ -50,4 +51,16 @@ interface PaymentConsentsInterface
      * @return bool
      */
     public function disablePaymentConsent($customerId, $paymentConsentId);
+
+    /**
+     * @param int $customerId
+     * @return bool
+     */
+    public function syncVault($customerId);
+
+    /**
+     * @param int $customerId
+     * @return ClientSecretResponseInterface
+     */
+    public function generateClientSecret($customerId);
 }

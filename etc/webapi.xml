@@ -124,4 +124,24 @@
             <parameter name="customerId" force="true">%customer_id%</parameter>
         </data>
     </route>
+
+    <route url="/V1/airwallex/sync_vault" method="POST">
+        <service class="Airwallex\Payments\Api\PaymentConsentsInterface" method="syncVault"/>
+        <resources>
+            <resource ref="self"/>
+        </resources>
+        <data>
+            <parameter name="customerId" force="true">%customer_id%</parameter>
+        </data>
+    </route>
+
+    <route url="/V1/airwallex/generate_client_secret" method="GET">
+        <service class="Airwallex\Payments\Api\PaymentConsentsInterface" method="generateClientSecret"/>
+        <resources>
+            <resource ref="self"/>
+        </resources>
+        <data>
+            <parameter name="customerId" force="true">%customer_id%</parameter>
+        </data>
+    </route>
 </routes>

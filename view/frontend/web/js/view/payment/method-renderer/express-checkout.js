@@ -85,7 +85,6 @@ define(
                 this.expressDataObjects().forEach(o => {
                     Object.assign(o.expressData, expressData);
                 });
-                utils.toggleMaskFormLogin();
             },
 
             updatePaymentConfig(paymentConfig) {
@@ -158,7 +157,6 @@ define(
             },
 
             async loadPayment() {
-                utils.toggleMaskFormLogin();
                 this.initMinicartClickEvents();
                 utils.initProductPageFormClickEvents();
                 this.initHashPaymentEvent();
@@ -277,22 +275,7 @@ define(
                         reject(e);
                     }
                 })).then(response => {
-                    const clearData = {
-                        'selectedShippingAddress': null,
-                        'shippingAddressFromData': null,
-                        'newCustomerShippingAddress': null,
-                        'selectedShippingRate': null,
-                        'selectedPaymentMethod': null,
-                        'selectedBillingAddress': null,
-                        'billingAddressFromData': null,
-                        'newCustomerBillingAddress': null
-                    };
-
-                    if (response && response.responseType !== 'error') {
-                        customerData.set('checkout-data', clearData);
-                        customerData.invalidate(['cart']);
-                        customerData.reload(['cart'], true);
-                    }
+                    utils.clearDataAfterPay(response, customerData)
 
                     window.location.replace(urlBuilder.build('checkout/onepage/success/'));
                 }).catch(

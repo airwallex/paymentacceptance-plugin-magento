@@ -41,6 +41,12 @@ define([
         },
 
         attachEvents(that) {
+            this.applepay.on('click', () => {
+                if (utils.isProductPage()) {
+                    $('#btn-minicart-close').click();
+                }
+            });
+
             this.applepay.on('validateMerchant', async (event) => {
                 try {
                     const merchantSession = await $.ajax(utils.postOptions({
@@ -83,7 +89,22 @@ define([
             this.applepay.on('authorized', async (event) => {
                 let shipping = event.detail.paymentData.shippingContact;
                 let billing = event.detail.paymentData.billingContact;
-                that.setGuestEmail(shipping.emailAddress);
+                let phone, email;
+                if (utils.isCheckoutPage()) {
+                    let quote = require('Magento_Checkout/js/model/quote');
+                    if (utils.isLoggedIn()) {
+                        phone = quote.shippingAddress().telephone;
+                        email = window.checkoutConfig.quoteData.customer_email;
+                    } else {
+                        phone = this.expressData.is_virtual ? shipping.phoneNumber : quote.shippingAddress().telephone;
+                        email = $(utils.guestEmailSelector).val();
+                    }
+                } else {
+                    phone = shipping.phoneNumber;
+                    email = shipping.emailAddress;
+                }
+                that.setGuestEmail(email);
+
                 if (utils.isRequireShippingAddress()) {
                     // this time Apple provide full shipping address, we should post to magento
                     let information = addressHandler.constructAddressInformationFromApple(
@@ -93,10 +114,10 @@ define([
                 } else {
                     await addressHandler.postBillingAddress({
                         'cartId': utils.getCartId(),
-                        'address': addressHandler.getBillingAddressFromApple(billing, shipping.phoneNumber)
+                        'address': addressHandler.getBillingAddressFromApple(billing, phone)
                     }, utils.isLoggedIn(), utils.getCartId());
                 }
-                addressHandler.setIntentConfirmBillingAddressFromApple(billing, shipping.emailAddress);
+                addressHandler.setIntentConfirmBillingAddressFromApple(billing, email);
                 that.placeOrder('applepay');
             });
         },
@@ -104,8 +125,25 @@ define([
         getRequestOptions() {
             let paymentDataRequest = this.getOptions();
 
-            if (!utils.isRequireShippingOption() && !utils.isProductPage()) {
-                paymentDataRequest.requiredShippingContactFields = this.requiredShippingContactFields.filter(e => e !== 'postalAddress');
+            if (utils.isCheckoutPage()) {
+                paymentDataRequest.requiredShippingContactFields = [];
+                if (this.expressData.is_virtual && !utils.isLoggedIn()) {
+                    paymentDataRequest.requiredShippingContactFields = ['phone'];
+                }
+            } else if (!utils.isProductPage()) {
+                if (this.expressData.is_virtual) {
+                    paymentDataRequest.requiredShippingContactFields = ['phone'];
+                } else {
+                    paymentDataRequest.requiredShippingContactFields = ['phone', 'postalAddress'];
+                }
+                if (!utils.isLoggedIn()) {
+                    paymentDataRequest.requiredShippingContactFields.push('email')
+                }
+            } else {
+                paymentDataRequest.requiredShippingContactFields = ['phone', 'postalAddress'];
+                if (!utils.isLoggedIn()) {
+                    paymentDataRequest.requiredShippingContactFields.push('email')
+                }
             }
 
             const transactionInfo = {

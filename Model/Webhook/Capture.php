@@ -93,7 +93,8 @@ class Capture extends AbstractWebhook
         $amount = $data->captured_amount;
 
         $grandTotal = $order->formatPrice($amount);
-        $order->addCommentToStatusHistory(sprintf('Captured amount of %s online. Transaction ID: "%s"', $grandTotal, $paymentIntentId));
+        $comment = sprintf('Captured amount of %s online. Transaction ID: "%s"', $grandTotal, $paymentIntentId);
+        $order->addCommentToStatusHistory(__($comment));
         $order
         ->setState(Order::STATE_PROCESSING)
         ->setStatus(Order::STATE_PROCESSING)

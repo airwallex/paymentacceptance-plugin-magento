@@ -51,6 +51,12 @@ define([
                 this.googlepay.update(options);
             };
 
+            this.googlepay.on('click', () => {
+                if (utils.isProductPage()) {
+                    $('#btn-minicart-close').click();
+                }
+            });            
+
             this.googlepay.on('shippingAddressChange', updateQuoteByShipment);
 
             this.googlepay.on('shippingMethodChange', updateQuoteByShipment);

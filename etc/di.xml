@@ -20,6 +20,7 @@
     <preference for="Airwallex\Payments\Api\Data\PlaceOrderResponseInterface" type="Airwallex\Payments\Model\PlaceOrderResponse" />
     <preference for="Airwallex\Payments\Api\PaymentConsentsInterface" type="Airwallex\Payments\Model\PaymentConsents" />
     <preference for="Airwallex\Payments\Api\Data\SavedPaymentResponseInterface" type="Airwallex\Payments\Model\SavedPaymentResponse" />
+    <preference for="Airwallex\Payments\Api\Data\ClientSecretResponseInterface" type="Airwallex\Payments\Model\ClientSecretResponse" />
     <type name="Magento\Payment\Block\Form\Container">
         <plugin name="remove_methods_from_admin_reorder" type="Airwallex\Payments\Plugin\RemoveMethodsFromAdminReorder" sortOrder="1" />
     </type>
@@ -92,6 +93,74 @@
             <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
             <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
             <argument name="validatorPool" xsi:type="object">AirwallexPaymentCardValidatorPool</argument>
+        </arguments>
+    </virtualType>
+    <!-- Vault -->
+    <virtualType name="AirwallexPaymentCardVaultCountryValidator" type="Magento\Payment\Gateway\Validator\CountryValidator">
+        <arguments>
+            <argument name="config" xsi:type="object">AirwallexPaymentCardVaultConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentCardVaultValidatorPool" type="Magento\Payment\Gateway\Validator\ValidatorPool">
+        <arguments>
+            <argument name="validators" xsi:type="array">
+                <item name="country" xsi:type="string">AirwallexPaymentCardVaultCountryValidator</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentCardVaultConfig" type="Magento\Payment\Gateway\Config\Config">
+        <arguments>
+            <argument name="methodCode" xsi:type="const">Airwallex\Payments\Model\Methods\CardMethod::CODE</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="AirwallexPaymentCardVaultConfigValueHandler" type="Magento\Payment\Gateway\Config\ConfigValueHandler">
+        <arguments>
+            <argument name="configInterface" xsi:type="object">AirwallexPaymentCardVaultConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentCardVaultValueHandlerPool" type="Magento\Payment\Gateway\Config\ValueHandlerPool">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="default" xsi:type="string">AirwallexPaymentCardVaultConfigValueHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsCardsVaultFacade" type="Airwallex\Payments\Model\Methods\Vault">
+        <arguments>
+            <argument name="eventManager" xsi:type="object">Magento\Framework\Event\ManagerInterface</argument>
+            <argument name="valueHandlerPool" xsi:type="object">AirwallexPaymentCardVaultValueHandlerPool</argument>
+            <argument name="paymentDataObjectFactory" xsi:type="object">Magento\Payment\Gateway\Data\PaymentDataObjectFactory</argument>
+            <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\Vault::CODE</argument>
+            <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
+            <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
+            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
+            <argument name="validatorPool" xsi:type="object">AirwallexPaymentCardVaultValidatorPool</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexVaultPaymentConfig" type="Magento\Payment\Gateway\Config\Config">
+        <arguments>
+            <argument name="methodCode" xsi:type="const">Airwallex\Payments\Model\Methods\Vault::CODE</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexVaultPaymentValueHandler" type="VaultPaymentDefaultValueHandler">
+        <arguments>
+            <argument name="configInterface" xsi:type="object">AirwallexVaultPaymentConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexVaultPaymentValueHandlerPool" type="VaultPaymentValueHandlerPool">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="default" xsi:type="string">AirwallexVaultPaymentValueHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexCreditCardVaultFacade" type="Magento\Vault\Model\Method\Vault">
+        <arguments>
+            <argument name="config" xsi:type="object">AirwallexVaultPaymentConfig</argument>
+            <argument name="valueHandlerPool" xsi:type="object">AirwallexVaultPaymentValueHandlerPool</argument>
+            <argument name="vaultProvider" xsi:type="object">AirwallexPaymentsCardsVaultFacade</argument>
+            <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\Vault::CODE</argument>
         </arguments>
     </virtualType>
     <!-- Express Checkout -->

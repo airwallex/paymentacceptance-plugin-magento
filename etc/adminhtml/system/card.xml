@@ -54,6 +54,20 @@
                 <field id="allowspecific">1</field>
             </depends>
         </field>
+        <field id="max_width" translate="label" type="text" sortOrder="61" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Input Field Size</label>
+            <config_path>payment/airwallex_payments_card/max_width</config_path>
+            <comment>
+                <![CDATA[This determines the maximum width of the credit card input field. Set a width between 320 - 1,000px.]]>
+            </comment>
+        </field>
+        <field id="fontsize" translate="label" type="text" sortOrder="62" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Font Size</label>
+            <config_path>payment/airwallex_payments_card/fontsize</config_path>
+            <comment>
+                <![CDATA[This determines how large or small the text will appear within the input field. Set a font size between 12 to 20px.]]>
+            </comment>
+        </field>
         <field id="sort_order" translate="label" type="text" sortOrder="210" showInDefault="1" showInWebsite="1" showInStore="1">
             <label>Sort Order</label>
             <comment>Adjust this to move the payment method above or below other payment methods</comment>

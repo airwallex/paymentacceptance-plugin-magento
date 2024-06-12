@@ -30,6 +30,7 @@ define(
         'Magento_Checkout/js/model/error-processor',
         'Magento_Checkout/js/model/url-builder',
         'Magento_Customer/js/model/customer',
+        'Airwallex_Payments/js/view/payment/utils',
         // 'Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry',
         'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
     ],
@@ -46,6 +47,7 @@ define(
         errorProcessor,
         urlBuilder,
         customer,
+        utils,
         // recaptchaRegistry,
         addressHandler,
     ) {
@@ -58,14 +60,13 @@ define(
             cvcMountElement: 'airwallex-payments-cvc-form',
             cardElement: undefined,
             cvcElement: undefined,
-            savedCards: ko.observableArray(),
             validationError: ko.observable(),
             showNewCardForm: ko.observable(true),
             showCvcForm: ko.observable(false),
             isRecaptchaEnabled: !!window.checkoutConfig.payment.airwallex_payments.recaptcha_enabled,
-            recaptchaId: 'recaptcha-checkout-place-order',
-            isCvcRequired: !!window.checkoutConfig.payment.airwallex_payments.cvc_required,
             autoCapture: !!window.checkoutConfig.payment.airwallex_payments.cc_auto_capture,
+            maxWidth: window.checkoutConfig.payment.airwallex_payments.card_max_width,
+            fontSize: window.checkoutConfig.payment.airwallex_payments.card_fontsize,
             defaults: {
                 template: 'Airwallex_Payments/payment/card-method'
             },
@@ -90,38 +91,22 @@ define(
             },
 
             initPayment: async function() {
-                this.cardElement = Airwallex.createElement('card', {autoCapture: this.autoCapture});
+                this.cardElement = Airwallex.createElement('card', {
+                    autoCapture: this.autoCapture,
+                    style: {
+                        base: {
+                            fontSize: this.fontSize + 'px',
+                        }
+                    }                       
+                });
                 this.cardElement.mount(this.mountElement);
 
+                $('body').trigger('processStop');
                 if (!this.isCardVaultActive()) {
-                    $('body').trigger('processStop');
                     return;
                 }
 
-                if (this.getCustomerId()) {
-                    await this.loadSavedCards();
-                }
-                $('body').trigger('processStop');
-
-                $(".airwallex-payments-saved-card-item label").click((e) => {
-                    var inputValue = $(e.currentTarget).find('input[type="radio"]').val();
-                    let isShow = inputValue === '__new_card__';
-                    this.showNewCardForm(isShow);
-                    this.showCvcForm(!isShow);
-                });
-
                 $("input[value=__new_card__]").prop('checked', true);
-            },
-
-            getRecaptchaId() {
-                let id = $('.airwallex-card-container .g-recaptcha').attr('id');
-                if (id) {
-                    return id;
-                }
-                if ($('#recaptcha-checkout-place-order').length) {
-                    return this.recaptchaId;
-                }
-                return '';
             },
 
             initiateOrderPlacement: async function () {
@@ -135,50 +120,8 @@ define(
                 self.placeOrder();
             },
 
-            initCvcForm: function() {
-                if (!this.getCustomerId() || this.cvcElement) {
-                    return;
-                }
-
-                Airwallex.init({
-                    env: window.checkoutConfig.payment.airwallex_payments.mode,
-                    origin: window.location.origin,
-                    fonts: this.fonts
-                });
-
-                this.cvcElement = Airwallex.createElement('cvc');
-                this.cvcElement.mount(this.cvcMountElement, {autoCapture: this.autoCapture});
-            },
-
-            loadSavedCards: async function () {
-                const savedCards = await storage.get(urlBuilder.createUrl('/airwallex/saved_cards', {}));
-
-                if (savedCards && savedCards.length) {
-                    savedCards.forEach((consent) => {
-                        const l4Pad = consent.card_brand.toLowerCase() === 'american express' ? '**** ******* *' : '**** **** **** ';
-
-                        this.savedCards.push({
-                            consent_id: consent.id,
-                            brand: consent.card_brand,
-                            expiry: '('+consent.card_expiry_month + '/' + consent.card_expiry_year.substring(2)+')',
-                            last4: l4Pad + consent.card_last_four,
-                            icon: consent.card_icon
-                        });
-                    })
-                }
-            },
-
-            getSelectedSavedCard: function () {
-                const selectedConsentId = $('input[name="airwallex-selected-card"]:checked').val();
-
-                if (!selectedConsentId || selectedConsentId === '__new_card__') {
-                    return null;
-                }
-
-                return selectedConsentId;
-            },
-
             isCardVaultActive() {
+                if (!customer.isLoggedIn()) return false;
                 return window.checkoutConfig.payment.airwallex_payments.is_card_vault_active;
             },
 
@@ -231,10 +174,10 @@ define(
 
                                 if (recaptchaRegistry) {
                                     payload.xReCaptchaValue = await new Promise((resolve, reject) => {
-                                        recaptchaRegistry.addListener(self.getRecaptchaId(), (token) => {
+                                        recaptchaRegistry.addListener(utils.getRecaptchaId(), (token) => {
                                             resolve(token);
                                         });
-                                        recaptchaRegistry.triggers[self.getRecaptchaId()]();
+                                        recaptchaRegistry.triggers[utils.getRecaptchaId()]();
                                     });
                                 }
                             }
@@ -243,23 +186,7 @@ define(
                                 serviceUrl, JSON.stringify(payload), true, 'application/json', headers
                             );
 
-                            const selectedConsentId = self.getSelectedSavedCard();
-                            if (selectedConsentId) {
-                                const response = await Airwallex.confirmPaymentIntent({
-                                    intent_id: intentResponse.intent_id,
-                                    client_secret: intentResponse.client_secret,
-                                    payment_consent_id: selectedConsentId,
-                                    element: self.isCvcRequired ? self.cvcElement : undefined,
-                                    payment_method: {
-                                        billing: self.getBillingInformation()
-                                    },
-                                    payment_method_options: {
-                                        card: {
-                                            auto_capture: self.autoCapture
-                                        }
-                                    },
-                                });
-                            } else if (self.isSaveCardSelected() && self.getCustomerId()) {
+                            if (self.isSaveCardSelected() && self.getCustomerId()) {
                                 await Airwallex.createPaymentConsent({
                                     intent_id: intentResponse.intent_id,
                                     customer_id: self.getCustomerId(),
@@ -292,22 +219,7 @@ define(
                             reject(e);
                         }
                     })).then(function (response) {
-                        const clearData = {
-                            'selectedShippingAddress': null,
-                            'shippingAddressFromData': null,
-                            'newCustomerShippingAddress': null,
-                            'selectedShippingRate': null,
-                            'selectedPaymentMethod': null,
-                            'selectedBillingAddress': null,
-                            'billingAddressFromData': null,
-                            'newCustomerBillingAddress': null
-                        };
-
-                        if (response && response.responseType !== 'error') {
-                            customerData.set('checkout-data', clearData);
-                            customerData.invalidate(['cart']);
-                            customerData.reload(['cart'], true);
-                        }
+                        utils.clearDataAfterPay(response, customerData)
 
                         self.afterPlaceOrder();
 
@@ -315,7 +227,7 @@ define(
                             redirectOnSuccessAction.execute();
                         }
                     }).catch(
-                        self.processPlaceOrderError.bind(self)
+                        utils.processPlaceOrderError.bind(self)
                     ).finally(
                         function () {
                             $('body').trigger('processStop');
@@ -331,23 +243,6 @@ define(
                 }
 
                 return false;
-            },
-
-            processPlaceOrderError: function (response) {
-                $('body').trigger('processStop');
-
-                if (response && response.getResponseHeader) {
-                    errorProcessor.process(response, this.messageContainer);
-                    const redirectURL = response.getResponseHeader('errorRedirectAction');
-
-                    if (redirectURL) {
-                        setTimeout(function () {
-                            errorProcessor.redirectTo(redirectURL);
-                        }, 3000);
-                    }
-                } else if (response && response.message) {
-                    this.validationError(response.message);
-                }
             },
         });
     });
