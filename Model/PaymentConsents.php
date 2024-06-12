@@ -251,8 +251,9 @@ class PaymentConsents implements PaymentConsentsInterface
         foreach ($cloudCards as $index => $cloudCard) {
             if (empty($dbCards[$index])) {
                 if ($token = $this->tokenManagement->getByGatewayToken($index, Vault::CODE, $customerId)) {
-                    $token->setIsActive(true)->setIsVisible(true);
-                    $this->tokenRepository->save($token);
+                    if ($token) {
+                        $this->disablePaymentConsent($customerId, $index);
+                    }
                     continue;
                 }
                 $token = $this->tokenFactory->create();
