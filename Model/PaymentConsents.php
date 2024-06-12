@@ -29,6 +29,7 @@ use Airwallex\Payments\Model\Client\Request\RetrieveCustomerClientSecret;
 use Airwallex\Payments\Api\Data\ClientSecretResponseInterfaceFactory;
 use Airwallex\Payments\Api\Data\ClientSecretResponseInterface;
 use Magento\Framework\Encryption\EncryptorInterface;
+use Airwallex\Payments\Model\Client\Request\RetrieveCustomer;
 
 class PaymentConsents implements PaymentConsentsInterface
 {
@@ -49,6 +50,7 @@ class PaymentConsents implements PaymentConsentsInterface
     private PaymentTokenManagement $tokenManagement;
     private RetrieveCustomerClientSecret $retrieveCustomerClientSecret;
     private ClientSecretResponseInterfaceFactory $clientSecretResponseFactory;
+    private RetrieveCustomer $retrieveCustomer;
 
     public function __construct(
         CreateCustomer $createCustomer,
@@ -63,7 +65,8 @@ class PaymentConsents implements PaymentConsentsInterface
         PaymentTokenFactoryInterface $tokenFactory,
         StoreManagerInterface $storeManager,
         RetrieveCustomerClientSecret $retrieveCustomerClientSecret,
-        ClientSecretResponseInterfaceFactory $clientSecretResponseFactory
+        ClientSecretResponseInterfaceFactory $clientSecretResponseFactory,
+        RetrieveCustomer $retrieveCustomer
     ) {
         $this->createCustomer = $createCustomer;
         $this->paymentConsentList = $paymentConsentList;
@@ -78,6 +81,7 @@ class PaymentConsents implements PaymentConsentsInterface
         $this->storeManager = $storeManager;
         $this->retrieveCustomerClientSecret = $retrieveCustomerClientSecret;
         $this->clientSecretResponseFactory = $clientSecretResponseFactory;
+        $this->retrieveCustomer = $retrieveCustomer;
     }
 
     public function generateAirwallexCustomerId($customer)
@@ -106,15 +110,58 @@ class PaymentConsents implements PaymentConsentsInterface
             return '';
         }
 
-        try {
-            $airwallexCustomerId = $this->createCustomer->setMagentoCustomerId($this->generateAirwallexCustomerId($customer))->send();
-        } catch (Exception $e) {
-            return '';
+        $airwallexCustomerId = $this->tryFindCustomerInVault($customer);
+        if (!$airwallexCustomerId) {
+            try {
+                $airwallexCustomerId = $this->createCustomer->setMagentoCustomerId($this->generateAirwallexCustomerId($customer))->send();
+            } catch (Exception $e) {
+                return '';
+            }
         }
 
         $this->updateCustomerId($customer, $airwallexCustomerId);
 
         return $airwallexCustomerId;
+    }
+
+    /**
+     * @param CustomerInterface $customer
+     * @return string
+     * @throws GuzzleException
+     * @throws JsonException
+     * @throws LocalizedException
+     * @throws NoSuchEntityException
+     */
+    private function tryFindCustomerInVault($customer) {
+        $customerId = $customer->getId();
+        $tokens = $this->tokenManagement->getListByCustomerId($customerId) ?: array();
+        $ids = array();
+        foreach ($tokens as $token) {
+            $items = $token->getItems();
+            if (empty($items)) {
+                continue;
+            }
+            foreach($items as $item) {
+                $detail = $item->getTokenDetails();
+                $arr = json_decode($detail, true);
+                if (!empty($arr['customer_id'])) {
+                    $ids[$arr['customer_id']] = true;
+                }
+            }
+        }
+        $ids = array_keys($ids);
+        foreach ($ids as $id) {
+            try {
+                $this->retrieveCustomer->setAirwallexCustomerId($id)->send();
+                return $id;
+            } catch (Exception $e) {
+                if ($this->retrieveCustomer::NOT_FOUND === $e->getMessage()) {
+                    continue;
+                }
+                throw $e;
+            }
+        }
+        return '';
     }
 
     /**
@@ -248,12 +295,19 @@ class PaymentConsents implements PaymentConsentsInterface
 
         $code = Vault::CODE;
         $type = 'card';
+
+        $customer = $this->customerRepository->getById($customerId);
+        $airwallexCustomerIdAttribute = $customer->getCustomAttribute(self::KEY_AIRWALLEX_CUSTOMER_ID);
+
+        $airwallexCustomerId = '';
+        if ($airwallexCustomerIdAttribute && $airwallexCustomerIdAttribute->getValue()) {
+            $airwallexCustomerId = $airwallexCustomerIdAttribute->getValue();
+        }
+
         foreach ($cloudCards as $index => $cloudCard) {
             if (empty($dbCards[$index])) {
                 if ($token = $this->tokenManagement->getByGatewayToken($index, Vault::CODE, $customerId)) {
-                    if ($token) {
-                        $this->disablePaymentConsent($customerId, $index);
-                    }
+                    $this->disablePaymentConsent($customerId, $index);
                     continue;
                 }
                 $token = $this->tokenFactory->create();
@@ -266,6 +320,7 @@ class PaymentConsents implements PaymentConsentsInterface
                     'type' => $cloudCard['card_brand'],
                     'icon' => $cloudCard['card_icon'],
                     'id' => $index,
+                    'customer_id' => $airwallexCustomerId,
                     'maskedCC' => $cloudCard['card_last_four'],
                     'expirationDate' => $cloudCard['card_expiry_month'] . '/' . $cloudCard['card_expiry_year'],
                 ]);
