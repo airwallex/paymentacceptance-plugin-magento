@@ -188,3 +188,7 @@
 .airwallex-express-checkout {
     margin-top: 10px;
 }
+
+.table-credit-cards td {
+    vertical-align: middle;
+}
