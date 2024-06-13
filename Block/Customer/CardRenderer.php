@@ -74,12 +74,12 @@ class CardRenderer extends AbstractTokenRenderer implements CardRendererInterfac
 
     public function getBrand() 
     {
-        return $this->getTokenDetails()['type'];
+        return $this->getTokenDetails()['type'] ?? '';
     }
 
     public function cardCustomerId() 
     {
-        return $this->getTokenDetails()['customer_id'];
+        return $this->getTokenDetails()['customer_id'] ?? '';
     }
 
     public function currentCustomerId() 
@@ -94,7 +94,7 @@ class CardRenderer extends AbstractTokenRenderer implements CardRendererInterfac
      */
     public function getExpDate(): string
     {
-        return $this->getTokenDetails()['expirationDate'];
+        return $this->getTokenDetails()['expirationDate'] ?? '';
     }
     
     /**
@@ -104,7 +104,7 @@ class CardRenderer extends AbstractTokenRenderer implements CardRendererInterfac
      */
     public function icon() 
     {
-        return $this->getIconForType($this->convertCcType($this->getTokenDetails()['type']));
+        return $this->getIconForType($this->convertCcType($this->getBrand()));
     }
 
     /**
