@@ -155,20 +155,22 @@ class Webhook
             $history->getComment();
             if (strstr($history->getComment(), $log)) return;
         }
-        $resp = $this->intentGet->setPaymentIntentId($id)->send();
+        try {
+            $resp = $this->intentGet->setPaymentIntentId($id)->send();
 
-        $respArr = json_decode($resp, true);
-        $brand = $respArr['latest_payment_attempt']['payment_method']['card']['brand'] ?? '';
-        if ($brand) $brand = ' Card Brand: ' . strtoupper($brand) . '.';
-        $last4 = $respArr['latest_payment_attempt']['payment_method']['card']['last4'] ?? '';
-        if ($last4) $last4 = ' Card Last Digits: ' . $last4 . '.';
-        $avs_check = $respArr['latest_payment_attempt']['authentication_data']['avs_result'] ?? '';
-        if ($avs_check) $avs_check = ' AVS Result: ' . $avs_check . '.';
-        $cvc_check = $respArr['latest_payment_attempt']['authentication_data']['cvc_result'] ?? '';
-        if ($cvc_check) $cvc_check = ' CVC Result: ' . $cvc_check . '.';
-        $log .= $brand . $last4 . $avs_check . $cvc_check;
-        if ($log === $src) return;
-        $order->addCommentToStatusHistory(__($log));
-        $this->orderRepository->save($order);
+            $respArr = json_decode($resp, true);
+            $brand = $respArr['latest_payment_attempt']['payment_method']['card']['brand'] ?? '';
+            if ($brand) $brand = ' Card Brand: ' . strtoupper($brand) . '.';
+            $last4 = $respArr['latest_payment_attempt']['payment_method']['card']['last4'] ?? '';
+            if ($last4) $last4 = ' Card Last Digits: ' . $last4 . '.';
+            $avs_check = $respArr['latest_payment_attempt']['authentication_data']['avs_result'] ?? '';
+            if ($avs_check) $avs_check = ' AVS Result: ' . $avs_check . '.';
+            $cvc_check = $respArr['latest_payment_attempt']['authentication_data']['cvc_result'] ?? '';
+            if ($cvc_check) $cvc_check = ' CVC Result: ' . $cvc_check . '.';
+            $log .= $brand . $last4 . $avs_check . $cvc_check;
+            if ($log === $src) return;
+            $order->addCommentToStatusHistory(__($log));
+            $this->orderRepository->save($order);
+        } catch (\Exception $e) {}
     }
 }

@@ -1,4 +1,4 @@
-<div class="payment-method" css="'_active': isActive()">
+<div class="payment-method" css="'_active': isActive()" data-bind="visible: isAirwallexCustomerIdSame()">
     <div class="payment-method-title field choice">
         <input type="radio"
                name="payment[method]"

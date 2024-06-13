@@ -1,0 +1,56 @@
+<?php
+
+use Magento\Framework\View\Element\Template;
+use Magento\Vault\Api\Data\PaymentTokenInterface;
+use Magento\Vault\Block\CardRendererInterface;
+
+/** @var CardRendererInterface|Template $block */
+
+$ccNumberView = $block->getNumberLast4Digits();
+$brand = $block->getBrand();
+$cardCustomerId = $block->cardCustomerId();
+$currentCustomerId = $block->currentCustomerId();
+?>
+<?php if ($cardCustomerId === $currentCustomerId) {?>
+<tr>
+    <td data-th="<?= __('Card Number') ?>" class="col card-number">
+        <span><?= __('ending') ?></span> <?= /* @noEscape */ $ccNumberView ?>
+    </td>
+    <td data-th="<?= __('Expiration Date') ?>" class="col card-expire">
+        <?= $block->getExpDate() ?>
+    </td>
+    <td data-th="<?= __('Type') ?>" class="col card-type">
+        <img src="<?= /* @noEscape */ $block->getIconUrl() ?>"
+             width="<?= /* @noEscape */ $block->getIconWidth() ?>"
+             height="<?= /* @noEscape */ $block->getIconHeight() ?>"
+        >
+    </td>
+    <td data-th="<?= __('Actions') ?>" class="col actions">
+        <form
+            class="form"
+            action="<?= $block->getUrl('vault/cards/deleteaction') ?>"
+            method="post"
+            >
+            <?= $block->getBlockHtml('formkey') ?>
+            <input
+                name="<?= /* @noEscape */ PaymentTokenInterface::PUBLIC_HASH ?>"
+                value="<?= /* @noEscape */ $block->getToken()->getPublicHash() ?>"
+                type="hidden"/>
+            <button type="submit"
+                    class="action delete"
+                    data-id='<?= $block->getToken()->getGatewayToken() ?>'
+                    data-mage-init='{
+                                    "Airwallex_Payments/js/customer_account/deleteWidget":{
+                                        "type": "popup",
+                                        "modalClass": "my-credit-cards-popup",
+                                        "toggleEvent": "click",
+                                        "title": "<?= __('Delete') ?>",
+                                        "content": "<?= __('You are deleting your saved %1 card ending in %2.', $brand, $ccNumberView) ?>"
+                                    }
+                                }'>
+                <span><?= __('Delete') ?></span>
+            </button>
+        </form>
+    </td>
+</tr>
+<?php } ?>

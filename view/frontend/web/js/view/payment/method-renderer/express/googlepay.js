@@ -19,7 +19,10 @@ define([
 
         create(that) {
             this.googlepay = Airwallex.createElement('googlePayButton', this.getRequestOptions());
-            this.googlepay.mount('awx-google-pay-' + this.from);
+            let el = this.googlepay.mount('awx-google-pay-' + this.from);
+            el.addEventListener('onReady', (event) => {
+                utils.initCheckoutPageExpressCheckoutClick();
+            });
             this.attachEvents(that);
             utils.loadRecaptcha(that.isShowRecaptcha);
         },

@@ -120,10 +120,10 @@ define([
         initCheckoutPageExpressCheckoutClick() {
             if (this.isCheckoutPage() && !this.isLoggedIn() && this.expressData.is_virtual) {
                 this.checkGuestEmailInput();
-                $(this.guestEmailSelector).on('input', () => {
+                $(this.guestEmailSelector).off('input.awx').on('input.awx', () => {
                     this.checkGuestEmailInput();
                 });
-                $(this.buttonMaskSelector).on('click', (e) => {
+                $(this.buttonMaskSelector).off('click.awx').on('click.awx', (e) => {
                     e.stopPropagation();
                     $($(this.guestEmailSelector).closest('form')).valid();
                     this.checkGuestEmailInput();

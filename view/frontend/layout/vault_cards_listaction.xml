@@ -2,7 +2,7 @@
     <body>
         <referenceContainer name="content">
             <referenceBlock name="vault.cards.list">
-                <block class="Airwallex\Payments\Block\Customer\CardRenderer" name="airwallex.card.renderer" template="Magento_Vault::customer_account/credit_card.phtml"/>
+                <block class="Airwallex\Payments\Block\Customer\CardRenderer" name="airwallex.card.renderer" template="Airwallex_Payments::customer/credit_card.phtml"/>
             </referenceBlock>
         </referenceContainer>
     </body>

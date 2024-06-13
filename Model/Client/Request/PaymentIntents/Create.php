@@ -49,7 +49,9 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
 
         if ($customer
             && $airwallexCustomerIdAttr = $customer->getCustomAttribute(PaymentConsents::KEY_AIRWALLEX_CUSTOMER_ID)) {
-            $params['customer_id'] = $airwallexCustomerIdAttr->getValue();
+            if ($airwallexCustomerIdAttr->getValue()) {
+                $params['customer_id'] = $airwallexCustomerIdAttr->getValue();
+            }
         }
 
         return $this->setParams($params);

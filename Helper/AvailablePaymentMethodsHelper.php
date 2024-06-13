@@ -149,7 +149,11 @@ class AvailablePaymentMethodsHelper
         $methods = $this->cache->load($this->availablePaymentMethod->cacheName);
 
         if (!$methods) {
-            $this->fetch();
+            try {
+                $this->fetch();
+            } catch (\Exception $e) {
+
+            }
             $methods = $this->cache->load($this->availablePaymentMethod->cacheName);
         }
         return json_decode($methods, true);

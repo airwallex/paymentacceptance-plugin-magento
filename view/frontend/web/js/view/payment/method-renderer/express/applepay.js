@@ -31,7 +31,10 @@ define([
 
         create(that) {
             this.applepay = Airwallex.createElement('applePayButton', this.getRequestOptions());
-            this.applepay.mount('awx-apple-pay-' + this.from);
+            let el = this.applepay.mount('awx-apple-pay-' + this.from);
+            el.addEventListener('onReady', (event) => {
+                utils.initCheckoutPageExpressCheckoutClick();
+            });
             this.attachEvents(that);
             utils.loadRecaptcha(that.isShowRecaptcha);
         },

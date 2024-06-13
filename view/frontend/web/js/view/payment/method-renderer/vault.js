@@ -121,6 +121,10 @@ define([
             return addressHandler.intentConfirmBillingAddressFromOfficial;
         },
 
+        isAirwallexCustomerIdSame() {
+            return this.details.customer_id === window.checkoutConfig.payment.airwallex_payments.airwallex_customer_id;
+        },
+
         initCvcForm: function (id) {
             $('body').trigger('processStart');
             if (this.cvcElement) this.cvcElement.destroy();

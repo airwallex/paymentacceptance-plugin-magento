@@ -1,27 +1,10 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit,
- * Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information,
- * please view the LICENSE
- * file that was distributed with this source code.
- */
 
 namespace Airwallex\Payments\Model\Ui;
 
 use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
 use Airwallex\Payments\Helper\Configuration;
-use Airwallex\Payments\Model\PaymentConsents;
 use Magento\Checkout\Model\ConfigProviderInterface;
 use Magento\Customer\Model\Session;
 use Magento\Framework\Exception\InputException;
@@ -111,8 +94,7 @@ class ConfigProvider implements ConfigProviderInterface
 
     private function getAirwallexCustomerId(): string {
         $customer = $this->customerRepository->getById($this->customerSession->getId());
-        $airwallexCustomerId = $customer->getCustomAttribute(PaymentConsents::KEY_AIRWALLEX_CUSTOMER_ID);
-
+        $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($this->customerSession->getId());
         /**
          * database has no airwallex customer id
          *     create
@@ -124,19 +106,19 @@ class ConfigProvider implements ConfigProviderInterface
          *             throw Exception
          *     return airwallex customer id
         */
-        if (!$airwallexCustomerId || !$airwallexCustomerId->getValue()) {
+        if (!$airwallexCustomerId) {
             return $this->paymentConsents->createAirwallexCustomer($customer);
         }
 
         try {
-            $this->retrieveCustomer->setAirwallexCustomerId($airwallexCustomerId->getValue())->send();
+            $this->retrieveCustomer->setAirwallexCustomerId($airwallexCustomerId)->send();
         } catch (Exception $e) {
             if ($this->retrieveCustomer::NOT_FOUND === $e->getMessage()) {
                 return $this->paymentConsents->createAirwallexCustomer($customer);
             }
-            throw $e;
+            return '';
         }
-        return $airwallexCustomerId->getValue();
+        return $airwallexCustomerId;
     }
 
     /**
