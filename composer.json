@@ -7,7 +7,7 @@
         "ext-json": "*",
         "php": "^7.4|^8.0",
         "magento/module-re-captcha-webapi-api": "^1.0.0",
-        "magento/module-vault": "^100.1.0",
+        "magento/module-vault": "^100.1.0 || ^101.0.0",
         "mobiledetect/mobiledetectlib": "^2.8"
     },
     "autoload": {
