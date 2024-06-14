@@ -69,7 +69,7 @@ class CardRenderer extends AbstractTokenRenderer implements CardRendererInterfac
      */
     public function getNumberLast4Digits(): string
     {
-        return $this->getTokenDetails()['maskedCC'];
+        return $this->getTokenDetails()['maskedCC'] ?? '';
     }
 
     public function getBrand() 
@@ -114,7 +114,7 @@ class CardRenderer extends AbstractTokenRenderer implements CardRendererInterfac
      */
     public function getIconUrl(): string
     {
-        return $this->icon()['url'];
+        return $this->icon()['url'] ?? '';
     }
 
     /**
@@ -124,7 +124,7 @@ class CardRenderer extends AbstractTokenRenderer implements CardRendererInterfac
      */
     public function getIconHeight(): int
     {
-        return $this->icon()['height'];
+        return $this->icon()['height'] ?? '';
     }
 
     /**
@@ -134,7 +134,7 @@ class CardRenderer extends AbstractTokenRenderer implements CardRendererInterfac
      */
     public function getIconWidth(): int
     {
-        return $this->icon()['width'];
+        return $this->icon()['width'] ?? '';
     }
 
     /**
