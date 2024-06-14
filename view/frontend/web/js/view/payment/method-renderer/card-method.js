@@ -66,7 +66,6 @@ define(
             isRecaptchaEnabled: !!window.checkoutConfig.payment.airwallex_payments.recaptcha_enabled,
             autoCapture: !!window.checkoutConfig.payment.airwallex_payments.cc_auto_capture,
             maxWidth: window.checkoutConfig.payment.airwallex_payments.card_max_width,
-            fontSize: window.checkoutConfig.payment.airwallex_payments.card_fontsize,
             defaults: {
                 template: 'Airwallex_Payments/payment/card-method'
             },
@@ -91,11 +90,19 @@ define(
             },
 
             initPayment: async function() {
+                let fontSize =  window.checkoutConfig.payment.airwallex_payments.card_fontsize;
+                if (window.airwallex_card_fontsize) {
+                    fontSize = parseInt(window.airwallex_card_fontsize);
+                    let min = 12;
+                    let max = 20;
+                    fontSize = fontSize < min ? min : fontSize;
+                    fontSize = fontSize > max ? max : fontSize;
+                }
                 this.cardElement = Airwallex.createElement('card', {
                     autoCapture: this.autoCapture,
                     style: {
                         base: {
-                            fontSize: this.fontSize + 'px',
+                            fontSize: fontSize + 'px',
                         }
                     }                       
                 });
