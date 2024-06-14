@@ -95,7 +95,7 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
         }
 
         return [
-            'fist_name' => $shippingAddress->getName(),
+            'first_name' => $shippingAddress->getFirstname(),
             'last_name' => $shippingAddress->getLastname(),
             'phone_number' => $shippingAddress->getTelephone(),
             'shipping_method' => $shippingAddress->getShippingMethod(),
@@ -104,7 +104,7 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
                 'country_code' => $shippingAddress->getCountryId(),
                 'postcode' => $shippingAddress->getPostcode(),
                 'state' => $shippingAddress->getRegion(),
-                'street' => current($shippingAddress->getStreet()),
+                'street' => implode(', ', $shippingAddress->getStreet()),
             ]
         ];
     }
