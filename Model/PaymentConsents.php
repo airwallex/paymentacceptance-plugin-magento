@@ -328,7 +328,8 @@ class PaymentConsents implements PaymentConsentsInterface
         foreach ($tokens as $token) {
             $detail = $token->getTokenDetails();
             $arr = json_decode($detail, true);
-            if (empty($cloudCards[$token->getGatewayToken()]) && $arr['customer_id'] === $airwallexCustomerId) {
+            $tokenAirwallexCustomerId = $arr['customer_id'] ?? '';
+            if (empty($cloudCards[$token->getGatewayToken()]) && $tokenAirwallexCustomerId === $airwallexCustomerId) {
                 $this->tokenRepository->delete($token);
                 continue;
             }

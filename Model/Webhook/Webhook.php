@@ -150,7 +150,7 @@ class Webhook
         if (!$histories) {
             return;
         }
-        $log = $src = '[Address Verification Result] ';
+        $log = $src = '[Verification] ';
         foreach ($histories as $history) {
             $history->getComment();
             if (strstr($history->getComment(), $log)) return;
