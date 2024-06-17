@@ -26,13 +26,13 @@ define([
                         url: removeUrl,
                         method: 'DELETE',
                         success: (function() {
+                            $(deleteButton.form).trigger('submit');
                         }).bind(this),
                         error: function(xhr, status, error) {
                             $('body').trigger('processStop');
                             $('.modal-content div').html('');
                         }
                     });
-                    $(deleteButton.form).trigger('submit');
                 }
             }
         ];
