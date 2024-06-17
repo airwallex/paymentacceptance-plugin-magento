@@ -26,7 +26,7 @@ $currentCustomerId = $block->currentCustomerId();
         >
     </td>
     <td data-th="<?= __('Actions') ?>" class="col actions">
-        <form
+        <form id="form-<?= $block->getToken()->getGatewayToken() ?>"
             class="form"
             action="<?= $block->getUrl('vault/cards/deleteaction') ?>"
             method="post"
@@ -36,21 +36,56 @@ $currentCustomerId = $block->currentCustomerId();
                 name="<?= /* @noEscape */ PaymentTokenInterface::PUBLIC_HASH ?>"
                 value="<?= /* @noEscape */ $block->getToken()->getPublicHash() ?>"
                 type="hidden"/>
-            <button type="submit"
-                    class="action delete"
-                    data-id='<?= $block->getToken()->getGatewayToken() ?>'
-                    data-mage-init='{
-                                    "Airwallex_Payments/js/customer_account/deleteWidget":{
-                                        "type": "popup",
-                                        "modalClass": "my-credit-cards-popup",
-                                        "toggleEvent": "click",
-                                        "title": "<?= __('Delete') ?>",
-                                        "content": "<?= __('You are deleting your saved %1 card ending in %2.', $brand, $ccNumberView) ?>"
-                                    }
-                                }'>
+            <button type="button" id="delete-<?= $block->getToken()->getGatewayToken() ?>" class="action delete">
                 <span><?= __('Delete') ?></span>
             </button>
         </form>
     </td>
 </tr>
 <?php } ?>
+<script type="text/javascript">
+    require([
+        'jquery',
+        'mage/url'
+    ], function ($, url) {
+        $(document).ready(function() {
+            let id = '<?= $block->getToken()->getGatewayToken() ?>';
+            $(document).on('click', '#delete-' + id, function (event) {
+                event.preventDefault();
+                $.mage.confirm({
+                    title: $.mage.__('Delete saved card'),
+                    buttons: [{
+                        text: $.mage.__('Delete'),
+                        class: 'action-primary action-accept',
+                        click: function() {
+                            $('body').trigger('processStart');
+                            this.closeModal(event, true);
+                            let removeUrl = url.build('rest/V1/airwallex/saved_cards/') + id;
+
+                            $.ajax({
+                                url: removeUrl,
+                                method: 'DELETE',
+                                success: (function() {
+                                    $('#form-' + id).trigger('submit');
+                                }).bind(this),
+                                error: function(xhr, status, error) {
+                                    $('body').trigger('processStop');
+                                    $('.modal-content div').html('');
+                                }
+                            });
+                        }
+                    }, {
+                        text: $.mage.__('Cancel'),
+                        click: function(event) {
+                            this.closeModal(event, true);
+                            $('.modal-content div').html('');
+                        }
+                    }]
+                });
+                let msg = 'You are deleting your saved <?=$brand?> card ending in <?=$ccNumberView?>.';
+                $('.modal-content div').html($.mage.__(msg));
+
+            });
+        });
+    });
+</script>
