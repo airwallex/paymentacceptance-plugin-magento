@@ -1,18 +1,4 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
 
 namespace Airwallex\Payments\Model;
 
@@ -138,5 +124,22 @@ class SavedPaymentResponse extends DataObject implements SavedPaymentResponseInt
     public function setCardIcon(string $icon = null)
     {
         return $this->setData(self::DATA_KEY_CARD_ICON, $icon);
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getNextTriggeredBy()
+    {
+        return $this->getData(self::DATA_KEY_NEXT_TRIGGERED_BY);
+    }
+
+    /**
+     * @param string|null $nextTriggeredBy
+     * @return $this
+     */
+    public function setNextTriggeredBy(string $nextTriggeredBy = null)
+    {
+        return $this->setData(self::DATA_KEY_NEXT_TRIGGERED_BY, $nextTriggeredBy);
     }
 }
