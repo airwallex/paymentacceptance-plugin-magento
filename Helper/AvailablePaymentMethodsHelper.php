@@ -156,6 +156,9 @@ class AvailablePaymentMethodsHelper
             }
             $methods = $this->cache->load($this->availablePaymentMethod->cacheName);
         }
+        if (!$methods) {
+            return [];
+        }
         return json_decode($methods, true);
     }
 

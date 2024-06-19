@@ -154,7 +154,7 @@ class GetList extends AbstractClient implements BearerAuthenticationInterface
             $savedPayment = $this->savedPaymentResponseFactory->create();
             $savedPayment->setData([
                 SavedPaymentResponseInterface::DATA_KEY_ID => $item->id,
-                SavedPaymentResponseInterface::DATA_KEY_CARD_BRAND => $cards[$iconIndex]['display_name'],
+                SavedPaymentResponseInterface::DATA_KEY_CARD_BRAND => $iconIndex,
                 SavedPaymentResponseInterface::DATA_KEY_CARD_EXPIRY_MONTH => $item->payment_method->card->expiry_month,
                 SavedPaymentResponseInterface::DATA_KEY_CARD_EXPIRY_YEAR => $item->payment_method->card->expiry_year,
                 SavedPaymentResponseInterface::DATA_KEY_CARD_LAST_FOUR => $item->payment_method->card->last4,
