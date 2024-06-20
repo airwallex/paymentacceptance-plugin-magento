@@ -238,6 +238,14 @@ abstract class AbstractClient
             'php_version' => phpversion(),
             'magento_version' => $this->productMetada->getVersion(),
             'plugin_version' => $this->moduleList->getOne(Configuration::MODULE_NAME)['setup_version'],
+            'is_card_active' => $this->configuration->isCardActive() ?? false,
+            'is_card_capture_enabled' => $this->configuration->isCardCaptureEnabled() ?? false,
+            'is_card_vault_active' => $this->configuration->isCardVaultActive() ?? false,
+            'is_express_active' => $this->configuration->isExpressActive() ?? false,
+            'is_express_capture_enabled' => $this->configuration->isExpressCaptureEnabled() ?? false,
+            'express_display_area' => $this->configuration->expressDisplayArea() ?? '',
+            'is_request_logger_enable' => $this->configuration->isRequestLoggerEnable() ?? false,
+            'express_checkout' => $this->configuration->getCheckout() ?? '',
         ];
     }
 
