@@ -665,8 +665,9 @@ class Service implements ServiceInterface
         $resp = $this->intentGet->setPaymentIntentId($id)->send();
 
         $respArr = json_decode($resp, true);
+        $quote = $this->checkoutHelper->getQuote();
         $okStatus = [$this->intentGet::INTENT_STATUS_SUCCESS, $this->intentGet::INTENT_STATUS_REQUIRES_CAPTURE];
-        if (!in_array($respArr['status'], $okStatus, true)) {
+        if (!in_array($respArr['status'], $okStatus, true) || $respArr['merchant_order_id'] !== $quote->getReservedOrderId()) {
             $msg = 'Something went wrong while processing your request. Please try again later.';
             throw new Exception(__($msg));
         }
