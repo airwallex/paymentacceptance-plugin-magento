@@ -37,7 +37,7 @@ class CardMethod extends AbstractMethod
             return $this;
         }
 
-        $intentId = $this->getIntentId();
+        $intentId = $this->getIntentId(); // TODO
 
         $order = $payment->getOrder();
 

@@ -2,25 +2,15 @@
 define([
     'ko',
     'jquery',
-    'mage/storage',
     'Magento_Vault/js/view/payment/method-renderer/vault',
     'Magento_Checkout/js/model/quote',
-    'mage/url',
-    'Magento_Customer/js/customer-data',
-    'Magento_Checkout/js/model/payment/place-order-hooks',
-    'Magento_Customer/js/model/customer',
     'Airwallex_Payments/js/view/payment/utils',
     'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler'
 ], function (
     ko,
     $,
-    storage,
     VaultComponent,
     quote,
-    urlBuilder,
-    customerData,
-    placeOrderHooks,
-    customer,
     utils,
     addressHandler
 ) {
@@ -158,82 +148,7 @@ define([
                 return
             }
 
-            $('body').trigger('processStart');
-
-            const payload = {
-                cartId: quote.getQuoteId(),
-                billingAddress: quote.billingAddress(),
-                paymentMethod: {
-                    method: 'airwallex_payments_card',
-                    additional_data: {},
-                },
-            };
-
-            let serviceUrl = urlBuilder.build('rest/V1/airwallex/payments/guest-place-order');
-            if (customer.isLoggedIn()) {
-                serviceUrl = urlBuilder.build('rest/V1/airwallex/payments/place-order');
-                payload.email = quote.guestEmail;
-            }
-
-            let headers = {};
-            _.each(placeOrderHooks.requestModifiers, function (modifier) {
-                modifier(headers, payload);
-            });
-
-            payload.intent_id = null;
-
-            (new Promise(async function (resolve, reject) {
-                try {
-                    if (self.isRecaptchaEnabled) {
-                        let recaptchaRegistry = require('Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry');
-                        if (recaptchaRegistry) {
-                            payload.xReCaptchaValue = await new Promise((resolve, reject) => {
-                                recaptchaRegistry.addListener(utils.getRecaptchaId(), (token) => {
-                                    resolve(token);
-                                });
-                                recaptchaRegistry.triggers[utils.getRecaptchaId()]();
-                            });
-                        }
-                    }
-
-                    const intentResponse = await storage.post(
-                        serviceUrl, JSON.stringify(payload), true, 'application/json', headers
-                    );
-
-                    const selectedConsentId = $("#v-" + $('input[name="payment[method]"]:checked').val()).val();
-                    const response = await Airwallex.confirmPaymentIntent({
-                        intent_id: intentResponse.intent_id,
-                        client_secret: intentResponse.client_secret,
-                        payment_consent_id: selectedConsentId,
-                        element: self.cvcElement,
-                        payment_method: {
-                            billing: self.getBillingInformation()
-                        },
-                        payment_method_options: {
-                            card: {
-                                auto_capture: self.autoCapture
-                            }
-                        },
-                    });
-
-                    payload.intent_id = intentResponse.intent_id;
-                    payload.paymentMethod.additional_data.intent_id = intentResponse.intent_id;
-
-                    const endResult = await storage.post(
-                        serviceUrl, JSON.stringify(payload), true, 'application/json', headers
-                    );
-
-                    resolve(endResult);
-                } catch (e) {
-                    reject(e);
-                }
-            })).then(function (response) {
-                utils.clearDataAfterPay(response, customerData)
-
-                window.location.replace(urlBuilder.build('checkout/onepage/success/'));
-            }).catch(
-                utils.processPlaceOrderError.bind(self)
-            );
+            utils.pay(self, 'vault', quote);
         }
     });
 });

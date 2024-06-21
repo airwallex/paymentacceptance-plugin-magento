@@ -105,10 +105,14 @@ class PaymentIntents
      * @throws LocalizedException
      * @throws NoSuchEntityException
      * @throws JsonException
+     * @throws Exception
      */
     public function getIntents(): array
     {
         $quote = $this->checkoutSession->getQuote();
+        if ($quote->getGrandTotal() <= 0) {
+            throw new \Exception('Payment amount must be a positive number.');
+        }
         $cacheKey = $this->getCacheKey($quote);
 
         if ($response = $this->cache->load($cacheKey)) {

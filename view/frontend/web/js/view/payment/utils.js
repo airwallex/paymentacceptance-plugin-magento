@@ -1,22 +1,28 @@
 define([
     'mage/url',
     'jquery',
+    'mage/storage',
     'Magento_Customer/js/model/authentication-popup',
     'Magento_Ui/js/modal/modal',
     'Airwallex_Payments/js/view/payment/recaptcha/webapiReCaptcha',
     'Airwallex_Payments/js/view/payment/recaptcha/webapiReCaptchaRegistry',
     'Magento_Customer/js/customer-data',
     'Magento_Ui/js/modal/alert',
+    'Magento_Customer/js/model/customer',
+    'Magento_Checkout/js/model/payment/place-order-hooks',
     'Magento_Checkout/js/model/error-processor'
 ], function (
     urlBuilder,
     $,
+    storage,
     popup,
     modal,
     webapiReCaptcha,
     webapiRecaptchaRegistry,
     customerData,
     alert,
+    customer,
+    placeOrderHooks,
     errorProcessor
 ) {
     'use strict';
@@ -274,7 +280,7 @@ define([
 
         error(response) {
             let modalSelector = $('#awx-modal');
-            modal({title: 'Error'}, modalSelector);
+            modal({ title: 'Error' }, modalSelector);
 
             $('body').trigger('processStop');
             let errorMessage = $.mage.__(response.message);
@@ -304,5 +310,124 @@ define([
                 this.validationError(response.message);
             }
         },
+
+        pay(self, from, quote) {
+            let that = this;
+            $('body').trigger('processStart');
+
+            const payload = {
+                cartId: quote.getQuoteId(),
+                billingAddress: quote.billingAddress(),
+                paymentMethod: {
+                    method: 'airwallex_payments_card',
+                    additional_data: {},
+                },
+            };
+
+            let serviceUrl = urlBuilder.build('rest/V1/airwallex/payments/guest-place-order');
+            if (customer.isLoggedIn()) {
+                serviceUrl = urlBuilder.build('rest/V1/airwallex/payments/place-order');
+                payload.email = quote.guestEmail;
+            }
+
+            let headers = {};
+            _.each(placeOrderHooks.requestModifiers, function (modifier) {
+                modifier(headers, payload);
+            });
+
+            payload.intent_id = null;
+
+            (new Promise(async function (resolve, reject) {
+                try {
+                    if (self.isRecaptchaEnabled) {
+                        let recaptchaRegistry = require('Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry');
+
+                        if (recaptchaRegistry) {
+                            payload.xReCaptchaValue = await new Promise((resolve, reject) => {
+                                recaptchaRegistry.addListener(that.getRecaptchaId(), (token) => {
+                                    resolve(token);
+                                });
+                                recaptchaRegistry.triggers[that.getRecaptchaId()]();
+                            });
+                        }
+                    }
+
+                    const intentResponse = await storage.post(
+                        serviceUrl, JSON.stringify(payload), true, 'application/json', headers
+                    );
+
+                    let response = {};
+                    if (from === 'vault') {
+                        const selectedConsentId = $("#v-" + $('input[name="payment[method]"]:checked').val()).val();
+                        response = await Airwallex.confirmPaymentIntent({
+                            intent_id: intentResponse.intent_id,
+                            client_secret: intentResponse.client_secret,
+                            payment_consent_id: selectedConsentId,
+                            element: self.cvcElement,
+                            payment_method: {
+                                billing: self.getBillingInformation()
+                            },
+                            payment_method_options: {
+                                card: {
+                                    auto_capture: self.autoCapture
+                                }
+                            },
+                        });
+                    } else {
+                        if (self.isSaveCardSelected() && self.getCustomerId()) {
+                            response = await Airwallex.createPaymentConsent({
+                                intent_id: intentResponse.intent_id,
+                                customer_id: self.getCustomerId(),
+                                client_secret: intentResponse.client_secret,
+                                currency: quote.totals().quote_currency_code,
+                                billing: self.getBillingInformation(),
+                                element: self.cardElement,
+                                next_triggered_by: 'customer',
+                            });
+                        } else {
+                            response = await Airwallex.confirmPaymentIntent({
+                                intent_id: intentResponse.intent_id,
+                                client_secret: intentResponse.client_secret,
+                                payment_method: {
+                                    billing: self.getBillingInformation()
+                                },
+                                element: self.cardElement
+                            });
+                        }
+                    }
+
+                    payload.intent_id = intentResponse.intent_id;
+                    payload.paymentMethod.additional_data.intent_id = intentResponse.intent_id;
+
+                    const endResult = await storage.post(
+                        serviceUrl, JSON.stringify(payload), true, 'application/json', headers
+                    );
+
+                    resolve(endResult);
+                } catch (e) {
+                    reject(e);
+                }
+            })).then(function (response) {
+                that.clearDataAfterPay(response, customerData)
+                // window.location.replace(urlBuilder.build('checkout/onepage/success/'));
+            }).catch(
+                that.processPlaceOrderError.bind(self)
+            ).finally(
+                function () {
+                    _.each(placeOrderHooks.afterRequestListeners, function (listener) {
+                        listener();
+                    });
+
+                    if (self.isPlaceOrderActionAllowed) {
+                        self.isPlaceOrderActionAllowed(true);
+                    }
+
+                    setTimeout(() => {
+                        $('body').trigger('processStop');
+                    }, 1000)
+                }
+            );
+
+        }
     };
 });

@@ -203,6 +203,19 @@ class Service implements ServiceInterface
         return $checkout->getAirwallexPaymentsRedirectUrl();
     }
 
+    private function getIntent(PlaceOrderResponse $response): PlaceOrderResponseInterface
+    {
+        $intent = $this->paymentIntents->getIntents();
+        $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
+
+        $response->setData([
+            'response_type' => 'confirmation_required',
+            'intent_id' => $intent['id'],
+            'client_secret' => $intent['clientSecret']
+        ]);
+        return $response;
+    }
+
     /**
      * Guest place order
      *
@@ -228,36 +241,30 @@ class Service implements ServiceInterface
         /** @var PlaceOrderResponse $response */
         $response = $this->placeOrderResponseFactory->create();
         if ($intentId === null) {
-            $intent = $this->paymentIntents->getIntents();
-            $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
+            return $this->getIntent($response);
+        }
+
+        try {
+            $this->checkIntent($intentId);
+            $orderId = $this->guestPaymentInformationManagement->savePaymentInformationAndPlaceOrder(
+                $cartId,
+                $email,
+                $paymentMethod,
+                $billingAddress
+            );
 
             $response->setData([
-                'response_type' => 'confirmation_required',
-                'intent_id' => $intent['id'],
-                'client_secret' => $intent['clientSecret']
+                'response_type' => 'success',
+                'order_id' => $orderId
             ]);
-        } else {
-            try {
-                $this->checkIntent($intentId);
-                $orderId = $this->guestPaymentInformationManagement->savePaymentInformationAndPlaceOrder(
-                    $cartId,
-                    $email,
-                    $paymentMethod,
-                    $billingAddress
-                );
-
-                $response->setData([
-                    'response_type' => 'success',
-                    'order_id' => $orderId
-                ]);
-            } catch (Exception $e) {
-                $this->paymentIntents->removeIntents();
-                throw $e;
-            }
+        } catch (Exception $e) {
+            $this->paymentIntents->removeIntents();
+            throw $e;
         }
 
         return $response;
     }
+
 
     /**
      * Place order
@@ -282,35 +289,27 @@ class Service implements ServiceInterface
         /** @var PlaceOrderResponse $response */
         $response = $this->placeOrderResponseFactory->create();
         if ($intentId === null) {
-            $intent = $this->paymentIntents->getIntents();
-            $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
+            return $this->getIntent($response);
+        }
+        try {
+            $this->checkIntent($intentId);
+            $orderId = $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
+                $cartId,
+                $paymentMethod,
+                $billingAddress
+            );
+
+            if ($this->configuration->isCardVaultActive()) {
+                $this->paymentConsents->syncVault($this->checkoutHelper->getQuote()->getCustomer()->getId());
+            }
 
             $response->setData([
-                'response_type' => 'confirmation_required',
-                'intent_id' => $intent['id'],
-                'client_secret' => $intent['clientSecret']
+                'response_type' => 'success',
+                'order_id' => $orderId
             ]);
-        } else {
-            try {
-                $this->checkIntent($intentId);
-                $orderId = $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
-                    $cartId,
-                    $paymentMethod,
-                    $billingAddress
-                );
-
-                if ($this->configuration->isCardVaultActive()) {
-                    $this->paymentConsents->syncVault($this->checkoutHelper->getQuote()->getCustomer()->getId());
-                }
-
-                $response->setData([
-                    'response_type' => 'success',
-                    'order_id' => $orderId
-                ]);
-            } catch (Exception $e) {
-                $this->paymentIntents->removeIntents();
-                throw $e;
-            }
+        } catch (Exception $e) {
+            $this->paymentIntents->removeIntents();
+            throw $e;
         }
 
         return $response;

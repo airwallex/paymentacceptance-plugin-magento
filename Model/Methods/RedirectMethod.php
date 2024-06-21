@@ -51,7 +51,7 @@ class RedirectMethod extends AbstractMethod
         try {
             $this->paymentIntents->removeIntents();
             $returnUrl = $this->confirm
-                ->setPaymentIntentId($this->getIntentId())
+                ->setPaymentIntentId($this->getIntentId())  //  TODO  
                 ->setInformation($this->getPaymentMethodCode(), $detect->isMobile(), $this->getMobileOS($detect))
                 ->send();
         } catch (Exception $exception) {

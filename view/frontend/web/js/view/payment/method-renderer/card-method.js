@@ -23,15 +23,9 @@ define(
         'Airwallex_Payments/js/view/payment/abstract-method',
         'Magento_Checkout/js/model/quote',
         'Magento_Checkout/js/model/payment/additional-validators',
-        'Magento_Checkout/js/action/redirect-on-success',
-        'mage/storage',
-        'Magento_Customer/js/customer-data',
-        'Magento_Checkout/js/model/payment/place-order-hooks',
         'Magento_Checkout/js/model/error-processor',
-        'Magento_Checkout/js/model/url-builder',
         'Magento_Customer/js/model/customer',
         'Airwallex_Payments/js/view/payment/utils',
-        // 'Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry',
         'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
     ],
     function (
@@ -40,15 +34,9 @@ define(
         Component,
         quote,
         additionalValidators,
-        redirectOnSuccessAction,
-        storage,
-        customerData,
-        placeOrderHooks,
         errorProcessor,
-        urlBuilder,
         customer,
         utils,
-        // recaptchaRegistry,
         addressHandler,
     ) {
         'use strict';
@@ -140,7 +128,7 @@ define(
             },
 
             placeOrder: function (data, event) {
-                const self = this;
+                let self = this;
 
                 if (event) {
                     event.preventDefault();
@@ -151,104 +139,9 @@ define(
                     this.isPlaceOrderActionAllowed() === true
                 ) {
                     this.isPlaceOrderActionAllowed(false);
-                    $('body').trigger('processStart');
-
-                    const payload = {
-                        cartId: quote.getQuoteId(),
-                        billingAddress: quote.billingAddress(),
-                        paymentMethod: this.getData()
-                    };
-
-                    let serviceUrl;
-                    if (customer.isLoggedIn()) {
-                        serviceUrl = urlBuilder.createUrl('/airwallex/payments/place-order', {});
-                    } else {
-                        serviceUrl = urlBuilder.createUrl('/airwallex/payments/guest-place-order', {});
-                        payload.email = quote.guestEmail;
-                    }
-
-                    let headers = {};
-                    _.each(placeOrderHooks.requestModifiers, function (modifier) {
-                        modifier(headers, payload);
-                    });
-
-                    payload.intent_id = null;
-
-                    (new Promise(async function (resolve, reject) {
-                        try {
-                            if (self.isRecaptchaEnabled) {
-                                let recaptchaRegistry = require('Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry');
-
-                                if (recaptchaRegistry) {
-                                    payload.xReCaptchaValue = await new Promise((resolve, reject) => {
-                                        recaptchaRegistry.addListener(utils.getRecaptchaId(), (token) => {
-                                            resolve(token);
-                                        });
-                                        recaptchaRegistry.triggers[utils.getRecaptchaId()]();
-                                    });
-                                }
-                            }
-
-                            const intentResponse = await storage.post(
-                                serviceUrl, JSON.stringify(payload), true, 'application/json', headers
-                            );
-
-                            if (self.isSaveCardSelected() && self.getCustomerId()) {
-                                await Airwallex.createPaymentConsent({
-                                    intent_id: intentResponse.intent_id,
-                                    customer_id: self.getCustomerId(),
-                                    client_secret: intentResponse.client_secret,
-                                    currency: quote.totals().quote_currency_code,
-                                    billing: self.getBillingInformation(),
-                                    element: self.cardElement,
-                                    next_triggered_by: 'customer',
-                                });
-                            } else {
-                                await Airwallex.confirmPaymentIntent({
-                                    intent_id: intentResponse.intent_id,
-                                    client_secret: intentResponse.client_secret,
-                                    payment_method: {
-                                        billing: self.getBillingInformation()
-                                    },
-                                    element: self.cardElement
-                                });
-                            }
-
-                            payload.intent_id = intentResponse.intent_id;
-                            payload.paymentMethod.additional_data.intent_id = intentResponse.intent_id;
-
-                            const endResult = await storage.post(
-                                serviceUrl, JSON.stringify(payload), true, 'application/json', headers
-                            );
-
-                            resolve(endResult);
-                        } catch (e) {
-                            reject(e);
-                        }
-                    })).then(function (response) {
-                        utils.clearDataAfterPay(response, customerData)
-
-                        self.afterPlaceOrder();
-
-                        if (self.redirectAfterPlaceOrder) {
-                            redirectOnSuccessAction.execute();
-                        }
-                    }).catch(
-                        utils.processPlaceOrderError.bind(self)
-                    ).finally(
-                        function () {
-                            $('body').trigger('processStop');
-                            _.each(placeOrderHooks.afterRequestListeners, function (listener) {
-                                listener();
-                            });
-
-                            self.isPlaceOrderActionAllowed(true);
-                        }
-                    );
-
+                    utils.pay(self, 'card', quote);
                     return true;
                 }
-
                 return false;
             },
         });
