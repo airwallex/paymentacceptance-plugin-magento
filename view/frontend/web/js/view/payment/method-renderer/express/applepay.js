@@ -108,20 +108,24 @@ define([
                 }
                 that.setGuestEmail(email);
 
-                if (utils.isRequireShippingAddress()) {
-                    // this time Apple provide full shipping address, we should post to magento
-                    let information = addressHandler.constructAddressInformationFromApple(
-                        event.detail.paymentData
-                    );
-                    await addressHandler.postShippingInformation(information, utils.isLoggedIn(), utils.getCartId());
-                } else {
-                    await addressHandler.postBillingAddress({
-                        'cartId': utils.getCartId(),
-                        'address': addressHandler.getBillingAddressFromApple(billing, phone)
-                    }, utils.isLoggedIn(), utils.getCartId());
+                try {
+                    if (utils.isRequireShippingAddress()) {
+                        // this time Apple provide full shipping address, we should post to magento
+                        let information = addressHandler.constructAddressInformationFromApple(
+                            event.detail.paymentData
+                        );
+                        await addressHandler.postShippingInformation(information, utils.isLoggedIn(), utils.getCartId());
+                    } else {
+                        await addressHandler.postBillingAddress({
+                            'cartId': utils.getCartId(),
+                            'address': addressHandler.getBillingAddressFromApple(billing, phone)
+                        }, utils.isLoggedIn(), utils.getCartId());
+                    }
+                    addressHandler.setIntentConfirmBillingAddressFromApple(billing, email);
+                    that.placeOrder('applepay');
+                } catch (e) {
+                    utils.error(e);
                 }
-                addressHandler.setIntentConfirmBillingAddressFromApple(billing, email);
-                that.placeOrder('applepay');
             });
         },
 

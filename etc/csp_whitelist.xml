@@ -28,6 +28,7 @@
                 <value id="cdn_scripts_signifyd" type="host">cdn-scripts.signifyd.com</value>
                 <value id="bws_demo_airwallex" type="host">bws-demo.airwallex.com</value>
                 <value id="bws_airwallex" type="host">bws.airwallex.com</value>
+                <value id="script_imgs_signifyd_com" type="host">imgs.signifyd.com</value>
             </values>
         </policy>
         <policy id="connect-src">

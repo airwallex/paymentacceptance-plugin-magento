@@ -215,16 +215,10 @@ define(
                 const payload = {
                     cartId: utils.getCartId(),
                     paymentMethod: {
-                        method: this.code
+                        method: this.code,
+                        additional_data: {}
                     }
                 };
-
-                let serviceUrl = urlBuilder.build('rest/V1/airwallex/payments/guest-place-order');
-                if (utils.isLoggedIn()) {
-                    serviceUrl = urlBuilder.build('rest/V1/airwallex/payments/place-order');
-                }
-
-                payload.intent_id = null;
 
                 (new Promise(async (resolve, reject) => {
                     try {
@@ -235,7 +229,7 @@ define(
                         }
                         
                         if (this.paymentConfig.is_recaptcha_enabled) {
-                            payload.xReCaptchaValue = await utils.recaptchaToken();
+                            payload.xReCaptchaValue = await utils.getRecaptchaToken(utils.expressRecaptchaId);
                         }
 
                         if (!utils.isLoggedIn()) {
@@ -245,28 +239,27 @@ define(
                             }
                         }
 
-                        const intentResponse = await storage.post(
-                            serviceUrl, JSON.stringify(payload), true, 'application/json', {}
-                        );
+                        let confirmBilling = pay === 'apple' ? addressHandler.intentConfirmBillingAddressFromApple : addressHandler.intentConfirmBillingAddressFromGoogle;
+
+                        let intentResponse = await utils.getIntent(payload, {});
 
                         const params = {};
                         params.id = intentResponse.intent_id;
                         params.client_secret = intentResponse.client_secret;
                         params.payment_method = {};
-                        params.payment_method.billing = addressHandler.intentConfirmBillingAddressFromGoogle;
+                        params.payment_method.billing = confirmBilling;
                         if (utils.isCheckoutPage()) {
                             addressHandler.setIntentConfirmBillingAddressFromOfficial(this.expressData.billing_address);
                             params.payment_method.billing = addressHandler.intentConfirmBillingAddressFromOfficial;
                         }
 
-                        await eval(pay).confirmIntent(params);
-
-                        payload.intent_id = intentResponse.intent_id;
-                        payload.paymentMethod.additional_data = {intent_id: intentResponse.intent_id};
-                        
-                        const endResult = await storage.post(
-                            serviceUrl, JSON.stringify(payload), true, 'application/json', {}
-                        );
+                        try {
+                            await eval(pay).confirmIntent(params);
+                        } catch (error) {
+                            utils.dealConfirmException(error)
+                        }
+    
+                        let endResult = await utils.placeOrder(payload, intentResponse, {});
 
                         resolve(endResult);
                     } catch (e) {

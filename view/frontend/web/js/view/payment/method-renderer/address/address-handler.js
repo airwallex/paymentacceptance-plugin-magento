@@ -11,6 +11,7 @@ define([
         selectedMethod: {},
         regionId: "",
         intentConfirmBillingAddressFromGoogle: {},
+        intentConfirmBillingAddressFromApple: {},
         intentConfirmBillingAddressFromOfficial: {},
 
         postBillingAddress(payload, isLoggedIn, cartId) {
@@ -152,7 +153,7 @@ define([
         },
 
         setIntentConfirmBillingAddressFromApple(addr, email) {
-            this.intentConfirmBillingAddressFromGoogle = {
+            this.intentConfirmBillingAddressFromApple = {
                 address: {
                     city: this.city(addr),
                     country_code: addr.countryCode,

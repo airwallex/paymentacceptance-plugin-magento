@@ -67,18 +67,22 @@ define([
             this.googlepay.on('authorized', async (event) => {
                 let data = event.detail.paymentData;
                 that.setGuestEmail(data.email);
-                if (utils.isRequireShippingAddress()) {
-                    // this time google provide full shipping address, we should post to magento
-                    let information = addressHandler.constructAddressInformationFromGoogle(data);
-                    await addressHandler.postShippingInformation(information, utils.isLoggedIn(), utils.getCartId());
-                } else {
-                    await addressHandler.postBillingAddress({
-                        'cartId': utils.getCartId(),
-                        'address': addressHandler.getBillingAddressFromGoogle(data.paymentMethodData.info.billingAddress)
-                    }, utils.isLoggedIn(), utils.getCartId());
+                try {
+                    if (utils.isRequireShippingAddress()) {
+                        // this time google provide full shipping address, we should post to magento
+                        let information = addressHandler.constructAddressInformationFromGoogle(data);
+                        await addressHandler.postShippingInformation(information, utils.isLoggedIn(), utils.getCartId());
+                    } else {
+                        await addressHandler.postBillingAddress({
+                            'cartId': utils.getCartId(),
+                            'address': addressHandler.getBillingAddressFromGoogle(data.paymentMethodData.info.billingAddress)
+                        }, utils.isLoggedIn(), utils.getCartId());
+                    }
+                    addressHandler.setIntentConfirmBillingAddressFromGoogle(data);
+                    that.placeOrder('googlepay');
+                } catch (e) {
+                    utils.error(e);
                 }
-                addressHandler.setIntentConfirmBillingAddressFromGoogle(data);
-                that.placeOrder('googlepay');
             });
         },
 

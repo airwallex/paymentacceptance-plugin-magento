@@ -54,6 +54,7 @@ use Magento\Checkout\Api\ShippingInformationManagementInterface;
 use Magento\Checkout\Api\Data\ShippingInformationInterfaceFactory;
 use Airwallex\Payments\Model\Ui\ConfigProvider;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
+use Magento\Framework\Exception\InputException;
 use Magento\Quote\Model\ValidationRules\ShippingAddressValidationRule;
 use Magento\Quote\Model\ValidationRules\BillingAddressValidationRule;
 
@@ -205,14 +206,22 @@ class Service implements ServiceInterface
 
     private function getIntent(PlaceOrderResponse $response): PlaceOrderResponseInterface
     {
-        $intent = $this->paymentIntents->getIntents();
-        $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
+        try {
+            $intent = $this->paymentIntents->getIntents();
+            $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
 
-        $response->setData([
-            'response_type' => 'confirmation_required',
-            'intent_id' => $intent['id'],
-            'client_secret' => $intent['clientSecret']
-        ]);
+            $response->setData([
+                'response_type' => 'confirmation_required',
+                'intent_id' => $intent['id'],
+                'client_secret' => $intent['clientSecret']
+            ]);
+        } catch (\Exception $e) {
+            $response->setData([
+                'response_type' => 'error',
+                'message' => $e->getMessage(),
+            ]);
+        }
+
         return $response;
     }
 
@@ -238,33 +247,57 @@ class Service implements ServiceInterface
         AddressInterface $billingAddress = null,
         string $intentId = null
     ): PlaceOrderResponseInterface {
+        return $this->placeOrder($cartId, $paymentMethod, $billingAddress, $intentId, $email);
+    }
+
+    private function placeOrder($cartId, $paymentMethod, $billingAddress, $intentId, $email = ''): PlaceOrderResponseInterface
+    {
+        $uid = $this->checkoutHelper->getQuote()->getCustomer()->getId();
+
         /** @var PlaceOrderResponse $response */
         $response = $this->placeOrderResponseFactory->create();
         if ($intentId === null) {
             return $this->getIntent($response);
         }
 
+        $orderId = "";
         try {
             $this->checkIntent($intentId);
-            $orderId = $this->guestPaymentInformationManagement->savePaymentInformationAndPlaceOrder(
-                $cartId,
-                $email,
-                $paymentMethod,
-                $billingAddress
-            );
-
+            if ($uid) {
+                $orderId =  $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
+                    $cartId,
+                    $paymentMethod,
+                    // $billingAddress
+                );
+            } else {
+                $orderId =  $this->guestPaymentInformationManagement->savePaymentInformationAndPlaceOrder(
+                    $cartId,
+                    $email,
+                    $paymentMethod,
+                    $billingAddress
+                );
+            }
+        } catch (\Exception $e) {
             $response->setData([
-                'response_type' => 'success',
-                'order_id' => $orderId
+                'response_type' => 'error',
+                'message' => $e->getMessage(),
             ]);
-        } catch (Exception $e) {
-            $this->paymentIntents->removeIntents();
-            throw $e;
+            return $response;
         }
+
+        try {
+            if ($this->configuration->isCardVaultActive()) {
+                $this->paymentConsents->syncVault($this->checkoutHelper->getQuote()->getCustomer()->getId());
+            }
+        } catch (\Exception $e) {}
+
+        $response->setData([
+            'response_type' => 'success',
+            'order_id' => $orderId
+        ]);
 
         return $response;
     }
-
 
     /**
      * Place order
@@ -286,33 +319,7 @@ class Service implements ServiceInterface
         AddressInterface $billingAddress = null,
         string $intentId = null
     ): PlaceOrderResponseInterface {
-        /** @var PlaceOrderResponse $response */
-        $response = $this->placeOrderResponseFactory->create();
-        if ($intentId === null) {
-            return $this->getIntent($response);
-        }
-        try {
-            $this->checkIntent($intentId);
-            $orderId = $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
-                $cartId,
-                $paymentMethod,
-                $billingAddress
-            );
-
-            if ($this->configuration->isCardVaultActive()) {
-                $this->paymentConsents->syncVault($this->checkoutHelper->getQuote()->getCustomer()->getId());
-            }
-
-            $response->setData([
-                'response_type' => 'success',
-                'order_id' => $orderId
-            ]);
-        } catch (Exception $e) {
-            $this->paymentIntents->removeIntents();
-            throw $e;
-        }
-
-        return $response;
+        return $this->placeOrder($cartId, $paymentMethod, $billingAddress, $intentId, '');
     }
 
     /**
@@ -668,8 +675,8 @@ class Service implements ServiceInterface
         $okStatus = [$this->intentGet::INTENT_STATUS_SUCCESS, $this->intentGet::INTENT_STATUS_REQUIRES_CAPTURE];
         if (!in_array($respArr['status'], $okStatus, true) 
             || $respArr['merchant_order_id'] !== $quote->getReservedOrderId() 
-            || abs(floatval($respArr['amount']) - floatval($quote->getGrandTotal())) > 1) {
-            $msg = 'Something went wrong while processing your request. Please try again later.';
+            || abs(floatval($respArr['amount']) - floatval($quote->getGrandTotal())) >= 0.01) {
+            $msg = 'Something went wrong while processing your request. Please try again.';
             throw new Exception(__($msg));
         }
     }

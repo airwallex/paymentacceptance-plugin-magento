@@ -10,6 +10,7 @@ define([
     'Magento_Ui/js/modal/alert',
     'Magento_Customer/js/model/customer',
     'Magento_Checkout/js/model/payment/place-order-hooks',
+    'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
     'Magento_Checkout/js/model/error-processor'
 ], function (
     urlBuilder,
@@ -23,6 +24,7 @@ define([
     alert,
     customer,
     placeOrderHooks,
+    addressHandler,
     errorProcessor
 ) {
     'use strict';
@@ -38,13 +40,14 @@ define([
         paymentConfig: {},
         recaptchaSelector: '.airwallex-recaptcha',
         recaptchaId: 'recaptcha-checkout-place-order',
+        expressRecaptchaId: 'express-recaptcha-checkout-place-order',
 
         getRecaptchaId() {
             let id = $('.airwallex-card-container .g-recaptcha').attr('id');
             if (id) {
                 return id;
             }
-            if ($('#recaptcha-checkout-place-order').length) {
+            if ($('#' + this.recaptchaId).length) {
                 return this.recaptchaId;
             }
             return '';
@@ -169,11 +172,11 @@ define([
                 return;
             }
 
-            if (this.paymentConfig.is_recaptcha_enabled && !$('#recaptcha-checkout-place-order').length) {
+            if (this.paymentConfig.is_recaptcha_enabled) {
                 window.isShowAwxGrecaptcha = true;
                 isShowRecaptcha(true);
                 let re = webapiReCaptcha();
-                re.reCaptchaId = this.recaptchaId;
+                re.reCaptchaId = this.expressRecaptchaId;
                 re.settings = this.paymentConfig.recaptcha_settings;
                 re.renderReCaptcha();
                 $(this.recaptchaSelector).css({
@@ -181,15 +184,6 @@ define([
                     'position': 'absolute'
                 });
             }
-        },
-
-        async recaptchaToken() {
-            return await new Promise((resolve) => {
-                webapiRecaptchaRegistry.addListener(this.recaptchaId, (token) => {
-                    resolve(token);
-                });
-                webapiRecaptchaRegistry.triggers[this.recaptchaId]();
-            });
         },
 
         isSetActiveInProductPage() {
@@ -274,11 +268,8 @@ define([
             return this.isLoggedIn() ? this.expressData.cart_id : this.expressData.mask_cart_id;
         },
 
-        isLoggedIn() {
-            return !!this.expressData.customer_id;
-        },
-
         error(response) {
+            console.log(response)
             let modalSelector = $('#awx-modal');
             modal({ title: 'Error' }, modalSelector);
 
@@ -295,8 +286,11 @@ define([
             modalSelector.modal('openModal');
         },
 
+        redirectToSuccess() {
+            window.location.replace(urlBuilder.build('checkout/onepage/success/'));
+        },
+
         processPlaceOrderError: function (response) {
-            $('body').trigger('processStop');
             if (response && response.getResponseHeader) {
                 errorProcessor.process(response, this.messageContainer);
                 const redirectURL = response.getResponseHeader('errorRedirectAction');
@@ -309,14 +303,91 @@ define([
             } else if (response && response.message) {
                 this.validationError(response.message);
             }
+
+            $('body').trigger('processStop');
+        },
+
+        isLoggedIn() {
+            if (window.checkoutConfig) {
+                return customer.isLoggedIn();
+            }
+            return !!this.expressData.customer_id;
+        },
+
+        placeOrderUrl() {
+            let serviceUrl = urlBuilder.build('rest/V1/airwallex/payments/guest-place-order');
+            if (this.isLoggedIn()) {
+                serviceUrl = urlBuilder.build('rest/V1/airwallex/payments/place-order');
+            }
+            return serviceUrl;
+        },
+
+        async getIntent(payload, headers = {}) {
+            let intentResponse = {};
+            try {
+                intentResponse = await storage.post(
+                    this.placeOrderUrl(), JSON.stringify(payload), true, 'application/json', headers
+                );
+            } catch (e) {
+                if (e.status === 404) {
+                    this.redirectToSuccess();
+                    return;
+                }
+                throw e;
+            }
+            if (intentResponse.response_type === 'error') {
+                throw new Error(intentResponse.message);
+            }
+            return intentResponse;
+        },
+
+        async placeOrder(payload, intentResponse, headers = {}) {
+            payload.intent_id = intentResponse.intent_id;
+            payload.paymentMethod.additional_data.intent_id = intentResponse.intent_id;
+
+            let endResult = {};
+            try {
+                endResult = await storage.post(
+                    this.placeOrderUrl(), JSON.stringify(payload), true, 'application/json', headers
+                );
+            } catch (e) {
+                if (e.status === 404) {
+                    this.redirectToSuccess();
+                    return;
+                }
+                throw e;
+            }
+
+            if (endResult.response_type === 'error') {
+                throw new Error(endResult.message);
+            }
+            return endResult;
+        },
+
+        dealConfirmException(error) {
+            if (error.code !== 'invalid_status_for_operation') {
+                throw error; // TODO optimize show detail message
+            }
+        },
+
+        async getRecaptchaToken(id) {
+            return await new Promise((resolve, reject) => {
+                webapiRecaptchaRegistry.tokens = {};
+                webapiRecaptchaRegistry.addListener(id, (token) => {
+                    resolve(token);
+                });
+                webapiRecaptchaRegistry.triggers[id]();
+            });
         },
 
         pay(self, from, quote) {
             let that = this;
             $('body').trigger('processStart');
 
+            let cartId = quote.getQuoteId();
+            console.log(cartId);
             const payload = {
-                cartId: quote.getQuoteId(),
+                cartId: cartId,
                 billingAddress: quote.billingAddress(),
                 paymentMethod: {
                     method: 'airwallex_payments_card',
@@ -324,9 +395,7 @@ define([
                 },
             };
 
-            let serviceUrl = urlBuilder.build('rest/V1/airwallex/payments/guest-place-order');
-            if (customer.isLoggedIn()) {
-                serviceUrl = urlBuilder.build('rest/V1/airwallex/payments/place-order');
+            if (!this.isLoggedIn()) {
                 payload.email = quote.guestEmail;
             }
 
@@ -344,64 +413,72 @@ define([
 
                         if (recaptchaRegistry) {
                             payload.xReCaptchaValue = await new Promise((resolve, reject) => {
+                                recaptchaRegistry.tokens = {};
                                 recaptchaRegistry.addListener(that.getRecaptchaId(), (token) => {
                                     resolve(token);
                                 });
                                 recaptchaRegistry.triggers[that.getRecaptchaId()]();
                             });
                         }
+                        // payload.xReCaptchaValue = await that.getRecaptchaToken(that.getRecaptchaId());
                     }
 
-                    const intentResponse = await storage.post(
-                        serviceUrl, JSON.stringify(payload), true, 'application/json', headers
-                    );
+                    await addressHandler.postBillingAddress({
+                        'cartId': cartId,
+                        'address': quote.billingAddress()
+                    }, that.isLoggedIn(), cartId);
+
+
+                    let intentResponse = await that.getIntent(payload, headers);
 
                     let response = {};
-                    if (from === 'vault') {
-                        const selectedConsentId = $("#v-" + $('input[name="payment[method]"]:checked').val()).val();
-                        response = await Airwallex.confirmPaymentIntent({
-                            intent_id: intentResponse.intent_id,
-                            client_secret: intentResponse.client_secret,
-                            payment_consent_id: selectedConsentId,
-                            element: self.cvcElement,
-                            payment_method: {
-                                billing: self.getBillingInformation()
-                            },
-                            payment_method_options: {
-                                card: {
-                                    auto_capture: self.autoCapture
-                                }
-                            },
-                        });
-                    } else {
-                        if (self.isSaveCardSelected() && self.getCustomerId()) {
-                            response = await Airwallex.createPaymentConsent({
-                                intent_id: intentResponse.intent_id,
-                                customer_id: self.getCustomerId(),
-                                client_secret: intentResponse.client_secret,
-                                currency: quote.totals().quote_currency_code,
-                                billing: self.getBillingInformation(),
-                                element: self.cardElement,
-                                next_triggered_by: 'customer',
-                            });
-                        } else {
+                    try {
+                        if (from === 'vault') {
+                            const selectedConsentId = $("#v-" + $('input[name="payment[method]"]:checked').val()).val();
                             response = await Airwallex.confirmPaymentIntent({
                                 intent_id: intentResponse.intent_id,
                                 client_secret: intentResponse.client_secret,
+                                payment_consent_id: selectedConsentId,
+                                element: self.cvcElement,
                                 payment_method: {
                                     billing: self.getBillingInformation()
                                 },
-                                element: self.cardElement
+                                payment_method_options: {
+                                    card: {
+                                        auto_capture: self.autoCapture
+                                    }
+                                },
                             });
+                        } else {
+                            if (self.isSaveCardSelected() && self.getCustomerId()) {
+                                response = await Airwallex.createPaymentConsent({
+                                    intent_id: intentResponse.intent_id,
+                                    customer_id: self.getCustomerId(),
+                                    client_secret: intentResponse.client_secret,
+                                    currency: quote.totals().quote_currency_code,
+                                    billing: self.getBillingInformation(),
+                                    element: self.cardElement,
+                                    next_triggered_by: 'customer',
+                                });
+                            } else {
+                                response = await Airwallex.confirmPaymentIntent({
+                                    intent_id: intentResponse.intent_id,
+                                    client_secret: intentResponse.client_secret,
+                                    payment_method: {
+                                        billing: self.getBillingInformation()
+                                    },
+                                    element: self.cardElement
+                                });
+                            }
                         }
+                    } catch (error) {
+                        that.dealConfirmException(error);
                     }
 
-                    payload.intent_id = intentResponse.intent_id;
-                    payload.paymentMethod.additional_data.intent_id = intentResponse.intent_id;
+                    // 200 "status": "REQUIRES_CAPTURE",
+                    // 400 code: "invalid_status_for_operation"
 
-                    const endResult = await storage.post(
-                        serviceUrl, JSON.stringify(payload), true, 'application/json', headers
-                    );
+                    let endResult = await that.placeOrder(payload, intentResponse, headers);
 
                     resolve(endResult);
                 } catch (e) {
@@ -409,7 +486,8 @@ define([
                 }
             })).then(function (response) {
                 that.clearDataAfterPay(response, customerData)
-                // window.location.replace(urlBuilder.build('checkout/onepage/success/'));
+                that.redirectToSuccess();
+                return;
             }).catch(
                 that.processPlaceOrderError.bind(self)
             ).finally(
@@ -421,10 +499,6 @@ define([
                     if (self.isPlaceOrderActionAllowed) {
                         self.isPlaceOrderActionAllowed(true);
                     }
-
-                    setTimeout(() => {
-                        $('body').trigger('processStop');
-                    }, 1000)
                 }
             );
 

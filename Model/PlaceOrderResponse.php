@@ -73,6 +73,23 @@ class PlaceOrderResponse extends DataObject implements PlaceOrderResponseInterfa
     }
 
     /**
+     * @return string
+     */
+    public function getMessage()
+    {
+        return $this->getData(self::DATA_KEY_MESSAGE);
+    }
+
+    /**
+     * @param string $message
+     * @return $this
+     */
+    public function setMessage(string $message)
+    {
+        return $this->setData(self::DATA_KEY_MESSAGE, $message);
+    }
+
+    /**
      * @return int|null
      */
     public function getOrderId()

@@ -90,7 +90,7 @@ define([
          */
         getIcons: function (type) {
             for (const [name, obj] of Object.entries(window.checkoutConfig.payment.ccform.icons)) {
-                if ('AMEX' === type) {
+                if ('amex' === type.toLowerCase()) {
                     type = 'AE';
                     break
                 }

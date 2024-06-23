@@ -22,6 +22,7 @@ interface PlaceOrderResponseInterface
     public const DATA_KEY_CLIENT_SECRET = 'client_secret';
     public const DATA_KEY_RESPONSE_TYPE = 'response_type';
     public const DATA_KEY_ORDER_ID = 'order_id';
+    public const DATA_KEY_MESSAGE = 'message';
 
     /**
      * @return string|null
@@ -55,6 +56,17 @@ interface PlaceOrderResponseInterface
      * @return $this
      */
     public function setResponseType(string $responseType);
+
+    /**
+     * @return string
+     */
+    public function getMessage();
+
+    /**
+     * @param string $message
+     * @return $this
+     */
+    public function setMessage(string $message);
 
     /**
      * @return int|null
