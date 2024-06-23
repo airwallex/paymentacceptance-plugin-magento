@@ -146,6 +146,7 @@ class Webhook
     {
         $id = $data->payment_intent_id ?? $data->id;
         $order = $this->paymentIntentRepository->getOrder($id);
+        if (!$order) return;
         $histories = $order->getStatusHistories();
         if (!$histories) {
             return;

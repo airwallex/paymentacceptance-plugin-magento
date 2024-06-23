@@ -267,7 +267,7 @@ class Service implements ServiceInterface
                 $orderId =  $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
                     $cartId,
                     $paymentMethod,
-                    // $billingAddress
+                    $billingAddress
                 );
             } else {
                 $orderId =  $this->guestPaymentInformationManagement->savePaymentInformationAndPlaceOrder(
