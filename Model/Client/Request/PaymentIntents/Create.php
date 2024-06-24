@@ -17,44 +17,43 @@ namespace Airwallex\Payments\Model\Client\Request\PaymentIntents;
 
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
-use Airwallex\Payments\Model\PaymentConsents;
 use JsonException;
 use Magento\Quote\Model\Quote;
 use Magento\Quote\Model\Quote\Item;
+use Magento\Sales\Model\Order;
 use Psr\Http\Message\ResponseInterface;
 
 class Create extends AbstractClient implements BearerAuthenticationInterface
 {
     /**
-     * @param Quote $quote
+     * @param Order $order
      * @param string $returnUrl
      *
      * @return AbstractClient|Create
      */
-    public function setQuote(Quote $quote, string $returnUrl): self
+    public function setOrder(Order $order, string $returnUrl): self
     {
-        $customer = $quote->getCustomer();
-
         $params = [
-            'amount' => $quote->getGrandTotal(),
-            'currency' => $quote->getQuoteCurrencyCode(),
-            'merchant_order_id' => $quote->getReservedOrderId(),
+            'amount' => $order->getGrandTotal(),
+            'currency' => $order->getOrderCurrencyCode(),
+            'merchant_order_id' => $order->getIncrementId(),
             'supplementary_amount' => 1,
             'return_url' => $returnUrl,
             'order' => [
-                'products' => array_values(array_filter($this->getQuoteProducts($quote))),
-                'shipping' => $this->getShippingAddress($quote)
+                'products' => array_values(array_filter($this->getOrderProducts($order))),
+                'shipping' => $this->getShippingAddress($order)
             ]
         ];
 
-        if ($customer
-            && $airwallexCustomerIdAttr = $customer->getCustomAttribute(PaymentConsents::KEY_AIRWALLEX_CUSTOMER_ID)) {
-            if ($airwallexCustomerIdAttr->getValue()) {
-                $params['customer_id'] = $airwallexCustomerIdAttr->getValue();
-            }
-        }
-
         return $this->setParams($params);
+    }
+
+    /**
+     * @return $this
+     */
+    public function setAirwallexCustomerId($id)
+    {
+        return $this->setParam('customer_id', $id);
     }
 
     /**
@@ -82,23 +81,22 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
     }
 
     /**
-     * @param Quote $quote
+     * @param Order $order
      *
      * @return array|null
      */
-    private function getShippingAddress(Quote $quote): ?array
+    private function getShippingAddress(Order $order): ?array
     {
-        $shippingAddress = $quote->getShippingAddress();
-
-        if ($quote->getIsVirtual()) {
+        if ($order->getIsVirtual()) {
             return null;
         }
+        $shippingAddress = $order->getShippingAddress();
 
         return [
             'first_name' => $shippingAddress->getFirstname(),
             'last_name' => $shippingAddress->getLastname(),
             'phone_number' => $shippingAddress->getTelephone(),
-            'shipping_method' => $shippingAddress->getShippingMethod(),
+            'shipping_method' => $order->getShippingMethod(),
             'address' => [
                 'city' => $shippingAddress->getCity(),
                 'country_code' => $shippingAddress->getCountryId(),
@@ -135,5 +133,27 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
                 'url' => $item->getProduct()->getProductUrl()
             ];
         }, $quote->getAllItems());
+    }
+
+    /**
+     * @param Order $order
+     *
+     * @return array
+     */
+    private function getOrderProducts(Order $order): array
+    {
+        $products = [];
+        foreach ($order->getAllItems() as $item) {
+            $products[] = [
+                'code' => $item->getSku(),
+                'desc' => $item->getDescription(),
+                'name' => $item->getName(),
+                'quantity' => $item->getQtyOrdered(),
+                'sku' => $item->getSku(),
+                'unit_price' => $item->getPrice(),
+                'url' => $item->getProduct()->getProductUrl()                
+            ];
+        }
+        return $products;
     }
 }

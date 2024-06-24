@@ -20,6 +20,7 @@ use Airwallex\Payments\Model\ResourceModel\PaymentIntent as PaymentIntentResourc
 use Airwallex\Payments\Model\ResourceModel\PaymentIntent\CollectionFactory;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Sales\Api\Data\OrderInterface;
+use Magento\Sales\Api\OrderRepositoryInterface;
 
 class PaymentIntentRepository
 {
@@ -46,23 +47,31 @@ class PaymentIntentRepository
     private OrderInterface $order;
 
     /**
+     * @var OrderRepositoryInterface
+     */
+    private OrderRepositoryInterface $orderRepository;
+
+    /**
      * PaymentIntentRepository constructor.
      *
      * @param CollectionFactory $collectionFactory
      * @param PaymentIntentFactory $paymentIntentFactory
      * @param PaymentIntentResource $paymentIntent
      * @param OrderInterface $order
+     * @param OrderRepositoryInterface $orderRepository
      */
     public function __construct(
         CollectionFactory $collectionFactory,
         PaymentIntentFactory $paymentIntentFactory,
         PaymentIntentResource $paymentIntent,
-        OrderInterface $order
+        OrderInterface $order,
+        OrderRepositoryInterface $orderRepository
     ) {
         $this->collectionFactory = $collectionFactory;
         $this->paymentIntentFactory = $paymentIntentFactory;
         $this->paymentIntent = $paymentIntent;
         $this->order = $order;
+        $this->orderRepository = $orderRepository;
     }
 
     /**
@@ -79,26 +88,29 @@ class PaymentIntentRepository
             ->addFieldToFilter('payment_intent_id', ['eq' => $paymentIntentId])
             ->getFirstItem();
 
-        if ($intent->getId() === null) {
+        if (empty($intent->getId())) {
             return null;
         }
 
-        $order = $this->order->loadByIncrementId($intent->getOrderIncrementId());
+        $order = $this->orderRepository->get($intent->getOrderId());
 
-        return $order->getId() === null ? null : $order;
+        return $order->getEntityId() ? $order : null;
     }
 
     /**
      * @param string $orderIncrement
      * @param string $paymentIntentId
+     * @param int $orderId
      *
      * @return void
      * @throws AlreadyExistsException
      */
-    public function save(string $orderIncrement, string $paymentIntentId): void
+    public function save(string $orderIncrement, string $paymentIntentId, int $orderId): void
     {
         $paymentIntent = $this->paymentIntentFactory->create();
-        $paymentIntent->setPaymentIntentId($paymentIntentId)
+        $paymentIntent
+            ->setOrderId($orderId)
+            ->setPaymentIntentId($paymentIntentId)
             ->setOrderIncrementId($orderIncrement);
 
         $this->paymentIntent->save($paymentIntent);

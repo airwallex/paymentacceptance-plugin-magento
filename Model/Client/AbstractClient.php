@@ -40,8 +40,6 @@ abstract class AbstractClient
         'region' => 'string'
     ];
 
-    protected CacheInterface $cache;
-
     /**
      * @var AuthenticationHelper
      */
@@ -71,6 +69,11 @@ abstract class AbstractClient
      * @var ModuleListInterface
      */
     protected ModuleListInterface $moduleList;
+
+    /**
+     * @var CacheInterface
+     */
+    protected CacheInterface $cache;
 
     /**
      * @var array

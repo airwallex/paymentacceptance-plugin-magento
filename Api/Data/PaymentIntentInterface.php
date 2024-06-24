@@ -21,6 +21,7 @@ interface PaymentIntentInterface
     public const ID_COLUMN = 'id';
     public const PAYMENT_INTENT_ID_COLUMN = 'payment_intent_id';
     public const ORDER_INCREMENT_ID_COLUMN = 'order_increment_id';
+    public const ORDER_ID_COLUMN = 'order_id';
     public const INTENT_STATUS_REQUIRES_CAPTURE = 'REQUIRES_CAPTURE';
 
     /**
@@ -39,6 +40,11 @@ interface PaymentIntentInterface
     public function getOrderIncrementId(): string;
 
     /**
+     * @return int
+     */
+    public function getOrderId(): int;
+
+    /**
      * @param string $paymentIntentId
      *
      * @return $this
@@ -51,4 +57,11 @@ interface PaymentIntentInterface
      * @return $this
      */
     public function setOrderIncrementId(string $orderIncrementId): self;
+
+    /**
+     * @param int $orderId
+     *
+     * @return $this
+     */
+    public function setOrderId(int $orderId): self;
 }

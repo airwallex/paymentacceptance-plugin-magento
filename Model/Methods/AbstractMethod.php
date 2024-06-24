@@ -206,6 +206,7 @@ abstract class AbstractMethod extends Adapter
      */
     public function authorize(InfoInterface $payment, $amount): self
     {
+        \Magento\Framework\App\ObjectManager::getInstance()->get('Psr\Log\LoggerInterface')->info(' authorizeauthorizeauthorizeauthorizeauthorizeauthorizeauthorize capturing capturing capturing capturing capturing capturing capturing capturing');
         $this->insertIntentWithOrder($payment);
         return $this;
     }

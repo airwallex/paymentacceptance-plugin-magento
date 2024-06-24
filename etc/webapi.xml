@@ -28,9 +28,6 @@
         <resources>
             <resource ref="self" />
         </resources>
-        <data>
-            <parameter name="cartId" force="true">%cart_id%</parameter>
-        </data>
     </route>
 
     <route url="/V1/airwallex/payments/redirect_url" method="POST">

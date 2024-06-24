@@ -120,7 +120,7 @@ class PaymentIntents
 
         try {
             $response = $this->paymentIntentsCreate
-                ->setQuote($quote, $returnUrl)
+                ->setOrder($quote, $returnUrl)
                 ->send();
         } catch (GuzzleException $exception) {
             $this->logger->quoteError($quote, 'intents', $exception->getMessage());

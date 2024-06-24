@@ -65,12 +65,20 @@ class PaymentIntent extends AbstractModel implements IdentityInterface, PaymentI
     }
 
     /**
-     * @param string $orderIncrementId
+     * @return int
+     */
+    public function getOrderId(): int
+    {
+        return $this->getData(PaymentIntentInterface::ORDER_ID_COLUMN);
+    }
+
+    /**
+     * @param int $orderId
      *
      * @return PaymentIntentInterface
      */
-    public function setOrderIncrementId(string $orderIncrementId): PaymentIntentInterface
+    public function setOrderId(int $orderId): PaymentIntentInterface
     {
-        return $this->setData(PaymentIntentInterface::ORDER_INCREMENT_ID_COLUMN, $orderIncrementId);
+        return $this->setData(PaymentIntentInterface::ORDER_ID_COLUMN, $orderId);
     }
 }

@@ -172,7 +172,7 @@ define([
                 return;
             }
 
-            if (this.paymentConfig.is_recaptcha_enabled) {
+            if (this.paymentConfig.is_recaptcha_enabled && !$('#' + this.expressRecaptchaId).length) {
                 window.isShowAwxGrecaptcha = true;
                 isShowRecaptcha(true);
                 let re = webapiReCaptcha();
@@ -475,6 +475,9 @@ define([
                         that.dealConfirmException(error);
                     }
 
+            $('body').trigger('processStop');
+                    
+                    return;
                     // 200 "status": "REQUIRES_CAPTURE",
                     // 400 code: "invalid_status_for_operation"
 

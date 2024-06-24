@@ -312,6 +312,9 @@ class PaymentConsents implements PaymentConsentsInterface
      */
     public function syncVault($customerId)
     {
+        if (!$customerId) {
+            return false;
+        }
         $airwallexCustomerId = $this->getAirwallexCustomerIdInDB($customerId);
         if (!$airwallexCustomerId) {
             return false;

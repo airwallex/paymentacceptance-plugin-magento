@@ -33,6 +33,7 @@ class CardMethod extends AbstractMethod
      */
     public function capture(InfoInterface $payment, $amount): self
     {
+        \Magento\Framework\App\ObjectManager::getInstance()->get('Psr\Log\LoggerInterface')->info(' capturing capturing capturing capturing capturing capturing capturing capturing capturing');
         if ($amount <= 0) {
             return $this;
         }
@@ -71,8 +72,8 @@ class CardMethod extends AbstractMethod
     /**
      * @return string
      */
-    public function getConfigPaymentAction(): string
-    {
-        return $this->getConfigData('airwallex_payment_action');
-    }
+    // public function getConfigPaymentAction(): string
+    // {
+    //     return $this->getConfigData('airwallex_payment_action');
+    // }
 }

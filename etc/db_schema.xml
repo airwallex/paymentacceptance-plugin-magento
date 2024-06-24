@@ -17,11 +17,22 @@
 -->
 <schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
     <table name="airwallex_payment_intents">
-        <column xsi:type="int" name="id" padding="6" unsigned="false" nullable="false" identity="true" />
+        <column xsi:type="int" name="id" unsigned="true" nullable="false" identity="true"/>
         <column xsi:type="varchar" name="order_increment_id" nullable="false" />
+        <column xsi:type="bigint" name="order_id" nullable="false" default="0" />
         <column xsi:type="varchar" name="payment_intent_id" nullable="false" />
+        <column xsi:type="timestamp" name="created_at" on_update="false" nullable="false" default="CURRENT_TIMESTAMP"/>    
         <constraint xsi:type="primary" referenceId="PRIMARY">
             <column name="id"/>
         </constraint>
+        <index referenceId="AIRWALLEX_PAYMENT_INTENTS_ORDER_INCREMENT_ID" indexType="btree">
+            <column name="order_increment_id"/>
+        </index>
+        <index referenceId="AIRWALLEX_PAYMENT_INTENTS_ORDER_ID" indexType="btree">
+            <column name="order_id"/>
+        </index>
+        <index referenceId="AIRWALLEX_PAYMENT_INTENTS_PAYMENT_INTENT_ID" indexType="btree">
+            <column name="payment_intent_id"/>
+        </index>
     </table>
 </schema>

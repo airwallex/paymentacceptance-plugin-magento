@@ -22,6 +22,7 @@ use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Api\ServiceInterface;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Model\Client\Request\ApplePayValidateMerchant;
+use Airwallex\Payments\Model\Client\Request\PaymentIntents\Create;
 use Airwallex\Payments\Plugin\ReCaptchaValidationPlugin;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
@@ -54,9 +55,14 @@ use Magento\Checkout\Api\ShippingInformationManagementInterface;
 use Magento\Checkout\Api\Data\ShippingInformationInterfaceFactory;
 use Airwallex\Payments\Model\Ui\ConfigProvider;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
+use Magento\Framework\Api\Search\SearchCriteriaBuilder;
 use Magento\Framework\Exception\InputException;
+use Magento\Framework\UrlInterface;
 use Magento\Quote\Model\ValidationRules\ShippingAddressValidationRule;
 use Magento\Quote\Model\ValidationRules\BillingAddressValidationRule;
+use Magento\Sales\Api\Data\OrderInterface;
+use Magento\Sales\Api\OrderRepositoryInterface;
+use Magento\Sales\Model\Order;
 
 class Service implements ServiceInterface
 {
@@ -90,6 +96,11 @@ class Service implements ServiceInterface
     private ShippingAddressValidationRule $shippingAddressValidationRule;
     private BillingAddressValidationRule $billingAddressValidationRule;
     private ReCaptchaValidationPlugin $reCaptchaValidationPlugin;
+    private OrderRepositoryInterface $orderRepository;
+    private Create $intentCreate;
+    private UrlInterface $urlInterface;
+    private SearchCriteriaBuilder $searchCriteriaBuilder;
+    private PaymentIntentRepository $paymentIntentRepository;
 
     /**
      * Index constructor.
@@ -123,6 +134,11 @@ class Service implements ServiceInterface
      * @param ShippingAddressValidationRule $shippingAddressValidationRule
      * @param BillingAddressValidationRule $billingAddressValidationRule
      * @param ReCaptchaValidationPlugin $reCaptchaValidationPlugin
+     * @param OrderRepositoryInterface $orderRepository
+     * @param Create $intentCreate
+     * @param UrlInterface $urlInterface
+     * @param SearchCriteriaBuilder $searchCriteriaBuilder
+     * @param PaymentIntentRepository $paymentIntentRepository
      */
     public function __construct(
         PaymentConsentsInterface $paymentConsents,
@@ -153,7 +169,12 @@ class Service implements ServiceInterface
         ApplePayValidateMerchant $validateMerchant,
         ShippingAddressValidationRule $shippingAddressValidationRule,
         BillingAddressValidationRule $billingAddressValidationRule,
-        ReCaptchaValidationPlugin $reCaptchaValidationPlugin
+        ReCaptchaValidationPlugin $reCaptchaValidationPlugin,
+        OrderRepositoryInterface $orderRepository,
+        Create $intentCreate,
+        UrlInterface $urlInterface,
+        SearchCriteriaBuilder $searchCriteriaBuilder,
+        PaymentIntentRepository $paymentIntentRepository
     ) {
         $this->paymentConsents = $paymentConsents;
         $this->paymentIntents = $paymentIntents;
@@ -184,6 +205,11 @@ class Service implements ServiceInterface
         $this->shippingAddressValidationRule = $shippingAddressValidationRule;
         $this->billingAddressValidationRule = $billingAddressValidationRule;
         $this->reCaptchaValidationPlugin = $reCaptchaValidationPlugin;
+        $this->orderRepository = $orderRepository;
+        $this->intentCreate = $intentCreate;
+        $this->urlInterface = $urlInterface;
+        $this->searchCriteriaBuilder = $searchCriteriaBuilder;
+        $this->paymentIntentRepository = $paymentIntentRepository;
     }
     /**
      * Return URL
@@ -250,53 +276,126 @@ class Service implements ServiceInterface
         return $this->placeOrder($cartId, $paymentMethod, $billingAddress, $intentId, $email);
     }
 
-    private function placeOrder($cartId, $paymentMethod, $billingAddress, $intentId, $email = ''): PlaceOrderResponseInterface
+    private function placeAndGetOrderId($cartId, $paymentMethod, $billingAddress, $email)
     {
         $uid = $this->checkoutHelper->getQuote()->getCustomer()->getId();
+        if ($uid) {
+            return $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
+                $cartId,
+                $paymentMethod,
+                $billingAddress
+            );
+        } 
+        return $this->guestPaymentInformationManagement->savePaymentInformationAndPlaceOrder(
+            $cartId,
+            $email,
+            $paymentMethod,
+            $billingAddress
+        );
+    }
 
-        /** @var PlaceOrderResponse $response */
-        $response = $this->placeOrderResponseFactory->create();
-        if ($intentId === null) {
-            return $this->getIntent($response);
+    private function createAndGetIntent($orderId)
+    {
+        $uid = $this->checkoutHelper->getQuote()->getCustomer()->getId();
+        $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($uid);
+        $order = $this->orderRepository->get($orderId);
+        $intent = $this->intentCreate
+            ->setOrder($order, $this->urlInterface->getUrl('checkout/onepage/success'))
+            ->setAirwallexCustomerId($airwallexCustomerId)
+            ->send();
+            
+        $this->paymentIntentRepository->save($order->getIncrementId(), $intent['id'], $order->getEntityId());
+        return $intent;
+    }
+
+    private function placeOrder($cartId, $paymentMethod, $billingAddress, $intentId, $email = ''): PlaceOrderResponseInterface
+    {
+          /** @var PlaceOrderResponse $response */
+          $response = $this->placeOrderResponseFactory->create();
+          if (!$intentId) {
+            try {
+
+                $orderId = $this->placeAndGetOrderId($cartId, $paymentMethod, $billingAddress, $email);
+                // TODO: check unique index in 2.4.2
+                // last order id == id == entity id
+                // last real order id == increment id (like: 000000018)
+
+                $intent = $this->createAndGetIntent($orderId);
+                $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
+                $this->cache->save($orderId, $intent['id'], [], 3600 * 24 * 7);
+                $response->setData([
+                    'response_type' => 'confirmation_required',
+                    'intent_id' => $intent['id'],
+                    'client_secret' => $intent['clientSecret']
+                ]);
+            } catch (\Exception $e) {
+                $response->setData([
+                    'response_type' => 'error',
+                    'message' => $e->getMessage(),
+                ]);
+            }
+            return $response;
         }
 
-        $orderId = "";
         try {
-            $this->checkIntent($intentId);
-            if ($uid) {
-                $orderId =  $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
-                    $cartId,
-                    $paymentMethod,
-                    $billingAddress
-                );
-            } else {
-                $orderId =  $this->guestPaymentInformationManagement->savePaymentInformationAndPlaceOrder(
-                    $cartId,
-                    $email,
-                    $paymentMethod,
-                    $billingAddress
-                );
-            }
+            $order = $this->validateAndGetOrder($intentId);
+
+            $order->setState(Order::STATE_PROCESSING)->setStatus(Order::STATE_PROCESSING);
+            $this->orderRepository->save($order);
+            
+            $this->syncVault($order->getCustomerId());
+
+            $response->setData([
+                'response_type' => 'success',
+                'order_id' => $order->getEntityId()
+            ]);
         } catch (\Exception $e) {
             $response->setData([
                 'response_type' => 'error',
                 'message' => $e->getMessage(),
             ]);
-            return $response;
         }
+        return $response;
+    }
 
+    public function validateAndGetOrder($intentId)
+    {
+        $intentDetailResponse = $this->intentGet->setPaymentIntentId($intentId)->send();
+        $intentDetail = json_decode($intentDetailResponse, true);
+
+        $orderId = $this->cache->load($intentId);
+        // throw new Exception($intentDetail['merchant_order_id']);
+        if (!$orderId) {
+            //         $filter = $builder
+            // ->setField(Customer::EMAIL)
+            // ->setValue($customerData[Customer::EMAIL])
+            // ->create();
+            // $searchCriteria = $this->searchCriteriaBuilder
+            // ->addFilter('increment_id', $intentDetail['merchant_order_id'], 'eq')
+            // ->create();
+
+            // $orders = $this->orderRepository->getList();
+            // $msg = 'Something went wrong while processing your request. Please try again.';
+            // throw new Exception(__($msg));
+        } else {
+            $order = $this->orderRepository->get($orderId);
+        }
+        $okStatus = [$this->intentGet::INTENT_STATUS_SUCCESS, $this->intentGet::INTENT_STATUS_REQUIRES_CAPTURE];
+        if (!in_array($intentDetail['status'], $okStatus, true) // TODO: test 3ds status
+            || abs(floatval($intentDetail['amount']) - floatval($order->getGrandTotal())) >= 0.01
+            || $order->getIncrementId() !== $intentDetail['merchant_order_id']) {
+            $msg = 'Something went wrong while processing your request. Please try again.';
+            throw new Exception(__($msg));
+        }
+        return $order;
+    }
+
+    private function syncVault(int $customerId) {
         try {
             if ($this->configuration->isCardVaultActive()) {
-                $this->paymentConsents->syncVault($this->checkoutHelper->getQuote()->getCustomer()->getId());
+                $this->paymentConsents->syncVault($customerId);
             }
         } catch (\Exception $e) {}
-
-        $response->setData([
-            'response_type' => 'success',
-            'order_id' => $orderId
-        ]);
-
-        return $response;
     }
 
     /**
