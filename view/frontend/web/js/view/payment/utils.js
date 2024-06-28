@@ -172,7 +172,7 @@ define([
                 return;
             }
 
-            if (this.paymentConfig.is_recaptcha_enabled) {
+            if (this.paymentConfig.is_recaptcha_enabled && !$('#' + this.expressRecaptchaId).length) {
                 window.isShowAwxGrecaptcha = true;
                 isShowRecaptcha(true);
                 let re = webapiReCaptcha();
@@ -212,6 +212,11 @@ define([
                 return !this.expressData.is_virtual || !this.expressData.product_is_virtual;
             }
             return this.isRequireShippingAddress();
+        },
+
+        async getSavedCards() {
+            let url = urlBuilder.build('rest/V1/airwallex/saved_cards');
+            return await storage.get(url, undefined, 'application/json', {});
         },
 
         isRequireShippingAddress() {
@@ -269,7 +274,6 @@ define([
         },
 
         error(response) {
-            console.log(response)
             let modalSelector = $('#awx-modal');
             modal({ title: 'Error' }, modalSelector);
 
@@ -323,6 +327,17 @@ define([
         },
 
         async getIntent(payload, headers = {}) {
+            if (!this.isLoggedIn()) {
+                if (!payload.email) {
+                    throw new Error('Email is required!');
+                }
+            }
+            if (!payload.paymentMethod || !payload.paymentMethod.method || !payload.paymentMethod.additional_data) {
+                throw new Error('Payment method is required!');
+            }
+            if (!payload.cartId) {
+                throw new Error('Cart ID is required!');
+            }
             let intentResponse = {};
             try {
                 intentResponse = await storage.post(
@@ -385,10 +400,8 @@ define([
             $('body').trigger('processStart');
 
             let cartId = quote.getQuoteId();
-            console.log(cartId);
             const payload = {
                 cartId: cartId,
-                billingAddress: quote.billingAddress(),
                 paymentMethod: {
                     method: 'airwallex_payments_card',
                     additional_data: {},
@@ -423,11 +436,12 @@ define([
                         // payload.xReCaptchaValue = await that.getRecaptchaToken(that.getRecaptchaId());
                     }
 
-                    await addressHandler.postBillingAddress({
-                        'cartId': cartId,
-                        'address': quote.billingAddress()
-                    }, that.isLoggedIn(), cartId);
-
+                    if (from !== 'vault') {
+                        await addressHandler.postBillingAddress({
+                            'cartId': cartId,
+                            'address': quote.billingAddress()
+                        }, that.isLoggedIn(), cartId);
+                    }
 
                     let intentResponse = await that.getIntent(payload, headers);
 
@@ -474,13 +488,19 @@ define([
                     } catch (error) {
                         that.dealConfirmException(error);
                     }
-
                     // 200 "status": "REQUIRES_CAPTURE",
                     // 400 code: "invalid_status_for_operation"
+                    // if (from !== 'vault') {
+                    //     payload.billingAddress = quote.billingAddress();
+                    // }
 
+                    // setTimeout(async () => {
+                    //     let endResult = await that.placeOrder(payload, intentResponse, headers);
+                    //     resolve(endResult);
+                    // }, 20000);
                     let endResult = await that.placeOrder(payload, intentResponse, headers);
-
                     resolve(endResult);
+
                 } catch (e) {
                     reject(e);
                 }
@@ -501,7 +521,6 @@ define([
                     }
                 }
             );
-
         }
     };
 });

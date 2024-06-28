@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of the Airwallex Payments module.
  *
@@ -13,6 +14,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+
 namespace Airwallex\Payments\Logger;
 
 use Magento\Quote\Model\Quote;
@@ -28,7 +30,7 @@ class Logger extends BaseLogger
      *
      * @return bool
      */
-    public function quoteError(Quote $quote, string $method, string $message): bool
+    public function quoteError(Quote $quote, string $method, string $message): void
     {
         $text = sprintf(
             '%s Quote: %s - %s',
@@ -37,7 +39,7 @@ class Logger extends BaseLogger
             $message
         );
 
-        return $this->error($text);
+        $this->error($text);
     }
 
     /**
@@ -47,15 +49,15 @@ class Logger extends BaseLogger
      *
      * @return bool
      */
-    public function orderError(Order $order, string $method, string $message): bool
+    public function orderError(Order $order, string $method, string $message): void
     {
         $text = sprintf(
             '%s Order: %s - %s',
             mb_strtoupper($method),
-            $order->getIncrementId(),
+            'Order Increment ID: ' . $order->getIncrementId() . ' - Store ID: ' . (string)$order->getStore()->getId(),
             $message
         );
 
-        return $this->error($text);
+        $this->error($text);
     }
 }

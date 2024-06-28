@@ -1,173 +1,142 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
 
 namespace Airwallex\Payments\Model;
 
+use Airwallex\Payments\Api\Data\PaymentIntentInterface;
+use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Logger\Logger;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Create;
+use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Cancel;
-use Airwallex\Payments\Model\Methods\AbstractMethod;
+use Airwallex\Payments\Model\Traits\HelperTrait;
 use GuzzleHttp\Exception\GuzzleException;
 use Magento\Checkout\Model\Session;
-use Magento\Framework\App\CacheInterface;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
-use Magento\Framework\Serialize\SerializerInterface;
 use Magento\Framework\UrlInterface;
 use Magento\Quote\Model\Quote;
 use Magento\Quote\Model\QuoteRepository;
 use JsonException;
 
-/**
- * @SuppressWarnings(PHPMD.CookieAndSessionMisuse)
- */
 class PaymentIntents
 {
-    private const CACHE_TIME = 1800;
+    use HelperTrait;
 
-    /**
-     * @var Create
-     */
+    protected PaymentConsentsInterface $paymentConsents;
     private Create $paymentIntentsCreate;
-
-    /**
-     * @var Cancel
-     */
+    private Get $paymentIntentsGet;
     private Cancel $paymentIntentsCancel;
-
-    /**
-     * @var Session
-     */
     private Session $checkoutSession;
-
-    /**
-     * @var CacheInterface
-     */
-    private CacheInterface $cache;
-
-    /**
-     * @var SerializerInterface
-     */
-    private SerializerInterface $serializer;
-
-    /**
-     * @var QuoteRepository
-     */
     private QuoteRepository $quoteRepository;
-
-    /**
-     * @var Logger
-     */
     private Logger $logger;
-
-    /**
-     * @var UrlInterface
-     */
     private UrlInterface $urlInterface;
+    private PaymentIntentRepository $paymentIntentRepository;
 
     public function __construct(
+        PaymentConsentsInterface $paymentConsents,
         Create              $paymentIntentsCreate,
+        Get                 $paymentIntentsGet,
         Cancel              $paymentIntentsCancel,
         Session             $checkoutSession,
-        SerializerInterface $serializer,
         QuoteRepository     $quoteRepository,
-        CacheInterface      $cache,
+        Logger              $logger,
         UrlInterface        $urlInterface,
-        Logger              $logger
+        PaymentIntentRepository $paymentIntentRepository
     ) {
-        $this->paymentIntentsCancel = $paymentIntentsCancel;
+        $this->paymentConsents = $paymentConsents;
         $this->paymentIntentsCreate = $paymentIntentsCreate;
+        $this->paymentIntentsGet = $paymentIntentsGet;
+        $this->paymentIntentsCancel = $paymentIntentsCancel;
         $this->checkoutSession = $checkoutSession;
-        $this->cache = $cache;
-        $this->serializer = $serializer;
         $this->quoteRepository = $quoteRepository;
         $this->logger = $logger;
         $this->urlInterface = $urlInterface;
+        $this->paymentIntentRepository = $paymentIntentRepository;
     }
 
-    /**
-     * @param bool $useSavedCard
-     * @return array
-     * @throws GuzzleException
-     * @throws LocalizedException
-     * @throws NoSuchEntityException
-     * @throws JsonException
-     */
-    public function getIntents(): array
+    public function createIntent(): array
     {
         $quote = $this->checkoutSession->getQuote();
-        $cacheKey = $this->getCacheKey($quote);
 
-        if ($response = $this->cache->load($cacheKey)) {
-            return $this->serializer->unserialize($response);
+        if (!$orderId = $quote->getReservedOrderId()) {
+            $quote->reserveOrderId(); // test set null then reserveOrderId is that increment? TODO:
+            $this->quoteRepository->save($quote);
+            $orderId = $quote->getReservedOrderId();
         }
 
-        $this->saveQuote($quote);
-        $returnUrl = $this->urlInterface->getUrl('checkout/onepage/success');
+        $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($quote->getCustomer()->getId());
+        $intent = $this->paymentIntentsCreate
+            ->setQuote($quote, $this->urlInterface->getUrl('checkout/onepage/success'))
+            ->setAirwallexCustomerId($airwallexCustomerId)
+            ->send();
 
-        try {
-            $response = $this->paymentIntentsCreate
-                ->setQuote($quote, $returnUrl)
-                ->send();
-        } catch (GuzzleException $exception) {
-            $this->logger->quoteError($quote, 'intents', $exception->getMessage());
-            throw $exception;
-        }
-
-        $this->cache->save(
-            $this->serializer->serialize($response),
-            $cacheKey,
-            AbstractMethod::CACHE_TAGS,
-            self::CACHE_TIME
+        $products = $this->paymentIntentsCreate->getQuoteProducts($quote);
+        $shipping = $this->paymentIntentsCreate->getShippingAddress($quote);
+        $billing = $this->paymentIntentsCreate->getBillingAddress($quote);
+        $this->paymentIntentRepository->save(
+            $orderId,
+            $intent['id'],
+            $quote->getQuoteCurrencyCode(),
+            $quote->getGrandTotal(),
+            $quote->getId(),
+            $quote->getStore()->getId(),
+            json_encode(compact('products', 'shipping', 'billing'))
         );
 
-        return $response;
+        return $intent;
     }
 
-    /**
-     * @return void
-     * @throws LocalizedException
-     * @throws NoSuchEntityException
-     */
-    public function removeIntents(): void
+    public function getIntent(): array
     {
-        $this->cache->remove($this->getCacheKey($this->checkoutSession->getQuote()));
-    }
-
-    /**
-     * @param Quote $quote
-     * @return string
-     */
-    private function getCacheKey(Quote $quote): string
-    {
-        return 'airwallex-intent-' . $quote->getId() . '-' . sprintf("%.4f", $quote->getGrandTotal());
-    }
-
-    /**
-     * @param Quote $quote
-     *
-     * @return void
-     */
-    private function saveQuote(Quote $quote): void
-    {
-        if (!$quote->getReservedOrderId()) {
-            $quote->reserveOrderId();
-
-            $this->quoteRepository->save($quote);
+        $quote = $this->checkoutSession->getQuote();
+        $paymentIntent = $this->paymentIntentRepository->getByQuoteId($quote->getId());
+        if ($paymentIntent && $this->isQuoteEqual($quote, $paymentIntent)) {
+            $resp = $this->paymentIntentsGet->setPaymentIntentId($paymentIntent->getPaymentIntentId())->send();
+            $respArr = json_decode($resp, true);
+            return [
+                'clientSecret' =>  $respArr['client_secret'],
+                'id' =>  $respArr['id'],
+            ];
         }
+        return $this->createIntent();
+    }
+
+    public function isQuoteEqual(Quote $quote, PaymentIntentInterface $paymentIntent): string
+    {
+        if ($quote->getQuoteCurrencyCode() !== $paymentIntent->getCurrencyCode()) {
+            return false;
+        }
+
+        if (!$this->isAmountEqual(floatval($quote->getGrandTotal()), floatval($paymentIntent->getGrandTotal()))) {
+            return false;
+        }
+
+        $quoteProducts = $this->paymentIntentsCreate->getQuoteProducts($quote);
+        if (!$paymentIntent->getDetail()) return false;
+        $detail = json_decode($paymentIntent->getDetail(), true);
+        if (empty($detail['products'])) return false;
+        return $this->getProductsForCompare($quoteProducts) === $this->getProductsForCompare($detail['products']);
+    }
+
+    protected function getProductsForCompare($products): string
+    {
+        $filteredData = array_map(function ($item) {
+            return [
+                'code' => $item['code'] ?? '',
+                'sku' => $item['sku'] ?? '',
+                'quantity' => $item['quantity'] ?? 0,
+                'unit_price' => $item['unit_price'] ?? 0.0
+            ];
+        }, $products);
+
+        // 按 code 排序
+        usort($filteredData, function ($a, $b) {
+            if ($a['code'] === $b['code']) {
+                return $a['sku'] <=> $b['sku'];
+            }
+            return $a['code'] <=> $b['code'];
+        });
+        return json_encode($filteredData);
     }
 
     /**
@@ -181,15 +150,12 @@ class PaymentIntents
     public function cancelIntent(string $intentId): mixed
     {
         try {
-            $response = $this->paymentIntentsCancel
-                ->setPaymentIntentId($intentId)
-                ->send();
+            $response = $this->paymentIntentsCancel->setPaymentIntentId($intentId)->send();
         } catch (GuzzleException $exception) {
             $quote = $this->checkoutSession->getQuote();
             $this->logger->quoteError($quote, 'intents', $exception->getMessage());
             throw $exception;
         }
-        $this->removeIntents();
         return $response;
     }
 }

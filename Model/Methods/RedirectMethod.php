@@ -1,18 +1,5 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
+
 namespace Airwallex\Payments\Model\Methods;
 
 use GuzzleHttp\Exception\GuzzleException;
@@ -44,14 +31,15 @@ class RedirectMethod extends AbstractMethod
      */
     public function authorize(InfoInterface $payment, $amount): self
     {
-        parent::authorize($payment, $amount);
-
+        /** @var \Magento\Sales\Model\Order\Payment $payment */
+        $intendResponse = $this->paymentIntents->createIntent();
+        $intentId = $intendResponse['id'];
+        /** @var \Magento\Sales\Model\Order\Payment $payment */
+        $payment->setTransactionId($intentId);
         $detect = new Mobile_Detect();
-
         try {
-            $this->paymentIntents->removeIntents();
             $returnUrl = $this->confirm
-                ->setPaymentIntentId($this->getIntentId())  //  TODO  
+                ->setPaymentIntentId($intentId)
                 ->setInformation($this->getPaymentMethodCode(), $detect->isMobile(), $this->getMobileOS($detect))
                 ->send();
         } catch (Exception $exception) {

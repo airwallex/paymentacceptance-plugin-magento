@@ -1,21 +1,7 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
+
 namespace Airwallex\Payments\Model\Webhook;
 
-use Airwallex\Payments\Exception\WebhookException;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Magento\Framework\DB\TransactionFactory;
 use Magento\Framework\Exception\LocalizedException;
@@ -79,13 +65,11 @@ class Capture extends AbstractWebhook
      */
     public function execute(object $data): void
     {
+        // TODO: which capture will capture and authorize configuration will take ? webhook or internal capture
         $paymentIntentId = $data->payment_intent_id ?? $data->id;
+
+        /** @var \Magento\Sales\Model\Order $order */
         $order = $this->paymentIntentRepository->getOrder($paymentIntentId);
-
-        if ($order === null) {
-            throw new WebhookException(__('Payment Intent: ' . $paymentIntentId . ': Can\'t find Order'));
-        }
-
         if ($order->getTotalPaid()) {
             return;
         }
@@ -93,17 +77,15 @@ class Capture extends AbstractWebhook
         $amount = $data->captured_amount;
 
         $grandTotal = $order->formatPrice($amount);
-        $comment = sprintf('Captured amount of %s online. Transaction ID: "%s"', $grandTotal, $paymentIntentId);
+        $comment = sprintf('Captured amount of %s online. Transaction ID: \'%s\'.', $grandTotal, $paymentIntentId);
         $order->addCommentToStatusHistory(__($comment));
-        $order
-        ->setState(Order::STATE_PROCESSING)
-        ->setStatus(Order::STATE_PROCESSING)
-        ->save();
+        // $order->setState(Order::STATE_PROCESSING)->setStatus(Order::STATE_PROCESSING);
+        $this->orderRepository->save($order);
         $invoice = $this->invoiceService->prepareInvoice($order);
-        if ($amount != $order->getGrandTotal()) {
+        if (!$this->isAmountEqual(floatval($amount), floatval($order->getGrandTotal()))) {
             $invoice->setGrandTotal($amount);
             $targetAmount = $this->convertToDisplayCurrency($amount, $order->getBaseToOrderRate(), true);
-            if ($targetAmount > $order->getBaseGrandTotal()) {
+            if ($targetAmount - $order->getBaseGrandTotal() >= 0.01) {
                 $targetAmount = $order->getBaseGrandTotal();
             }
             $invoice->setBaseGrandTotal($targetAmount);

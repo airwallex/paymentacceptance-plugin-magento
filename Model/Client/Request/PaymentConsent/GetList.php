@@ -152,6 +152,10 @@ class GetList extends AbstractClient implements BearerAuthenticationInterface
 
             /** @var SavedPaymentResponse $result */
             $savedPayment = $this->savedPaymentResponseFactory->create();
+            $billing = '';
+            if ($item->payment_method->card->billing) {
+                $billing = json_encode((array)$item->payment_method->card->billing);
+            }
             $savedPayment->setData([
                 SavedPaymentResponseInterface::DATA_KEY_ID => $item->id,
                 SavedPaymentResponseInterface::DATA_KEY_CARD_BRAND => $iconIndex,
@@ -161,7 +165,8 @@ class GetList extends AbstractClient implements BearerAuthenticationInterface
                 SavedPaymentResponseInterface::DATA_KEY_CARD_HOLDER_NAME => $item->payment_method->card->name,
                 SavedPaymentResponseInterface::DATA_KEY_NEXT_TRIGGERED_BY => $item->next_triggered_by ?? '',
                 SavedPaymentResponseInterface::DATA_KEY_NUMBER_TYPE => $item->payment_method->card->number_type ?? '',
-                SavedPaymentResponseInterface::DATA_KEY_CARD_ICON => $cards[$iconIndex]['resources']['logos']['png'] ?? ''
+                SavedPaymentResponseInterface::DATA_KEY_CARD_ICON => $cards[$iconIndex]['resources']['logos']['png'] ?? '',
+                SavedPaymentResponseInterface::DATA_BILLING => $billing
             ]);
 
             $result[] = $savedPayment;

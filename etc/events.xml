@@ -1,27 +1,6 @@
 <?xml version="1.0"?>
-<!--
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
- -->
+
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
-    <event name="sales_quote_add_item">
-        <observer name="after_add_quote_clear_saved_intent_from_cache" instance="Airwallex\Payments\Observer\ClearSavedIntent"/>
-    </event>
-    <event name="checkout_onepage_controller_success_action">
-        <observer name="quote_success_clear_saved_intent_from_cache" instance="Airwallex\Payments\Observer\ClearSavedIntent"/>
-    </event>
     <event name="checkout_submit_all_after">
         <observer name="airwallex_checkout_submit_all_after" instance="Airwallex\Payments\Observer\CheckoutSubmitAllAfter"/>
     </event>

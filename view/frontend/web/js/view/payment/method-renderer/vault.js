@@ -115,14 +115,15 @@ define([
             return this.details.customer_id === window.checkoutConfig.payment.airwallex_payments.airwallex_customer_id;
         },
 
-        initCvcForm: function (id) {
+        initCvcForm: async function (id) {
             $('body').trigger('processStart');
             if (this.cvcElement) this.cvcElement.destroy();
             Airwallex.init({
                 env: window.checkoutConfig.payment.airwallex_payments.mode,
                 origin: window.location.origin,
             });
-
+            if (this.cvcDetail) this.cvcDetail.complete = false;
+            this.validationError('');
             this.cvcElement = Airwallex.createElement('cvc');
             const domElement = this.cvcElement.mount(id + '-cvc', { autoCapture: this.autoCapture });
             domElement.addEventListener('onReady', (event) => {
@@ -134,10 +135,37 @@ define([
                     this.validationError('');
                 }
             })
+
+            if (!window.airwallexSavedCards) {
+                window.airwallexSavedCards = await utils.getSavedCards();
+            }
+            for (let card of window.airwallexSavedCards) {
+                if (card.id === $('#v-' + id).val()) {
+                    if (!card.billing) { continue; }
+                    let cardBilling = JSON.parse(card.billing)
+                    let billing = {
+                        firstname: cardBilling.first_name,
+                        lastname: cardBilling.last_name,
+                        telephone: cardBilling.phone_number,
+                        countryId: cardBilling.address.country_code,
+                        regionId: 0,
+                        region: cardBilling.address.state,
+                        city: cardBilling.address.city, // taking "city1" from "city1-2"
+                        street: cardBilling.address.street.split(', '),
+                        postcode: cardBilling.address.postcode
+                    }
+                    await addressHandler.postBillingAddress({
+                        'cartId': quote.getQuoteId(),
+                        'address': billing
+                    }, utils.isLoggedIn(), quote.getQuoteId());
+                    break;
+                }
+            }
         },
 
         placeOrder: function (data, event) {
             const self = this;
+            this.validationError('');
 
             if (event) {
                 event.preventDefault();

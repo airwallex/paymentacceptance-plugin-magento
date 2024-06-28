@@ -1,18 +1,5 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
+
 namespace Airwallex\Payments\Model\Webhook;
 
 use Airwallex\Payments\Exception\WebhookException;
@@ -74,9 +61,11 @@ class Refund extends AbstractWebhook
      */
     public function execute(object $data): void
     {
-        $order = $this->paymentIntentRepository->getOrder($data->payment_intent_id);
+        $paymentIntentId = $data->payment_intent_id ?? $data->id;
+        /** @var \Magento\Sales\Model\Order $order */
+        $order = $this->paymentIntentRepository->getOrder($paymentIntentId);
 
-        if ($order === null) {
+        if (!$order) {
             throw new WebhookException(__('Can\'t find order'));
         }
 
@@ -108,7 +97,7 @@ class Refund extends AbstractWebhook
     {
         $invoice = $order->getInvoiceCollection()->getFirstItem();
 
-        if ($invoice === null) {
+        if (!$invoice) {
             return;
         }
 

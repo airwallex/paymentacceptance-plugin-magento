@@ -148,7 +148,7 @@ define([
                 first_name: names[0],
                 last_name: names.length > 1 ? names[names.length - 1] : names[0],
                 email: data.email,
-                telephone: addr.phoneNumber
+                phone_number: 'addr.phoneNumber'
             };
         },
 
@@ -164,7 +164,7 @@ define([
                 first_name: addr.givenName,
                 last_name: addr.familyName,
                 email,
-                telephone: addr.phoneNumber
+                phone_number: 'addr.phoneNumber2'
             };
         },
 
@@ -179,7 +179,8 @@ define([
                 },
                 first_name: billingAddress.firstname,
                 last_name: billingAddress.lastname,
-                email: billingAddress.email
+                email: billingAddress.email,
+                phone_number: billingAddress.telephone
             };
         },
 

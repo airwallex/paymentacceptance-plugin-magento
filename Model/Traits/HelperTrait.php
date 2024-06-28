@@ -41,4 +41,8 @@ trait HelperTrait
         }
         return strtolower($type);
     }
+
+    public function isAmountEqual(float $a, float $b) {
+        return abs($a - $b) <= 0.01;
+    }
 }

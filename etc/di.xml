@@ -1,20 +1,5 @@
 <?xml version="1.0"?>
-<!--
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
- -->
+
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="Airwallex\Payments\Api\ServiceInterface" type="Airwallex\Payments\Model\Service" />
     <preference for="Airwallex\Payments\Api\Data\PlaceOrderResponseInterface" type="Airwallex\Payments\Model\PlaceOrderResponse" />
@@ -23,9 +8,6 @@
     <preference for="Airwallex\Payments\Api\Data\ClientSecretResponseInterface" type="Airwallex\Payments\Model\ClientSecretResponse" />
     <type name="Magento\Payment\Block\Form\Container">
         <plugin name="remove_methods_from_admin_reorder" type="Airwallex\Payments\Plugin\RemoveMethodsFromAdminReorder" sortOrder="1" />
-    </type>
-    <type name="Magento\Store\Model\Store">
-        <plugin name="remove_intent_after_change_currency" type="Airwallex\Payments\Plugin\StorePlugin" sortOrder="1" />
     </type>
     <type name="Magento\ReCaptchaWebapiApi\Model\CompositeWebapiValidationConfigProvider">
         <arguments>

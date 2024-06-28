@@ -238,21 +238,14 @@ define(
                                 throw new Error('Email is required!');
                             }
                         }
-
-                        let confirmBilling = pay === 'apple' ? addressHandler.intentConfirmBillingAddressFromApple : addressHandler.intentConfirmBillingAddressFromGoogle;
-
+                        
                         let intentResponse = await utils.getIntent(payload, {});
 
                         const params = {};
                         params.id = intentResponse.intent_id;
                         params.client_secret = intentResponse.client_secret;
-                        params.payment_method = {};
-                        params.payment_method.billing = confirmBilling;
-                        if (utils.isCheckoutPage()) {
-                            addressHandler.setIntentConfirmBillingAddressFromOfficial(this.expressData.billing_address);
-                            params.payment_method.billing = addressHandler.intentConfirmBillingAddressFromOfficial;
-                        }
-
+                        // params.payment_method = {};
+                        // let confirmBilling = pay === 'apple' ? addressHandler.intentConfirmBillingAddressFromApple : addressHandler.intentConfirmBillingAddressFromGoogle;
                         try {
                             await eval(pay).confirmIntent(params);
                         } catch (error) {

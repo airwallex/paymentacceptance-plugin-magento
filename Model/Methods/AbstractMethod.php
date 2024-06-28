@@ -1,18 +1,5 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
+
 namespace Airwallex\Payments\Model\Methods;
 
 use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
@@ -38,10 +25,10 @@ use Magento\Payment\Gateway\Validator\ValidatorPoolInterface;
 use Magento\Payment\Model\InfoInterface;
 use Magento\Payment\Model\Method\Adapter;
 use Magento\Quote\Api\Data\CartInterface;
-use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Airwallex\Payments\Model\Traits\HelperTrait;
+use Airwallex\Payments\Logger\Logger;
 
 /**
  * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
@@ -56,9 +43,9 @@ abstract class AbstractMethod extends Adapter
     public const ADDITIONAL_DATA = ['intent_id', 'intent_status'];
 
     /**
-     * @var LoggerInterface|null
+     * @var Logger
      */
-    protected ?LoggerInterface $logger;
+    protected Logger $logger;
 
     /**
      * @var Refund
@@ -73,7 +60,7 @@ abstract class AbstractMethod extends Adapter
     /**
      * @var PaymentIntentRepository
      */
-    private PaymentIntentRepository $paymentIntentRepository;
+    protected PaymentIntentRepository $paymentIntentRepository;
 
     /**
      * @var Cancel
@@ -128,7 +115,7 @@ abstract class AbstractMethod extends Adapter
      * @param CommandPoolInterface|null $commandPool
      * @param ValidatorPoolInterface|null $validatorPool
      * @param CommandManagerInterface|null $commandExecutor
-     * @param LoggerInterface|null $logger
+     * @param Logger $logger
      */
     public function __construct(
         PaymentIntents $paymentIntents,
@@ -150,7 +137,7 @@ abstract class AbstractMethod extends Adapter
         CommandPoolInterface $commandPool = null,
         ValidatorPoolInterface $validatorPool = null,
         CommandManagerInterface $commandExecutor = null,
-        LoggerInterface $logger = null
+        Logger $logger = null
     ) {
         parent::__construct(
             $eventManager,
@@ -206,24 +193,18 @@ abstract class AbstractMethod extends Adapter
      */
     public function authorize(InfoInterface $payment, $amount): self
     {
-        $this->insertIntentWithOrder($payment);
+        $this->setTransactionId($payment);
         return $this;
     }
 
-    /**
-     * @param InfoInterface $payment
-     *
-     * @return void
-     * @throws AlreadyExistsException|LocalizedException
-     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
-     */
-    protected function insertIntentWithOrder(InfoInterface $payment) {
+    protected function setTransactionId($payment) {
         $intentId = $this->getIntentId();
-
+        if (empty($intentId)) {
+            throw new LocalizedException(__('Something went wrong while trying to capture the payment.'));
+        }
+        /** @var \Magento\Sales\Model\Order\Payment $payment */
         $payment->setTransactionId($intentId);
         $payment->setIsTransactionClosed(false);
-
-        $this->paymentIntentRepository->save($payment->getOrder()->getIncrementId(), $intentId);
     }
 
     /**
@@ -235,7 +216,7 @@ abstract class AbstractMethod extends Adapter
      */
     public function capture(InfoInterface $payment, $amount): self
     {
-        $this->insertIntentWithOrder($payment);
+        $this->setTransactionId($payment);
         return $this;
     }
 
@@ -247,14 +228,12 @@ abstract class AbstractMethod extends Adapter
      */
     public function cancel(InfoInterface $payment): self
     {
-        if ($this->cancelHelper->isWebhookCanceling()) {
+        if ($this->cancelHelper->isWebhookCanceling()) { // check status TODO:
             return $this;
         }
 
-        $paymentTransactionId = str_replace(['-void', '-cancel'], '', $payment->getTransactionId());
-
         try {
-            $this->cancel->setPaymentIntentId($paymentTransactionId)->send();
+            $this->cancel->setPaymentIntentId($this->getIntentId())->send();
         } catch (GuzzleException $exception) {
             $this->logger->orderError($payment->getOrder(), 'cancel', $exception->getMessage());
             throw new RuntimeException(__($exception->getMessage()));
@@ -272,21 +251,19 @@ abstract class AbstractMethod extends Adapter
      */
     public function refund(InfoInterface $payment, $amount): self
     {
+        /** @var \Magento\Sales\Model\Order\Payment $payment */
         $order = $payment->getOrder();
         $creditmemo = $payment->getCreditmemo();
 
-        if ($amount == $creditmemo->getBaseGrandTotal()) {
+        if ($this->isAmountEqual(floatval($amount), floatval($creditmemo->getBaseGrandTotal()))) {
             $targetAmount = $creditmemo->getGrandTotal();
         } else {
             $targetAmount = $this->convertToDisplayCurrency($amount, $order->getBaseToOrderRate());
         }
 
-        $paymentTransactionId = str_replace('-refund', '', $payment->getTransactionId());
-        $paymentTransactionId = str_replace('-capture', '', $paymentTransactionId);
+        $intentId = $this->getIntentId();
         try {
-            $this->refund
-                ->setInformation($paymentTransactionId, $targetAmount)
-                ->send();
+            $this->refund->setInformation($intentId, $targetAmount)->send();
         } catch (GuzzleException $exception) {
             $this->logger->orderError($payment->getOrder(), 'refund', $exception->getMessage());
             throw new RuntimeException(__($exception->getMessage()));
@@ -323,13 +300,7 @@ abstract class AbstractMethod extends Adapter
      */
     protected function getIntentId(): string
     {
-        $intentId = $this->getInfoInstance()->getAdditionalInformation('intent_id');
-        if ($intentId === null) {
-            $response = $this->paymentIntents->getIntents();
-            $intentId = $response['id'];
-            $this->getInfoInstance()->setAdditionalInformation('intent_id', $intentId);
-        }
-        return $intentId;
+        return $this->getInfoInstance()->getAdditionalInformation('intent_id');
     }
 
     /**

@@ -25,6 +25,7 @@ use Magento\Framework\Exception\NoSuchEntityException;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use stdClass;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
+use Magento\Sales\Model\Order;
 use Magento\Sales\Model\OrderRepository;
 
 class Webhook
@@ -129,8 +130,8 @@ class Webhook
         }
 
         if (in_array($type, Capture::WEBHOOK_NAMES)) {
-            $this->addAVSResult($data);
             $this->capture->execute($data);
+            $this->addAVSResult($data);
         }
 
         if (in_array($type, self::AUTHORIZED_WEBHOOK_NAMES)) {
@@ -145,6 +146,7 @@ class Webhook
     protected function addAVSResult($data)
     {
         $id = $data->payment_intent_id ?? $data->id;
+        /** @var Order $order */
         $order = $this->paymentIntentRepository->getOrder($id);
         if (!$order) return;
         $histories = $order->getStatusHistories();
@@ -158,7 +160,6 @@ class Webhook
         }
         try {
             $resp = $this->intentGet->setPaymentIntentId($id)->send();
-
             $respArr = json_decode($resp, true);
             $brand = $respArr['latest_payment_attempt']['payment_method']['card']['brand'] ?? '';
             if ($brand) $brand = ' Card Brand: ' . strtoupper($brand) . '.';

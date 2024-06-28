@@ -13,6 +13,7 @@ interface SavedPaymentResponseInterface
     public const DATA_KEY_CARD_ICON = 'card_icon';
     public const DATA_KEY_NEXT_TRIGGERED_BY = 'next_triggered_by';
     public const DATA_KEY_NUMBER_TYPE = 'number_type';
+    public const DATA_BILLING = 'billing';
 
     /**
      * @return string|null
@@ -112,4 +113,15 @@ interface SavedPaymentResponseInterface
      * @return $this
      */
     public function setNumberType(string $numberType = null);
+
+    /**
+     * @return string|null
+     */
+    public function getBilling();
+
+    /**
+     * @param string|null $billing
+     * @return $this
+     */
+    public function setBilling(string $billing = null);
 }

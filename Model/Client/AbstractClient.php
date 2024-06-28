@@ -30,12 +30,12 @@ use Psr\Http\Message\ResponseInterface;
 abstract class AbstractClient
 {
     public const NOT_FOUND = '404 not found';
-    private const JSON_DECODE_DEPTH = 512;
-    private const SUCCESS_STATUS_START = 200;
-    private const SUCCESS_STATUS_END = 299;
-    private const AUTHENTICATION_FAILED = 401;
-    private const TIME_OUT = 30;
-    private const DEFAULT_HEADER = [
+    protected const JSON_DECODE_DEPTH = 512;
+    protected const SUCCESS_STATUS_START = 200;
+    protected const SUCCESS_STATUS_END = 299;
+    protected const AUTHENTICATION_FAILED = 401;
+    protected const TIME_OUT = 30;
+    protected const DEFAULT_HEADER = [
         'Content-Type' => 'application/json',
         'region' => 'string'
     ];
@@ -45,7 +45,7 @@ abstract class AbstractClient
     /**
      * @var AuthenticationHelper
      */
-    private AuthenticationHelper $authenticationHelper;
+    protected AuthenticationHelper $authenticationHelper;
 
     /**
      * @var IdentityService
@@ -55,7 +55,7 @@ abstract class AbstractClient
     /**
      * @var RequestLogger
      */
-    private RequestLogger $requestLogger;
+    protected RequestLogger $requestLogger;
 
     /**
      * @var Configuration

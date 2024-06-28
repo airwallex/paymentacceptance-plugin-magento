@@ -1,34 +1,26 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
+
 namespace Airwallex\Payments\Model;
 
 use Airwallex\Payments\Api\Data\PaymentIntentInterface;
 use Airwallex\Payments\Model\ResourceModel\PaymentIntent as PaymentIntentResource;
-use Airwallex\Payments\Model\ResourceModel\PaymentIntent\CollectionFactory;
+use Airwallex\Payments\Model\ResourceModel\PaymentIntent\CollectionFactory as PaymentIntentCollectionFactory;
+
 use Magento\Framework\Exception\AlreadyExistsException;
+use Magento\Framework\Exception\InputException;
+use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Sales\Api\Data\OrderInterface;
+use Magento\Framework\Api\SearchCriteriaBuilder;
+use Magento\Sales\Api\OrderRepositoryInterface;
+use Magento\Sales\Model\Order;
+
 
 class PaymentIntentRepository
 {
-    private const RACE_SLEEP_TIME = 4;
-
     /**
-     * @var CollectionFactory
+     * @var PaymentIntentCollectionFactory
      */
-    private CollectionFactory $collectionFactory;
+    private PaymentIntentCollectionFactory $paymentIntentCollectionFactory;
 
     /**
      * @var PaymentIntentFactory
@@ -38,31 +30,124 @@ class PaymentIntentRepository
     /**
      * @var PaymentIntentResource
      */
-    private PaymentIntentResource $paymentIntent;
+    private PaymentIntentResource $paymentIntentResource;
 
     /**
-     * @var OrderInterface
+     * @var Order
      */
     private OrderInterface $order;
 
     /**
      * PaymentIntentRepository constructor.
      *
-     * @param CollectionFactory $collectionFactory
      * @param PaymentIntentFactory $paymentIntentFactory
      * @param PaymentIntentResource $paymentIntent
      * @param OrderInterface $order
      */
     public function __construct(
-        CollectionFactory $collectionFactory,
+        PaymentIntentCollectionFactory $paymentIntentCollectionFactory,
+        OrderRepositoryInterface $orderRepository,
+        SearchCriteriaBuilder $searchCriteriaBuilder,
         PaymentIntentFactory $paymentIntentFactory,
-        PaymentIntentResource $paymentIntent,
+        PaymentIntentResource $paymentIntentResource,
         OrderInterface $order
     ) {
-        $this->collectionFactory = $collectionFactory;
+        $this->paymentIntentCollectionFactory = $paymentIntentCollectionFactory;
+        $this->orderRepository = $orderRepository;
+        $this->searchCriteriaBuilder = $searchCriteriaBuilder;
         $this->paymentIntentFactory = $paymentIntentFactory;
-        $this->paymentIntent = $paymentIntent;
+        $this->paymentIntentResource = $paymentIntentResource;
         $this->order = $order;
+    }
+
+
+    /**
+     * @param string $intentId
+     *
+     * @return PaymentIntentInterface
+     * @throws NoSuchEntityException
+     */
+    public function getByIntentId($intentId)
+    {
+        if (!$intentId) {
+            throw new InputException(__('Payment intent id is required.'));
+        }
+    
+        $collection = $this->paymentIntentCollectionFactory->create();
+        $collection->addFieldToFilter(PaymentIntentInterface::PAYMENT_INTENT_ID_COLUMN, $intentId);
+        $collection->setOrder('id', 'DESC');
+        $collection->setPageSize(1); // Limit to 1 result
+    
+        $paymentIntent = $collection->getFirstItem();
+    
+        if (!$paymentIntent->getId()) {
+            throw new NoSuchEntityException(__('The payment intent "%1" doesn\'t exist.', $intentId));
+        }
+    
+        return $paymentIntent;
+    }
+
+    /**
+     * @param int $quoteId
+     * 
+     * @return ?PaymentIntentInterface
+     * @throws NoSuchEntityException
+     */
+    public function getByQuoteId(int $quoteId)
+    {
+        if ($quoteId <= 0) {
+            throw new InputException(__('Invalid quote id.'));
+        }
+
+        $collection = $this->paymentIntentCollectionFactory->create();
+        $collection->addFieldToFilter(PaymentIntentInterface::QUOTE_ID_COLUMN, $quoteId);
+        $collection->setOrder('id', 'DESC');
+
+        $paymentIntent = $collection->getFirstItem();
+
+        if (!$paymentIntent->getId()) {
+            return null;
+        }
+
+        return $paymentIntent;
+    }
+
+    /**
+     * @param string $orderIncrementId
+     * @param int $storeId
+     *
+     * @return PaymentIntentInterface
+     * @throws NoSuchEntityException
+     */
+    public function getByOrderIncrementIdAndStoreId(string $orderIncrementId, int $storeId)
+    {
+        if (!$orderIncrementId) {
+            throw new InputException(__('Order increment id is required.'));
+        }
+        if ($storeId <= 0) {
+            throw new InputException(__('Invalid store id.'));
+        }
+        $paymentIntent = $this->paymentIntentFactory->create();
+        $connection = $this->paymentIntentResource->getConnection();
+        $orderIncrementIdName = PaymentIntentInterface::ORDER_INCREMENT_ID_COLUMN;
+        $storeIdName = PaymentIntentInterface::STORE_ID_COLUMN;
+        $bind = [$orderIncrementIdName => $orderIncrementId, $storeIdName => $storeId];
+        $select = $connection->select()
+            ->from($this->paymentIntentResource->getMainTable())
+            ->where($orderIncrementIdName . ' = :' . $orderIncrementIdName)
+            ->where($storeIdName . ' = :' . $storeIdName)
+            ->order("id DESC")
+            ->limit(1);
+
+        $data = $connection->fetchRow($select, $bind);
+
+        if (!$data) {
+            throw new NoSuchEntityException(__('The payment intent for ' . $orderIncrementIdName . ' "%1" and ' . $storeIdName . ' "%2" doesn\'t exist.', $orderIncrementId, $storeId));
+        }
+
+        $paymentIntent->setData($data);
+
+        return $paymentIntent;
     }
 
     /**
@@ -70,37 +155,35 @@ class PaymentIntentRepository
      *
      * @return OrderInterface|null
      */
-    public function getOrder(string $paymentIntentId): ?OrderInterface
+    public function getOrder(string $paymentIntentId): ?OrderInterface // TODO
     {
-        $intentCollection = $this->collectionFactory->create();
-
-        /** @var PaymentIntentInterface|null $intent */
-        $intent = $intentCollection
-            ->addFieldToFilter('payment_intent_id', ['eq' => $paymentIntentId])
-            ->getFirstItem();
-
-        if ($intent->getId() === null) {
-            return null;
-        }
-
-        $order = $this->order->loadByIncrementId($intent->getOrderIncrementId());
-
-        return $order->getId() === null ? null : $order;
+        $record = $this->getByIntentId($paymentIntentId);
+        return $this->order->loadByIncrementIdAndStoreId($record->getOrderIncrementId(), $record->getStoreId());
     }
 
     /**
      * @param string $orderIncrement
      * @param string $paymentIntentId
+     * @param string $currencyCode
+     * @param float $grandTotal
+     * @param int $quoteId
+     * @param int $storeId
+     * @param string $detail
      *
      * @return void
      * @throws AlreadyExistsException
      */
-    public function save(string $orderIncrement, string $paymentIntentId): void
+    public function save(string $orderIncrement, string $paymentIntentId, string $currencyCode, float $grandTotal, int $quoteId, int $storeId, string $detail): void
     {
         $paymentIntent = $this->paymentIntentFactory->create();
         $paymentIntent->setPaymentIntentId($paymentIntentId)
-            ->setOrderIncrementId($orderIncrement);
+            ->setOrderIncrementId($orderIncrement)
+            ->setCurrencyCode($currencyCode)
+            ->setGrandTotal($grandTotal)
+            ->setQuoteId($quoteId)
+            ->setStoreId($storeId)
+            ->setDetail($detail);
 
-        $this->paymentIntent->save($paymentIntent);
+        $this->paymentIntentResource->save($paymentIntent);
     }
 }

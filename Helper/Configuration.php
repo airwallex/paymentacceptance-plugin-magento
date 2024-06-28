@@ -95,7 +95,7 @@ class Configuration extends AbstractHelper
      *
      * @return bool
      */
-    private function isDemoMode(): bool
+    public function isDemoMode(): bool
     {
         return $this->getMode() === Mode::DEMO;
     }

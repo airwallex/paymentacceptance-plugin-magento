@@ -1,18 +1,5 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
+
 namespace Airwallex\Payments\Model;
 
 use Airwallex\Payments\Api\Data\PaymentIntentInterface;
@@ -41,6 +28,14 @@ class PaymentIntent extends AbstractModel implements IdentityInterface, PaymentI
     /**
      * @return string
      */
+    public function getOrderIncrementId(): string
+    {
+        return $this->getData(PaymentIntentInterface::ORDER_INCREMENT_ID_COLUMN);
+    }
+
+    /**
+     * @return string
+     */
     public function getPaymentIntentId(): string
     {
         return $this->getData(PaymentIntentInterface::PAYMENT_INTENT_ID_COLUMN);
@@ -49,9 +44,51 @@ class PaymentIntent extends AbstractModel implements IdentityInterface, PaymentI
     /**
      * @return string
      */
-    public function getOrderIncrementId(): string
+    public function getCurrencyCode(): string
     {
-        return $this->getData(PaymentIntentInterface::ORDER_INCREMENT_ID_COLUMN);
+        return $this->getData(PaymentIntentInterface::CURRENCY_CODE_COLUMN);
+    }
+
+    /**
+     * @return float
+     */
+    public function getGrandTotal(): float
+    {
+        return $this->getData(PaymentIntentInterface::GRAND_TOTAL_COLUMN);
+    }
+
+    /**
+     * @return int
+     */
+    public function getQuoteId(): int
+    {
+        return $this->getData(PaymentIntentInterface::QUOTE_ID_COLUMN);
+    }
+
+    /**
+     * @return int
+     */
+    public function getStoreId(): int
+    {
+        return $this->getData(PaymentIntentInterface::STORE_ID_COLUMN);
+    }
+
+    /**
+     * @return string
+     */
+    public function getDetail(): string
+    {
+        return $this->getData(PaymentIntentInterface::DETAIL_COLUMN);
+    }
+
+    /**
+     * @param string $orderIncrementId
+     *
+     * @return PaymentIntentInterface
+     */
+    public function setOrderIncrementId(string $orderIncrementId): PaymentIntentInterface
+    {
+        return $this->setData(PaymentIntentInterface::ORDER_INCREMENT_ID_COLUMN, $orderIncrementId);
     }
 
     /**
@@ -63,14 +100,53 @@ class PaymentIntent extends AbstractModel implements IdentityInterface, PaymentI
     {
         return $this->setData(PaymentIntentInterface::PAYMENT_INTENT_ID_COLUMN, $paymentIntentId);
     }
-
     /**
-     * @param string $orderIncrementId
+     * @param string $currencyCode
      *
      * @return PaymentIntentInterface
      */
-    public function setOrderIncrementId(string $orderIncrementId): PaymentIntentInterface
+    public function setCurrencyCode(string $currencyCode): PaymentIntentInterface
     {
-        return $this->setData(PaymentIntentInterface::ORDER_INCREMENT_ID_COLUMN, $orderIncrementId);
+        return $this->setData(PaymentIntentInterface::CURRENCY_CODE_COLUMN, $currencyCode);
+    }
+
+    /**
+     * @param float $grandTotal
+     *
+     * @return PaymentIntentInterface
+     */
+    public function setGrandTotal(float $grandTotal): PaymentIntentInterface
+    {
+        return $this->setData(PaymentIntentInterface::GRAND_TOTAL_COLUMN, $grandTotal);
+    }
+
+    /**
+     * @param int $quoteId
+     *
+     * @return PaymentIntentInterface
+     */
+    public function setQuoteId(int $quoteId): PaymentIntentInterface
+    {
+        return $this->setData(PaymentIntentInterface::QUOTE_ID_COLUMN, $quoteId);
+    }
+
+    /**
+     * @param int $storeId
+     *
+     * @return PaymentIntentInterface
+     */
+    public function setStoreId(int $storeId): PaymentIntentInterface
+    {
+        return $this->setData(PaymentIntentInterface::STORE_ID_COLUMN, $storeId);
+    }
+
+    /**
+     * @param string $detail
+     *
+     * @return PaymentIntentInterface
+     */
+    public function setDetail(string $detail): PaymentIntentInterface
+    {
+        return $this->setData(PaymentIntentInterface::DETAIL_COLUMN, $detail);
     }
 }

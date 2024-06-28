@@ -159,4 +159,21 @@ class SavedPaymentResponse extends DataObject implements SavedPaymentResponseInt
     {
         return $this->setData(self::DATA_KEY_NUMBER_TYPE, $numberType);
     }
+
+    /**
+     * @return string|null
+     */
+    public function getBilling()
+    {
+        return $this->getData(self::DATA_BILLING);
+    }
+
+    /**
+     * @param string|null $billing
+     * @return $this
+     */
+    public function setBilling(string $billing = null)
+    {
+        return $this->setData(self::DATA_BILLING, $billing);
+    }
 }
