@@ -275,6 +275,11 @@ define([
             return await storage.get(url, undefined, 'application/json', {});
         },
 
+        async getRegionId(country, region) {
+            let url = urlBuilder.build('rest/V1/airwallex/region_id?country=' + country + '&region=' + region);
+            return await storage.get(url, undefined, 'application/json', {});
+        },        
+
         isRequireShippingAddress() {
             if (this.isProductPage()) {
                 return true;

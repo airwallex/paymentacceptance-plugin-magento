@@ -17,12 +17,14 @@
 
 namespace Airwallex\Payments\Observer;
 
+use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Sales\Model\Order;
 
 class CheckoutSubmitAllAfter implements ObserverInterface
 {
+    use HelperTrait;
     /**
      * @param Observer $observer
      *
@@ -38,13 +40,5 @@ class CheckoutSubmitAllAfter implements ObserverInterface
             $order->addCommentToStatusHistory(__($comment));
             $order->setState(Order::STATE_PENDING_PAYMENT)->setStatus(Order::STATE_PENDING_PAYMENT)->save();
         }
-    }
-
-    private function isRedirectMethodConstant($string)
-    {
-        $reflectionClass = new \ReflectionClass('Airwallex\Payments\Model\Methods\RedirectMethod');
-        $constants = $reflectionClass->getConstants();
-
-        return in_array($string, $constants);
     }
 }

@@ -260,6 +260,22 @@ class Service implements ServiceInterface
         }
     }
 
+    /**
+     * Get region id
+     *
+     * @param string $country
+     * @param string $region
+     * @return string
+     */
+    public function regionId(string $country, string $region): string
+    {
+        $regionId = $this->regionFactory->create()->loadByName($region, $country)->getRegionId();
+        if (!$regionId) {
+            $regionId = $this->regionFactory->create()->loadByCode($region, $country)->getRegionId();
+        }
+        return $regionId ?? 0;
+    }
+
     private function placeOrder(string $cartId, PaymentInterface $paymentMethod, $billingAddress, $intentId, $email = ''): PlaceOrderResponseInterface
     {
         /** @var PlaceOrderResponse $response */

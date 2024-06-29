@@ -4,4 +4,7 @@
     <event name="checkout_submit_all_after">
         <observer name="airwallex_checkout_submit_all_after" instance="Airwallex\Payments\Observer\CheckoutSubmitAllAfter"/>
     </event>
+    <event name="order_cancel_after">
+        <observer name="airwallex_order_cancel_after" instance="Airwallex\Payments\Observer\OrderCancelAfter"/>
+    </event>
 </config>

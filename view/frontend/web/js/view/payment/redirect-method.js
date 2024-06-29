@@ -1,25 +1,15 @@
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
-
 define([
     'Airwallex_Payments/js/view/payment/abstract-method',
     'jquery',
     'mage/url',
     'Magento_Ui/js/model/messageList',
+    'Airwallex_Payments/js/view/payment/utils',
+    'Magento_Checkout/js/model/payment/additional-validators',
+    'Magento_Checkout/js/action/redirect-on-success',
+    'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
+    'Magento_Checkout/js/model/quote',
     'mage/translate'
-], function (Component, $, url, globalMessageList, $t) {
+], function (Component, $, url, globalMessageList, utils, additionalValidators, redirectOnSuccessAction, addressHandler, quote, $t) {
     'use strict';
 
     return Component.extend({
@@ -33,6 +23,72 @@ define([
             this.code = this.index;
 
             return this._super();
+        },
+
+        placeOrder: async function (data, event) {
+            var self = this;
+
+            if (event) {
+                event.preventDefault();
+            }
+
+            if (this.validate() &&
+                additionalValidators.validate() &&
+                this.isPlaceOrderActionAllowed() === true
+            ) {
+                this.isPlaceOrderActionAllowed(false);
+
+                $('body').trigger('processStart');
+
+                try {
+                    const payload = {
+                        cartId: quote.getQuoteId(),
+                        paymentMethod: {
+                            method: this.code,
+                            additional_data: {},
+                            extension_attributes: {
+                                'agreement_ids': utils.getAgreementIds()
+                            }
+                        },
+                    };
+
+                    if (!utils.isLoggedIn()) {
+                        payload.email = quote.guestEmail;
+                    }
+    
+                    await addressHandler.postBillingAddress({
+                        'cartId': quote.getQuoteId(),
+                        'address': quote.billingAddress()
+                    }, utils.isLoggedIn(), quote.getQuoteId());
+    
+                    let intentResponse = await utils.getIntent(payload, {});
+                    this.intentId(intentResponse.intent_id)
+                } catch (e) { 
+                    $('body').trigger('processStop'); 
+                    self.isPlaceOrderActionAllowed(true);
+                    utils.error(e); 
+                    return;
+                }
+
+                this.getPlaceOrderDeferredObject()
+                    .done(
+                        function () {
+                            self.afterPlaceOrder();
+
+                            if (self.redirectAfterPlaceOrder) {
+                                redirectOnSuccessAction.execute();
+                            }
+                        }
+                    ).always(
+                        function () {
+                            self.isPlaceOrderActionAllowed(true);
+                        }
+                    );
+
+                return true;
+            }
+
+            return false;
         },
 
         afterPlaceOrder: function () {

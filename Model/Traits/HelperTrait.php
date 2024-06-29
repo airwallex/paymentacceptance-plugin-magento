@@ -45,4 +45,12 @@ trait HelperTrait
     public function isAmountEqual(float $a, float $b) {
         return abs($a - $b) <= 0.01;
     }
+
+    public function isRedirectMethodConstant($string)
+    {
+        $reflectionClass = new \ReflectionClass('Airwallex\Payments\Model\Methods\RedirectMethod');
+        $constants = $reflectionClass->getConstants();
+
+        return in_array($string, $constants);
+    }
 }

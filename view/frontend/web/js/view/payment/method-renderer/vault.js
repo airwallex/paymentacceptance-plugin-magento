@@ -154,6 +154,9 @@ define([
                         street: cardBilling.address.street.split(', '),
                         postcode: cardBilling.address.postcode
                     }
+
+                    let regionId = await utils.getRegionId(cardBilling.address.country_code, cardBilling.address.state);
+                    billing.regionId = regionId;
                     await addressHandler.postBillingAddress({
                         'cartId': quote.getQuoteId(),
                         'address': billing

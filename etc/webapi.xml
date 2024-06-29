@@ -47,6 +47,13 @@
         </resources>
     </route>
 
+    <route url="/V1/airwallex/region_id" method="GET">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="regionId"/>
+        <resources>
+            <resource ref="anonymous" />
+        </resources>
+    </route>
+
     <route url="/V1/airwallex/payments/add-to-cart" method="POST">
         <service class="Airwallex\Payments\Api\ServiceInterface" method="addToCart"/>
         <resources>

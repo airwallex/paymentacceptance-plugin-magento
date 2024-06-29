@@ -149,7 +149,7 @@ class PaymentIntentRepository
      *
      * @return OrderInterface|null
      */
-    public function getOrder(string $paymentIntentId): ?OrderInterface // TODO
+    public function getOrder(string $paymentIntentId): ?OrderInterface
     {
         $record = $this->getByIntentId($paymentIntentId);
         return $this->order->loadByIncrementIdAndStoreId($record->getOrderIncrementId(), $record->getStoreId());

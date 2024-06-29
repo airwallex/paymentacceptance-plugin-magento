@@ -59,7 +59,7 @@ class PaymentIntents
         $quote = $this->checkoutSession->getQuote();
 
         if (!$orderId = $quote->getReservedOrderId()) {
-            $quote->reserveOrderId(); // test set null then reserveOrderId is that increment? TODO:
+            $quote->reserveOrderId();
             $this->quoteRepository->save($quote);
             $orderId = $quote->getReservedOrderId();
         }
