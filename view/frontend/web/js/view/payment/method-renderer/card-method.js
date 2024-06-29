@@ -31,6 +31,7 @@ define(
             cvcMountElement: 'airwallex-payments-cvc-form',
             cardElement: undefined,
             cvcElement: undefined,
+            cardDetail: {},
             validationError: ko.observable(),
             showNewCardForm: ko.observable(true),
             showCvcForm: ko.observable(false),
@@ -78,6 +79,12 @@ define(
                     }                       
                 });
                 this.cardElement.mount(this.mountElement);
+                this.cardElement.on('change', (event) => {
+                    this.cardDetail = event.detail;
+                    if (this.cardDetail.complete) {
+                        this.validationError('');
+                    }
+                })
 
                 $('body').trigger('processStop');
                 if (!this.isCardVaultActive()) {
@@ -93,7 +100,7 @@ define(
                 if (!additionalValidators.validate()) {
                     return;
                 }
-                this.validationError(undefined);
+                this.validationError('');
 
                 self.placeOrder();
             },
@@ -123,6 +130,11 @@ define(
                     this.isPlaceOrderActionAllowed() === true
                 ) {
                     this.isPlaceOrderActionAllowed(false);
+                    if (!this.cardDetail || !this.cardDetail.complete) {
+                        this.isPlaceOrderActionAllowed(true);
+                        this.validationError($.mage.__('Please complete your payment details.'));
+                        return
+                    }
                     utils.pay(self, 'card', quote);
                     return true;
                 }

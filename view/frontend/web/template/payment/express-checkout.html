@@ -1,21 +1,35 @@
-<div class="airwallex-express-checkout" data-bind="if: isShow">
+<div class="airwallex-express-checkout airwallex" data-bind="if: isShow">
     <div id="awx-modal">
         <div class="modal-body-content"></div>
     </div>
 
-    <div class="aws-button-mask"></div>
-    <div class="aws-button-mask-for-login"></div>
 
     <div data-role="title" class="express-title">
         <!-- ko i18n: 'Express Checkout' --><!-- /ko -->
     </div>
 
-    <div data-bind="foreach: buttonSort">
-        <div data-bind="attr: {class: 'awx-pay-' + $data}">
-            <div data-bind="attr: {id: 'awx-' + $data + '-pay-' + $parent.from}"></div>
+    <div style="position: relative;">
+        <div class="aws-button-mask"></div>
+        <div class="aws-button-mask-for-login"></div>
+        <div class="aws-button-mask-for-agreement"></div>
+    
+        <div data-bind="foreach: buttonSort">
+            <div data-bind="attr: {class: 'awx-pay-' + $data}">
+                <div data-bind="attr: {id: 'awx-' + $data + '-pay-' + $parent.from}"></div>
+            </div>
+            <div style="height: 1px;"></div>
         </div>
-        <div style="height: 1px;"></div>
     </div>
+
+
+    <div class="payment-method">
+        <div class="checkout-agreements checkout-agreements-block">
+            <!-- ko foreach: getRegion('beforeMethods') -->
+                <!-- ko template: getTemplate() --><!-- /ko -->
+            <!--/ko-->
+        </div>
+    </div>
+
     <div class="airwallex-recaptcha" data-bind="if: isShowRecaptcha">
         <div id="express-recaptcha-checkout-place-order-wrapper">
             <div class="g-recaptcha" id="express-recaptcha-checkout-place-order"></div>

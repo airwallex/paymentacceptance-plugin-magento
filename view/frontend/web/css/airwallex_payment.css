@@ -55,7 +55,8 @@
 }
 
 .aws-button-mask,
-.aws-button-mask-for-login {
+.aws-button-mask-for-login, 
+.aws-button-mask-for-agreement {
     position: absolute;
     top: 0;
     right: 0;
@@ -191,4 +192,17 @@
 
 .table-credit-cards td {
     vertical-align: middle;
+}
+
+.airwallex .checkout-agreement {
+    align-items: center;
+}
+
+.airwallex .checkout-agreements-block .checkout-agreement.field {
+    margin-top: 5px;
+    margin-bottom: 0;
+}
+
+.airwallex input[type="checkbox"] {
+    margin-top: -5px;
 }

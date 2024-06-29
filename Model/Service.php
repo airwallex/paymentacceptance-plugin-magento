@@ -47,7 +47,10 @@ use Magento\Quote\Api\CartManagementInterface;
 use Magento\Quote\Model\SubmitQuoteValidator;
 use Airwallex\Payments\Logger\Logger;
 use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
+use Airwallex\Payments\Model\Methods\ExpressCheckout;
 use Airwallex\Payments\Model\Traits\HelperTrait;
+use Magento\CheckoutAgreements\Model\Checkout\Plugin\GuestValidation;
+use Magento\CheckoutAgreements\Model\Checkout\Plugin\Validation;
 
 class Service implements ServiceInterface
 {
@@ -86,6 +89,8 @@ class Service implements ServiceInterface
     protected SubmitQuoteValidator $submitQuoteValidator;
     protected Logger $logger;
     protected ErrorLog $errorLog;
+    protected Validation $agreementValidation;
+    protected GuestValidation $agreementGuestValidation;
 
     /**
      * Index constructor.
@@ -123,6 +128,8 @@ class Service implements ServiceInterface
      * @param SubmitQuoteValidator $submitQuoteValidator
      * @param Logger $logger
      * @param ErrorLog $errorLog
+     * @param Validation $agreementValidation
+     * @param GuestValidation $agreementGuestValidation
      */
     public function __construct(
         PaymentConsentsInterface $paymentConsents,
@@ -157,7 +164,9 @@ class Service implements ServiceInterface
         CartManagementInterface $cartManagement,
         SubmitQuoteValidator $submitQuoteValidator,
         Logger $logger,
-        ErrorLog $errorLog
+        ErrorLog $errorLog,
+        Validation $agreementValidation,
+        GuestValidation $agreementGuestValidation
     ) {
         $this->paymentConsents = $paymentConsents;
         $this->paymentIntents = $paymentIntents;
@@ -192,6 +201,8 @@ class Service implements ServiceInterface
         $this->submitQuoteValidator = $submitQuoteValidator;
         $this->logger = $logger;
         $this->errorLog = $errorLog;
+        $this->agreementValidation = $agreementValidation;
+        $this->agreementGuestValidation = $agreementGuestValidation;
     }
     /**
      * Return URL
@@ -237,12 +248,25 @@ class Service implements ServiceInterface
         return $this->placeOrder($cartId, $paymentMethod, $billingAddress, $intentId, $email);
     }
 
+    protected function checkAgreements($uid, PaymentInterface $paymentMethod, $cartId, $email) 
+    {
+        if ($paymentMethod->getMethod() === ExpressCheckout::CODE) {
+            return;
+        }
+        if ($uid) {
+            $this->agreementValidation->beforeSavePaymentInformationAndPlaceOrder($this->paymentInformationManagement, $cartId, $paymentMethod);
+        } else {
+            $this->agreementGuestValidation->beforeSavePaymentInformationAndPlaceOrder($this->guestPaymentInformationManagement, $cartId, $email, $paymentMethod);
+        }
+    }
+
     private function placeOrder(string $cartId, PaymentInterface $paymentMethod, $billingAddress, $intentId, $email = ''): PlaceOrderResponseInterface
     {
         /** @var PlaceOrderResponse $response */
         $response = $this->placeOrderResponseFactory->create();
 
         $uid = $this->checkoutHelper->getQuote()->getCustomer()->getId();
+        $this->checkAgreements($uid, $paymentMethod, $cartId, $email);
 
         if (!$intentId) {
             if (!$cartId) {

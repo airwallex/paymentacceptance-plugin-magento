@@ -45,6 +45,16 @@
                                                                         <item name="template" xsi:type="string">Airwallex_Payments/payment/express-checkout</item>
                                                                         <item name="from" xsi:type="string">checkout_page</item>
                                                                     </item>
+                                                                    <item name="children" xsi:type="array">
+                                                                        <item name="agreementss" xsi:type="array">
+                                                                        <item name="componentDisabled" xsi:type="boolean">false</item>
+                                                                        <item name="component" xsi:type="string">Magento_CheckoutAgreements/js/view/checkout-agreements</item>
+                                                                        <item name="sortOrder" xsi:type="string">100</item>
+                                                                        <item name="displayArea" xsi:type="string">beforeMethods</item>
+                                                                        <item name="dataScope" xsi:type="string">checkoutAgreements</item>
+                                                                        <item name="provider" xsi:type="string">checkoutProvider</item>
+                                                                        </item>
+                                                                    </item>
                                                                 </item>
                                                             </item>
                                                         </item>

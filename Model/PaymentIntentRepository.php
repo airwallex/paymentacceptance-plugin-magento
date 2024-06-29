@@ -10,8 +10,6 @@ use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Sales\Api\Data\OrderInterface;
-use Magento\Framework\Api\SearchCriteriaBuilder;
-use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
 
 
@@ -46,15 +44,11 @@ class PaymentIntentRepository
      */
     public function __construct(
         PaymentIntentCollectionFactory $paymentIntentCollectionFactory,
-        OrderRepositoryInterface $orderRepository,
-        SearchCriteriaBuilder $searchCriteriaBuilder,
         PaymentIntentFactory $paymentIntentFactory,
         PaymentIntentResource $paymentIntentResource,
         OrderInterface $order
     ) {
         $this->paymentIntentCollectionFactory = $paymentIntentCollectionFactory;
-        $this->orderRepository = $orderRepository;
-        $this->searchCriteriaBuilder = $searchCriteriaBuilder;
         $this->paymentIntentFactory = $paymentIntentFactory;
         $this->paymentIntentResource = $paymentIntentResource;
         $this->order = $order;

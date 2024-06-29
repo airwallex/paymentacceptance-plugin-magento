@@ -4,10 +4,8 @@ namespace Airwallex\Payments\Model\Client\Request\PaymentIntents;
 
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
-use Airwallex\Payments\Model\PaymentConsents;
 use JsonException;
 use Magento\Quote\Model\Quote;
-use Magento\Quote\Model\Quote\Item;
 use Psr\Http\Message\ResponseInterface;
 
 class Create extends AbstractClient implements BearerAuthenticationInterface

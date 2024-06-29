@@ -6,7 +6,7 @@
         <column xsi:type="varchar" name="payment_intent_id" nullable="false"/>
         <column xsi:type="varchar" name="currency_code" nullable="false" default=""/>
         <column xsi:type="decimal" name="grand_total" scale="4" precision="20" unsigned="false" default="0"/>
-        <column xsi:type="bigint" name="quote_id" nullable="false"/>
+        <column xsi:type="bigint" name="quote_id" nullable="false" default="0"/>
         <column xsi:type="int" name="store_id" nullable="false" default="0"/>
         <column xsi:type="timestamp" name="created_at" on_update="false" nullable="false" default="CURRENT_TIMESTAMP"/>    
         <column xsi:type="text" name="detail" nullable="true"/>

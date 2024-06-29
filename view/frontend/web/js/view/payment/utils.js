@@ -11,6 +11,7 @@ define([
     'Magento_Customer/js/model/customer',
     'Magento_Checkout/js/model/payment/place-order-hooks',
     'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
+    'Magento_CheckoutAgreements/js/model/agreement-validator',
     'Magento_Checkout/js/model/error-processor'
 ], function (
     urlBuilder,
@@ -25,6 +26,7 @@ define([
     customer,
     placeOrderHooks,
     addressHandler,
+    agreementValidator,
     errorProcessor
 ) {
     'use strict';
@@ -35,12 +37,14 @@ define([
         cartPageIdentitySelector: '.cart-summary',
         checkoutPageIdentitySelector: '#co-payment-form',
         buttonMaskSelector: '.aws-button-mask',
+        buttonMaskAgreementSelector: '.aws-button-mask-for-agreement',
         buttonMaskSelectorForLogin: '.aws-button-mask-for-login',
         expressData: {},
         paymentConfig: {},
         recaptchaSelector: '.airwallex-recaptcha',
         recaptchaId: 'recaptcha-checkout-place-order',
         expressRecaptchaId: 'express-recaptcha-checkout-place-order',
+        agreementSelector: '.airwallex-express-checkout input[type="checkbox"]',
 
         getRecaptchaId() {
             let id = $('.airwallex-card-container .g-recaptcha').attr('id');
@@ -126,7 +130,59 @@ define([
             }
         },
 
+        validateAgreements: function (hideError) {
+            var checkoutConfig = window.checkoutConfig,
+            agreementsConfig = checkoutConfig ? checkoutConfig.checkoutAgreements : {};
+    
+            var isValid = true;
+
+            if (!agreementsConfig.isEnabled || $(this.agreementSelector).length === 0) {
+                return true;
+            }
+
+            $(this.agreementSelector).each(function (index, element) {
+                if (!$.validator.validateSingleElement(element, {
+                    errorElement: 'div',
+                    hideError: hideError || false
+                })) {
+                    isValid = false;
+                }
+            });
+
+            return isValid;
+        },
+
+        checkAgreements() {
+            if (this.allAgreementsCheck()) {
+                $(this.buttonMaskAgreementSelector).hide();
+            } else {
+                $(this.buttonMaskAgreementSelector).show();
+            }
+        },
+
+        allAgreementsCheck() {
+            let status = true;
+            $(this.agreementSelector).each(function() {
+                if (!this.checked) {
+                    status = false;
+                    return false; 
+                }
+            });
+            return status;
+        },
+
         initCheckoutPageExpressCheckoutClick() {
+            if (this.isCheckoutPage()) {
+                this.checkAgreements();
+                $(this.agreementSelector).off('change.awx').on('change.awx', () => {
+                    this.checkAgreements();
+                });
+                $(this.buttonMaskAgreementSelector).off('click.awx').on('click.awx', (e) => {
+                    e.stopPropagation();
+                    this.checkAgreements();
+                    this.validateAgreements()
+                });
+            }
             if (this.isCheckoutPage() && !this.isLoggedIn() && this.expressData.is_virtual) {
                 this.checkGuestEmailInput();
                 $(this.guestEmailSelector).off('input.awx').on('input.awx', () => {
@@ -395,6 +451,17 @@ define([
             });
         },
 
+        getAgreementIds() {
+            let agreementForm = $('.payment-method._active div[data-role=checkout-agreements] input');
+            let agreementData = agreementForm.serializeArray();
+            let agreementIds = [];
+    
+            agreementData.forEach(function (item) {
+                agreementIds.push(item.value);
+            });
+            return agreementIds;
+        },
+
         pay(self, from, quote) {
             let that = this;
             $('body').trigger('processStart');
@@ -405,6 +472,9 @@ define([
                 paymentMethod: {
                     method: 'airwallex_payments_card',
                     additional_data: {},
+                    extension_attributes: {
+                        'agreement_ids': this.getAgreementIds()
+                    }
                 },
             };
 
