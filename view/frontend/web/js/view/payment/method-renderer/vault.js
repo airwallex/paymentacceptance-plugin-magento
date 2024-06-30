@@ -179,6 +179,10 @@ define([
                 return
             }
 
+            if (!utils.validateAgreements('.payment-method._active .checkout-agreements input[type="checkbox"]')) {
+                return;
+            }
+
             utils.pay(self, 'vault', quote);
         }
     });

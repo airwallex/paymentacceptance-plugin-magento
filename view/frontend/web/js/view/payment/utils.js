@@ -44,7 +44,7 @@ define([
         recaptchaSelector: '.airwallex-recaptcha',
         recaptchaId: 'recaptcha-checkout-place-order',
         expressRecaptchaId: 'express-recaptcha-checkout-place-order',
-        agreementSelector: '.airwallex-express-checkout input[type="checkbox"]',
+        agreementSelector: '.airwallex-express-checkout .checkout-agreements input[type="checkbox"]',
 
         getRecaptchaId() {
             let id = $('.airwallex-card-container .g-recaptcha').attr('id');
@@ -130,20 +130,20 @@ define([
             }
         },
 
-        validateAgreements: function (hideError) {
+        validateAgreements: function (selector) {
             var checkoutConfig = window.checkoutConfig,
             agreementsConfig = checkoutConfig ? checkoutConfig.checkoutAgreements : {};
     
             var isValid = true;
 
-            if (!agreementsConfig.isEnabled || $(this.agreementSelector).length === 0) {
+            if (!agreementsConfig.isEnabled || $(selector).length === 0) {
                 return true;
             }
 
-            $(this.agreementSelector).each(function (index, element) {
+            $(selector).each(function (index, element) {
                 if (!$.validator.validateSingleElement(element, {
                     errorElement: 'div',
-                    hideError: hideError || false
+                    hideError: false
                 })) {
                     isValid = false;
                 }
@@ -180,7 +180,7 @@ define([
                 $(this.buttonMaskAgreementSelector).off('click.awx').on('click.awx', (e) => {
                     e.stopPropagation();
                     this.checkAgreements();
-                    this.validateAgreements()
+                    this.validateAgreements(this.agreementSelector)
                 });
             }
             if (this.isCheckoutPage() && !this.isLoggedIn() && this.expressData.is_virtual) {
