@@ -22,7 +22,8 @@ interface ServiceInterface
         string $email,
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
-        string $intentId = null
+        string $intentId = null,
+        string $from = ''
     );
 
     /**
@@ -36,7 +37,8 @@ interface ServiceInterface
         string $cartId,
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
-        string $intentId = null
+        string $intentId = null,
+        string $from = ''        
     );
 
     /**

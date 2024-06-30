@@ -484,12 +484,13 @@ define([
             let cartId = quote.getQuoteId();
             const payload = {
                 cartId: cartId,
+                from: from,
                 paymentMethod: {
                     method: 'airwallex_payments_card',
                     additional_data: {},
                     extension_attributes: {
                         'agreement_ids': this.getAgreementIds()
-                    }
+                    },
                 },
             };
 

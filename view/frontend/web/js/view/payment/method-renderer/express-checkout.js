@@ -217,7 +217,8 @@ define(
                     paymentMethod: {
                         method: this.code,
                         additional_data: {}
-                    }
+                    },
+                    from: pay
                 };
 
                 (new Promise(async (resolve, reject) => {

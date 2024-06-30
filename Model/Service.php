@@ -248,9 +248,34 @@ class Service implements ServiceInterface
         string $email,
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
-        string $intentId = null
+        string $intentId = null,
+        string $from = ''
     ): PlaceOrderResponseInterface {
-        return $this->placeOrder($cartId, $paymentMethod, $billingAddress, $intentId, $email);
+        return $this->placeOrder($cartId, $paymentMethod, $billingAddress, $intentId, $email, $from);
+    }
+
+    /**
+     * Place order
+     *
+     * @param string $cartId
+     * @param PaymentInterface $paymentMethod
+     * @param AddressInterface $billingAddress
+     * @param string $intentId
+     * @return PlaceOrderResponseInterface
+     * @throws NoSuchEntityException
+     * @throws CouldNotSaveException
+     * @throws GuzzleException
+     * @throws LocalizedException
+     * @throws JsonException
+     */
+    public function airwallexPlaceOrder(
+        string $cartId,
+        PaymentInterface $paymentMethod,
+        AddressInterface $billingAddress = null,
+        string $intentId = null,
+        string $from = ''
+    ): PlaceOrderResponseInterface {
+        return $this->placeOrder($cartId, $paymentMethod, $billingAddress, $intentId, '', $from);
     }
 
     protected function checkAgreements($uid, PaymentInterface $paymentMethod, $cartId, $email) 
@@ -281,15 +306,15 @@ class Service implements ServiceInterface
         return $regionId ?? 0;
     }
 
-    private function placeOrder(string $cartId, PaymentInterface $paymentMethod, $billingAddress, $intentId, $email = ''): PlaceOrderResponseInterface
+    private function placeOrder(string $cartId, PaymentInterface $paymentMethod, $billingAddress, $intentId, $email = '', $from = ''): PlaceOrderResponseInterface
     {
         /** @var PlaceOrderResponse $response */
         $response = $this->placeOrderResponseFactory->create();
 
         $uid = $this->checkoutHelper->getQuote()->getCustomer()->getId();
-        $this->checkAgreements($uid, $paymentMethod, $cartId, $email);
 
         if (!$intentId) {
+            $this->checkAgreements($uid, $paymentMethod, $cartId, $email);
             if (!$cartId) {
                 throw new InputException(__('cartId is required'));
             }
@@ -335,7 +360,7 @@ class Service implements ServiceInterface
         }
 
         try {
-            if ($this->configuration->isCardVaultActive()) {
+            if ($this->configuration->isCardVaultActive() && $from === 'card') {
                 $this->paymentConsents->syncVault($uid);
             }
         } catch (\Exception $e) {
@@ -348,29 +373,6 @@ class Service implements ServiceInterface
         ]);
 
         return $response;
-    }
-
-    /**
-     * Place order
-     *
-     * @param string $cartId
-     * @param PaymentInterface $paymentMethod
-     * @param AddressInterface $billingAddress
-     * @param string $intentId
-     * @return PlaceOrderResponseInterface
-     * @throws NoSuchEntityException
-     * @throws CouldNotSaveException
-     * @throws GuzzleException
-     * @throws LocalizedException
-     * @throws JsonException
-     */
-    public function airwallexPlaceOrder(
-        string $cartId,
-        PaymentInterface $paymentMethod,
-        AddressInterface $billingAddress = null,
-        string $intentId = null
-    ): PlaceOrderResponseInterface {
-        return $this->placeOrder($cartId, $paymentMethod, $billingAddress, $intentId, '');
     }
 
     /**
