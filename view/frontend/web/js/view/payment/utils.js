@@ -548,6 +548,7 @@ define([
                             });
                         } else {
                             if (self.isSaveCardSelected() && self.getCustomerId()) {
+                                payload.from = 'card_with_saved';
                                 response = await Airwallex.createPaymentConsent({
                                     intent_id: intentResponse.intent_id,
                                     customer_id: self.getCustomerId(),

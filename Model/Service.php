@@ -362,7 +362,7 @@ class Service implements ServiceInterface
         }
 
         try {
-            if ($this->configuration->isCardVaultActive() && $from === 'card') {
+            if ($this->configuration->isCardVaultActive() && $from === 'card_with_saved') {
                 $this->paymentConsents->syncVault($uid);
             }
         } catch (\Exception $e) {
