@@ -13,6 +13,7 @@ use Magento\Sales\Model\Order\CreditmemoFactory;
 use Magento\Sales\Model\OrderRepository;
 use Magento\Sales\Model\Service\CreditmemoService;
 use Airwallex\Payments\Model\Traits\HelperTrait;
+use Magento\Framework\App\CacheInterface;
 
 class Refund extends AbstractWebhook
 {
@@ -31,22 +32,30 @@ class Refund extends AbstractWebhook
     private CreditmemoService $creditmemoService;
 
     /**
+     * @var CacheInterface
+     */
+    private CacheInterface $cache;
+
+    /**
      * Refund constructor.
      *
      * @param OrderRepository $orderRepository
      * @param PaymentIntentRepository $paymentIntentRepository
      * @param CreditmemoFactory $creditmemoFactory
      * @param CreditmemoService $creditmemoService
+     * @param CacheInterface $cache
      */
     public function __construct(
         OrderRepository $orderRepository,
         PaymentIntentRepository $paymentIntentRepository,
         CreditmemoFactory $creditmemoFactory,
-        CreditmemoService $creditmemoService
+        CreditmemoService $creditmemoService,
+        CacheInterface $cache
     ) {
         parent::__construct($orderRepository, $paymentIntentRepository);
         $this->creditmemoFactory = $creditmemoFactory;
         $this->creditmemoService = $creditmemoService;
+        $this->cache = $cache;
     }
 
     /**
@@ -62,8 +71,15 @@ class Refund extends AbstractWebhook
     public function execute(object $data): void
     {
         $paymentIntentId = $data->payment_intent_id ?? $data->id;
+
         /** @var \Magento\Sales\Model\Order $order */
         $order = $this->paymentIntentRepository->getOrder($paymentIntentId);
+
+        $cacheName = $paymentIntentId . '-refund-' . $order->getIncrementId();
+        if ($this->cache->load($cacheName)) {
+            $this->cache->remove($cacheName);
+            return;
+        }
 
         if (!$order) {
             throw new WebhookException(__('Can\'t find order'));
@@ -82,7 +98,7 @@ class Refund extends AbstractWebhook
             return;
         }
 
-        $this->createCreditMemo($order, $data->amount, $data->reason);
+        $this->createCreditMemo($order, $data->amount, $data->reason ?? '');
     }
 
     /**

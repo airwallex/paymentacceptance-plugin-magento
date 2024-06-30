@@ -9,6 +9,7 @@ use Magento\Payment\Model\InfoInterface;
 use Magento\Quote\Api\Data\CartInterface;
 use Mobile_Detect;
 use Exception;
+use Magento\Quote\Api\Data\PaymentInterface;
 
 class RedirectMethod extends AbstractMethod
 {
@@ -32,10 +33,9 @@ class RedirectMethod extends AbstractMethod
     public function authorize(InfoInterface $payment, $amount): self
     {
         /** @var \Magento\Sales\Model\Order\Payment $payment */
-        $intendResponse = $this->paymentIntents->createIntent();
+        $intendResponse = $this->paymentIntents->getIntent();
         $intentId = $intendResponse['id'];
-        /** @var \Magento\Sales\Model\Order\Payment $payment */
-        $payment->setTransactionId($intentId);
+
         $detect = new Mobile_Detect();
         try {
             $returnUrl = $this->confirm

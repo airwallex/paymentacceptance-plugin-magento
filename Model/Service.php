@@ -51,6 +51,7 @@ use Airwallex\Payments\Model\Methods\ExpressCheckout;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\CheckoutAgreements\Model\Checkout\Plugin\GuestValidation;
 use Magento\CheckoutAgreements\Model\Checkout\Plugin\Validation;
+use Magento\CheckoutAgreements\Model\AgreementsConfigProvider;
 
 class Service implements ServiceInterface
 {
@@ -91,6 +92,7 @@ class Service implements ServiceInterface
     protected ErrorLog $errorLog;
     protected Validation $agreementValidation;
     protected GuestValidation $agreementGuestValidation;
+    protected AgreementsConfigProvider $agreementsConfigProvider;
 
     /**
      * Index constructor.
@@ -130,6 +132,7 @@ class Service implements ServiceInterface
      * @param ErrorLog $errorLog
      * @param Validation $agreementValidation
      * @param GuestValidation $agreementGuestValidation
+     * @param AgreementsConfigProvider $agreementsConfigProvider
      */
     public function __construct(
         PaymentConsentsInterface $paymentConsents,
@@ -166,7 +169,8 @@ class Service implements ServiceInterface
         Logger $logger,
         ErrorLog $errorLog,
         Validation $agreementValidation,
-        GuestValidation $agreementGuestValidation
+        GuestValidation $agreementGuestValidation,
+        AgreementsConfigProvider $agreementsConfigProvider
     ) {
         $this->paymentConsents = $paymentConsents;
         $this->paymentIntents = $paymentIntents;
@@ -203,6 +207,7 @@ class Service implements ServiceInterface
         $this->errorLog = $errorLog;
         $this->agreementValidation = $agreementValidation;
         $this->agreementGuestValidation = $agreementGuestValidation;
+        $this->agreementsConfigProvider = $agreementsConfigProvider;
     }
     /**
      * Return URL
@@ -454,6 +459,7 @@ class Service implements ServiceInterface
             'display_area' => $this->configuration->expressDisplayArea(),
             'recaptcha_settings' => $this->configProvider->getReCaptchaConfig(),
             'is_recaptcha_enabled' => $this->configProvider->isReCaptchaEnabled(),
+            'agreements' => $this->agreementsConfigProvider->getConfig(),
         ];
     }
 

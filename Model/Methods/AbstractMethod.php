@@ -29,6 +29,7 @@ use RuntimeException;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Airwallex\Payments\Logger\Logger;
+use Magento\Framework\App\CacheInterface;
 
 /**
  * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
@@ -66,6 +67,7 @@ abstract class AbstractMethod extends Adapter
      * @var Cancel
      */
     private Cancel $cancel;
+
     /**
      * @var CancelHelper
      */
@@ -91,6 +93,11 @@ abstract class AbstractMethod extends Adapter
      */
     protected PaymentIntents $paymentIntents;
 
+    /**
+     * @var CacheInterface
+     */
+    private CacheInterface $cache;
+
     protected Get $intentGet;
 
     /**
@@ -112,10 +119,11 @@ abstract class AbstractMethod extends Adapter
      * @param CancelHelper $cancelHelper
      * @param PaymentIntentRepository $paymentIntentRepository
      * @param Get $intentGet
+     * @param Logger $logger
+     * @param CacheInterface $cache
      * @param CommandPoolInterface|null $commandPool
      * @param ValidatorPoolInterface|null $validatorPool
      * @param CommandManagerInterface|null $commandExecutor
-     * @param Logger $logger
      */
     public function __construct(
         PaymentIntents $paymentIntents,
@@ -134,10 +142,11 @@ abstract class AbstractMethod extends Adapter
         CancelHelper $cancelHelper,
         PaymentIntentRepository $paymentIntentRepository,
         Get $intentGet,
+        Logger $logger,
+        CacheInterface $cache,
         CommandPoolInterface $commandPool = null,
         ValidatorPoolInterface $validatorPool = null,
-        CommandManagerInterface $commandExecutor = null,
-        Logger $logger = null
+        CommandManagerInterface $commandExecutor = null
     ) {
         parent::__construct(
             $eventManager,
@@ -149,7 +158,7 @@ abstract class AbstractMethod extends Adapter
             $commandPool,
             $validatorPool,
             $commandExecutor,
-            $logger,
+            $logger
         );
         $this->paymentIntents = $paymentIntents;
         $this->logger = $logger;
@@ -162,6 +171,7 @@ abstract class AbstractMethod extends Adapter
         $this->confirm = $confirm;
         $this->checkoutHelper = $checkoutHelper;
         $this->intentGet = $intentGet;
+        $this->cache = $cache;
     }
 
     /**
@@ -228,7 +238,7 @@ abstract class AbstractMethod extends Adapter
      */
     public function cancel(InfoInterface $payment): self
     {
-        if ($this->cancelHelper->isWebhookCanceling()) { // check status TODO:
+        if ($this->cancelHelper->isWebhookCanceling()) {
             return $this;
         }
 
@@ -262,13 +272,13 @@ abstract class AbstractMethod extends Adapter
         }
 
         $intentId = $this->getIntentId();
+        $this->cache->save(true, $intentId . '-refund-' . $order->getIncrementId(), [], 3600);
         try {
             $this->refund->setInformation($intentId, $targetAmount)->send();
         } catch (GuzzleException $exception) {
             $this->logger->orderError($payment->getOrder(), 'refund', $exception->getMessage());
             throw new RuntimeException(__($exception->getMessage()));
         }
-
         return $this;
     }
 

@@ -238,6 +238,19 @@ define(
                                 throw new Error('Email is required!');
                             }
                         }
+
+                        if (!utils.isCheckoutPage()) {
+                            if (!payload.paymentMethod.extension_attributes) {
+                                payload.paymentMethod.extension_attributes = {};
+                            }
+                            payload.paymentMethod.extension_attributes.agreement_ids = [];
+                            let agreements = this.expressData.settings.agreements;
+                            if (agreements.checkoutAgreements.agreements.length) {
+                                for (let item of agreements.checkoutAgreements.agreements) {
+                                    payload.paymentMethod.extension_attributes.agreement_ids.push(item.agreementId);
+                                }
+                            }
+                        }
                         
                         let intentResponse = await utils.getIntent(payload, {});
 

@@ -65,7 +65,6 @@ class Capture extends AbstractWebhook
      */
     public function execute(object $data): void
     {
-        // TODO: which capture will capture and authorize configuration will take ? webhook or internal capture
         $paymentIntentId = $data->payment_intent_id ?? $data->id;
 
         /** @var \Magento\Sales\Model\Order $order */
@@ -79,7 +78,7 @@ class Capture extends AbstractWebhook
         $grandTotal = $order->formatPrice($amount);
         $comment = sprintf('Captured amount of %s online. Transaction ID: \'%s\'.', $grandTotal, $paymentIntentId);
         $order->addCommentToStatusHistory(__($comment));
-        // $order->setState(Order::STATE_PROCESSING)->setStatus(Order::STATE_PROCESSING);
+        $order->setState(Order::STATE_PROCESSING)->setStatus(Order::STATE_PROCESSING);
         $this->orderRepository->save($order);
         $invoice = $this->invoiceService->prepareInvoice($order);
         if (!$this->isAmountEqual(floatval($amount), floatval($order->getGrandTotal()))) {

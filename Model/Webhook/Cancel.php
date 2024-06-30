@@ -56,6 +56,7 @@ class Cancel extends AbstractWebhook
         }
 
         if (!$order->canCancel()) {
+            if ($order->isCanceled()) return;
             throw new WebhookException(__('Can\'t cancel order %s', $paymentIntentId));
         }
 

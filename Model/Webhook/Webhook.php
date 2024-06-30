@@ -50,6 +50,11 @@ class Webhook
     private Capture $capture;
 
     /**
+     * @var Expire
+     */
+    private Expire $expire;
+
+    /**
      * @var Cancel
      */
     private Cancel $cancel;
@@ -84,7 +89,8 @@ class Webhook
         Cancel $cancel,
         PaymentIntentRepository $paymentIntentRepository,
         Get $intentGet,
-        OrderRepository $orderRepository
+        OrderRepository $orderRepository,
+        Expire $expire
     )
     {
         $this->refund = $refund;
@@ -94,6 +100,7 @@ class Webhook
         $this->paymentIntentRepository = $paymentIntentRepository;
         $this->intentGet = $intentGet;
         $this->orderRepository = $orderRepository;
+        $this->expire = $expire;
     }
 
     /**
@@ -127,6 +134,10 @@ class Webhook
     {
         if ($type === Refund::WEBHOOK_SUCCESS_NAME) {
             $this->refund->execute($data);
+        }
+
+        if (in_array($type, Expire::WEBHOOK_NAMES)) {
+            $this->expire->execute($data);
         }
 
         if (in_array($type, Capture::WEBHOOK_NAMES)) {

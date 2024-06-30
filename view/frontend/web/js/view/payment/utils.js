@@ -442,7 +442,7 @@ define([
 
         dealConfirmException(error) {
             if (error.code !== 'invalid_status_for_operation') {
-                throw error; // TODO optimize show detail message
+                throw error;
             }
         },
 

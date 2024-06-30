@@ -44,7 +44,6 @@ class CardMethod extends AbstractMethod
 
         try {
             $result = $this->capture->setPaymentIntentId($intentId)->setInformation($order->getGrandTotal())->send();
-            $this->logger->info(sprintf('Payment Intent %s, Capture information', $intentId)); // TODO: test
             $this->getInfoInstance()->setAdditionalInformation('intent_status', $result->status);
         } catch (GuzzleException $exception) {
             $this->logger->orderError($order, 'capture', $exception->getMessage());
