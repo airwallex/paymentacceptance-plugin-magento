@@ -527,6 +527,7 @@ define([
                     }
 
                     let intentResponse = await that.getIntent(payload, headers);
+                    if (!intentResponse) return;
 
                     let response = {};
                     try {

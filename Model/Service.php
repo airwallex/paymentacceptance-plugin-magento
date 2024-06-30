@@ -349,10 +349,11 @@ class Service implements ServiceInterface
             $this->checkIntent($intentId);
             $orderId = $this->placeOrder($uid, $cartId);
         } catch (\Exception $e) {
-            $this->errorLog->setMessage($e->getMessage(), $e->getTraceAsString(), $intentId)->send();
+            $message = trim($e->getMessage(), ' .') . '. Your payment was successful, but the order could not be placed. Please try again.';
+            $this->errorLog->setMessage($message, $e->getTraceAsString(), $intentId)->send();
             $response->setData([
                 'response_type' => 'error',
-                'message' => $e->getMessage(),
+                'message' => $message,
             ]);
             return $response;
         }
@@ -743,7 +744,7 @@ class Service implements ServiceInterface
             . "Order Increment ID: {$respArr['merchant_order_id']} - Quote Reserved Order ID: {$quote->getReservedOrderId()} - " 
             . "Order Currency: {$respArr['currency']} - Quote Currency: {$quote->getQuoteCurrencyCode()} - " 
             . "Intent Price: {$respArr['amount']} - Quote Price: {$quote->getGrandTotal()}", $id)->send();
-            $msg = 'Something went wrong while processing your request. Please try again.';
+            $msg = 'Something went wrong while processing your request.';
             throw new Exception(__($msg));
         }
     }
