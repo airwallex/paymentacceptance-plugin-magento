@@ -467,6 +467,16 @@ define([
             return agreementIds;
         },
 
+        postPaymentInformation(payload, isLoggedIn, cartId) {
+            let url = 'rest/V1/carts/mine/set-payment-information';
+            if (!isLoggedIn) {
+                url = 'rest/V1/guest-carts/' + cartId + '/set-payment-information';
+            }
+            return storage.post(
+                urlBuilder.build(url), JSON.stringify(payload), undefined, 'application/json', {}
+            );
+        },
+
         pay(self, from, quote) {
             let that = this;
             $('body').trigger('processStart');
@@ -482,6 +492,10 @@ define([
                     }
                 },
             };
+
+            if (from !== 'vault') {
+                payload.billingAddress = quote.billingAddress();
+            }
 
             if (!this.isLoggedIn()) {
                 payload.email = quote.guestEmail;
@@ -509,13 +523,6 @@ define([
                             });
                         }
                         // payload.xReCaptchaValue = await that.getRecaptchaToken(that.getRecaptchaId());
-                    }
-
-                    if (from !== 'vault') {
-                        await addressHandler.postBillingAddress({
-                            'cartId': cartId,
-                            'address': quote.billingAddress()
-                        }, that.isLoggedIn(), cartId);
                     }
 
                     let intentResponse = await that.getIntent(payload, headers);

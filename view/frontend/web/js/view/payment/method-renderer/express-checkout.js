@@ -251,6 +251,8 @@ define(
                                 }
                             }
                         }
+
+                        utils.postPaymentInformation(payload, utils.isLoggedIn(), utils.getCartId());
                         
                         let intentResponse = await utils.getIntent(payload, {});
 

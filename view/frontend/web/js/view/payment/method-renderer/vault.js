@@ -146,7 +146,7 @@ define([
                     let billing = {
                         firstname: cardBilling.first_name,
                         lastname: cardBilling.last_name,
-                        telephone: cardBilling.phone_number,
+                        telephone: cardBilling.phone_number || '000-00000000',
                         countryId: cardBilling.address.country_code,
                         regionId: 0,
                         region: cardBilling.address.state,
