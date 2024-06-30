@@ -252,7 +252,7 @@ class Service implements ServiceInterface
         string $intentId = null,
         string $from = ''
     ): PlaceOrderResponseInterface {
-        return $this->placeOrder($cartId, $paymentMethod, $billingAddress, $intentId, $email, $from);
+        return $this->savePaymentOrPlaceOrder($cartId, $paymentMethod, $billingAddress, $intentId, $email, $from);
     }
 
     /**
@@ -277,7 +277,7 @@ class Service implements ServiceInterface
         string $intentId = null,
         string $from = ''
     ): PlaceOrderResponseInterface {
-        return $this->placeOrder($cartId, $paymentMethod, $billingAddress, $intentId, '', $from);
+        return $this->savePaymentOrPlaceOrder($cartId, $paymentMethod, $billingAddress, $intentId, '', $from);
     }
 
     protected function checkAgreements($uid, PaymentInterface $paymentMethod, $cartId, $email) 
@@ -308,7 +308,7 @@ class Service implements ServiceInterface
         return $regionId ?? 0;
     }
 
-    private function placeOrder(string $cartId, PaymentInterface $paymentMethod, $billingAddress, $intentId, $email = '', $from = ''): PlaceOrderResponseInterface
+    private function savePaymentOrPlaceOrder(string $cartId, PaymentInterface $paymentMethod, $billingAddress, $intentId, $email = '', $from = ''): PlaceOrderResponseInterface
     {
         /** @var PlaceOrderResponse $response */
         $response = $this->placeOrderResponseFactory->create();
@@ -347,11 +347,7 @@ class Service implements ServiceInterface
         $orderId = "";
         try {
             $this->checkIntent($intentId);
-            if ($uid) {
-                $orderId = $this->cartManagement->placeOrder($cartId);
-            } else {
-                $orderId = $this->guestCartManagement->placeOrder($cartId);
-            }
+            $orderId = $this->placeOrder($uid, $cartId);
         } catch (\Exception $e) {
             $this->errorLog->setMessage($e->getMessage(), $e->getTraceAsString(), $intentId)->send();
             $response->setData([
@@ -375,6 +371,14 @@ class Service implements ServiceInterface
         ]);
 
         return $response;
+    }
+
+    private function placeOrder($uid, $cartId)
+    {
+        if ($uid) {
+            return $this->cartManagement->placeOrder($cartId);
+        }
+        return $this->guestCartManagement->placeOrder($cartId);
     }
 
     /**
