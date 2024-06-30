@@ -69,7 +69,8 @@ class Capture extends AbstractWebhook
 
         /** @var \Magento\Sales\Model\Order $order */
         $order = $this->paymentIntentRepository->getOrder($paymentIntentId);
-        if ($order->getTotalPaid()) {
+
+        if (!$order->getPayment() || $order->getTotalPaid()) {
             return;
         }
 
