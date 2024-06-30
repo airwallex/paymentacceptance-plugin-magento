@@ -236,6 +236,7 @@ class Service implements ServiceInterface
      * @param PaymentInterface $paymentMethod
      * @param AddressInterface $billingAddress
      * @param string $intentId
+     * @param string $from
      * @return PlaceOrderResponseInterface
      * @throws NoSuchEntityException
      * @throws CouldNotSaveException
@@ -261,6 +262,7 @@ class Service implements ServiceInterface
      * @param PaymentInterface $paymentMethod
      * @param AddressInterface $billingAddress
      * @param string $intentId
+     * @param string $from
      * @return PlaceOrderResponseInterface
      * @throws NoSuchEntityException
      * @throws CouldNotSaveException
