@@ -124,8 +124,7 @@ class PaymentIntents
             return [
                 'code' => $item['code'] ?? '',
                 'sku' => $item['sku'] ?? '',
-                'quantity' => $item['quantity'] ?? 0,
-                'unit_price' => $item['unit_price'] ?? 0.0
+                'quantity' => $item['quantity'] ?? 0
             ];
         }, $products);
 

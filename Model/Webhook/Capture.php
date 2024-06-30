@@ -75,16 +75,17 @@ class Capture extends AbstractWebhook
         }
 
         $amount = $data->captured_amount;
+        $targetAmount = $this->convertToDisplayCurrency($amount, $order->getBaseToOrderRate(), true);
 
         $grandTotal = $order->formatPrice($amount);
-        $comment = sprintf('Captured amount of %s online. Transaction ID: \'%s\'.', $grandTotal, $paymentIntentId);
+        $comment = sprintf('Captured amount of %s (%s) online. Transaction ID: \'%s\'.', 
+            $order->formatBasePrice($targetAmount), $grandTotal, $paymentIntentId);
         $order->addCommentToStatusHistory(__($comment));
         $order->setState(Order::STATE_PROCESSING)->setStatus(Order::STATE_PROCESSING);
         $this->orderRepository->save($order);
         $invoice = $this->invoiceService->prepareInvoice($order);
         if (!$this->isAmountEqual(floatval($amount), floatval($order->getGrandTotal()))) {
             $invoice->setGrandTotal($amount);
-            $targetAmount = $this->convertToDisplayCurrency($amount, $order->getBaseToOrderRate(), true);
             if ($targetAmount - $order->getBaseGrandTotal() >= 0.01) {
                 $targetAmount = $order->getBaseGrandTotal();
             }
