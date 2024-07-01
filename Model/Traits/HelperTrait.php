@@ -78,20 +78,23 @@ trait HelperTrait
         }
     }
 
-    public function placeOrderByQuoteId(int $quoteId)
+    public function placeOrderByQuoteId(int $quoteId, $from = 'service')
     {
         $lockKey = 'airwallex_place_order_' . (string)$quoteId;
         if ($this->cache->load($lockKey)) {
             $message = 'Could not obtain lock';
             throw new \Exception($message);
         }
-        $this->cache->save('locked', $lockKey, [], 3);
+        $this->cache->save('locked', $lockKey, [], 10);
         try {
             $quote = $this->quoteRepository->get($quoteId);
             if (!$quote->getCustomerId()) {
                 $quote->setCheckoutMethod(CartManagementInterface::METHOD_GUEST);
             }
-            $this->cartManagement->placeOrder($quoteId);
+            $order = $this->order->loadByAttribute('quote_id', $quoteId);
+            if (!$order || !$order->getEntityId()) {
+                $this->cartManagement->placeOrder($quoteId);
+            }
         } finally {
             $this->cache->remove($lockKey);
         }

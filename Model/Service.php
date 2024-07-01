@@ -52,6 +52,7 @@ use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\CheckoutAgreements\Model\Checkout\Plugin\GuestValidation;
 use Magento\CheckoutAgreements\Model\Checkout\Plugin\Validation;
 use Magento\CheckoutAgreements\Model\AgreementsConfigProvider;
+use Magento\Sales\Api\Data\OrderInterface;
 
 class Service implements ServiceInterface
 {
@@ -93,6 +94,7 @@ class Service implements ServiceInterface
     protected Validation $agreementValidation;
     protected GuestValidation $agreementGuestValidation;
     protected AgreementsConfigProvider $agreementsConfigProvider;
+    public OrderInterface $order;
 
     /**
      * Index constructor.
@@ -133,6 +135,7 @@ class Service implements ServiceInterface
      * @param Validation $agreementValidation
      * @param GuestValidation $agreementGuestValidation
      * @param AgreementsConfigProvider $agreementsConfigProvider
+     * @param OrderInterface $order
      */
     public function __construct(
         PaymentConsentsInterface $paymentConsents,
@@ -170,7 +173,8 @@ class Service implements ServiceInterface
         ErrorLog $errorLog,
         Validation $agreementValidation,
         GuestValidation $agreementGuestValidation,
-        AgreementsConfigProvider $agreementsConfigProvider
+        AgreementsConfigProvider $agreementsConfigProvider,
+        OrderInterface $order
     ) {
         $this->paymentConsents = $paymentConsents;
         $this->paymentIntents = $paymentIntents;
@@ -208,6 +212,7 @@ class Service implements ServiceInterface
         $this->agreementValidation = $agreementValidation;
         $this->agreementGuestValidation = $agreementGuestValidation;
         $this->agreementsConfigProvider = $agreementsConfigProvider;
+        $this->order = $order;
     }
     /**
      * Return URL

@@ -207,7 +207,7 @@ class Webhook
                     floatval($quote->getGrandTotal()), 
                 );
 
-                $this->placeOrderByQuoteId($quote->getId());
+                $this->placeOrderByQuoteId($quote->getId(), 'webhook');
             }
         }
     }
