@@ -246,7 +246,7 @@ define(
                             }
                             payload.paymentMethod.extension_attributes.agreement_ids = [];
                             let agreements = this.expressData.settings.agreements;
-                            if (agreements.checkoutAgreements.agreements.length) {
+                            if (agreements && agreements.checkoutAgreements && agreements.checkoutAgreements.agreements && agreements.checkoutAgreements.agreements.length) {
                                 for (let item of agreements.checkoutAgreements.agreements) {
                                     payload.paymentMethod.extension_attributes.agreement_ids.push(item.agreementId);
                                 }
@@ -256,6 +256,7 @@ define(
                         utils.postPaymentInformation(payload, utils.isLoggedIn(), utils.getCartId());
                         
                         let intentResponse = await utils.getIntent(payload, {});
+                        if (!intentResponse) return;
 
                         const params = {};
                         params.id = intentResponse.intent_id;
