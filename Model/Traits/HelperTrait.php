@@ -2,6 +2,8 @@
 
 namespace Airwallex\Payments\Model\Traits;
 
+use Magento\Quote\Api\CartManagementInterface;
+
 trait HelperTrait
 {
     public function convertToDisplayCurrency(float $amount, $rate, $reverse = false) : float
@@ -85,6 +87,10 @@ trait HelperTrait
         }
         $this->cache->save('locked', $lockKey, [], 3);
         try {
+            $quote = $this->quoteRepository->get($quoteId);
+            if (!$quote->getCustomerId()) {
+                $quote->setCheckoutMethod(CartManagementInterface::METHOD_GUEST);
+            }
             $this->cartManagement->placeOrder($quoteId);
         } finally {
             $this->cache->remove($lockKey);

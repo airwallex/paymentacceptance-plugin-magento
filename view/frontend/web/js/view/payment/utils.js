@@ -171,8 +171,13 @@ define([
             return status;
         },
 
-        initCheckoutPageExpressCheckoutClick() {
+        initCheckoutPageExpressCheckoutAgreement() {
             if (this.isCheckoutPage()) {
+                let agreementsConfig = window.checkoutConfig.checkoutAgreements || {};
+                if (!agreementsConfig.isEnabled || $(this.agreementSelector).length === 0) {
+                    $(this.buttonMaskAgreementSelector).hide();
+                    return;
+                }
                 this.checkAgreements();
                 $(this.agreementSelector).off('change.awx').on('change.awx', () => {
                     this.checkAgreements();
@@ -183,6 +188,9 @@ define([
                     this.validateAgreements(this.agreementSelector)
                 });
             }
+        },
+
+        initCheckoutPageExpressCheckoutClick() {
             if (this.isCheckoutPage() && !this.isLoggedIn() && this.expressData.is_virtual) {
                 this.checkGuestEmailInput();
                 $(this.guestEmailSelector).off('input.awx').on('input.awx', () => {
@@ -406,6 +414,7 @@ define([
                 );
             } catch (e) {
                 if (e.status === 404) {
+                    this.clearDataAfterPay({}, customerData)
                     this.redirectToSuccess();
                     return;
                 }
@@ -428,6 +437,7 @@ define([
                 );
             } catch (e) {
                 if (e.status === 404) {
+                    this.clearDataAfterPay({}, customerData)
                     this.redirectToSuccess();
                     return;
                 }

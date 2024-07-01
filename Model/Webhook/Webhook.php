@@ -193,19 +193,22 @@ class Webhook
         $order = $this->order->loadByIncrementIdAndStoreId($paymentIntent->getOrderIncrementId(), $paymentIntent->getStoreId());
         if (!$order || !$order->getEntityId()) {
             sleep(5);
-            /** @var Quote $quote */
-            $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
-            $this->checkIntentWithQuote(
-                $data->status, 
-                $data->currency, 
-                $quote->getQuoteCurrencyCode(), 
-                $data->merchant_order_id, 
-                $quote->getReservedOrderId(), 
-                floatval($data->amount), 
-                floatval($quote->getGrandTotal()), 
-            );
+            $order = $this->order->loadByIncrementIdAndStoreId($paymentIntent->getOrderIncrementId(), $paymentIntent->getStoreId());
+            if (!$order || !$order->getEntityId()) {
+                /** @var Quote $quote */
+                $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
+                $this->checkIntentWithQuote(
+                    $data->status, 
+                    $data->currency, 
+                    $quote->getQuoteCurrencyCode(), 
+                    $data->merchant_order_id, 
+                    $quote->getReservedOrderId(), 
+                    floatval($data->amount), 
+                    floatval($quote->getGrandTotal()), 
+                );
 
-            $this->placeOrderByQuoteId($quote->getId());
+                $this->placeOrderByQuoteId($quote->getId());
+            }
         }
     }
 }
