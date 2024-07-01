@@ -191,6 +191,7 @@ define([
         },
 
         initCheckoutPageExpressCheckoutClick() {
+            this.initCheckoutPageExpressCheckoutAgreement();
             if (this.isCheckoutPage() && !this.isLoggedIn() && this.expressData.is_virtual) {
                 this.checkGuestEmailInput();
                 $(this.guestEmailSelector).off('input.awx').on('input.awx', () => {
