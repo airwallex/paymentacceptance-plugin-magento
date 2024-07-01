@@ -89,6 +89,12 @@ define([
          * @returns {String}
          */
         getIcons: function (type) {
+            if (type.toLowerCase() === 'union pay') {
+                let vi = window.checkoutConfig.payment.ccform.icons['VI'];
+                let ret = JSON.parse(JSON.stringify(vi));
+                ret.url = ret.url.replace('vi.png', 'un.png');
+                return ret;
+            }
             for (const [name, obj] of Object.entries(window.checkoutConfig.payment.ccform.icons)) {
                 if ('amex' === type.toLowerCase()) {
                     type = 'AE';
