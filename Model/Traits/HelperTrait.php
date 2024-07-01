@@ -91,8 +91,10 @@ trait HelperTrait
             if (!$quote->getCustomerId()) {
                 $quote->setCheckoutMethod(CartManagementInterface::METHOD_GUEST);
             }
-            $order = $this->order->loadByAttribute('quote_id', $quoteId);
-            if (!$order || !$order->getEntityId()) {
+            try {
+                $order = $this->order->loadByAttribute('quote_id', $quoteId);
+            } catch (\Exception $e){};
+            if (empty($order) || empty($order->getEntityId())) {
                 $this->cartManagement->placeOrder($quoteId);
             }
         } finally {
