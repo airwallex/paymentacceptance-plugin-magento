@@ -89,6 +89,9 @@ class PaymentIntents
     public function getIntent(): array
     {
         $quote = $this->checkoutSession->getQuote();
+        if (!$quote->getId()) {
+            throw new NoSuchEntityException(__('No cart found.'));
+        }
         $paymentIntent = $this->paymentIntentRepository->getByQuoteId($quote->getId());
         if ($paymentIntent && $this->isQuoteEqual($quote, $paymentIntent)) {
             $resp = $this->paymentIntentsGet->setPaymentIntentId($paymentIntent->getPaymentIntentId())->send();

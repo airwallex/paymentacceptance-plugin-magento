@@ -77,9 +77,10 @@ class Capture extends AbstractWebhook
         $amount = $data->captured_amount;
         $targetAmount = $this->convertToDisplayCurrency($amount, $order->getBaseToOrderRate(), true);
 
-        $grandTotal = $order->formatPrice($amount);
-        $comment = sprintf('Captured amount of %s (%s) online. Transaction ID: \'%s\'.', 
-            $order->formatBasePrice($targetAmount), $grandTotal, $paymentIntentId);
+        $grandTotalFormat = $order->formatPrice($amount);
+        $baseGrandTotalFormat = $order->formatBasePrice($targetAmount);
+        $amountFormat = $grandTotalFormat === $baseGrandTotalFormat ? $baseGrandTotalFormat : "$baseGrandTotalFormat ($grandTotalFormat)";
+        $comment = "Captured amount of $amountFormat through Airwallex. Transaction ID: \"$paymentIntentId\".";
         $order->addCommentToStatusHistory(__($comment));
         $order->setState(Order::STATE_PROCESSING)->setStatus(Order::STATE_PROCESSING);
         $this->orderRepository->save($order);
