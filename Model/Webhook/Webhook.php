@@ -1,18 +1,5 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
+
 namespace Airwallex\Payments\Model\Webhook;
 
 use Airwallex\Payments\Exception\WebhookException;
@@ -26,7 +13,15 @@ use Airwallex\Payments\Model\PaymentIntentRepository;
 use stdClass;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Airwallex\Payments\Model\Traits\HelperTrait;
-use Magento\Sales\Model\OrderRepository;
+use Magento\Quote\Api\CartRepositoryInterface;
+use Magento\Quote\Model\Quote;
+use Magento\Sales\Api\Data\OrderInterface;
+use Magento\Sales\Api\OrderRepositoryInterface;
+use Magento\Sales\Model\Order;
+use Magento\Quote\Api\CartManagementInterface;
+use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
+use Magento\Framework\App\CacheInterface;
+use Magento\Framework\Lock\LockManagerInterface;
 
 class Webhook
 {
@@ -72,37 +67,71 @@ class Webhook
     public Get $intentGet;
 
     /**
-     * @var OrderRepository
+     * @var OrderRepositoryInterface
      */
-    public OrderRepository $orderRepository;
+    public OrderRepositoryInterface $orderRepository;
 
     /**
-     * Webhook constructor.
-     *
-     * @param Configuration $configuration
-     * @param Refund $refund
-     * @param Capture $capture
-     * @param Cancel $cancel
+     * @var Order
      */
+    public OrderInterface $order;
+
+    /**
+     * @var CartRepositoryInterface
+     */
+    public CartRepositoryInterface $quoteRepository;
+
+    /**
+     * @var CartManagementInterface
+     */
+    public CartManagementInterface $cartManagement;
+
+    /**
+     * @var ErrorLog
+     */
+    public ErrorLog $errorLog;
+
+    /**
+     * @var CacheInterface
+     */
+    public CacheInterface $cache;
+
+    /**
+     * @var LockManagerInterface
+     */
+    public LockManagerInterface $lockManager;
+
     public function __construct(
-        Configuration $configuration, 
         Refund $refund, 
+        Configuration $configuration, 
         Capture $capture, 
+        Expire $expire,
         Cancel $cancel,
         PaymentIntentRepository $paymentIntentRepository,
         Get $intentGet,
-        OrderRepository $orderRepository,
-        Expire $expire
+        OrderRepositoryInterface $orderRepository,
+        OrderInterface $order,
+        CartRepositoryInterface $quoteRepository,
+        CartManagementInterface $cartManagement,
+        ErrorLog $errorLog,
+        CacheInterface $cache,
+        LockManagerInterface $lockManager
     )
     {
         $this->refund = $refund;
         $this->configuration = $configuration;
         $this->capture = $capture;
+        $this->expire = $expire;
         $this->cancel = $cancel;
         $this->paymentIntentRepository = $paymentIntentRepository;
         $this->intentGet = $intentGet;
         $this->orderRepository = $orderRepository;
-        $this->expire = $expire;
+        $this->order = $order;
+        $this->quoteRepository = $quoteRepository;
+        $this->cartManagement = $cartManagement;
+        $this->errorLog = $errorLog;
+        $this->cache = $cache;
+        $this->lockManager = $lockManager;
     }
 
     /**
@@ -142,12 +171,40 @@ class Webhook
             $this->expire->execute($data);
         }
 
+        if (in_array($type, self::AUTHORIZED_WEBHOOK_NAMES)) {
+            $this->placeOrder($data);
+        }
+
         if (in_array($type, Capture::WEBHOOK_NAMES)) {
+            $this->placeOrder($data);
             $this->capture->execute($data);
         }
 
         if ($type === Cancel::WEBHOOK_NAME) {
             $this->cancel->execute($data);
+        }
+    }
+
+    public function placeOrder($data)
+    {
+        $paymentIntentId = $data->payment_intent_id ?? $data->id;
+        $paymentIntent = $this->paymentIntentRepository->getByIntentId($paymentIntentId);
+
+        $order = $this->order->loadByIncrementIdAndStoreId($paymentIntent->getOrderIncrementId(), $paymentIntent->getStoreId());
+        if (!$order || !$order->getEntityId()) {
+            /** @var Quote $quote */
+            $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
+            $this->checkIntentWithQuote(
+                $data->status, 
+                $data->currency, 
+                $quote->getQuoteCurrencyCode(), 
+                $data->merchant_order_id, 
+                $quote->getReservedOrderId(), 
+                floatval($data->amount), 
+                floatval($quote->getGrandTotal()), 
+            );
+
+            $this->placeOrderByQuoteId($quote->getId());
         }
     }
 }

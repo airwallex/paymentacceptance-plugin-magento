@@ -347,7 +347,8 @@ class Service implements ServiceInterface
         $orderId = "";
         try {
             $this->checkIntent($intentId);
-            $orderId = $this->placeOrder($uid, $cartId);
+            $quoteId = $this->checkoutHelper->getQuote()->getId();
+            $orderId = $this->placeOrderByQuoteId($quoteId);
         } catch (\Exception $e) {
             $message = trim($e->getMessage(), ' .') . '. Your payment was successful, but the order could not be placed. Please try again.';
             $this->errorLog->setMessage($message, $e->getTraceAsString(), $intentId)->send();
@@ -358,12 +359,12 @@ class Service implements ServiceInterface
             return $response;
         }
 
-        try {
-            if ($this->configuration->isCardVaultActive() && $from === 'card_with_saved') {
+        if ($this->configuration->isCardVaultActive() && $from === 'card_with_saved') {
+            try {
                 $this->paymentConsents->syncVault($uid);
+            } catch (\Exception $e) {
+                $this->errorLog->setMessage($e->getMessage(), $e->getTraceAsString(), $intentId)->send();
             }
-        } catch (\Exception $e) {
-            $this->errorLog->setMessage($e->getMessage(), $e->getTraceAsString(), $intentId)->send();
         }
 
         $response->setData([
@@ -372,14 +373,6 @@ class Service implements ServiceInterface
         ]);
 
         return $response;
-    }
-
-    private function placeOrder($uid, $cartId)
-    {
-        if ($uid) {
-            return $this->cartManagement->placeOrder($cartId);
-        }
-        return $this->guestCartManagement->placeOrder($cartId);
     }
 
     /**
@@ -735,17 +728,14 @@ class Service implements ServiceInterface
 
         $respArr = json_decode($resp, true);
         $quote = $this->checkoutHelper->getQuote();
-        $okStatus = [$this->intentGet::INTENT_STATUS_SUCCESS, $this->intentGet::INTENT_STATUS_REQUIRES_CAPTURE];
-        if (!in_array($respArr['status'], $okStatus, true) 
-            || $respArr['currency'] !== $quote->getQuoteCurrencyCode() 
-            || $respArr['merchant_order_id'] !== $quote->getReservedOrderId() 
-            || !$this->isAmountEqual(floatval($respArr['amount']), floatval($quote->getGrandTotal()))){
-            $this->errorLog->setMessage('check intent failed', "Status: {$respArr['status']} - "
-            . "Order Increment ID: {$respArr['merchant_order_id']} - Quote Reserved Order ID: {$quote->getReservedOrderId()} - " 
-            . "Order Currency: {$respArr['currency']} - Quote Currency: {$quote->getQuoteCurrencyCode()} - " 
-            . "Intent Price: {$respArr['amount']} - Quote Price: {$quote->getGrandTotal()}", $id)->send();
-            $msg = 'Something went wrong while processing your request.';
-            throw new Exception(__($msg));
-        }
+        $this->checkIntentWithQuote(
+            $respArr['status'], 
+            $respArr['currency'], 
+            $quote->getQuoteCurrencyCode(), 
+            $respArr['merchant_order_id'], 
+            $quote->getReservedOrderId(), 
+            floatval($respArr['amount']), 
+            floatval($quote->getGrandTotal()), 
+        );
     }
 }

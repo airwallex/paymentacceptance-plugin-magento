@@ -81,13 +81,12 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
 
         try {
             $this->webhook->checkChecksum($this->request);
-            if ($data->data) {
-                $this->webhook->dispatch($data->name, $data->data->object);
-            }
         } catch (Exception $exception) {
             $this->logger->error($exception->getMessage());
         }
-
+        if ($data->data) {
+            $this->webhook->dispatch($data->name, $data->data->object);
+        }
         return $this->response->setStatusCode(self::HTTP_OK);
     }
 

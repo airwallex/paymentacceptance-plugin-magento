@@ -53,4 +53,42 @@ trait HelperTrait
 
         return in_array($string, $constants);
     }
+
+    public function checkIntentWithQuote(
+        string $status, 
+        string $intentCurrency, 
+        string $quoteCurrency, 
+        string $intentOrderId, 
+        string $quoteOrderId, 
+        float $intentAmount,
+        float $quoteAmount
+    ) {
+        if (
+            !in_array($status, ['SUCCEEDED', 'REQUIRES_CAPTURE'], true)
+            || $intentCurrency !== $quoteCurrency 
+            || $intentOrderId !== $quoteOrderId 
+            || !$this->isAmountEqual($intentAmount, $quoteAmount)) {
+            $this->errorLog->setMessage('check intent failed', "Intent Order ID: {$intentOrderId} - Quote Order ID: {$quoteOrderId} - " 
+            . "Intent Currency: {$intentCurrency} - Quote Currency: {$quoteCurrency} - " 
+            . "Intent Amount: {$intentAmount} - Quote Amount: {$quoteAmount}", $intentOrderId)->send();
+            $msg = 'Something went wrong while processing your request.';
+            throw new \Exception(__($msg));
+        }
+    }
+
+    public function placeOrderByQuoteId(int $quoteId)
+    {
+        $lockKey = 'airwallex_place_order_' . (string)$quoteId;
+        if ($this->cache->load($lockKey)) {
+            $message = 'Could not obtain lock';
+            throw new \Exception($message);
+        }
+        $this->cache->save('locked', $lockKey, [], 3);
+        try {
+            $this->cartManagement->placeOrder($quoteId);
+        } finally {
+            $this->cache->remove($lockKey);
+        }
+        return;
+    }
 }
