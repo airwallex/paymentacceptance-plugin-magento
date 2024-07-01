@@ -253,7 +253,7 @@ define(
                             }
                         }
 
-                        utils.postPaymentInformation(payload, utils.isLoggedIn(), utils.getCartId());
+                        await utils.postPaymentInformation(payload, utils.isLoggedIn(), utils.getCartId());
                         
                         let intentResponse = await utils.getIntent(payload, {});
                         if (!intentResponse) return;
