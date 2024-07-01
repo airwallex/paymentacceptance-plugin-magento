@@ -192,6 +192,7 @@ class Webhook
 
         $order = $this->order->loadByIncrementIdAndStoreId($paymentIntent->getOrderIncrementId(), $paymentIntent->getStoreId());
         if (!$order || !$order->getEntityId()) {
+            sleep(5);
             /** @var Quote $quote */
             $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
             $this->checkIntentWithQuote(
