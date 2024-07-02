@@ -24,6 +24,7 @@ use Magento\Framework\App\Request\Http as RequestHttp;
 use Magento\Framework\App\Request\InvalidRequestException;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\App\Response\Http as ResponseHttp;
+use Airwallex\Payments\Model\Client\Request\Log as RequestLog;
 
 class Index implements HttpPostActionInterface, CsrfAwareActionInterface
 {
@@ -50,6 +51,11 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
     private Logger $logger;
 
     /**
+     * @var RequestLog
+     */
+    private RequestLog $requestLog;
+
+    /**
      * Index constructor.
      *
      * @param Webhook $webhook
@@ -61,12 +67,14 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
         Webhook $webhook,
         RequestHttp $request,
         ResponseHttp $response,
-        Logger $logger
+        Logger $logger,
+        RequestLog $requestLog
     ) {
         $this->webhook = $webhook;
         $this->request = $request;
         $this->response = $response;
         $this->logger = $logger;
+        $this->requestLog = $requestLog;
     }
 
     /**
@@ -81,12 +89,15 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
 
         try {
             $this->webhook->checkChecksum($this->request);
-        } catch (Exception $exception) {
-            $this->logger->error($exception->getMessage());
+            if ($data->data) {
+                $this->webhook->dispatch($data->name, $data->data->object);
+            }
+        } catch (Exception $e) {
+            $this->requestLog->setMessage($e->getMessage(), $e->getTraceAsString())->send();
+            $this->logger->error($e->getMessage());
+            throw $e;
         }
-        if ($data->data) {
-            $this->webhook->dispatch($data->name, $data->data->object);
-        }
+
         return $this->response->setStatusCode(self::HTTP_OK);
     }
 

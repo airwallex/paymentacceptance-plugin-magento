@@ -52,6 +52,20 @@ define([
                         },
                     };
 
+                    if (window.checkoutConfig.payment.airwallex_payments.recaptcha_enabled) {
+                        let recaptchaRegistry = require('Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry');
+                        if (recaptchaRegistry) {
+                            payload.xReCaptchaValue = await new Promise((resolve, reject) => {
+                                recaptchaRegistry.tokens = {};
+                                recaptchaRegistry.addListener(utils.getRecaptchaId(), (token) => {
+                                    resolve(token);
+                                });
+                                recaptchaRegistry.triggers[utils.getRecaptchaId()]();
+                            });
+                            recaptchaRegistry.tokens = {};
+                        }
+                    }
+
                     if (!utils.isLoggedIn()) {
                         payload.email = quote.guestEmail;
                     }
