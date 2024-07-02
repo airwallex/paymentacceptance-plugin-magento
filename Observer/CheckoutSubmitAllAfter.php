@@ -51,6 +51,9 @@ class CheckoutSubmitAllAfter implements ObserverInterface
         /** @var \Magento\Sales\Model\Order $order */
         $order = $observer->getOrder();
 
+        $method = $order->getPayment()->getMethod();
+        if (!strstr($method, 'airwallex_')) return;
+
         /** @var string $intentId */
         if ($intentId = $order->getPayment()->getAdditionalInformation('intent_id')) {
             $this->addAVSResultToOrder($order, $intentId);
@@ -72,6 +75,7 @@ class CheckoutSubmitAllAfter implements ObserverInterface
         $orderCollection = $this->orderFactory->create()->addFieldToFilter('quote_id', $quoteId);
         if (count($orderCollection) > 1) {
             $record = $this->paymentIntentRepository->getByQuoteId($quoteId);
+            if (!$record || !$record->getPaymentIntentId()) return;
             foreach ($orderCollection as $orderItem) {
                 if ($orderItem->getIncrementId() !== $record->getOrderIncrementId()
                     && $orderItem->getPayment()->getAdditionalInformation('intent_id') === $record->getPaymentIntentId()) {
