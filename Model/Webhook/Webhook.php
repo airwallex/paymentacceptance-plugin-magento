@@ -192,7 +192,7 @@ class Webhook
 
         $order = $this->order->loadByIncrementIdAndStoreId($paymentIntent->getOrderIncrementId(), $paymentIntent->getStoreId());
         if (!$order || !$order->getEntityId()) {
-            sleep(5);
+            sleep(7);
             $order = $this->order->loadByIncrementIdAndStoreId($paymentIntent->getOrderIncrementId(), $paymentIntent->getStoreId());
             if (!$order || !$order->getEntityId()) {
                 /** @var Quote $quote */

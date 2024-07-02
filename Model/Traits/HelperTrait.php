@@ -95,6 +95,9 @@ trait HelperTrait
                 $order = $this->order->loadByAttribute('quote_id', $quoteId);
             } catch (\Exception $e){};
             if (empty($order) || empty($order->getEntityId())) {
+                if ($from !== 'service') {
+                    $quote->setTotalsCollectedFlag(true);                
+                }
                 $this->cartManagement->placeOrder($quoteId);
             }
         } finally {

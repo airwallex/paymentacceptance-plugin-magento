@@ -8,6 +8,8 @@ use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\OrderRepository;
+use Magento\Sales\Model\ResourceModel\Order\CollectionFactory as OrderFactory;
+use Airwallex\Payments\Model\PaymentIntentRepository;
 
 class CheckoutSubmitAllAfter implements ObserverInterface
 {
@@ -23,13 +25,20 @@ class CheckoutSubmitAllAfter implements ObserverInterface
      */
     public Get $intentGet;
 
+    public OrderFactory $orderFactory;
+
+    public PaymentIntentRepository $paymentIntentRepository;
+
     public function __construct(
         OrderRepository $orderRepository,
-        Get $intentGet
-    )
-    {
+        Get $intentGet,
+        OrderFactory $orderFactory,
+        PaymentIntentRepository $paymentIntentRepository
+    ) {
         $this->orderRepository = $orderRepository;
         $this->intentGet = $intentGet;
+        $this->orderFactory = $orderFactory;
+        $this->paymentIntentRepository = $paymentIntentRepository;
     }
     /**
      * @param Observer $observer
@@ -41,17 +50,35 @@ class CheckoutSubmitAllAfter implements ObserverInterface
     {
         /** @var \Magento\Sales\Model\Order $order */
         $order = $observer->getOrder();
+
         /** @var string $intentId */
         if ($intentId = $order->getPayment()->getAdditionalInformation('intent_id')) {
             $this->addAVSResultToOrder($order, $intentId);
         }
         if ($this->isRedirectMethodConstant($order->getPayment()->getMethod())) {
-            $comment = sprintf('Status changed to %s, payment method is %s.', Order::STATE_PENDING_PAYMENT, 
-                $order->getPayment()->getMethod());
+            $comment = sprintf(
+                'Status changed to %s, payment method is %s.',
+                Order::STATE_PENDING_PAYMENT,
+                $order->getPayment()->getMethod()
+            );
             $order->addCommentToStatusHistory(__($comment));
             $order->setState(Order::STATE_PENDING_PAYMENT)->setStatus(Order::STATE_PENDING_PAYMENT);
         }
         $this->orderRepository->save($order);
+
+        $quoteId = $order->getQuoteId();
+        if (empty($quoteId)) return;
+
+        $orderCollection = $this->orderFactory->create()->addFieldToFilter('quote_id', $quoteId);
+        if (count($orderCollection) > 1) {
+            $record = $this->paymentIntentRepository->getByQuoteId($quoteId);
+            foreach ($orderCollection as $orderItem) {
+                if ($orderItem->getIncrementId() !== $record->getOrderIncrementId()
+                    && $orderItem->getPayment()->getAdditionalInformation('intent_id') === $record->getPaymentIntentId()) {
+                    $this->orderRepository->delete($orderItem);
+                }
+            }
+        }
     }
 
 
@@ -80,6 +107,7 @@ class CheckoutSubmitAllAfter implements ObserverInterface
             $log .= $brand . $last4 . $avs_check . $cvc_check;
             if ($log === $src) return;
             $order->addCommentToStatusHistory(__($log));
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+        }
     }
 }
