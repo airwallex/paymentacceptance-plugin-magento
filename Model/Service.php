@@ -325,7 +325,12 @@ class Service implements ServiceInterface
         if (!empty($order) && !empty($order->getEntityId())) {
             $quote->setIsActive(false);
             $this->quoteRepository->save($quote);
-            throw new \Exception(__('Your items have been successfully ordered. We will now clear your shopping cart, and you may select and order new items.'));
+            $message = __('Your items have been successfully ordered. We will now clear your shopping cart, and you may select and order new items.');
+            $response->setData([
+                'response_type' => 'error',
+                'message' => $message,
+            ]);
+            return $response;
         }
 
         $uid = $this->checkoutHelper->getQuote()->getCustomer()->getId();
@@ -369,7 +374,7 @@ class Service implements ServiceInterface
             $this->errorLog->setMessage($message, $e->getTraceAsString(), $intentId)->send();
             $response->setData([
                 'response_type' => 'error',
-                'message' => $message,
+                'message' => __($message),
             ]);
             return $response;
         }
