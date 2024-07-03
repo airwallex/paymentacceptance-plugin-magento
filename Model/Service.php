@@ -318,6 +318,14 @@ class Service implements ServiceInterface
         /** @var PlaceOrderResponse $response */
         $response = $this->placeOrderResponseFactory->create();
 
+        $quote = $this->checkoutHelper->getQuote();
+        $order = $this->order->loadByAttribute('quote_id', $quote->getId());
+        if ($order && $order->getEntityId()) {
+            $quote->setIsActive(false);
+            $this->quoteRepository->save($quote);
+            throw new \Exception(__('Your items have been successfully ordered. We will now clear your shopping cart, and you may select and order new items.'));
+        }
+
         $uid = $this->checkoutHelper->getQuote()->getCustomer()->getId();
 
         if (!$intentId) {
