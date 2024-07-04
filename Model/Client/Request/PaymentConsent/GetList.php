@@ -153,7 +153,7 @@ class GetList extends AbstractClient implements BearerAuthenticationInterface
             /** @var SavedPaymentResponse $result */
             $savedPayment = $this->savedPaymentResponseFactory->create();
             $billing = '';
-            if ($item->payment_method->card->billing) {
+            if (!empty($item->payment_method->card->billing)) {
                 $billing = json_encode((array)$item->payment_method->card->billing);
             }
             $savedPayment->setData([
