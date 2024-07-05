@@ -144,6 +144,12 @@ class PaymentIntentRepository
         return $paymentIntent;
     }
 
+    public function  updateDetail($paymentIntent, $detail)
+    {
+        $paymentIntent->setDetail($detail);
+        $this->paymentIntentResource->save($paymentIntent);
+    }
+
     /**
      * @param string $paymentIntentId
      *

@@ -9,7 +9,9 @@ use Magento\Framework\Event\ObserverInterface;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\OrderRepository;
 use Magento\Sales\Model\ResourceModel\Order\CollectionFactory as OrderFactory;
+use Magento\Sales\Model\ResourceModel\Order\Grid\CollectionFactory as OrderGridFactory;
 use Airwallex\Payments\Model\PaymentIntentRepository;
+use Airwallex\Payments\Model\Client\Request\Log;
 
 class CheckoutSubmitAllAfter implements ObserverInterface
 {
@@ -26,6 +28,8 @@ class CheckoutSubmitAllAfter implements ObserverInterface
     public Get $intentGet;
 
     public OrderFactory $orderFactory;
+    public OrderGridFactory $orderGridFactory;
+    public Log $errorLog;
 
     public PaymentIntentRepository $paymentIntentRepository;
 
@@ -33,11 +37,15 @@ class CheckoutSubmitAllAfter implements ObserverInterface
         OrderRepository $orderRepository,
         Get $intentGet,
         OrderFactory $orderFactory,
+        OrderGridFactory $orderGridFactory,
+        Log $errorLog,
         PaymentIntentRepository $paymentIntentRepository
     ) {
         $this->orderRepository = $orderRepository;
         $this->intentGet = $intentGet;
         $this->orderFactory = $orderFactory;
+        $this->orderGridFactory = $orderGridFactory;
+        $this->errorLog = $errorLog;
         $this->paymentIntentRepository = $paymentIntentRepository;
     }
     /**
@@ -76,9 +84,30 @@ class CheckoutSubmitAllAfter implements ObserverInterface
         if (count($orderCollection) > 1) {
             $record = $this->paymentIntentRepository->getByQuoteId($quoteId);
             if (!$record || !$record->getPaymentIntentId()) return;
+            $detail = $record->getDetail();
+            $detailArray = $detail ? json_decode($detail, true) : [];
             foreach ($orderCollection as $orderItem) {
                 if ($orderItem->getIncrementId() !== $record->getOrderIncrementId()
                     && $orderItem->getPayment()->getAdditionalInformation('intent_id') === $record->getPaymentIntentId()) {
+                    $orderGrid = [];
+                    try {
+                        $orderGridCollection = $this->orderGridFactory->create()->addFieldToFilter('entity_id', $orderItem->getEntityId());
+                        foreach ($orderGridCollection as $orderGridItem) {
+                            $orderGrid = $orderGridItem->getData();
+                        }
+                    } catch(\Exception $e) {};
+
+
+                    if (empty($detailArray['repeat_orders'])) {
+                        $detailArray['repeat_orders'] = [];
+                    }
+                    $detailItem = [
+                        'order' => $orderItem->getData(),
+                        'order_grid' => $orderGrid,
+                    ];
+                    $detailArray['repeat_orders'][] = $detailItem;
+                    $this->errorLog->setMessage('repeat_order', base64_encode(json_encode($detailItem)))->send();
+                    $this->paymentIntentRepository->updateDetail($record, json_encode($detailArray));
                     $this->orderRepository->delete($orderItem);
                 }
             }
