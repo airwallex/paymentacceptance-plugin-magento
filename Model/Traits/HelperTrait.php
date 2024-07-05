@@ -93,16 +93,17 @@ trait HelperTrait
             }
             try {
                 $order = $this->order->loadByAttribute('quote_id', $quoteId);
+                $orderId = $order->getId();
             } catch (\Exception $e){};
             if (empty($order) || empty($order->getEntityId())) {
                 if ($from !== 'service') {
                     $quote->setTotalsCollectedFlag(true);                
                 }
-                $this->cartManagement->placeOrder($quoteId);
+                $orderId = $this->cartManagement->placeOrder($quoteId);
             }
         } finally {
             $this->cache->remove($lockKey);
         }
-        return;
+        return $orderId;
     }
 }
