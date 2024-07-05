@@ -403,6 +403,7 @@ class Service implements ServiceInterface
      */
     public function expressData(): string
     {
+
         $res = $this->quoteData();
         $res['settings'] = $this->settings();
 

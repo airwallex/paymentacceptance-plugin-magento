@@ -32,6 +32,7 @@
             <argument name="messages" xsi:type="array">
                 <item name="AirwallexDependenciesNotification" xsi:type="string">Airwallex\Payments\Model\Adminhtml\Notifications\Dependencies</item>
                 <item name="ExpressDisabledNotification" xsi:type="string">Airwallex\Payments\Model\Adminhtml\Notifications\ExpressDisabled</item>
+                <item name="UpgradeNotification" xsi:type="string">Airwallex\Payments\Model\Adminhtml\Notifications\Upgrade</item>
             </argument>
         </arguments>
     </type>
