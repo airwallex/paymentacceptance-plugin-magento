@@ -75,7 +75,7 @@ class Refund extends AbstractWebhook
         /** @var \Magento\Sales\Model\Order $order */
         $order = $this->paymentIntentRepository->getOrder($paymentIntentId);
 
-        $cacheName = $paymentIntentId . '-refund-' . $order->getIncrementId();
+        $cacheName = $this->refundCacheName($paymentIntentId);
         if ($this->cache->load($cacheName)) {
             $this->cache->remove($cacheName);
             return;

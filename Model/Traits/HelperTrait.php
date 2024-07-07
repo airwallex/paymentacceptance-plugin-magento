@@ -106,4 +106,12 @@ trait HelperTrait
         }
         return $orderId;
     }
+
+    public function captureCacheName(string $intentId) {
+        return $intentId . '_capture';
+    }
+
+    public function refundCacheName(string $intentId) {
+        return $intentId . '_refund';
+    }
 }

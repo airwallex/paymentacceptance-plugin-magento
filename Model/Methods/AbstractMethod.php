@@ -96,7 +96,7 @@ abstract class AbstractMethod extends Adapter
     /**
      * @var CacheInterface
      */
-    private CacheInterface $cache;
+    protected CacheInterface $cache;
 
     protected Get $intentGet;
 
@@ -272,7 +272,7 @@ abstract class AbstractMethod extends Adapter
         }
 
         $intentId = $this->getIntentId();
-        $this->cache->save(true, $intentId . '-refund-' . $order->getIncrementId(), [], 3600);
+        $this->cache->save(true, $this->refundCacheName($intentId), [], 3600);
         try {
             $this->refund->setInformation($intentId, $targetAmount)->send();
         } catch (GuzzleException $exception) {

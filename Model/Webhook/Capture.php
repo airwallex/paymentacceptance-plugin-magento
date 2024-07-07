@@ -10,6 +10,7 @@ use Magento\Sales\Model\OrderRepository;
 use Magento\Sales\Model\Service\InvoiceService;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\Sales\Model\Order;
+use Magento\Framework\App\CacheInterface;
 
 class Capture extends AbstractWebhook
 {
@@ -39,22 +40,30 @@ class Capture extends AbstractWebhook
     private TransactionFactory $transactionFactory;
 
     /**
+     * @var CacheInterface
+     */
+    public CacheInterface $cache;
+
+    /**
      * Capture constructor.
      *
      * @param OrderRepository $orderRepository
      * @param PaymentIntentRepository $paymentIntentRepository
      * @param InvoiceService $invoiceService
      * @param TransactionFactory $transactionFactory
+     * @param CacheInterface $cache
      */
     public function __construct(
         OrderRepository $orderRepository,
         PaymentIntentRepository $paymentIntentRepository,
         InvoiceService $invoiceService,
-        TransactionFactory $transactionFactory
+        TransactionFactory $transactionFactory,
+        CacheInterface $cache
     ) {
         parent::__construct($orderRepository, $paymentIntentRepository);
         $this->invoiceService = $invoiceService;
         $this->transactionFactory = $transactionFactory;
+        $this->cache = $cache;
     }
 
     /**
@@ -66,6 +75,11 @@ class Capture extends AbstractWebhook
     public function execute(object $data): void
     {
         $paymentIntentId = $data->payment_intent_id ?? $data->id;
+
+        if ($this->cache->load($this->captureCacheName($paymentIntentId))) {
+            $this->cache->remove($this->captureCacheName($paymentIntentId));
+            return;
+        }
 
         /** @var \Magento\Sales\Model\Order $order */
         $order = $this->paymentIntentRepository->getOrder($paymentIntentId);

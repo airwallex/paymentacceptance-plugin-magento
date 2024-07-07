@@ -42,11 +42,13 @@ class CardMethod extends AbstractMethod
             return $this;
         }
 
+        $this->cache->save(true, $this->captureCacheName($intentId), [], 3600);
         try {
             $result = $this->capture->setPaymentIntentId($intentId)->setInformation($order->getGrandTotal())->send();
             $this->getInfoInstance()->setAdditionalInformation('intent_status', $result->status);
         } catch (GuzzleException $exception) {
             $this->logger->orderError($order, 'capture', $exception->getMessage());
+            throw $exception;
         }
 
         return $this;
