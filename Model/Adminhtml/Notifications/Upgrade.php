@@ -74,7 +74,9 @@ class Upgrade implements MessageInterface
     private function shouldUpgrade(): void
     {
         $packageName = 'airwallex/payments-plugin-magento';
-        $content = file_get_contents('https://packagist.org/p2/'.$packageName.'.json');
+        try {
+            $content = file_get_contents('https://packagist.org/p2/'.$packageName.'.json');
+        } catch (\Exception $e) { return; }
         if (empty($content)) return;
         $data = json_decode($content, true);
         if (isset($data['packages'][$packageName])) {
@@ -82,7 +84,8 @@ class Upgrade implements MessageInterface
             if (empty($version)) return;
             $currentVersion = $this->moduleList->getOne(Configuration::MODULE_NAME)['setup_version'];
             if (version_compare($version, $currentVersion, '>')) {
-                $this->displayedText = __("The Airwallex Payment latest version is $version. We recommend updating to ensure optimal performance and features.");
+                $this->displayedText = __("For the best performance and access to new features, please update your Airwallex Payment plugin "
+                    . "to the latest version, $version. Your current version is $currentVersion.");
             }
         }
     }
