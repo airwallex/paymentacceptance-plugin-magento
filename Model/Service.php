@@ -345,6 +345,19 @@ class Service implements ServiceInterface
             }
 
             $intent = $this->paymentIntents->getIntent();
+
+            $resp = $this->intentGet->setPaymentIntentId($intent['id'])->send();
+            $respArr = json_decode($resp, true);
+            $this->checkIntentWithQuote(
+                $this->intentGet::INTENT_STATUS_SUCCESS,
+                $respArr['currency'],
+                $quote->getQuoteCurrencyCode(),
+                $respArr['merchant_order_id'],
+                $quote->getReservedOrderId(),
+                floatval($respArr['amount']),
+                floatval($quote->getGrandTotal()),
+            );
+
             /** @var \Magento\Quote\Model\Quote\Payment $paymentMethod */
             $paymentMethod->setData(PaymentInterface::KEY_ADDITIONAL_DATA, ['intent_id' => $intent['id']]);
             if ($uid) {
