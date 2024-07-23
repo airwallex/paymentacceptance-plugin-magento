@@ -12,6 +12,7 @@ use Magento\Sales\Model\ResourceModel\Order\CollectionFactory as OrderFactory;
 use Magento\Sales\Model\ResourceModel\Order\Grid\CollectionFactory as OrderGridFactory;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Airwallex\Payments\Model\Client\Request\Log;
+use Magento\Sales\Model\Order\Status\HistoryFactory;
 
 class CheckoutSubmitAllAfter implements ObserverInterface
 {
@@ -30,7 +31,7 @@ class CheckoutSubmitAllAfter implements ObserverInterface
     public OrderFactory $orderFactory;
     public OrderGridFactory $orderGridFactory;
     public Log $errorLog;
-
+    public HistoryFactory $historyFactory;
     public PaymentIntentRepository $paymentIntentRepository;
 
     public function __construct(
@@ -39,6 +40,7 @@ class CheckoutSubmitAllAfter implements ObserverInterface
         OrderFactory $orderFactory,
         OrderGridFactory $orderGridFactory,
         Log $errorLog,
+        HistoryFactory $historyFactory,
         PaymentIntentRepository $paymentIntentRepository
     ) {
         $this->orderRepository = $orderRepository;
@@ -46,6 +48,7 @@ class CheckoutSubmitAllAfter implements ObserverInterface
         $this->orderFactory = $orderFactory;
         $this->orderGridFactory = $orderGridFactory;
         $this->errorLog = $errorLog;
+        $this->historyFactory = $historyFactory;
         $this->paymentIntentRepository = $paymentIntentRepository;
     }
     /**
@@ -74,8 +77,8 @@ class CheckoutSubmitAllAfter implements ObserverInterface
             );
             $order->addCommentToStatusHistory(__($comment));
             $order->setState(Order::STATE_PENDING_PAYMENT)->setStatus(Order::STATE_PENDING_PAYMENT);
+            $this->orderRepository->save($order);
         }
-        $this->orderRepository->save($order);
 
         $quoteId = $order->getQuoteId();
         if (empty($quoteId)) return;
@@ -139,7 +142,13 @@ class CheckoutSubmitAllAfter implements ObserverInterface
             if ($cvc_check) $cvc_check = ' CVC Result: ' . $cvc_check . '.';
             $log .= $brand . $last4 . $avs_check . $cvc_check;
             if ($log === $src) return;
-            $order->addCommentToStatusHistory(__($log));
+            $latestOrder = $this->orderRepository->get($order->getEntityId());
+            $history = $this->historyFactory->create()
+                ->setParentId($order->getEntityId())
+                ->setComment(__($log))
+                ->setEntityName('order')
+                ->setStatus($latestOrder->getStatus())
+                ->save();
         } catch (\Exception $e) {
         }
     }

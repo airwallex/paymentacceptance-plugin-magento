@@ -1,22 +1,7 @@
 <?xml version="1.0"?>
-<!--
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
- -->
+
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Module/etc/module.xsd">
-    <module name="Airwallex_Payments" setup_version="1.7.22">
+    <module name="Airwallex_Payments" setup_version="1.7.23">
         <sequence>
             <module name="Magento_Sales"/>
             <module name="Magento_Payment"/>
