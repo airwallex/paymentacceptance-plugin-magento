@@ -46,6 +46,7 @@ use Magento\Quote\Api\GuestCartManagementInterface;
 use Magento\Quote\Api\CartManagementInterface;
 use Magento\Quote\Model\SubmitQuoteValidator;
 use Airwallex\Payments\Logger\Logger;
+use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
 use Airwallex\Payments\Model\Methods\ExpressCheckout;
 use Airwallex\Payments\Model\Traits\HelperTrait;
@@ -344,6 +345,8 @@ class Service implements ServiceInterface
                 throw new InputException(__('payment method is required'));
             }
 
+            $this->cache->save($from ?: $paymentMethod->getMethod(),
+                AbstractClient::CACHE_NAME_METADATA_PAYMENT_METHOD_PREFIX . (string)$quote->getEntityId(), [], 60);
             $intent = $this->paymentIntents->getIntent();
 
             $resp = $this->intentGet->setPaymentIntentId($intent['id'])->send();

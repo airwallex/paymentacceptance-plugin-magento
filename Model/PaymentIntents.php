@@ -131,7 +131,6 @@ class PaymentIntents
             ];
         }, $products);
 
-        // 按 code 排序
         usort($filteredData, function ($a, $b) {
             if ($a['code'] === $b['code']) {
                 return $a['sku'] <=> $b['sku'];

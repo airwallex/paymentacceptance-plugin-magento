@@ -2,6 +2,7 @@
 
 namespace Airwallex\Payments\Model\Methods;
 
+use Airwallex\Payments\Model\Client\AbstractClient;
 use GuzzleHttp\Exception\GuzzleException;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\LocalizedException;
@@ -9,7 +10,6 @@ use Magento\Payment\Model\InfoInterface;
 use Magento\Quote\Api\Data\CartInterface;
 use Mobile_Detect;
 use Exception;
-use Magento\Quote\Api\Data\PaymentInterface;
 
 class RedirectMethod extends AbstractMethod
 {
@@ -32,7 +32,9 @@ class RedirectMethod extends AbstractMethod
      */
     public function authorize(InfoInterface $payment, $amount): self
     {
+        $cacheName = AbstractClient::CACHE_NAME_METADATA_PAYMENT_METHOD_PREFIX . (string)$this->checkoutHelper->getQuote()->getEntityId();
         /** @var \Magento\Sales\Model\Order\Payment $payment */
+        $this->cache->save($payment->getMethod(), $cacheName, [], 60);
         $intendResponse = $this->paymentIntents->getIntent();
         $intentId = $intendResponse['id'];
 

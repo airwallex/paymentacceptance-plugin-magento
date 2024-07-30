@@ -1,18 +1,5 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
+
 namespace Airwallex\Payments\Model\Client;
 
 use Airwallex\Payments\Helper\AuthenticationHelper;
@@ -26,10 +13,12 @@ use Magento\Framework\App\ProductMetadataInterface;
 use Magento\Framework\DataObject\IdentityService;
 use Magento\Framework\Module\ModuleListInterface;
 use Psr\Http\Message\ResponseInterface;
+use Magento\Checkout\Helper\Data as CheckoutData;
 
 abstract class AbstractClient
 {
     public const NOT_FOUND = '404 not found';
+    public const CACHE_NAME_METADATA_PAYMENT_METHOD_PREFIX = 'metadata_payment_method_';
     protected const JSON_DECODE_DEPTH = 512;
     protected const SUCCESS_STATUS_START = 200;
     protected const SUCCESS_STATUS_END = 299;
@@ -73,6 +62,11 @@ abstract class AbstractClient
     protected ModuleListInterface $moduleList;
 
     /**
+     * @var CheckoutData
+     */
+    protected CheckoutData $checkoutData;
+
+    /**
      * @var array
      */
     private array $params = [];
@@ -86,6 +80,7 @@ abstract class AbstractClient
      * @param Configuration $configuration
      * @param ProductMetadataInterface $productMetada
      * @param ModuleListInterface $moduleList
+     * @param CheckoutData $checkoutData
      * @param CacheInterface $cache
      */
     public function __construct(
@@ -95,6 +90,7 @@ abstract class AbstractClient
         Configuration $configuration,
         ProductMetadataInterface $productMetada,
         ModuleListInterface $moduleList,
+        CheckoutData $checkoutData,
         CacheInterface $cache
     ) {
         $this->authenticationHelper = $authenticationHelper;
@@ -103,6 +99,7 @@ abstract class AbstractClient
         $this->configuration = $configuration;
         $this->productMetada = $productMetada;
         $this->moduleList = $moduleList;
+        $this->checkoutData = $checkoutData;
         $this->cache = $cache;
     }
 
@@ -234,7 +231,7 @@ abstract class AbstractClient
      */
     protected function getMetadata(): array
     {
-        return [
+        $metadata = [
             'php_version' => phpversion(),
             'magento_version' => $this->productMetada->getVersion(),
             'plugin_version' => $this->moduleList->getOne(Configuration::MODULE_NAME)['setup_version'],
@@ -247,6 +244,10 @@ abstract class AbstractClient
             'is_request_logger_enable' => $this->configuration->isRequestLoggerEnable() ?? false,
             'express_checkout' => $this->configuration->getCheckout() ?? '',
         ];
+        if ($methodName = $this->cache->load(self::CACHE_NAME_METADATA_PAYMENT_METHOD_PREFIX .  (string)$this->checkoutData->getQuote()->getEntityId())) {
+            $metadata['payment_method'] = $methodName;
+        }
+        return $metadata;
     }
 
     /**

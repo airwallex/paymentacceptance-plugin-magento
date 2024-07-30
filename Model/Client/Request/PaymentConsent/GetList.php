@@ -16,6 +16,7 @@ use Magento\Framework\Module\ModuleListInterface;
 use Psr\Http\Message\ResponseInterface;
 use Magento\Framework\App\ProductMetadataInterface;
 use Magento\Framework\App\CacheInterface;
+use Magento\Checkout\Helper\Data as CheckoutData;
 
 class GetList extends AbstractClient implements BearerAuthenticationInterface
 {
@@ -26,6 +27,7 @@ class GetList extends AbstractClient implements BearerAuthenticationInterface
 
     private SavedPaymentResponseInterfaceFactory $savedPaymentResponseFactory;
     private AvailablePaymentMethodsHelper $availablePaymentMethodsHelper;
+    protected CheckoutData $checkoutData;
 
     public function __construct(
         AuthenticationHelper $authenticationHelper,
@@ -35,10 +37,11 @@ class GetList extends AbstractClient implements BearerAuthenticationInterface
         ModuleListInterface $moduleList,
         ProductMetadataInterface $productMetada,
         SavedPaymentResponseInterfaceFactory $savedPaymentResponseFactory,
+        CheckoutData $checkoutData,
         CacheInterface $cache,
         AvailablePaymentMethodsHelper $availablePaymentMethodsHelper
     ) {
-        parent::__construct($authenticationHelper, $identityService, $requestLogger, $configuration, $productMetada, $moduleList, $cache);
+        parent::__construct($authenticationHelper, $identityService, $requestLogger, $configuration, $productMetada, $moduleList, $checkoutData, $cache);
         $this->savedPaymentResponseFactory = $savedPaymentResponseFactory;
         $this->availablePaymentMethodsHelper = $availablePaymentMethodsHelper;
     }
