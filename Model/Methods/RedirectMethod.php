@@ -32,12 +32,17 @@ class RedirectMethod extends AbstractMethod
      */
     public function authorize(InfoInterface $payment, $amount): self
     {
-        $cacheName = AbstractClient::CACHE_NAME_METADATA_PAYMENT_METHOD_PREFIX . (string)$this->checkoutHelper->getQuote()->getEntityId();
+        $cacheName = AbstractClient::METADATA_PAYMENT_METHOD_PREFIX . (string)$this->checkoutHelper->getQuote()->getEntityId();
         /** @var \Magento\Sales\Model\Order\Payment $payment */
         $this->cache->save($payment->getMethod(), $cacheName, [], 60);
         $intendResponse = $this->paymentIntents->getIntent();
-        $intentId = $intendResponse['id'];
+        $returnUrl = $this->getAirwallexPaymentsRedirectUrl($intendResponse['id']);
+        $this->checkoutHelper->getCheckout()->setAirwallexPaymentsRedirectUrl($returnUrl);
+        return $this;
+    }
 
+    public function getAirwallexPaymentsRedirectUrl($intentId)
+    {
         $detect = new Mobile_Detect();
         try {
             $returnUrl = $this->confirm
@@ -48,9 +53,7 @@ class RedirectMethod extends AbstractMethod
             throw new LocalizedException(__($exception->getMessage()));
         }
 
-        $this->checkoutHelper->getCheckout()->setAirwallexPaymentsRedirectUrl($returnUrl);
-
-        return $this;
+        return $returnUrl;
     }
 
     /**

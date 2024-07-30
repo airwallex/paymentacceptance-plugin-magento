@@ -18,7 +18,7 @@ use Magento\Checkout\Helper\Data as CheckoutData;
 abstract class AbstractClient
 {
     public const NOT_FOUND = '404 not found';
-    public const CACHE_NAME_METADATA_PAYMENT_METHOD_PREFIX = 'metadata_payment_method_';
+    public const METADATA_PAYMENT_METHOD_PREFIX = 'metadata_payment_method_';
     protected const JSON_DECODE_DEPTH = 512;
     protected const SUCCESS_STATUS_START = 200;
     protected const SUCCESS_STATUS_END = 299;
@@ -244,7 +244,7 @@ abstract class AbstractClient
             'is_request_logger_enable' => $this->configuration->isRequestLoggerEnable() ?? false,
             'express_checkout' => $this->configuration->getCheckout() ?? '',
         ];
-        if ($methodName = $this->cache->load(self::CACHE_NAME_METADATA_PAYMENT_METHOD_PREFIX .  (string)$this->checkoutData->getQuote()->getEntityId())) {
+        if ($methodName = $this->cache->load(self::METADATA_PAYMENT_METHOD_PREFIX .  (string)$this->checkoutData->getQuote()->getEntityId())) {
             $metadata['payment_method'] = $methodName;
         }
         return $metadata;

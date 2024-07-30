@@ -54,6 +54,9 @@ use Magento\CheckoutAgreements\Model\Checkout\Plugin\GuestValidation;
 use Magento\CheckoutAgreements\Model\Checkout\Plugin\Validation;
 use Magento\CheckoutAgreements\Model\AgreementsConfigProvider;
 use Magento\Sales\Api\Data\OrderInterface;
+use Airwallex\Payments\Model\Client\Request\PaymentIntents\Confirm;
+use Airwallex\Payments\Model\Methods\AbstractMethod;
+use Mobile_Detect;
 
 class Service implements ServiceInterface
 {
@@ -95,6 +98,7 @@ class Service implements ServiceInterface
     protected Validation $agreementValidation;
     protected GuestValidation $agreementGuestValidation;
     protected AgreementsConfigProvider $agreementsConfigProvider;
+    protected Confirm $confirm;
     public OrderInterface $order;
 
     /**
@@ -136,6 +140,7 @@ class Service implements ServiceInterface
      * @param Validation $agreementValidation
      * @param GuestValidation $agreementGuestValidation
      * @param AgreementsConfigProvider $agreementsConfigProvider
+     * @param Confirm $confirm
      * @param OrderInterface $order
      */
     public function __construct(
@@ -175,6 +180,7 @@ class Service implements ServiceInterface
         Validation $agreementValidation,
         GuestValidation $agreementGuestValidation,
         AgreementsConfigProvider $agreementsConfigProvider,
+        Confirm $confirm,
         OrderInterface $order
     ) {
         $this->paymentConsents = $paymentConsents;
@@ -213,6 +219,7 @@ class Service implements ServiceInterface
         $this->agreementValidation = $agreementValidation;
         $this->agreementGuestValidation = $agreementGuestValidation;
         $this->agreementsConfigProvider = $agreementsConfigProvider;
+        $this->confirm = $confirm;
         $this->order = $order;
     }
     /**
@@ -345,8 +352,8 @@ class Service implements ServiceInterface
                 throw new InputException(__('payment method is required'));
             }
 
-            $this->cache->save($from ?: $paymentMethod->getMethod(),
-                AbstractClient::CACHE_NAME_METADATA_PAYMENT_METHOD_PREFIX . (string)$quote->getEntityId(), [], 60);
+            $code = $paymentMethod->getMethod();
+            $this->cache->save($from ?: $code, AbstractClient::METADATA_PAYMENT_METHOD_PREFIX . (string)$quote->getEntityId(), [], 60);
             $intent = $this->paymentIntents->getIntent();
 
             $resp = $this->intentGet->setPaymentIntentId($intent['id'])->send();
@@ -372,11 +379,16 @@ class Service implements ServiceInterface
 
             $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
 
-            $response->setData([
+            $data = [
                 'response_type' => 'confirmation_required',
                 'intent_id' => $intent['id'],
                 'client_secret' => $intent['clientSecret']
-            ]);
+            ];
+            if ($this->isRedirectMethodConstant($code)) {
+                $data['redirect_url'] = $this->getRedirectUrl($intent['id']);
+            }
+
+            $response->setData($data);
             return $response;
         }
 
@@ -409,6 +421,21 @@ class Service implements ServiceInterface
         ]);
 
         return $response;
+    }
+
+    protected function getRedirectUrl($intentId)
+    {
+        $detect = new Mobile_Detect();
+        $shortCode = str_replace(AbstractMethod::PAYMENT_PREFIX, '', $code);
+        $os = '';
+        if ($detect->isMobile()) {
+            $os = $detect->isAndroidOS() ? 'android' : 'ios';
+        }
+
+        return $this->confirm
+            ->setPaymentIntentId($intentId)
+            ->setInformation($shortCode, $detect->isMobile(), $os)
+            ->send();
     }
 
     /**
