@@ -14,6 +14,7 @@ interface PaymentIntentInterface
     public const STORE_ID_COLUMN = 'store_id';
     public const DETAIL_COLUMN = 'detail';
     public const INTENT_STATUS_REQUIRES_CAPTURE = 'REQUIRES_CAPTURE';
+    public const INTENT_STATUS_SUCCEEDED = 'SUCCEEDED';
 
     /**
      * @return mixed

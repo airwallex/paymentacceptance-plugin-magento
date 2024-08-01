@@ -21,10 +21,6 @@ use Psr\Http\Message\ResponseInterface;
 
 class Get extends AbstractClient implements BearerAuthenticationInterface
 {
-    public const INTENT_STATUS_SUCCESS = 'SUCCEEDED';
-
-    public const INTENT_STATUS_REQUIRES_CAPTURE = 'REQUIRES_CAPTURE';
-
     /**
      * @var string
      */

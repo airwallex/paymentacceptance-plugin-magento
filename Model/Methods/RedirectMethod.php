@@ -20,7 +20,8 @@ class RedirectMethod extends AbstractMethod
     public const KAKAO_CODE = 'airwallex_payments_kakaopay';
     public const TOUCH_N_GO_CODE = 'airwallex_payments_tng';
     public const WECHAT_CODE = 'airwallex_payments_wechatpay';
-    
+    public const PAY_NOW_CODE = 'airwallex_payments_pay_now';
+
     /**
      * @param InfoInterface $payment
      * @param float $amount

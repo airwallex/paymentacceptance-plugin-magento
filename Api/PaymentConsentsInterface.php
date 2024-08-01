@@ -12,48 +12,48 @@ interface PaymentConsentsInterface
      * @param int $customerId
      * @return string
      */
-    public function createAirwallexCustomerById($customerId);
+    public function createAirwallexCustomerById(int $customerId): string;
 
     /**
      * @param CustomerInterface $customer
      * @return string
      */
-    public function generateAirwallexCustomerId($customer);
+    public function generateAirwallexCustomerId(CustomerInterface $customer): string;
 
     /**
      * @param CustomerInterface $customer
      * @return string
      */
-    public function createAirwallexCustomer($customer);
+    public function createAirwallexCustomer(CustomerInterface $customer): string;
 
     /**
      * @param int $customerId
      * @return SavedPaymentResponseInterface[]
      */
-    public function getSavedCards($customerId);
+    public function getSavedCards(int $customerId): array;
 
     /**
      * @param int $customerId
      * @param string $paymentConsentId
      * @return bool
      */
-    public function disablePaymentConsent($customerId, $paymentConsentId);
+    public function disablePaymentConsent(int $customerId, string $paymentConsentId): bool;
 
     /**
      * @param int $customerId
      * @return bool
      */
-    public function syncVault($customerId);
+    public function syncVault(int $customerId): bool;
 
     /**
      * @param int $customerId
      * @return ClientSecretResponseInterface
      */
-    public function generateClientSecret($customerId);
+    public function generateClientSecret(int $customerId): ClientSecretResponseInterface;
 
     /**
      * @param int $customerId
      * @return string
      */
-    public function getAirwallexCustomerIdInDB($customerId);
+    public function getAirwallexCustomerIdInDB(int $customerId): string;
 }

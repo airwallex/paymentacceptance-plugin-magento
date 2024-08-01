@@ -10,7 +10,7 @@ class ClientSecretResponse extends DataObject implements ClientSecretResponseInt
     /**
      * @return string|null
      */
-    public function getClientSecret()
+    public function getClientSecret(): ?string
     {
         return $this->getData(self::DATA_KEY_CLIENT_SECRET);
     }
@@ -19,7 +19,7 @@ class ClientSecretResponse extends DataObject implements ClientSecretResponseInt
      * @param string|null $secret
      * @return $this
      */
-    public function setClientSecret(string $secret = null)
+    public function setClientSecret(string $secret = null): ClientSecretResponse
     {
         return $this->setData(self::DATA_KEY_CLIENT_SECRET, $secret);
     }
@@ -27,7 +27,7 @@ class ClientSecretResponse extends DataObject implements ClientSecretResponseInt
     /**
      * @return string|null
      */
-    public function getExpiredTime()
+    public function getExpiredTime(): ?string
     {
         return $this->getData(self::DATA_KEY_EXPIRED_TIME);
     }
@@ -36,7 +36,7 @@ class ClientSecretResponse extends DataObject implements ClientSecretResponseInt
      * @param string|null $time
      * @return $this
      */
-    public function setExpiredTime(string $time = null)
+    public function setExpiredTime(string $time = null): ClientSecretResponse
     {
         return $this->setData(self::DATA_KEY_EXPIRED_TIME, $time);
     }

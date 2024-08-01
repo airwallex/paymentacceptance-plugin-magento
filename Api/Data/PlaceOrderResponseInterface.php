@@ -28,66 +28,66 @@ interface PlaceOrderResponseInterface
     /**
      * @return string|null
      */
-    public function getIntentId();
+    public function getIntentId(): ?string;
 
     /**
      * @param string|null $intentId
      * @return $this
      */
-    public function setIntentId(string $intentId = null);
+    public function setIntentId(string $intentId = null): PlaceOrderResponseInterface;
 
     /**
      * @return string|null
      */
-    public function getRedirectUrl();
+    public function getRedirectUrl(): ?string;
 
     /**
      * @param string|null $redirectUrl
      * @return $this
      */
-    public function setRedirectUrl(string $redirectUrl = null);
+    public function setRedirectUrl(string $redirectUrl = null): PlaceOrderResponseInterface;
 
     /**
      * @return string|null
      */
-    public function getClientSecret();
+    public function getClientSecret(): ?string;
 
     /**
      * @param string|null $clientSecret
      * @return $this
      */
-    public function setClientSecret(string $clientSecret = null);
+    public function setClientSecret(string $clientSecret = null): PlaceOrderResponseInterface;
 
     /**
      * @return string
      */
-    public function getResponseType();
+    public function getResponseType(): string;
 
     /**
      * @param string $responseType
      * @return $this
      */
-    public function setResponseType(string $responseType);
+    public function setResponseType(string $responseType): PlaceOrderResponseInterface;
 
     /**
      * @return string
      */
-    public function getMessage();
+    public function getMessage(): string;
 
     /**
      * @param string $message
      * @return $this
      */
-    public function setMessage(string $message);
+    public function setMessage(string $message): PlaceOrderResponseInterface;
 
     /**
      * @return int|null
      */
-    public function getOrderId();
+    public function getOrderId(): ?int;
 
     /**
      * @param int|null $orderId
      * @return $this
      */
-    public function setOrderId(int $orderId = null);
+    public function setOrderId(int $orderId = null): PlaceOrderResponseInterface;
 }

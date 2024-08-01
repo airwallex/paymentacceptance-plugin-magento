@@ -482,4 +482,46 @@
             <argument name="validatorPool" xsi:type="object">AirwallexPaymentsTouchNGoValidatorPool</argument>
         </arguments>
     </virtualType>
+    <!-- Paynow Method -->
+    <virtualType name="AirwallexPaymentPaynowCountryValidator" type="Magento\Payment\Gateway\Validator\CountryValidator">
+        <arguments>
+            <argument name="config" xsi:type="object">AirwallexPaymentPaynowConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsPaynowValidatorPool" type="Magento\Payment\Gateway\Validator\ValidatorPool">
+        <arguments>
+            <argument name="validators" xsi:type="array">
+                <item name="country" xsi:type="string">AirwallexPaymentPaynowCountryValidator</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentPaynowConfig" type="Magento\Payment\Gateway\Config\Config">
+        <arguments>
+            <argument name="methodCode" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::PAY_NOW_CODE</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentPaynowConfigValueHandler" type="Magento\Payment\Gateway\Config\ConfigValueHandler">
+        <arguments>
+            <argument name="configInterface" xsi:type="object">AirwallexPaymentPaynowConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentPaynowValueHandlerPool" type="Magento\Payment\Gateway\Config\ValueHandlerPool">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="default" xsi:type="string">AirwallexPaymentPaynowConfigValueHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsPaynowGatewayFacade" type="Airwallex\Payments\Model\Methods\RedirectMethod">
+        <arguments>
+            <argument name="eventManager" xsi:type="object">Magento\Framework\Event\ManagerInterface</argument>
+            <argument name="valueHandlerPool" xsi:type="object">AirwallexPaymentPaynowValueHandlerPool</argument>
+            <argument name="paymentDataObjectFactory" xsi:type="object">Magento\Payment\Gateway\Data\PaymentDataObjectFactory</argument>
+            <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::PAY_NOW_CODE</argument>
+            <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
+            <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
+            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
+            <argument name="validatorPool" xsi:type="object">AirwallexPaymentsPaynowValidatorPool</argument>
+        </arguments>
+    </virtualType>
 </config>
