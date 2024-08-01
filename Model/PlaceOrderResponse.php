@@ -59,9 +59,9 @@ class PlaceOrderResponse extends DataObject implements PlaceOrderResponseInterfa
     }
 
     /**
-     * @return string
+     * @return string|null
      */
-    public function getResponseType(): string
+    public function getResponseType(): ?string
     {
         return $this->getData(self::DATA_KEY_RESPONSE_TYPE);
     }
@@ -76,9 +76,9 @@ class PlaceOrderResponse extends DataObject implements PlaceOrderResponseInterfa
     }
 
     /**
-     * @return string
+     * @return string|null
      */
-    public function getMessage(): string
+    public function getMessage(): ?string
     {
         return $this->getData(self::DATA_KEY_MESSAGE);
     }

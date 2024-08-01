@@ -3,6 +3,7 @@
 namespace Airwallex\Payments\Model\Webhook;
 
 use Airwallex\Payments\Model\PaymentIntentRepository;
+use Exception;
 use Magento\Framework\DB\TransactionFactory;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Sales\Model\Order\Invoice;
@@ -71,6 +72,7 @@ class Capture extends AbstractWebhook
      *
      * @return void
      * @throws LocalizedException
+     * @throws Exception
      */
     public function execute(object $data): void
     {
@@ -81,7 +83,7 @@ class Capture extends AbstractWebhook
             return;
         }
 
-        /** @var \Magento\Sales\Model\Order $order */
+        /** @var Order $order */
         $order = $this->paymentIntentRepository->getOrder($paymentIntentId);
 
         if (!$order->getPayment() || $order->getTotalPaid()) {
@@ -90,6 +92,10 @@ class Capture extends AbstractWebhook
 
         $amount = $data->captured_amount;
         $targetAmount = $this->convertToDisplayCurrency($amount, $order->getBaseToOrderRate(), true);
+        if ($this->isAmountEqual($amount, $order->getGrandTotal())
+            || $targetAmount - $order->getBaseGrandTotal() >= 0.01) {
+            $targetAmount = $order->getBaseGrandTotal();
+        }
 
         $grandTotalFormat = $order->formatPrice($amount);
         $baseGrandTotalFormat = $order->formatBasePrice($targetAmount);
@@ -99,7 +105,7 @@ class Capture extends AbstractWebhook
         $order->setState(Order::STATE_PROCESSING)->setStatus(Order::STATE_PROCESSING);
         $this->orderRepository->save($order);
         $invoice = $this->invoiceService->prepareInvoice($order);
-        if (!$this->isAmountEqual(floatval($amount), floatval($order->getGrandTotal()))) {
+        if (!$this->isAmountEqual($amount, $order->getGrandTotal())) {
             $invoice->setGrandTotal($amount);
             if ($targetAmount - $order->getBaseGrandTotal() >= 0.01) {
                 $targetAmount = $order->getBaseGrandTotal();

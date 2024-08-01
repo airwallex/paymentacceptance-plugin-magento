@@ -59,9 +59,9 @@ interface PlaceOrderResponseInterface
     public function setClientSecret(string $clientSecret = null): PlaceOrderResponseInterface;
 
     /**
-     * @return string
+     * @return string|null
      */
-    public function getResponseType(): string;
+    public function getResponseType(): ?string;
 
     /**
      * @param string $responseType
@@ -70,9 +70,9 @@ interface PlaceOrderResponseInterface
     public function setResponseType(string $responseType): PlaceOrderResponseInterface;
 
     /**
-     * @return string
+     * @return string|null
      */
-    public function getMessage(): string;
+    public function getMessage(): ?string;
 
     /**
      * @param string $message
