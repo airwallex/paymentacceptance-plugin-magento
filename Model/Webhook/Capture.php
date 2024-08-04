@@ -91,14 +91,9 @@ class Capture extends AbstractWebhook
         }
 
         $amount = $data->captured_amount;
-        $targetAmount = $this->convertToDisplayCurrency($amount, $order->getBaseToOrderRate(), true);
-        if ($this->isAmountEqual($amount, $order->getGrandTotal())
-            || $targetAmount - $order->getBaseGrandTotal() >= 0.01) {
-            $targetAmount = $order->getBaseGrandTotal();
-        }
-
+        $baseAmount = $this->getBaseAmount($amount, $order->getBaseToOrderRate(), $order->getGrandTotal(), $order->getBaseGrandTotal());
         $grandTotalFormat = $order->formatPrice($amount);
-        $baseGrandTotalFormat = $order->formatBasePrice($targetAmount);
+        $baseGrandTotalFormat = $order->formatBasePrice($baseAmount);
         $amountFormat = $grandTotalFormat === $baseGrandTotalFormat ? $baseGrandTotalFormat : "$baseGrandTotalFormat ($grandTotalFormat)";
         $comment = "Captured amount of $amountFormat through Airwallex. Transaction ID: \"$paymentIntentId\".";
         $order->addCommentToStatusHistory(__($comment));
@@ -107,10 +102,7 @@ class Capture extends AbstractWebhook
         $invoice = $this->invoiceService->prepareInvoice($order);
         if (!$this->isAmountEqual($amount, $order->getGrandTotal())) {
             $invoice->setGrandTotal($amount);
-            if ($targetAmount - $order->getBaseGrandTotal() >= 0.01) {
-                $targetAmount = $order->getBaseGrandTotal();
-            }
-            $invoice->setBaseGrandTotal($targetAmount);
+            $invoice->setBaseGrandTotal($baseAmount);
         }
         $invoice->setTransactionId($paymentIntentId);
         $invoice->setRequestedCaptureCase(Invoice::CAPTURE_OFFLINE);

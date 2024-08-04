@@ -25,6 +25,8 @@ use Magento\Payment\Gateway\Validator\ValidatorPoolInterface;
 use Magento\Payment\Model\InfoInterface;
 use Magento\Payment\Model\Method\Adapter;
 use Magento\Quote\Api\Data\CartInterface;
+use Magento\Sales\Model\Order\Creditmemo;
+use Magento\Sales\Model\Order\Payment;
 use RuntimeException;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Airwallex\Payments\Model\Traits\HelperTrait;
@@ -126,28 +128,29 @@ abstract class AbstractMethod extends Adapter
      * @param CommandManagerInterface|null $commandExecutor
      */
     public function __construct(
-        PaymentIntents $paymentIntents,
-        ManagerInterface $eventManager,
-        ValueHandlerPoolInterface $valueHandlerPool,
-        PaymentDataObjectFactory $paymentDataObjectFactory,
-        $code,
-        $formBlockType,
-        $infoBlockType,
-        Refund $refund,
-        Capture $capture,
-        Cancel $cancel,
-        Confirm $confirm,
-        CheckoutData $checkoutHelper,
+        PaymentIntents                $paymentIntents,
+        ManagerInterface              $eventManager,
+        ValueHandlerPoolInterface     $valueHandlerPool,
+        PaymentDataObjectFactory      $paymentDataObjectFactory,
+                                      $code,
+                                      $formBlockType,
+                                      $infoBlockType,
+        Refund                        $refund,
+        Capture                       $capture,
+        Cancel                        $cancel,
+        Confirm                       $confirm,
+        CheckoutData                  $checkoutHelper,
         AvailablePaymentMethodsHelper $availablePaymentMethodsHelper,
-        CancelHelper $cancelHelper,
-        PaymentIntentRepository $paymentIntentRepository,
-        Get $intentGet,
-        Logger $logger,
-        CacheInterface $cache,
-        CommandPoolInterface $commandPool = null,
-        ValidatorPoolInterface $validatorPool = null,
-        CommandManagerInterface $commandExecutor = null
-    ) {
+        CancelHelper                  $cancelHelper,
+        PaymentIntentRepository       $paymentIntentRepository,
+        Get                           $intentGet,
+        Logger                        $logger,
+        CacheInterface                $cache,
+        CommandPoolInterface          $commandPool = null,
+        ValidatorPoolInterface        $validatorPool = null,
+        CommandManagerInterface       $commandExecutor = null
+    )
+    {
         parent::__construct(
             $eventManager,
             $valueHandlerPool,
@@ -207,12 +210,16 @@ abstract class AbstractMethod extends Adapter
         return $this;
     }
 
-    protected function setTransactionId($payment) {
+    /**
+     * @throws LocalizedException
+     */
+    protected function setTransactionId($payment)
+    {
         $intentId = $this->getIntentId();
         if (empty($intentId)) {
             throw new LocalizedException(__('Something went wrong while trying to capture the payment.'));
         }
-        /** @var \Magento\Sales\Model\Order\Payment $payment */
+        /** @var Payment $payment */
         $payment->setTransactionId($intentId);
         $payment->setIsTransactionClosed(false);
     }
@@ -223,6 +230,7 @@ abstract class AbstractMethod extends Adapter
      *
      * @return $this
      * @SuppressWarnings(PHPMD.UnusedFormalParameter)
+     * @throws LocalizedException
      */
     public function capture(InfoInterface $payment, $amount): self
     {
@@ -245,6 +253,7 @@ abstract class AbstractMethod extends Adapter
         try {
             $this->cancel->setPaymentIntentId($this->getIntentId())->send();
         } catch (GuzzleException $exception) {
+            /** @var Payment $payment */
             $this->logger->orderError($payment->getOrder(), 'cancel', $exception->getMessage());
             throw new RuntimeException(__($exception->getMessage()));
         }
@@ -254,27 +263,21 @@ abstract class AbstractMethod extends Adapter
 
     /**
      * @param InfoInterface $payment
-     * @param float $amount
+     * @param float $baseAmount
      *
      * @return $this
      * @throws Exception
      */
-    public function refund(InfoInterface $payment, $amount): self
+    public function refund(InfoInterface $payment, $baseAmount): self
     {
-        /** @var \Magento\Sales\Model\Order\Payment $payment */
-        $order = $payment->getOrder();
-        $creditmemo = $payment->getCreditmemo();
-
-        if ($this->isAmountEqual(floatval($amount), floatval($creditmemo->getBaseGrandTotal()))) {
-            $targetAmount = $creditmemo->getGrandTotal();
-        } else {
-            $targetAmount = $this->convertToDisplayCurrency($amount, $order->getBaseToOrderRate());
-        }
+        /** @var Payment $payment */
+        $credit = $payment->getCreditmemo();
 
         $intentId = $this->getIntentId();
         $this->cache->save(true, $this->refundCacheName($intentId), [], 3600);
         try {
-            $this->refund->setInformation($intentId, $targetAmount)->send();
+            /** @var Creditmemo $credit */
+            $this->refund->setInformation($intentId, $credit->getGrandTotal())->send();
         } catch (GuzzleException $exception) {
             $this->logger->orderError($payment->getOrder(), 'refund', $exception->getMessage());
             throw new RuntimeException(__($exception->getMessage()));

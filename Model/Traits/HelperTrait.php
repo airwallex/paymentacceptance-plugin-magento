@@ -24,6 +24,15 @@ trait HelperTrait
         return round($amount * $rate, 4);
     }
 
+    public function getBaseAmount(float $amount, float $rate, float $amountMax, float $baseAmountMax): float
+    {
+        $baseAmount = $this->convertToDisplayCurrency($amount, $rate, true);
+        if ($this->isAmountEqual($amount, $amountMax) || $baseAmount - $baseAmountMax >= 0.0001) {
+            $baseAmount = $baseAmountMax;
+        }
+        return $baseAmount;
+    }
+
     public function convertCcType(string $type): string
     {
         if (strtolower($type) === 'jcb') {
@@ -116,7 +125,8 @@ trait HelperTrait
             try {
                 $order = $this->order->loadByAttribute('quote_id', $quoteId);
                 $orderId = $order->getId();
-            } catch (Exception $e) {}
+            } catch (Exception $e) {
+            }
             if (empty($order) || empty($order->getEntityId())) {
                 if ($from !== 'service') {
                     $quote->setTotalsCollectedFlag(true);
