@@ -399,18 +399,6 @@ class Service implements ServiceInterface
 
             $intent = $this->paymentIntents->getIntent();
 
-            $resp = $this->intentGet->setPaymentIntentId($intent['id'])->send();
-            $respArr = json_decode($resp, true);
-            $this->checkIntentWithQuote(
-                PaymentIntentInterface::INTENT_STATUS_SUCCEEDED,
-                $respArr['currency'],
-                $quote->getQuoteCurrencyCode(),
-                $respArr['merchant_order_id'],
-                $quote->getReservedOrderId(),
-                floatval($respArr['amount']),
-                $quote->getGrandTotal(),
-            );
-
             /** @var Payment $paymentMethod */
             $paymentMethod->setData(PaymentInterface::KEY_ADDITIONAL_DATA, ['intent_id' => $intent['id']]);
             if ($uid) {
@@ -431,13 +419,23 @@ class Service implements ServiceInterface
 
             $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
 
-            $data = [
+            $resp = $this->intentGet->setPaymentIntentId($intent['id'])->send();
+            $respArr = json_decode($resp, true);
+            $this->checkIntentWithQuote(
+                PaymentIntentInterface::INTENT_STATUS_SUCCEEDED,
+                $respArr['currency'],
+                $quote->getQuoteCurrencyCode(),
+                $respArr['merchant_order_id'],
+                $quote->getReservedOrderId(),
+                floatval($respArr['amount']),
+                $quote->getGrandTotal(),
+            );
+
+            $response->setData([
                 'response_type' => 'confirmation_required',
                 'intent_id' => $intent['id'],
                 'client_secret' => $intent['clientSecret']
-            ];
-
-            $response->setData($data);
+            ]);
             return $response;
         }
 
