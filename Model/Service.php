@@ -269,8 +269,8 @@ class Service implements ServiceInterface
         string           $email,
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
-        string           $intentId = '',
-        string           $from = ''
+        ?string          $intentId = '',
+        ?string          $from = ''
     ): PlaceOrderResponseInterface
     {
         return $this->savePaymentOrPlaceOrder($cartId, $paymentMethod, $billingAddress, $intentId, $email, $from);
@@ -297,8 +297,8 @@ class Service implements ServiceInterface
         string           $cartId,
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
-        string           $intentId = '',
-        string           $from = ''
+        ?string          $intentId = '',
+        ?string          $from = ''
     ): PlaceOrderResponseInterface
     {
         return $this->savePaymentOrPlaceOrder($cartId, $paymentMethod, $billingAddress, $intentId, '', $from);
@@ -357,9 +357,10 @@ class Service implements ServiceInterface
         string           $cartId,
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
-        string           $intentId = '',
-        string           $email = '',
-        string           $from = ''): PlaceOrderResponseInterface
+        ?string          $intentId = '',
+        ?string          $email = '',
+        ?string          $from = ''
+    ): PlaceOrderResponseInterface
     {
         /** @var PlaceOrderResponse $response */
         $response = $this->placeOrderResponseFactory->create();
@@ -367,7 +368,8 @@ class Service implements ServiceInterface
         $quote = $this->checkoutHelper->getQuote();
         try {
             $order = $this->order->loadByAttribute('quote_id', $quote->getId());
-        } catch (Exception $e) {}
+        } catch (Exception $e) {
+        }
         if (!empty($order) && !empty($order->getEntityId())) {
             $quote->setIsActive(false);
             $this->quoteRepository->save($quote);
