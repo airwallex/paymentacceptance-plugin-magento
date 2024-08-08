@@ -4,10 +4,12 @@ namespace Airwallex\Payments\Model\Methods;
 
 use Airwallex\Payments\Model\Client\AbstractClient;
 use GuzzleHttp\Exception\GuzzleException;
+use JsonException;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Payment\Model\InfoInterface;
 use Magento\Quote\Api\Data\CartInterface;
+use Magento\Sales\Model\Order\Payment;
 use Mobile_Detect;
 use Exception;
 
@@ -29,12 +31,12 @@ class RedirectMethod extends AbstractMethod
      * @return $this
      * @throws GuzzleException
      * @throws AlreadyExistsException
-     * @throws LocalizedException
+     * @throws LocalizedException|JsonException
      */
     public function authorize(InfoInterface $payment, $amount): self
     {
-        $cacheName = AbstractClient::METADATA_PAYMENT_METHOD_PREFIX . (string)$this->checkoutHelper->getQuote()->getEntityId();
-        /** @var \Magento\Sales\Model\Order\Payment $payment */
+        $cacheName = AbstractClient::METADATA_PAYMENT_METHOD_PREFIX . $this->checkoutHelper->getQuote()->getEntityId();
+        /** @var Payment $payment */
         $this->cache->save($payment->getMethod(), $cacheName, [], 60);
         $intendResponse = $this->paymentIntents->getIntent();
         $returnUrl = $this->getAirwallexPaymentsRedirectUrl($intendResponse['id']);
@@ -42,6 +44,10 @@ class RedirectMethod extends AbstractMethod
         return $this;
     }
 
+    /**
+     * @throws GuzzleException
+     * @throws LocalizedException
+     */
     public function getAirwallexPaymentsRedirectUrl($intentId)
     {
         $detect = new Mobile_Detect();
