@@ -23,8 +23,8 @@ interface ServiceInterface
         string           $email,
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
-        string           $intentId = '',
-        string           $from = ''
+        ?string          $intentId = '',
+        ?string          $from = ''
     ): PlaceOrderResponseInterface;
 
     /**
@@ -39,8 +39,8 @@ interface ServiceInterface
         string           $cartId,
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
-        string           $intentId = '',
-        string           $from = ''
+        ?string          $intentId = '',
+        ?string          $from = ''
     ): PlaceOrderResponseInterface;
 
     /**
