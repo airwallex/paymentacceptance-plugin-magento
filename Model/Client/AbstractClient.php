@@ -243,6 +243,7 @@ abstract class AbstractClient
             'express_display_area' => $this->configuration->expressDisplayArea() ?? '',
             'is_request_logger_enable' => $this->configuration->isRequestLoggerEnable() ?? false,
             'express_checkout' => $this->configuration->getCheckout() ?? '',
+            'host' => $_SERVER['HTTP_HOST'] ?? '',
         ];
         if ($methodName = $this->cache->load(self::METADATA_PAYMENT_METHOD_PREFIX .  (string)$this->checkoutData->getQuote()->getEntityId())) {
             $metadata['payment_method'] = $methodName;
