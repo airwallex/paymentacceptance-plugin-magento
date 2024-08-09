@@ -87,8 +87,8 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
     {
         $data = json_decode($this->request->getContent(), false, self::JSON_DECODE_DEPTH, JSON_THROW_ON_ERROR);
 
+        $this->webhook->checkChecksum($this->request);
         try {
-            $this->webhook->checkChecksum($this->request);
             if ($data->data) {
                 $this->webhook->dispatch($data->name, $data->data->object);
             }
