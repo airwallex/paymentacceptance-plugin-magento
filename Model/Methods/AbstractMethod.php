@@ -277,11 +277,21 @@ abstract class AbstractMethod extends Adapter
         $this->cache->save(true, $this->refundCacheName($intentId), [], 3600);
         try {
             /** @var Creditmemo $credit */
-            $this->refund->setInformation($intentId, $credit->getGrandTotal())->send();
+            $res = $this->refund->setInformation($intentId, $credit->getGrandTotal())->send();
+
+            $record = $this->paymentIntentRepository->getByIntentId($intentId);
+            $detail = $record->getDetail();
+            $detailArray = $detail ? json_decode($detail, true) : [];
+            if (empty($detailArray['refund_ids'])) {
+                $detailArray['refund_ids'] = [];
+            }
+            $detailArray['refund_ids'][] = $res->id;
+            $this->paymentIntentRepository->updateDetail($record, json_encode($detailArray));
         } catch (GuzzleException $exception) {
             $this->logger->orderError($payment->getOrder(), 'refund', $exception->getMessage());
             throw new RuntimeException(__($exception->getMessage()));
         }
+//        sleep(4);
         return $this;
     }
 

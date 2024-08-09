@@ -52,8 +52,8 @@ interface PaymentConsentsInterface
     public function generateClientSecret(int $customerId): ClientSecretResponseInterface;
 
     /**
-     * @param int $customerId
+     * @param ?int $customerId
      * @return string
      */
-    public function getAirwallexCustomerIdInDB(int $customerId): string;
+    public function getAirwallexCustomerIdInDB(?int $customerId): string;
 }

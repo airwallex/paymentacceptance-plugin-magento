@@ -292,12 +292,12 @@ class PaymentConsents implements PaymentConsentsInterface
     }
 
     /**
-     * @param int $customerId
+     * @param ?int $customerId
      * @return string
      * @throws LocalizedException
      * @throws NoSuchEntityException
      */
-    public function getAirwallexCustomerIdInDB(int $customerId): string
+    public function getAirwallexCustomerIdInDB(?int $customerId): string
     {
         if (!$customerId) return "";
         $customer = $this->customerRepository->getById($customerId);
