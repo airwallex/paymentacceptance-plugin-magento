@@ -18,15 +18,9 @@ class Capture extends AbstractWebhook
     use HelperTrait;
 
     /**
-     * @deprecated No longer used. It is replaced by WEBHOOK_NAMES array.
-     */
-    public const WEBHOOK_NAME = 'payment_attempt.capture_requested';
-
-    /**
      * Array of webhooks that trigger capture process.
      */
     public const WEBHOOK_NAMES = [
-        // 'payment_attempt.capture_requested',
         'payment_intent.succeeded'
     ];
 

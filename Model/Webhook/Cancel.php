@@ -14,7 +14,7 @@ use Magento\Sales\Model\OrderRepository;
 
 class Cancel extends AbstractWebhook
 {
-    public const WEBHOOK_NAME = 'payment_attempt.cancelled';
+    public const WEBHOOK_NAME = 'payment_intent.cancelled';
 
     /**
      * @var CancelHelper
