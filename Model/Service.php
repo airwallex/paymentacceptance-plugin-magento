@@ -232,7 +232,7 @@ class Service implements ServiceInterface
 
         return $checkout->getAirwallexPaymentsRedirectUrl();
     }
-    
+
     /**
      * Guest place order
      *
@@ -285,7 +285,7 @@ class Service implements ServiceInterface
         return $this->savePaymentOrPlaceOrder($cartId, $paymentMethod, $billingAddress, $intentId, '', $from);
     }
 
-    protected function checkAgreements($uid, PaymentInterface $paymentMethod, $cartId, $email) 
+    protected function checkAgreements($uid, PaymentInterface $paymentMethod, $cartId, $email)
     {
         if ($paymentMethod->getMethod() === ExpressCheckout::CODE) {
             return;
@@ -346,18 +346,6 @@ class Service implements ServiceInterface
 
             $intent = $this->paymentIntents->getIntent();
 
-            $resp = $this->intentGet->setPaymentIntentId($intent['id'])->send();
-            $respArr = json_decode($resp, true);
-            $this->checkIntentWithQuote(
-                $this->intentGet::INTENT_STATUS_SUCCESS,
-                $respArr['currency'],
-                $quote->getQuoteCurrencyCode(),
-                $respArr['merchant_order_id'],
-                $quote->getReservedOrderId(),
-                floatval($respArr['amount']),
-                floatval($quote->getGrandTotal()),
-            );
-
             /** @var \Magento\Quote\Model\Quote\Payment $paymentMethod */
             $paymentMethod->setData(PaymentInterface::KEY_ADDITIONAL_DATA, ['intent_id' => $intent['id']]);
             if ($uid) {
@@ -374,6 +362,19 @@ class Service implements ServiceInterface
                 'intent_id' => $intent['id'],
                 'client_secret' => $intent['clientSecret']
             ]);
+
+            $resp = $this->intentGet->setPaymentIntentId($intent['id'])->send();
+            $respArr = json_decode($resp, true);
+            $this->checkIntentWithQuote(
+                $this->intentGet::INTENT_STATUS_SUCCESS,
+                $respArr['currency'],
+                $quote->getQuoteCurrencyCode(),
+                $respArr['merchant_order_id'],
+                $quote->getReservedOrderId(),
+                floatval($respArr['amount']),
+                floatval($quote->getGrandTotal()),
+            );
+
             return $response;
         }
 
@@ -763,13 +764,13 @@ class Service implements ServiceInterface
         $respArr = json_decode($resp, true);
         $quote = $this->checkoutHelper->getQuote();
         $this->checkIntentWithQuote(
-            $respArr['status'], 
-            $respArr['currency'], 
-            $quote->getQuoteCurrencyCode(), 
-            $respArr['merchant_order_id'], 
-            $quote->getReservedOrderId(), 
-            floatval($respArr['amount']), 
-            floatval($quote->getGrandTotal()), 
+            $respArr['status'],
+            $respArr['currency'],
+            $quote->getQuoteCurrencyCode(),
+            $respArr['merchant_order_id'],
+            $quote->getReservedOrderId(),
+            floatval($respArr['amount']),
+            floatval($quote->getGrandTotal()),
         );
     }
 }
