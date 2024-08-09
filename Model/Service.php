@@ -436,6 +436,19 @@ class Service implements ServiceInterface
                 'intent_id' => $intent['id'],
                 'client_secret' => $intent['clientSecret']
             ]);
+
+            $resp = $this->intentGet->setPaymentIntentId($intent['id'])->send();
+            $respArr = json_decode($resp, true);
+            $this->checkIntentWithQuote(
+                $this->intentGet::INTENT_STATUS_SUCCESS,
+                $respArr['currency'],
+                $quote->getQuoteCurrencyCode(),
+                $respArr['merchant_order_id'],
+                $quote->getReservedOrderId(),
+                floatval($respArr['amount']),
+                floatval($quote->getGrandTotal()),
+            );
+
             return $response;
         }
 

@@ -58,7 +58,7 @@ class Webhook
 
     /**
      * @var PaymentIntentRepository
-     */    
+     */
     protected PaymentIntentRepository $paymentIntentRepository;
 
     /**
@@ -102,9 +102,9 @@ class Webhook
     public LockManagerInterface $lockManager;
 
     public function __construct(
-        Refund $refund, 
-        Configuration $configuration, 
-        Capture $capture, 
+        Refund $refund,
+        Configuration $configuration,
+        Capture $capture,
         Expire $expire,
         Cancel $cancel,
         PaymentIntentRepository $paymentIntentRepository,
@@ -163,6 +163,13 @@ class Webhook
      */
     public function dispatch(string $type, stdClass $data): void
     {
+        $paymentIntentId = $data->payment_intent_id ?? $data->id;
+        try {
+            $this->paymentIntentRepository->getByIntentId($paymentIntentId);
+        } catch (NoSuchEntityException $e) {
+            return;
+        }
+
         if ($type === Refund::WEBHOOK_SUCCESS_NAME) {
             $this->refund->execute($data);
         }
@@ -198,13 +205,13 @@ class Webhook
                 /** @var Quote $quote */
                 $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
                 $this->checkIntentWithQuote(
-                    $data->status, 
-                    $data->currency, 
-                    $quote->getQuoteCurrencyCode(), 
-                    $data->merchant_order_id, 
-                    $quote->getReservedOrderId(), 
-                    floatval($data->amount), 
-                    floatval($quote->getGrandTotal()), 
+                    $data->status,
+                    $data->currency,
+                    $quote->getQuoteCurrencyCode(),
+                    $data->merchant_order_id,
+                    $quote->getReservedOrderId(),
+                    floatval($data->amount),
+                    floatval($quote->getGrandTotal()),
                 );
 
                 $this->placeOrderByQuoteId($quote->getId(), 'webhook');

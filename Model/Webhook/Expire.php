@@ -5,6 +5,7 @@ namespace Airwallex\Payments\Model\Webhook;
 use Airwallex\Payments\Exception\WebhookException;
 use Airwallex\Payments\Helper\CancelHelper;
 use Airwallex\Payments\Model\PaymentIntentRepository;
+use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
@@ -13,6 +14,7 @@ use Magento\Sales\Model\OrderRepository;
 
 class Expire extends AbstractWebhook
 {
+    use HelperTrait;
     public const WEBHOOK_NAMES = ['payment_attempt.expired'];
 
     /**
@@ -52,11 +54,16 @@ class Expire extends AbstractWebhook
         /** @var \Magento\Sales\Model\Order $order */
         $order = $this->paymentIntentRepository->getOrder($paymentIntentId);
         if (!$order) {
-            throw new WebhookException(__('Can\'t find order %s', $paymentIntentId));
+            throw new WebhookException(__("Can't find order $paymentIntentId"));
+        }
+
+        if (!$this->isRedirectMethodConstant($order->getPayment()->getMethod())) {
+            return;
         }
 
         if (!$order->canCancel()) {
-            throw new WebhookException(__('Can\'t cancel order %s', $paymentIntentId));
+            if ($order->isCanceled()) return;
+            throw new WebhookException(__("Can't cancel order $paymentIntentId"));
         }
 
         $this->cancelHelper->setWebhookCanceling(true);
