@@ -4,8 +4,11 @@ namespace Airwallex\Payments\Model\Webhook;
 
 use Airwallex\Payments\Exception\WebhookException;
 use Airwallex\Payments\Helper\Configuration;
+use GuzzleHttp\Exception\GuzzleException;
+use JsonException;
 use Magento\Framework\App\Request\Http;
 use Magento\Framework\Exception\AlreadyExistsException;
+use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
@@ -156,10 +159,13 @@ class Webhook
      *
      * @return void
      * @throws AlreadyExistsException
+     * @throws CouldNotSaveException
+     * @throws GuzzleException
      * @throws InputException
      * @throws LocalizedException
      * @throws NoSuchEntityException
      * @throws WebhookException
+     * @throws JsonException
      */
     public function dispatch(string $type, stdClass $data): void
     {
@@ -192,6 +198,13 @@ class Webhook
         }
     }
 
+    /**
+     * @throws NoSuchEntityException
+     * @throws CouldNotSaveException
+     * @throws GuzzleException
+     * @throws InputException
+     * @throws JsonException
+     */
     public function placeOrder($data)
     {
         $paymentIntentId = $data->payment_intent_id ?? $data->id;
@@ -211,7 +224,7 @@ class Webhook
                     $data->merchant_order_id,
                     $quote->getReservedOrderId(),
                     floatval($data->amount),
-                    floatval($quote->getGrandTotal()),
+                    $quote->getGrandTotal(),
                 );
 
                 $this->placeOrderByQuoteId($quote->getId(), 'webhook');

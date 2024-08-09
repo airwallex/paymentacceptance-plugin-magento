@@ -5,10 +5,11 @@ namespace Airwallex\Payments\Model\Webhook;
 use Airwallex\Payments\Exception\WebhookException;
 use Airwallex\Payments\Helper\CancelHelper;
 use Airwallex\Payments\Model\PaymentIntentRepository;
-use Magento\Framework\Exception\AlreadyExistsException;
+use Exception;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
+use Magento\Sales\Model\Order;
 use Magento\Sales\Model\OrderRepository;
 
 class Cancel extends AbstractWebhook
@@ -40,16 +41,16 @@ class Cancel extends AbstractWebhook
      * @param object $data
      *
      * @return void
-     * @throws AlreadyExistsException
      * @throws InputException
      * @throws LocalizedException
      * @throws NoSuchEntityException
      * @throws WebhookException
+     * @throws Exception
      */
     public function execute(object $data): void
     {
         $paymentIntentId = $data->payment_intent_id ?? $data->id;
-        /** @var \Magento\Sales\Model\Order $order */
+        /** @var Order $order */
         $order = $this->paymentIntentRepository->getOrder($paymentIntentId);
         if (!$order) {
             throw new WebhookException(__("Can't find order $paymentIntentId"));
@@ -65,8 +66,8 @@ class Cancel extends AbstractWebhook
         $order->addCommentToStatusHistory(__('Order cancelled through Airwallex.'));
         try {
             $this->orderRepository->save($order);
-        } catch(\Exception $e) {
-            throw new \Exception($e->getMessage() . " intent id: {$paymentIntentId} order id: {$order->getIncrementId()}");
+        } catch(Exception $e) {
+            throw new Exception($e->getMessage() . " intent id: $paymentIntentId order id: {$order->getIncrementId()}");
         }
     }
 }

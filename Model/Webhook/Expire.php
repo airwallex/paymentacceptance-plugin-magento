@@ -10,6 +10,7 @@ use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
+use Magento\Sales\Model\Order;
 use Magento\Sales\Model\OrderRepository;
 
 class Expire extends AbstractWebhook
@@ -51,7 +52,7 @@ class Expire extends AbstractWebhook
     public function execute(object $data): void
     {
         $paymentIntentId = $data->payment_intent_id ?? $data->id;
-        /** @var \Magento\Sales\Model\Order $order */
+        /** @var Order $order */
         $order = $this->paymentIntentRepository->getOrder($paymentIntentId);
         if (!$order) {
             throw new WebhookException(__("Can't find order $paymentIntentId"));
