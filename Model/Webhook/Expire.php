@@ -16,7 +16,7 @@ use Magento\Sales\Model\OrderRepository;
 class Expire extends AbstractWebhook
 {
     use HelperTrait;
-    public const WEBHOOK_NAMES = ['payment_intent.expired'];
+    public const WEBHOOK_NAMES = ['payment_attempt.expired'];
 
     /**
      * @var CancelHelper
