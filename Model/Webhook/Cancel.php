@@ -52,17 +52,21 @@ class Cancel extends AbstractWebhook
         /** @var \Magento\Sales\Model\Order $order */
         $order = $this->paymentIntentRepository->getOrder($paymentIntentId);
         if (!$order) {
-            throw new WebhookException(__('Can\'t find order %s', $paymentIntentId));
+            throw new WebhookException(__("Can't find order $paymentIntentId"));
         }
 
         if (!$order->canCancel()) {
             if ($order->isCanceled()) return;
-            throw new WebhookException(__('Can\'t cancel order %s', $paymentIntentId));
+            throw new WebhookException(__("Can't cancel order $paymentIntentId"));
         }
 
         $this->cancelHelper->setWebhookCanceling(true);
         $order->cancel();
         $order->addCommentToStatusHistory(__('Order cancelled through Airwallex.'));
-        $this->orderRepository->save($order);
+        try {
+            $this->orderRepository->save($order);
+        } catch(\Exception $e) {
+            throw new \Exception($e->getMessage() . " intent id: {$paymentIntentId} order id: {$order->getIncrementId()}");
+        }
     }
 }
