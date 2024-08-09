@@ -100,6 +100,7 @@ class PaymentIntent extends AbstractModel implements IdentityInterface, PaymentI
     {
         return $this->setData(PaymentIntentInterface::PAYMENT_INTENT_ID_COLUMN, $paymentIntentId);
     }
+
     /**
      * @param string $currencyCode
      *

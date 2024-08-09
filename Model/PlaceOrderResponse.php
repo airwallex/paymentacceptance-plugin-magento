@@ -1,18 +1,4 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
 
 namespace Airwallex\Payments\Model;
 
@@ -24,7 +10,7 @@ class PlaceOrderResponse extends DataObject implements PlaceOrderResponseInterfa
     /**
      * @return string|null
      */
-    public function getIntentId()
+    public function getIntentId(): ?string
     {
         return $this->getData(self::DATA_KEY_INTENT_ID);
     }
@@ -33,7 +19,7 @@ class PlaceOrderResponse extends DataObject implements PlaceOrderResponseInterfa
      * @param string|null $intentId
      * @return PlaceOrderResponse
      */
-    public function setIntentId(string $intentId = null)
+    public function setIntentId(string $intentId = null): PlaceOrderResponse
     {
         return $this->setData(self::DATA_KEY_INTENT_ID, $intentId);
     }
@@ -41,7 +27,24 @@ class PlaceOrderResponse extends DataObject implements PlaceOrderResponseInterfa
     /**
      * @return string|null
      */
-    public function getClientSecret()
+    public function getRedirectUrl(): ?string
+    {
+        return $this->getData(self::DATA_KEY_REDIRECT_URL);
+    }
+
+    /**
+     * @param string|null $redirectUrl
+     * @return PlaceOrderResponse
+     */
+    public function setRedirectUrl(string $redirectUrl = null): PlaceOrderResponse
+    {
+        return $this->setData(self::DATA_KEY_INTENT_ID, $redirectUrl);
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getClientSecret(): ?string
     {
         return $this->getData(self::DATA_KEY_CLIENT_SECRET);
     }
@@ -50,15 +53,15 @@ class PlaceOrderResponse extends DataObject implements PlaceOrderResponseInterfa
      * @param string|null $clientSecret
      * @return PlaceOrderResponse
      */
-    public function setClientSecret(string $clientSecret = null)
+    public function setClientSecret(string $clientSecret = null): PlaceOrderResponse
     {
         return $this->setData(self::DATA_KEY_CLIENT_SECRET, $clientSecret);
     }
 
     /**
-     * @return string
+     * @return string|null
      */
-    public function getResponseType()
+    public function getResponseType(): ?string
     {
         return $this->getData(self::DATA_KEY_RESPONSE_TYPE);
     }
@@ -67,15 +70,15 @@ class PlaceOrderResponse extends DataObject implements PlaceOrderResponseInterfa
      * @param string $responseType
      * @return PlaceOrderResponse
      */
-    public function setResponseType(string $responseType)
+    public function setResponseType(string $responseType): PlaceOrderResponse
     {
         return $this->setData(self::DATA_KEY_RESPONSE_TYPE, $responseType);
     }
 
     /**
-     * @return string
+     * @return string|null
      */
-    public function getMessage()
+    public function getMessage(): ?string
     {
         return $this->getData(self::DATA_KEY_MESSAGE);
     }
@@ -84,7 +87,7 @@ class PlaceOrderResponse extends DataObject implements PlaceOrderResponseInterfa
      * @param string $message
      * @return $this
      */
-    public function setMessage(string $message)
+    public function setMessage(string $message): PlaceOrderResponse
     {
         return $this->setData(self::DATA_KEY_MESSAGE, $message);
     }
@@ -92,7 +95,7 @@ class PlaceOrderResponse extends DataObject implements PlaceOrderResponseInterfa
     /**
      * @return int|null
      */
-    public function getOrderId()
+    public function getOrderId(): ?int
     {
         return $this->getData(self::DATA_KEY_ORDER_ID);
     }
@@ -101,7 +104,7 @@ class PlaceOrderResponse extends DataObject implements PlaceOrderResponseInterfa
      * @param int|null $orderId
      * @return PlaceOrderResponse
      */
-    public function setOrderId(int $orderId = null)
+    public function setOrderId(int $orderId = null): PlaceOrderResponse
     {
         return $this->setData(self::DATA_KEY_ORDER_ID, $orderId);
     }

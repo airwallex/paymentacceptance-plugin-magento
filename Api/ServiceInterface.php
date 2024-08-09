@@ -15,31 +15,33 @@ interface ServiceInterface
      * @param PaymentInterface $paymentMethod
      * @param AddressInterface|null $billingAddress
      * @param string|null $intentId
+     * @param string $from
      * @return PlaceOrderResponseInterface
      */
     public function airwallexGuestPlaceOrder(
-        string $cartId,
-        string $email,
+        string           $cartId,
+        string           $email,
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
-        string $intentId = null,
-        string $from = ''
-    );
+        ?string          $intentId = '',
+        ?string          $from = ''
+    ): PlaceOrderResponseInterface;
 
     /**
      * @param string $cartId
      * @param PaymentInterface $paymentMethod
      * @param AddressInterface|null $billingAddress
      * @param string|null $intentId
+     * @param string $from
      * @return PlaceOrderResponseInterface
      */
     public function airwallexPlaceOrder(
-        string $cartId,
+        string           $cartId,
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
-        string $intentId = null,
-        string $from = ''        
-    );
+        ?string          $intentId = '',
+        ?string          $from = ''
+    ): PlaceOrderResponseInterface;
 
     /**
      * @return string
@@ -51,21 +53,29 @@ interface ServiceInterface
      *
      * @return string
      */
-    public function expressData();
+    public function expressData(): string;
+
+    /**
+     * Get intent
+     *
+     * @param string $intentId
+     * @return string
+     */
+    public function intent(string $intentId): string;
 
     /**
      * Add to cart
      *
      * @return string
      */
-    public function addToCart();
+    public function addToCart(): string;
 
     /**
      * Post Address to get method and quote data
      *
      * @return string
      */
-    public function postAddress();
+    public function postAddress(): string;
 
     /**
      * Get region id
@@ -82,7 +92,7 @@ interface ServiceInterface
      * @return string
      * @throws Exception
      */
-    public function validateMerchant();
+    public function validateMerchant(): string;
 
     /**
      * Validate addresses before placing order
@@ -90,5 +100,5 @@ interface ServiceInterface
      * @return string
      * @throws Exception
      */
-    public function validateAddresses();
+    public function validateAddresses(): string;
 }

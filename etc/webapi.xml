@@ -1,32 +1,17 @@
 <?xml version="1.0"?>
-<!--
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
- -->
+
 <routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Webapi:etc/webapi.xsd">
     <route url="/V1/airwallex/payments/guest-place-order" method="POST">
         <service class="Airwallex\Payments\Api\ServiceInterface" method="airwallexGuestPlaceOrder"/>
         <resources>
-            <resource ref="anonymous" />
+            <resource ref="anonymous"/>
         </resources>
     </route>
 
     <route url="/V1/airwallex/payments/place-order" method="POST">
         <service class="Airwallex\Payments\Api\ServiceInterface" method="airwallexPlaceOrder"/>
         <resources>
-            <resource ref="self" />
+            <resource ref="self"/>
         </resources>
         <data>
             <parameter name="cartId" force="true">%cart_id%</parameter>
@@ -43,42 +28,49 @@
     <route url="/V1/airwallex/payments/express-data" method="GET">
         <service class="Airwallex\Payments\Api\ServiceInterface" method="expressData"/>
         <resources>
-            <resource ref="anonymous" />
+            <resource ref="anonymous"/>
+        </resources>
+    </route>
+
+    <route url="/V1/airwallex/payments/intent" method="GET">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="intent"/>
+        <resources>
+            <resource ref="anonymous"/>
         </resources>
     </route>
 
     <route url="/V1/airwallex/region_id" method="GET">
         <service class="Airwallex\Payments\Api\ServiceInterface" method="regionId"/>
         <resources>
-            <resource ref="anonymous" />
+            <resource ref="anonymous"/>
         </resources>
     </route>
 
     <route url="/V1/airwallex/payments/add-to-cart" method="POST">
         <service class="Airwallex\Payments\Api\ServiceInterface" method="addToCart"/>
         <resources>
-            <resource ref="anonymous" />
+            <resource ref="anonymous"/>
         </resources>
     </route>
 
     <route url="/V1/airwallex/payments/post-address" method="POST">
         <service class="Airwallex\Payments\Api\ServiceInterface" method="postAddress"/>
         <resources>
-            <resource ref="anonymous" />
+            <resource ref="anonymous"/>
         </resources>
     </route>
 
     <route url="/V1/airwallex/payments/validate-merchant" method="POST">
         <service class="Airwallex\Payments\Api\ServiceInterface" method="validateMerchant"/>
         <resources>
-            <resource ref="anonymous" />
+            <resource ref="anonymous"/>
         </resources>
     </route>
 
     <route url="/V1/airwallex/payments/validate-addresses" method="GET">
         <service class="Airwallex\Payments\Api\ServiceInterface" method="validateAddresses"/>
         <resources>
-            <resource ref="anonymous" />
+            <resource ref="anonymous"/>
         </resources>
     </route>
 

@@ -2,6 +2,7 @@
 
 namespace Airwallex\Payments\Model;
 
+use Airwallex\Payments\Api\Data\PaymentIntentInterface;
 use Airwallex\Payments\Api\Data\PlaceOrderResponseInterface;
 use Airwallex\Payments\Api\Data\PlaceOrderResponseInterfaceFactory;
 use Airwallex\Payments\Api\PaymentConsentsInterface;
@@ -27,6 +28,8 @@ use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Quote\Api\Data\AddressInterface;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Quote\Api\Data\PaymentInterface;
+use Magento\Quote\Api\Data\ShippingMethodInterface;
+use Magento\Quote\Model\Quote\Payment;
 use Magento\Quote\Model\QuoteIdToMaskedQuoteIdInterface;
 use Magento\Quote\Model\ResourceModel\Quote\QuoteIdMask as QuoteIdMaskResourceModel;
 use Magento\Store\Model\StoreManagerInterface;
@@ -46,6 +49,7 @@ use Magento\Quote\Api\GuestCartManagementInterface;
 use Magento\Quote\Api\CartManagementInterface;
 use Magento\Quote\Model\SubmitQuoteValidator;
 use Airwallex\Payments\Logger\Logger;
+use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
 use Airwallex\Payments\Model\Methods\ExpressCheckout;
 use Airwallex\Payments\Model\Traits\HelperTrait;
@@ -53,6 +57,9 @@ use Magento\CheckoutAgreements\Model\Checkout\Plugin\GuestValidation;
 use Magento\CheckoutAgreements\Model\Checkout\Plugin\Validation;
 use Magento\CheckoutAgreements\Model\AgreementsConfigProvider;
 use Magento\Sales\Api\Data\OrderInterface;
+use Airwallex\Payments\Model\Client\Request\PaymentIntents\Confirm;
+use Airwallex\Payments\Model\Methods\AbstractMethod;
+use Mobile_Detect;
 
 class Service implements ServiceInterface
 {
@@ -94,6 +101,7 @@ class Service implements ServiceInterface
     protected Validation $agreementValidation;
     protected GuestValidation $agreementGuestValidation;
     protected AgreementsConfigProvider $agreementsConfigProvider;
+    protected Confirm $confirm;
     public OrderInterface $order;
 
     /**
@@ -135,47 +143,50 @@ class Service implements ServiceInterface
      * @param Validation $agreementValidation
      * @param GuestValidation $agreementGuestValidation
      * @param AgreementsConfigProvider $agreementsConfigProvider
+     * @param Confirm $confirm
      * @param OrderInterface $order
      */
     public function __construct(
-        PaymentConsentsInterface $paymentConsents,
-        PaymentIntents $paymentIntents,
-        Configuration $configuration,
-        CheckoutData $checkoutHelper,
+        PaymentConsentsInterface                   $paymentConsents,
+        PaymentIntents                             $paymentIntents,
+        Configuration                              $configuration,
+        CheckoutData                               $checkoutHelper,
         GuestPaymentInformationManagementInterface $guestPaymentInformationManagement,
-        PaymentInformationManagementInterface $paymentInformationManagement,
-        PlaceOrderResponseInterfaceFactory $placeOrderResponseFactory,
-        CacheInterface $cache,
-        QuoteIdToMaskedQuoteIdInterface $quoteIdToMaskedQuoteId,
-        StoreManagerInterface $storeManager,
-        RequestInterface $request,
-        ProductRepositoryInterface $productRepository,
-        SerializerInterface $serializer,
-        Get $intentGet,
-        LocalizedToNormalized $localizedToNormalized,
-        Resolver $localeResolver,
-        CartRepositoryInterface $quoteRepository,
-        QuoteIdMaskFactory $quoteIdMaskFactory,
-        QuoteIdMaskResourceModel $quoteIdMaskResourceModel,
-        ShipmentEstimationInterface $shipmentEstimation,
-        RegionFactory $regionFactory,
-        ShippingInformationManagementInterface $shippingInformationManagement,
-        ShippingInformationInterfaceFactory $shippingInformationFactory,
-        ConfigProvider $configProvider,
-        ApplePayValidateMerchant $validateMerchant,
-        ShippingAddressValidationRule $shippingAddressValidationRule,
-        BillingAddressValidationRule $billingAddressValidationRule,
-        ReCaptchaValidationPlugin $reCaptchaValidationPlugin,
-        GuestCartManagementInterface $guestCartManagement,
-        CartManagementInterface $cartManagement,
-        SubmitQuoteValidator $submitQuoteValidator,
-        Logger $logger,
-        ErrorLog $errorLog,
-        Validation $agreementValidation,
-        GuestValidation $agreementGuestValidation,
-        AgreementsConfigProvider $agreementsConfigProvider,
-        OrderInterface $order
-    ) {
+        PaymentInformationManagementInterface      $paymentInformationManagement,
+        PlaceOrderResponseInterfaceFactory         $placeOrderResponseFactory,
+        CacheInterface                             $cache,
+        QuoteIdToMaskedQuoteIdInterface            $quoteIdToMaskedQuoteId,
+        StoreManagerInterface                      $storeManager,
+        RequestInterface                           $request,
+        ProductRepositoryInterface                 $productRepository,
+        SerializerInterface                        $serializer,
+        Get                                        $intentGet,
+        LocalizedToNormalized                      $localizedToNormalized,
+        Resolver                                   $localeResolver,
+        CartRepositoryInterface                    $quoteRepository,
+        QuoteIdMaskFactory                         $quoteIdMaskFactory,
+        QuoteIdMaskResourceModel                   $quoteIdMaskResourceModel,
+        ShipmentEstimationInterface                $shipmentEstimation,
+        RegionFactory                              $regionFactory,
+        ShippingInformationManagementInterface     $shippingInformationManagement,
+        ShippingInformationInterfaceFactory        $shippingInformationFactory,
+        ConfigProvider                             $configProvider,
+        ApplePayValidateMerchant                   $validateMerchant,
+        ShippingAddressValidationRule              $shippingAddressValidationRule,
+        BillingAddressValidationRule               $billingAddressValidationRule,
+        ReCaptchaValidationPlugin                  $reCaptchaValidationPlugin,
+        GuestCartManagementInterface               $guestCartManagement,
+        CartManagementInterface                    $cartManagement,
+        SubmitQuoteValidator                       $submitQuoteValidator,
+        Logger                                     $logger,
+        ErrorLog                                   $errorLog,
+        Validation                                 $agreementValidation,
+        GuestValidation                            $agreementGuestValidation,
+        AgreementsConfigProvider                   $agreementsConfigProvider,
+        Confirm                                    $confirm,
+        OrderInterface                             $order
+    )
+    {
         $this->paymentConsents = $paymentConsents;
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
@@ -212,8 +223,10 @@ class Service implements ServiceInterface
         $this->agreementValidation = $agreementValidation;
         $this->agreementGuestValidation = $agreementGuestValidation;
         $this->agreementsConfigProvider = $agreementsConfigProvider;
+        $this->confirm = $confirm;
         $this->order = $order;
     }
+
     /**
      * Return URL
      *
@@ -239,24 +252,27 @@ class Service implements ServiceInterface
      * @param string $cartId
      * @param string $email
      * @param PaymentInterface $paymentMethod
-     * @param AddressInterface $billingAddress
-     * @param string $intentId
+     * @param AddressInterface|null $billingAddress
+     * @param string|null $intentId
      * @param string $from
      * @return PlaceOrderResponseInterface
-     * @throws NoSuchEntityException
      * @throws CouldNotSaveException
      * @throws GuzzleException
-     * @throws LocalizedException
+     * @throws InputException
      * @throws JsonException
+     * @throws LocalizedException
+     * @throws NoSuchEntityException
+     * @throws \Magento\Framework\Validator\Exception
      */
     public function airwallexGuestPlaceOrder(
-        string $cartId,
-        string $email,
+        string           $cartId,
+        string           $email,
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
-        string $intentId = null,
-        string $from = ''
-    ): PlaceOrderResponseInterface {
+        ?string          $intentId = '',
+        ?string          $from = ''
+    ): PlaceOrderResponseInterface
+    {
         return $this->savePaymentOrPlaceOrder($cartId, $paymentMethod, $billingAddress, $intentId, $email, $from);
     }
 
@@ -265,35 +281,50 @@ class Service implements ServiceInterface
      *
      * @param string $cartId
      * @param PaymentInterface $paymentMethod
-     * @param AddressInterface $billingAddress
-     * @param string $intentId
+     * @param AddressInterface|null $billingAddress
+     * @param string|null $intentId
      * @param string $from
      * @return PlaceOrderResponseInterface
-     * @throws NoSuchEntityException
      * @throws CouldNotSaveException
      * @throws GuzzleException
-     * @throws LocalizedException
+     * @throws InputException
      * @throws JsonException
+     * @throws LocalizedException
+     * @throws NoSuchEntityException
+     * @throws \Magento\Framework\Validator\Exception
      */
     public function airwallexPlaceOrder(
-        string $cartId,
+        string           $cartId,
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
-        string $intentId = null,
-        string $from = ''
-    ): PlaceOrderResponseInterface {
+        ?string          $intentId = '',
+        ?string          $from = ''
+    ): PlaceOrderResponseInterface
+    {
         return $this->savePaymentOrPlaceOrder($cartId, $paymentMethod, $billingAddress, $intentId, '', $from);
     }
 
+    /**
+     * @throws CouldNotSaveException
+     */
     protected function checkAgreements($uid, PaymentInterface $paymentMethod, $cartId, $email)
     {
         if ($paymentMethod->getMethod() === ExpressCheckout::CODE) {
             return;
         }
         if ($uid) {
-            $this->agreementValidation->beforeSavePaymentInformationAndPlaceOrder($this->paymentInformationManagement, $cartId, $paymentMethod);
+            $this->agreementValidation->beforeSavePaymentInformationAndPlaceOrder(
+                $this->paymentInformationManagement,
+                $cartId,
+                $paymentMethod
+            );
         } else {
-            $this->agreementGuestValidation->beforeSavePaymentInformationAndPlaceOrder($this->guestPaymentInformationManagement, $cartId, $email, $paymentMethod);
+            $this->agreementGuestValidation->beforeSavePaymentInformationAndPlaceOrder(
+                $this->guestPaymentInformationManagement,
+                $cartId,
+                $email,
+                $paymentMethod
+            );
         }
     }
 
@@ -313,7 +344,23 @@ class Service implements ServiceInterface
         return $regionId ?? 0;
     }
 
-    private function savePaymentOrPlaceOrder(string $cartId, PaymentInterface $paymentMethod, $billingAddress, $intentId, $email = '', $from = ''): PlaceOrderResponseInterface
+    /**
+     * @throws CouldNotSaveException
+     * @throws LocalizedException
+     * @throws JsonException
+     * @throws NoSuchEntityException
+     * @throws \Magento\Framework\Validator\Exception
+     * @throws GuzzleException
+     * @throws InputException
+     */
+    private function savePaymentOrPlaceOrder(
+        string           $cartId,
+        PaymentInterface $paymentMethod,
+        AddressInterface $billingAddress = null,
+        ?string          $intentId = '',
+        ?string          $email = '',
+        ?string          $from = ''
+    ): PlaceOrderResponseInterface
     {
         /** @var PlaceOrderResponse $response */
         $response = $this->placeOrderResponseFactory->create();
@@ -321,11 +368,13 @@ class Service implements ServiceInterface
         $quote = $this->checkoutHelper->getQuote();
         try {
             $order = $this->order->loadByAttribute('quote_id', $quote->getId());
-        } catch (\Exception $e) {};
+        } catch (Exception $e) {
+        }
         if (!empty($order) && !empty($order->getEntityId())) {
             $quote->setIsActive(false);
             $this->quoteRepository->save($quote);
-            $message = __('Your items have been successfully ordered. We will now clear your shopping cart, and you may select and order new items.');
+            $message = __('Your items have been successfully ordered. We will now clear your shopping cart, '
+                . 'and you may select and order new items.');
             $response->setData([
                 'response_type' => 'error',
                 'message' => $message,
@@ -344,18 +393,43 @@ class Service implements ServiceInterface
                 throw new InputException(__('payment method is required'));
             }
 
+            $code = $paymentMethod->getMethod();
+            $cacheName = AbstractClient::METADATA_PAYMENT_METHOD_PREFIX . $quote->getEntityId();
+            $this->cache->save($from ?: $code, $cacheName, [], 60);
+
             $intent = $this->paymentIntents->getIntent();
 
-            /** @var \Magento\Quote\Model\Quote\Payment $paymentMethod */
+            /** @var Payment $paymentMethod */
             $paymentMethod->setData(PaymentInterface::KEY_ADDITIONAL_DATA, ['intent_id' => $intent['id']]);
             if ($uid) {
-                $this->paymentInformationManagement->savePaymentInformation($cartId, $paymentMethod, $billingAddress);
+                $this->paymentInformationManagement->savePaymentInformation(
+                    $cartId,
+                    $paymentMethod,
+                    $billingAddress
+                );
             } else {
-                $this->guestPaymentInformationManagement->savePaymentInformation($cartId, $email, $paymentMethod, $billingAddress);
+                $this->guestPaymentInformationManagement->savePaymentInformation(
+                    $cartId,
+                    $email,
+                    $paymentMethod,
+                    $billingAddress
+                );
             }
             $this->submitQuoteValidator->validateQuote($this->checkoutHelper->getQuote());
 
             $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
+
+            $resp = $this->intentGet->setPaymentIntentId($intent['id'])->send();
+            $respArr = json_decode($resp, true);
+            $this->checkIntentWithQuote(
+                PaymentIntentInterface::INTENT_STATUS_SUCCEEDED,
+                $respArr['currency'],
+                $quote->getQuoteCurrencyCode(),
+                $respArr['merchant_order_id'],
+                $quote->getReservedOrderId(),
+                floatval($respArr['amount']),
+                $quote->getGrandTotal(),
+            );
 
             $response->setData([
                 'response_type' => 'confirmation_required',
@@ -378,13 +452,13 @@ class Service implements ServiceInterface
             return $response;
         }
 
-        $orderId = "";
         try {
             $this->checkIntent($intentId);
             $quoteId = $this->checkoutHelper->getQuote()->getId();
             $orderId = $this->placeOrderByQuoteId($quoteId);
-        } catch (\Exception $e) {
-            $message = trim($e->getMessage(), ' .') . '. Your payment was successful, but the order could not be placed. Please try again.';
+        } catch (Exception $e) {
+            $message = trim($e->getMessage(), ' .')
+                . '. Your payment was successful, but the order could not be placed. Please try again.';
             $this->errorLog->setMessage($message, $e->getTraceAsString(), $intentId)->send();
             $response->setData([
                 'response_type' => 'error',
@@ -396,7 +470,7 @@ class Service implements ServiceInterface
         if ($this->configuration->isCardVaultActive() && $from === 'card_with_saved') {
             try {
                 $this->paymentConsents->syncVault($uid);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->errorLog->setMessage($e->getMessage(), $e->getTraceAsString(), $intentId)->send();
             }
         }
@@ -410,6 +484,25 @@ class Service implements ServiceInterface
     }
 
     /**
+     * @throws GuzzleException
+     * @throws JsonException
+     */
+    protected function getRedirectUrl($intentId, $code)
+    {
+        $detect = new Mobile_Detect();
+        $shortCode = str_replace(AbstractMethod::PAYMENT_PREFIX, '', $code);
+        $os = '';
+        if ($detect->isMobile()) {
+            $os = $detect->isAndroidOS() ? 'android' : 'ios';
+        }
+
+        return $this->confirm
+            ->setPaymentIntentId($intentId)
+            ->setInformation($shortCode, $detect->isMobile(), $os)
+            ->send();
+    }
+
+    /**
      * Get express data when initialize and quote data updated
      *
      * @return string
@@ -417,7 +510,6 @@ class Service implements ServiceInterface
      */
     public function expressData(): string
     {
-
         $res = $this->quoteData();
         $res['settings'] = $this->settings();
 
@@ -426,6 +518,29 @@ class Service implements ServiceInterface
         }
 
         return json_encode($res);
+    }
+
+    /**
+     * Get intent
+     *
+     * @param string $intentId
+     * @return string
+     * @throws GuzzleException
+     */
+    public function intent(string $intentId): string
+    {
+        $paid = false;
+        try {
+            $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
+            $respArr = json_decode($resp, true);
+            $paidStatus = [
+                PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE,
+                PaymentIntentInterface::INTENT_STATUS_SUCCEEDED,
+            ];
+            $paid = in_array($respArr['status'], $paidStatus, true);
+        } catch (Exception $e) {
+        }
+        return json_encode(compact('paid'));
     }
 
     /**
@@ -522,6 +637,8 @@ class Service implements ServiceInterface
      *
      * @return string
      * @throws CouldNotSaveException
+     * @throws GuzzleException
+     * @throws JsonException
      */
     public function addToCart(): string
     {
@@ -589,8 +706,8 @@ class Service implements ServiceInterface
     private function error($message)
     {
         return json_encode([
-           'type' => 'error',
-           'message' => $message
+            'type' => 'error',
+            'message' => $message
         ]);
     }
 
@@ -667,7 +784,7 @@ class Service implements ServiceInterface
 
             foreach ($methods as $method) {
                 if ($method->getAvailable()) {
-                    $res['methods'][]=$this->formatShippingMethod($method);
+                    $res['methods'][] = $this->formatShippingMethod($method);
                 }
             }
             $res['selected_method'] = $this->formatShippingMethod($selectedMethod);
@@ -684,7 +801,7 @@ class Service implements ServiceInterface
      * @return string
      * @throws Exception|GuzzleException
      */
-    public function validateMerchant()
+    public function validateMerchant(): string
     {
         $validationUrl = $this->request->getParam('validationUrl');
         if (empty($validationUrl)) {
@@ -708,7 +825,7 @@ class Service implements ServiceInterface
      * @return string
      * @throws Exception
      */
-    public function validateAddresses()
+    public function validateAddresses(): string
     {
         $quote = $this->checkoutHelper->getQuote();
         $errors = $this->shippingAddressValidationRule->validate($quote);
@@ -737,10 +854,10 @@ class Service implements ServiceInterface
     /**
      * Format shipping method
      *
-     * @param \Magento\Quote\Api\Data\ShippingMethodInterface $method
+     * @param ShippingMethodInterface $method
      * @return array
      */
-    private function formatShippingMethod($method): array
+    private function formatShippingMethod(ShippingMethodInterface $method): array
     {
         return [
             'carrier_code' => $method->getCarrierCode(),
@@ -755,9 +872,9 @@ class Service implements ServiceInterface
      * Check intent status if available to place order
      *
      * @param string $id
-     * @throws Exception
+     * @throws Exception|GuzzleException
      */
-    protected function checkIntent($id)
+    protected function checkIntent(string $id): void
     {
         $resp = $this->intentGet->setPaymentIntentId($id)->send();
 
@@ -770,7 +887,7 @@ class Service implements ServiceInterface
             $respArr['merchant_order_id'],
             $quote->getReservedOrderId(),
             floatval($respArr['amount']),
-            floatval($quote->getGrandTotal()),
+            $quote->getGrandTotal(),
         );
     }
 }

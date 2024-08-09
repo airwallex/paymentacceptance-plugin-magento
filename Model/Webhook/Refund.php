@@ -72,7 +72,7 @@ class Refund extends AbstractWebhook
     {
         $paymentIntentId = $data->payment_intent_id ?? $data->id;
 
-        /** @var \Magento\Sales\Model\Order $order */
+        /** @var Order $order */
         $order = $this->paymentIntentRepository->getOrder($paymentIntentId);
 
         $cacheName = $this->refundCacheName($paymentIntentId);
@@ -127,7 +127,14 @@ class Refund extends AbstractWebhook
             $creditMemo->setAdjustmentPositive($diff);
         }
 
-        $creditMemo->setBaseGrandTotal($this->convertToDisplayCurrency($refundAmount, $order->getBaseToOrderRate(), true));
+        $baseAmount = $this->getBaseAmount($refundAmount, $order->getBaseToOrderRate(), $order->getGrandTotal(), $order->getBaseGrandTotal());
+        $remained = round($order->getBaseTotalPaid() - $order->getBaseTotalRefunded(), 4);
+
+        if ($baseAmount - $remained >= 0.0001) {
+            $baseAmount = $remained;
+        }
+
+        $creditMemo->setBaseGrandTotal($baseAmount);
         $creditMemo->setGrandTotal($refundAmount);
 
         $this->creditmemoService->refund($creditMemo, true);

@@ -11,6 +11,8 @@ use Airwallex\Payments\Model\Client\Request\PaymentIntents\Cancel;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use GuzzleHttp\Exception\GuzzleException;
 use Magento\Checkout\Model\Session;
+use Magento\Framework\Exception\AlreadyExistsException;
+use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\UrlInterface;
@@ -34,15 +36,16 @@ class PaymentIntents
 
     public function __construct(
         PaymentConsentsInterface $paymentConsents,
-        Create              $paymentIntentsCreate,
-        Get                 $paymentIntentsGet,
-        Cancel              $paymentIntentsCancel,
-        Session             $checkoutSession,
-        QuoteRepository     $quoteRepository,
-        Logger              $logger,
-        UrlInterface        $urlInterface,
-        PaymentIntentRepository $paymentIntentRepository
-    ) {
+        Create                   $paymentIntentsCreate,
+        Get                      $paymentIntentsGet,
+        Cancel                   $paymentIntentsCancel,
+        Session                  $checkoutSession,
+        QuoteRepository          $quoteRepository,
+        Logger                   $logger,
+        UrlInterface             $urlInterface,
+        PaymentIntentRepository  $paymentIntentRepository
+    )
+    {
         $this->paymentConsents = $paymentConsents;
         $this->paymentIntentsCreate = $paymentIntentsCreate;
         $this->paymentIntentsGet = $paymentIntentsGet;
@@ -54,6 +57,13 @@ class PaymentIntents
         $this->paymentIntentRepository = $paymentIntentRepository;
     }
 
+    /**
+     * @throws NoSuchEntityException
+     * @throws AlreadyExistsException
+     * @throws GuzzleException
+     * @throws LocalizedException
+     * @throws JsonException
+     */
     public function createIntent(): array
     {
         $quote = $this->checkoutSession->getQuote();
@@ -86,6 +96,14 @@ class PaymentIntents
         return $intent;
     }
 
+    /**
+     * @throws AlreadyExistsException
+     * @throws LocalizedException
+     * @throws JsonException
+     * @throws NoSuchEntityException
+     * @throws GuzzleException
+     * @throws InputException
+     */
     public function getIntent(): array
     {
         $quote = $this->checkoutSession->getQuote();
@@ -97,8 +115,8 @@ class PaymentIntents
             $resp = $this->paymentIntentsGet->setPaymentIntentId($paymentIntent->getPaymentIntentId())->send();
             $respArr = json_decode($resp, true);
             return [
-                'clientSecret' =>  $respArr['client_secret'],
-                'id' =>  $respArr['id'],
+                'clientSecret' => $respArr['client_secret'],
+                'id' => $respArr['id'],
             ];
         }
         return $this->createIntent();
@@ -110,7 +128,7 @@ class PaymentIntents
             return false;
         }
 
-        if (!$this->isAmountEqual(floatval($quote->getGrandTotal()), floatval($paymentIntent->getGrandTotal()))) {
+        if (!$this->isAmountEqual($quote->getGrandTotal(), $paymentIntent->getGrandTotal())) {
             return false;
         }
 
@@ -131,7 +149,6 @@ class PaymentIntents
             ];
         }, $products);
 
-        // 按 code 排序
         usort($filteredData, function ($a, $b) {
             if ($a['code'] === $b['code']) {
                 return $a['sku'] <=> $b['sku'];
@@ -149,7 +166,7 @@ class PaymentIntents
      * @throws NoSuchEntityException
      * @throws JsonException
      */
-    public function cancelIntent(string $intentId): mixed
+    public function cancelIntent(string $intentId)
     {
         try {
             $response = $this->paymentIntentsCancel->setPaymentIntentId($intentId)->send();

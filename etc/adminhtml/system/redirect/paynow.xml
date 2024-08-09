@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+
+<include xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_include.xsd">
+    <group id="pay_now" translate="label" type="text" sortOrder="1" showInDefault="1" showInWebsite="1" showInStore="1">
+        <label>PayNow</label>
+        <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1" canRestore="1">
+            <label>Enable</label>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <config_path>payment/airwallex_payments_pay_now/active</config_path>
+        </field>
+        <field id="title" translate="label comment" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Title</label>
+            <comment><![CDATA[This is the payment method title used at the checkout page]]></comment>
+            <config_path>payment/airwallex_payments_pay_now/title</config_path>
+        </field>
+        <field id="allowspecific" translate="label" type="allowspecific" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Payment From Applicable Countries</label>
+            <source_model>Magento\Payment\Model\Config\Source\Allspecificcountries</source_model>
+            <config_path>payment/airwallex_payments_pay_now/allowspecific</config_path>
+        </field>
+        <field id="specificcountry" translate="label comment" type="multiselect" sortOrder="60" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Display Payment Method For</label>
+            <comment><![CDATA[Select the countries and currencies for which Airwallex is available at the checkout.]]></comment>
+            <source_model>Magento\Directory\Model\Config\Source\Country</source_model>
+            <config_path>payment/airwallex_payments_pay_now/specificcountry</config_path>
+            <depends>
+                <field id="allowspecific">1</field>
+            </depends>
+        </field>
+        <field id="sort_order" translate="label" type="text" sortOrder="210" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Sort Order</label>
+            <comment>Adjust this to move the payment method above or below other payment methods</comment>
+            <frontend_class>validate-number</frontend_class>
+            <config_path>payment/airwallex_payments_pay_now/sort_order</config_path>
+        </field>
+    </group>
+</include>
