@@ -2,6 +2,7 @@
 
 namespace Airwallex\Payments\Model;
 
+use Airwallex\Payments\Admin\Cards\Api\CompanyConsentsInterface;
 use Airwallex\Payments\Api\Data\PaymentIntentInterface;
 use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Logger\Logger;
@@ -11,6 +12,7 @@ use Airwallex\Payments\Model\Client\Request\PaymentIntents\Cancel;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use GuzzleHttp\Exception\GuzzleException;
 use Magento\Checkout\Model\Session;
+use Magento\Framework\App\ObjectManager;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
@@ -74,7 +76,13 @@ class PaymentIntents
             $orderId = $quote->getReservedOrderId();
         }
 
-        $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($quote->getCustomer()->getId());
+        $uid = $quote->getCustomer()->getId() ?: 0;
+        if (interface_exists(CompanyConsentsInterface::class)) {
+            $airwallexCustomerId = ObjectManager::getInstance()->get(CompanyConsentsInterface::class)->getSuperId($uid);
+        } else {
+            $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($quote->getCustomer()->getId());
+        }
+
         $intent = $this->paymentIntentsCreate
             ->setQuote($quote, $this->urlInterface->getUrl('checkout/onepage/success'))
             ->setAirwallexCustomerId($airwallexCustomerId)
