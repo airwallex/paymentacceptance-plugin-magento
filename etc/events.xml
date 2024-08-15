@@ -7,4 +7,7 @@
     <event name="order_cancel_after">
         <observer name="airwallex_order_cancel_after" instance="Airwallex\Payments\Observer\OrderCancelAfter"/>
     </event>
+    <event name="customer_customer_authenticated">
+        <observer name="airwallex_customer_customer_authenticated" instance="Airwallex\Payments\Observer\CustomerCustomerAuthenticated"/>
+    </event>
 </config>
