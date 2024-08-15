@@ -36,6 +36,7 @@ use Magento\Framework\Api\SearchCriteriaBuilder;
 class PaymentConsents implements PaymentConsentsInterface
 {
     public const CUSTOMER_ID_PREFIX = 'magento_';
+    public const STATUS_VERIFIED = 'VERIFIED';
 
     public const KEY_AIRWALLEX_CUSTOMER_ID = 'airwallex_customer_id';
 
@@ -57,23 +58,24 @@ class PaymentConsents implements PaymentConsentsInterface
     protected SearchCriteriaBuilder $searchCriteriaBuilder;
 
     public function __construct(
-        CreateCustomer $createCustomer,
-        GetList $paymentConsentList,
-        Disable $disablePaymentConsent,
-        Retrieve $retrievePaymentConsent,
-        CustomerRepositoryInterface $customerRepository,
-        EavSetupFactory $eavSetupFactory,
-        EncryptorInterface $encryptor,
-        PaymentTokenRepositoryInterface $tokenRepository,
-        PaymentTokenManagement $tokenManagement,
-        PaymentTokenFactoryInterface $tokenFactory,
-        StoreManagerInterface $storeManager,
-        RetrieveCustomerClientSecret $retrieveCustomerClientSecret,
+        CreateCustomer                       $createCustomer,
+        GetList                              $paymentConsentList,
+        Disable                              $disablePaymentConsent,
+        Retrieve                             $retrievePaymentConsent,
+        CustomerRepositoryInterface          $customerRepository,
+        EavSetupFactory                      $eavSetupFactory,
+        EncryptorInterface                   $encryptor,
+        PaymentTokenRepositoryInterface      $tokenRepository,
+        PaymentTokenManagement               $tokenManagement,
+        PaymentTokenFactoryInterface         $tokenFactory,
+        StoreManagerInterface                $storeManager,
+        RetrieveCustomerClientSecret         $retrieveCustomerClientSecret,
         ClientSecretResponseInterfaceFactory $clientSecretResponseFactory,
-        RetrieveCustomer $retrieveCustomer,
-        FilterBuilder $filterBuilder,
-        SearchCriteriaBuilder $searchCriteriaBuilder
-    ) {
+        RetrieveCustomer                     $retrieveCustomer,
+        FilterBuilder                        $filterBuilder,
+        SearchCriteriaBuilder                $searchCriteriaBuilder
+    )
+    {
         $this->createCustomer = $createCustomer;
         $this->paymentConsentList = $paymentConsentList;
         $this->customerRepository = $customerRepository;
@@ -117,14 +119,12 @@ class PaymentConsents implements PaymentConsentsInterface
         $eavSetup = $this->eavSetupFactory->create([]);
         $attr = $eavSetup->getAttribute(Customer::ENTITY, self::KEY_AIRWALLEX_CUSTOMER_ID);
         if (!$attr) {
-            // throw new LocalizedException(__('Airwallex Customer ID attribute not found.'));
             return '';
         }
 
         $airwallexCustomerId = $this->tryFindCustomerInVault($customer);
         if ($airwallexCustomerId) {
             $this->updateCustomerId($customer, $airwallexCustomerId);
-            // $this->syncVault($customer->getId());
             return $airwallexCustomerId;
         }
 
@@ -167,7 +167,6 @@ class PaymentConsents implements PaymentConsentsInterface
                     continue;
                 }
                 return '';
-                // throw $e;
             }
         }
         return $oldAirwallexCustomerId;
@@ -215,12 +214,25 @@ class PaymentConsents implements PaymentConsentsInterface
         $airwallexCustomerId = $this->getAirwallexCustomerIdInDB($customerId);
         if (!$airwallexCustomerId) return [];
 
-        return $this->paymentConsentList
-            ->setCustomerId($airwallexCustomerId)
-            ->setPage(0, 200)
-            //            ->setNextTriggeredBy(GetList::TRIGGERED_BY_CUSTOMER)
-            //            ->setTriggerReason(GetList::TRIGGER_REASON_UNSCHEDULED)
-            ->send();
+        $index = 0;
+        $cards = [];
+        while (true) {
+            $res = $this->paymentConsentList
+                ->setCustomerId($airwallexCustomerId)
+                ->setPage($index, 10)
+                ->setNextTriggeredBy(GetList::TRIGGERED_BY_CUSTOMER)
+                ->setStatus(PaymentConsents::STATUS_VERIFIED)
+                ->send();
+
+            $index++;
+            if (!empty($res['items'])) {
+                $cards = array_merge($cards, $res['items']);
+            }
+            if (!$res['has_more']) {
+                break;
+            }
+        }
+        return $cards;
     }
 
     /**
@@ -340,21 +352,18 @@ class PaymentConsents implements PaymentConsentsInterface
                 $this->tokenRepository->delete($token);
                 continue;
             }
+
             $dbCards[$token->getGatewayToken()] = true;
         }
+
 
         $code = Vault::CODE;
         $type = 'card';
 
-
+        $cloudCardsTokens = [];
         foreach ($cloudCards as $index => $cloudCard) {
+            $cloudCardsTokens[$index] = true;
             if (empty($dbCards[$index])) {
-                // if ($token = $this->tokenManagement->getByGatewayToken($index, Vault::CODE, $customerId)) {
-                //     try {
-                //         $this->disablePaymentConsent($customerId, $index);
-                //     } catch (\Exception $e) {};
-                //     continue;
-                // }
                 $token = $this->tokenFactory->create();
                 $token->setCustomerId($customerId);
                 $token->setWebsiteId($this->storeManager->getStore()->getWebsiteId());
@@ -364,6 +373,7 @@ class PaymentConsents implements PaymentConsentsInterface
                 $details = json_encode([
                     'type' => $cloudCard['card_brand'],
                     'icon' => $cloudCard['card_icon'],
+                    'status' => PaymentConsents::STATUS_VERIFIED,
                     'id' => $index,
                     'customer_id' => $airwallexCustomerId,
                     'maskedCC' => $cloudCard['card_last_four'],
@@ -381,8 +391,30 @@ class PaymentConsents implements PaymentConsentsInterface
                 );
                 try {
                     $this->tokenRepository->save($token);
-                } catch (Exception $e) {}
+                } catch (Exception $e) {
+                }
             }
+        }
+
+        $allTokens = $this->tokenManagement->getListByCustomerId($customerId);
+        foreach ($allTokens as $token) {
+            $detail = $token->getTokenDetails();
+            if (!$detail) continue;
+            $arr = json_decode($detail, true);
+            if (!empty($cloudCardsTokens[$token->getGatewayToken()])) {
+                if (!empty($arr['status']) && $arr['status'] === PaymentConsents::STATUS_VERIFIED) {
+                    continue;
+                }
+                $arr['status'] = PaymentConsents::STATUS_VERIFIED;
+            } else {
+                if (!empty($arr['status']) && $arr['status'] === 'NOT-' . PaymentConsents::STATUS_VERIFIED) {
+                    continue;
+                }
+                $arr['status'] = 'NOT-' . PaymentConsents::STATUS_VERIFIED;
+            }
+            $details = json_encode($arr);
+            $token->setTokenDetails($details);
+            $this->tokenRepository->save($token);
         }
 
         return true;
@@ -415,7 +447,6 @@ class PaymentConsents implements PaymentConsentsInterface
         ]);
         return $response;
     }
-
 
 
     /**

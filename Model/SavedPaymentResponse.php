@@ -163,6 +163,23 @@ class SavedPaymentResponse extends DataObject implements SavedPaymentResponseInt
     /**
      * @return string|null
      */
+    public function getStatus(): ?string
+    {
+        return $this->getData(self::DATA_STATUS);
+    }
+
+    /**
+     * @param string|null $status
+     * @return $this
+     */
+    public function setStatus(string $status = null): SavedPaymentResponse
+    {
+        return $this->setData(self::DATA_STATUS, $status);
+    }
+
+    /**
+     * @return string|null
+     */
     public function getBilling(): ?string
     {
         return $this->getData(self::DATA_BILLING);

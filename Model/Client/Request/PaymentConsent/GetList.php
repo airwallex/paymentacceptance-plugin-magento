@@ -140,10 +140,6 @@ class GetList extends AbstractClient implements BearerAuthenticationInterface
                 continue;
             }
 
-            if ($item->status === 'DISABLED') {
-                continue;
-            }
-
             $cards = [];
             foreach($this->getCardSchemes() as $scheme) {
                 $cards[$scheme['name']] = $scheme;
@@ -169,12 +165,16 @@ class GetList extends AbstractClient implements BearerAuthenticationInterface
                 SavedPaymentResponseInterface::DATA_KEY_NEXT_TRIGGERED_BY => $item->next_triggered_by ?? '',
                 SavedPaymentResponseInterface::DATA_KEY_NUMBER_TYPE => $item->payment_method->card->number_type ?? '',
                 SavedPaymentResponseInterface::DATA_KEY_CARD_ICON => $cards[$iconIndex]['resources']['logos']['png'] ?? '',
+                SavedPaymentResponseInterface::DATA_STATUS => $item->status,
                 SavedPaymentResponseInterface::DATA_BILLING => $billing
             ]);
 
             $result[] = $savedPayment;
         }
 
-        return $result;
+        return [
+            'has_more' => $request->has_more,
+            'items' => $result,
+        ];
     }
 }

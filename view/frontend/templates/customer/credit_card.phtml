@@ -11,7 +11,7 @@ $brand = $block->getBrand();
 $cardCustomerId = $block->cardCustomerId();
 $currentCustomerId = $block->currentCustomerId();
 ?>
-<?php if ($cardCustomerId === $currentCustomerId) {?>
+<?php if ($cardCustomerId === $currentCustomerId && $block->getStatus() === 'VERIFIED') {?>
 <tr>
     <td data-th="<?= __('Card Number') ?>" class="col card-number">
         <span><?= __('ending') ?></span> <?= /* @noEscape */ $ccNumberView ?>

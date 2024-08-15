@@ -72,17 +72,22 @@ class CardRenderer extends AbstractTokenRenderer implements CardRendererInterfac
         return $this->getTokenDetails()['maskedCC'] ?? '';
     }
 
-    public function getBrand() 
+    public function getBrand()
     {
         return $this->getTokenDetails()['type'] ?? '';
     }
 
-    public function cardCustomerId() 
+    public function getStatus()
+    {
+        return $this->getTokenDetails()['status'] ?? '';
+    }
+
+    public function cardCustomerId()
     {
         return $this->getTokenDetails()['customer_id'] ?? '';
     }
 
-    public function currentCustomerId() 
+    public function currentCustomerId()
     {
         return $this->paymentConsents->getAirwallexCustomerIdInDB($this->customerSession->getId());
     }
@@ -96,13 +101,13 @@ class CardRenderer extends AbstractTokenRenderer implements CardRendererInterfac
     {
         return $this->getTokenDetails()['expirationDate'] ?? '';
     }
-    
+
     /**
      * Get Icon
      *
      * @return array
      */
-    public function icon() 
+    public function icon()
     {
         return $this->getIconForType($this->convertCcType($this->getBrand()));
     }
