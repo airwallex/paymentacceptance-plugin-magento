@@ -78,10 +78,9 @@ class PaymentIntents
 
         $uid = $quote->getCustomer()->getId() ?: 0;
         if (interface_exists(CompanyConsentsInterface::class)) {
-            $airwallexCustomerId = ObjectManager::getInstance()->get(CompanyConsentsInterface::class)->getSuperId($uid);
-        } else {
-            $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($quote->getCustomer()->getId());
+            $uid = ObjectManager::getInstance()->get(CompanyConsentsInterface::class)->getSuperId($uid);
         }
+        $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($uid);
 
         $intent = $this->paymentIntentsCreate
             ->setQuote($quote, $this->urlInterface->getUrl('checkout/onepage/success'))
