@@ -366,56 +366,35 @@ class Service implements ServiceInterface
         $response = $this->placeOrderResponseFactory->create();
 
         $quote = $this->checkoutHelper->getQuote();
-        try {
-            $order = $this->order->loadByAttribute('quote_id', $quote->getId());
-        } catch (Exception $e) {
-        }
-        if (!empty($order) && !empty($order->getEntityId())) {
-            $quote->setIsActive(false);
-            $this->quoteRepository->save($quote);
-            $message = __('Your items have been successfully ordered. We will now clear your shopping cart, '
-                . 'and you may select and order new items.');
-            $response->setData([
-                'response_type' => 'error',
-                'message' => $message,
-            ]);
-            return $response;
-        }
-
         $uid = $this->checkoutHelper->getQuote()->getCustomer()->getId();
+//        $this->checkAgreements($uid, $paymentMethod, $cartId, $email);
 
         if (!$intentId) {
-            $this->checkAgreements($uid, $paymentMethod, $cartId, $email);
-            if (!$cartId) {
-                throw new InputException(__('cartId is required'));
-            }
             if (!$paymentMethod->getMethod()) {
                 throw new InputException(__('payment method is required'));
             }
 
-            $code = $paymentMethod->getMethod();
             $cacheName = AbstractClient::METADATA_PAYMENT_METHOD_PREFIX . $quote->getEntityId();
-            $this->cache->save($from ?: $code, $cacheName, [], 60);
+            $this->cache->save($from ?: $paymentMethod->getMethod(), $cacheName, [], 60);
 
             $intent = $this->paymentIntents->getIntent();
 
             /** @var Payment $paymentMethod */
             $paymentMethod->setData(PaymentInterface::KEY_ADDITIONAL_DATA, ['intent_id' => $intent['id']]);
             if ($uid) {
-                $this->paymentInformationManagement->savePaymentInformation(
+                $orderId = $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
                     $cartId,
                     $paymentMethod,
                     $billingAddress
                 );
             } else {
-                $this->guestPaymentInformationManagement->savePaymentInformation(
+                $orderId = $this->guestPaymentInformationManagement->savePaymentInformationAndPlaceOrder(
                     $cartId,
                     $email,
                     $paymentMethod,
                     $billingAddress
                 );
             }
-            $this->submitQuoteValidator->validateQuote($this->checkoutHelper->getQuote());
 
             $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
 
@@ -424,7 +403,7 @@ class Service implements ServiceInterface
             $this->checkIntentWithQuote(
                 PaymentIntentInterface::INTENT_STATUS_SUCCEEDED,
                 $respArr['currency'],
-                $quote->getQuoteCurrencyCode(),
+                $order->getQuoteCurrencyCode(),
                 $respArr['merchant_order_id'],
                 $quote->getReservedOrderId(),
                 floatval($respArr['amount']),
