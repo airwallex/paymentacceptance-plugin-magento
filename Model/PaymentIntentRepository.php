@@ -110,6 +110,31 @@ class PaymentIntentRepository
     }
 
     /**
+     * @param int $orderId
+     *
+     * @return ?PaymentIntentInterface
+     * @throws InputException
+     */
+    public function getByOrderId(int $orderId): ?PaymentIntentInterface
+    {
+        if ($orderId <= 0) {
+            throw new InputException(__('Invalid order id.'));
+        }
+
+        $collection = $this->paymentIntentCollectionFactory->create();
+        $collection->addFieldToFilter(PaymentIntentInterface::ORDER_ID_COLUMN, $orderId);
+        $collection->setOrder('id', 'DESC');
+
+        $paymentIntent = $collection->getFirstItem();
+
+        if (!$paymentIntent->getId()) {
+            return null;
+        }
+
+        return $paymentIntent;
+    }
+
+    /**
      * @param string $orderIncrementId
      * @param int $storeId
      *
@@ -153,7 +178,7 @@ class PaymentIntentRepository
     /**
      * @throws AlreadyExistsException
      */
-    public function updateDetail($paymentIntent, $detail)
+    public function updateDetail($paymentIntent, $detail): void
     {
         $paymentIntent->setDetail($detail);
         $this->paymentIntentResource->save($paymentIntent);
@@ -177,6 +202,7 @@ class PaymentIntentRepository
      * @param string $paymentIntentId
      * @param string $currencyCode
      * @param float $grandTotal
+     * @param int $orderId
      * @param int $quoteId
      * @param int $storeId
      * @param string $detail
@@ -188,9 +214,10 @@ class PaymentIntentRepository
         string $orderIncrement,
         string $paymentIntentId,
         string $currencyCode,
-        float $grandTotal,
-        int $quoteId,
-        int $storeId,
+        float  $grandTotal,
+        int    $orderId,
+        int    $quoteId,
+        int    $storeId,
         string $detail
     ): void
     {
@@ -199,6 +226,7 @@ class PaymentIntentRepository
             ->setOrderIncrementId($orderIncrement)
             ->setCurrencyCode($currencyCode)
             ->setGrandTotal($grandTotal)
+            ->setOrderId($orderId)
             ->setQuoteId($quoteId)
             ->setStoreId($storeId)
             ->setDetail($detail);

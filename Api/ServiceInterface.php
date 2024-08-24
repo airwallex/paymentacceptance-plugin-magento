@@ -15,7 +15,7 @@ interface ServiceInterface
      * @param PaymentInterface $paymentMethod
      * @param AddressInterface|null $billingAddress
      * @param string|null $intentId
-     * @param string $from
+     * @param string|null $from
      * @return PlaceOrderResponseInterface
      */
     public function airwallexGuestPlaceOrder(
@@ -32,7 +32,7 @@ interface ServiceInterface
      * @param PaymentInterface $paymentMethod
      * @param AddressInterface|null $billingAddress
      * @param string|null $intentId
-     * @param string $from
+     * @param string|null $from
      * @return PlaceOrderResponseInterface
      */
     public function airwallexPlaceOrder(

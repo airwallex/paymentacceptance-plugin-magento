@@ -4,6 +4,7 @@ namespace Airwallex\Payments\Model\Client\Request;
 
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
+use JsonException;
 use Psr\Http\Message\ResponseInterface;
 
 class RetrieveCustomerClientSecret extends AbstractClient implements BearerAuthenticationInterface
@@ -15,7 +16,7 @@ class RetrieveCustomerClientSecret extends AbstractClient implements BearerAuthe
      *
      * @return $this
      */
-    public function setCustomerId(string $id)
+    public function setCustomerId(string $id): RetrieveCustomerClientSecret
     {
         $this->id = $id;
 
@@ -43,7 +44,7 @@ class RetrieveCustomerClientSecret extends AbstractClient implements BearerAuthe
      * @param ResponseInterface $response
      *
      * @return object
-     * @throws \JsonException
+     * @throws JsonException
      */
     protected function parseResponse(ResponseInterface $response): object
     {

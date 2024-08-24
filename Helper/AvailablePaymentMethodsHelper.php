@@ -5,9 +5,10 @@ namespace Airwallex\Payments\Helper;
 use Airwallex\Payments\Model\Client\Request\AvailablePaymentMethods;
 use Airwallex\Payments\Model\Methods\AbstractMethod;
 use Exception;
+use GuzzleHttp\Exception\GuzzleException;
+use JsonException;
 use Magento\Framework\App\CacheInterface;
 use Magento\Framework\Serialize\SerializerInterface;
-use Magento\Store\Model\StoreManagerInterface;
 use Magento\Checkout\Helper\Data as CheckoutData;
 
 class AvailablePaymentMethodsHelper
@@ -25,11 +26,6 @@ class AvailablePaymentMethodsHelper
     private CacheInterface $cache;
 
     /**
-     * @var StoreManagerInterface
-     */
-    private StoreManagerInterface $storeManager;
-
-    /**
      * @var SerializerInterface
      */
     private SerializerInterface $serializer;
@@ -40,12 +36,11 @@ class AvailablePaymentMethodsHelper
     public Configuration $configuration;
 
     /**
-     * @var array
+     * @var CheckoutData
      */
-
     private CheckoutData $checkoutHelper;
 
-    protected $methodsInExpress = [
+    protected array $methodsInExpress = [
         'googlepay',
         'applepay',
     ];
@@ -56,21 +51,19 @@ class AvailablePaymentMethodsHelper
      * @param AvailablePaymentMethods $availablePaymentMethod
      * @param CacheInterface $cache
      * @param SerializerInterface $serializer
-     * @param StoreManagerInterface $storeManager
      * @param Configuration $configuration
      * @param CheckoutData $checkoutHelper
      */
     public function __construct(
         AvailablePaymentMethods $availablePaymentMethod,
-        CacheInterface $cache,
-        SerializerInterface $serializer,
-        StoreManagerInterface $storeManager,
-        Configuration $configuration,
-        CheckoutData $checkoutHelper
-    ) {
+        CacheInterface          $cache,
+        SerializerInterface     $serializer,
+        Configuration           $configuration,
+        CheckoutData            $checkoutHelper
+    )
+    {
         $this->availablePaymentMethod = $availablePaymentMethod;
         $this->cache = $cache;
-        $this->storeManager = $storeManager;
         $this->serializer = $serializer;
         $this->configuration = $configuration;
         $this->checkoutHelper = $checkoutHelper;
@@ -96,6 +89,7 @@ class AvailablePaymentMethodsHelper
      * @param string $code
      *
      * @return bool
+     * @throws GuzzleException
      */
     public function isAvailable(string $code): bool
     {
@@ -110,6 +104,8 @@ class AvailablePaymentMethodsHelper
 
     /**
      * @return mixed
+     * @throws GuzzleException
+     * @throws JsonException
      */
     private function fetch()
     {
@@ -118,6 +114,7 @@ class AvailablePaymentMethodsHelper
 
     /**
      * @return array
+     * @throws GuzzleException
      */
     private function getAllMethods(): array
     {
@@ -141,8 +138,10 @@ class AvailablePaymentMethodsHelper
         );
         return $methods;
     }
+
     /**
      * @return array
+     * @throws GuzzleException
      */
     public function getAllPaymentMethodTypes(): array
     {
@@ -151,8 +150,7 @@ class AvailablePaymentMethodsHelper
         if (!$methods) {
             try {
                 $this->fetch();
-            } catch (\Exception $e) {
-
+            } catch (Exception $e) {
             }
             $methods = $this->cache->load($this->availablePaymentMethod->cacheName);
         }

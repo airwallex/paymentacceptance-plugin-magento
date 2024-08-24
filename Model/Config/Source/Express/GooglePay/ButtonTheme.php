@@ -4,7 +4,7 @@ namespace Airwallex\Payments\Model\Config\Source\Express\GooglePay;
 
 class ButtonTheme
 {
-    public function toOptionArray()
+    public function toOptionArray(): array
     {
         return [
             [

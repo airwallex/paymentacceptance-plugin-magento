@@ -3,11 +3,13 @@
 namespace Airwallex\Payments\Model\Ui;
 
 use Airwallex\Payments\Api\PaymentConsentsInterface;
-use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
 use Airwallex\Payments\Helper\Configuration;
+use GuzzleHttp\Exception\GuzzleException;
 use Magento\Checkout\Model\ConfigProviderInterface;
 use Magento\Customer\Model\Session;
 use Magento\Framework\Exception\InputException;
+use Magento\Framework\Exception\LocalizedException;
+use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\ReCaptchaUi\Block\ReCaptcha;
 use Magento\ReCaptchaUi\Model\IsCaptchaEnabledInterface;
 use Magento\Customer\Api\CustomerRepositoryInterface;
@@ -23,30 +25,30 @@ class ConfigProvider implements ConfigProviderInterface
     protected ReCaptcha $reCaptchaBlock;
     protected Session $customerSession;
     protected PaymentConsentsInterface $paymentConsents;
-    protected AvailablePaymentMethodsHelper $availablePaymentMethodsHelper;
-    private   CustomerRepositoryInterface $customerRepository;
-    private   RetrieveCustomer $retrieveCustomer;
+    private CustomerRepositoryInterface $customerRepository;
+    private RetrieveCustomer $retrieveCustomer;
 
     /**
      * ConfigProvider constructor.
      *
-     * @param Configuration                 $configuration
-     * @param IsCaptchaEnabledInterface     $isCaptchaEnabled
-     * @param ReCaptcha                     $reCaptchaBlock
-     * @param Session                       $customerSession
-     * @param PaymentConsentsInterface      $paymentConsents
-     * @param CustomerRepositoryInterface   $customerRepository
-     * @param RetrieveCustomer              $retrieveCustomer
+     * @param Configuration $configuration
+     * @param IsCaptchaEnabledInterface $isCaptchaEnabled
+     * @param ReCaptcha $reCaptchaBlock
+     * @param Session $customerSession
+     * @param PaymentConsentsInterface $paymentConsents
+     * @param CustomerRepositoryInterface $customerRepository
+     * @param RetrieveCustomer $retrieveCustomer
      */
     public function __construct(
-        Configuration                 $configuration,
-        IsCaptchaEnabledInterface     $isCaptchaEnabled,
-        ReCaptcha                     $reCaptchaBlock,
-        Session                       $customerSession,
-        PaymentConsentsInterface      $paymentConsents,
-        CustomerRepositoryInterface   $customerRepository,
-        RetrieveCustomer              $retrieveCustomer
-    ) {
+        Configuration               $configuration,
+        IsCaptchaEnabledInterface   $isCaptchaEnabled,
+        ReCaptcha                   $reCaptchaBlock,
+        Session                     $customerSession,
+        PaymentConsentsInterface    $paymentConsents,
+        CustomerRepositoryInterface $customerRepository,
+        RetrieveCustomer            $retrieveCustomer
+    )
+    {
         $this->configuration = $configuration;
         $this->isCaptchaEnabled = $isCaptchaEnabled;
         $this->reCaptchaBlock = $reCaptchaBlock;
@@ -57,10 +59,12 @@ class ConfigProvider implements ConfigProviderInterface
     }
 
     /**
-     * Adds mode to checkout config array
+     * Adds mode to check out config array
      *
      * @return array
-     * @throws InputException
+     * @throws GuzzleException
+     * @throws LocalizedException
+     * @throws NoSuchEntityException
      */
     public function getConfig(): array
     {
@@ -92,7 +96,13 @@ class ConfigProvider implements ConfigProviderInterface
     }
 
 
-    private function getAirwallexCustomerId(): string {
+    /**
+     * @throws NoSuchEntityException
+     * @throws GuzzleException
+     * @throws LocalizedException
+     */
+    private function getAirwallexCustomerId(): string
+    {
         $customer = $this->customerRepository->getById($this->customerSession->getId());
         $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($this->customerSession->getId());
         /**
@@ -100,12 +110,12 @@ class ConfigProvider implements ConfigProviderInterface
          *     create
          * database has airwallex customer id
          *     throw exception
-         *         404 
+         *         404
          *             create
          *         other
          *             throw Exception
          *     return airwallex customer id
-        */
+         */
         if (!$airwallexCustomerId) {
             return $this->paymentConsents->createAirwallexCustomer($customer);
         }
@@ -125,8 +135,9 @@ class ConfigProvider implements ConfigProviderInterface
      * Get reCaptcha config
      *
      * @return array
+     * @throws InputException
      */
-    public function getReCaptchaConfig()
+    public function getReCaptchaConfig(): array
     {
         if (!$this->isReCaptchaEnabled()) {
             return [];
@@ -143,8 +154,9 @@ class ConfigProvider implements ConfigProviderInterface
      * Get is reCaptcha enabled
      *
      * @return bool
+     * @throws InputException
      */
-    public function isReCaptchaEnabled()
+    public function isReCaptchaEnabled(): bool
     {
         return $this->isCaptchaEnabled->isCaptchaEnabledFor(self::AIRWALLEX_RECAPTCHA_FOR);
     }

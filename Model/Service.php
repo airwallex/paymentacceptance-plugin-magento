@@ -9,6 +9,7 @@ use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Api\ServiceInterface;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Model\Client\Request\ApplePayValidateMerchant;
+use Airwallex\Payments\Model\Methods\CardMethod;
 use Airwallex\Payments\Plugin\ReCaptchaValidationPlugin;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
@@ -22,6 +23,7 @@ use Magento\Directory\Model\RegionFactory;
 use Magento\Framework\App\CacheInterface;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\DataObject;
+use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
@@ -29,9 +31,13 @@ use Magento\Quote\Api\Data\AddressInterface;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Quote\Api\Data\PaymentInterface;
 use Magento\Quote\Api\Data\ShippingMethodInterface;
+use Magento\Quote\Model\Quote;
 use Magento\Quote\Model\Quote\Payment;
+use Magento\Sales\Model\ResourceModel\Order\CollectionFactory as OrderCollectionFactory;
 use Magento\Quote\Model\QuoteIdToMaskedQuoteIdInterface;
 use Magento\Quote\Model\ResourceModel\Quote\QuoteIdMask as QuoteIdMaskResourceModel;
+use Magento\Sales\Api\OrderRepositoryInterface;
+use Magento\Sales\Model\Order;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Framework\Serialize\SerializerInterface;
 use Magento\Framework\Filter\LocalizedToNormalized;
@@ -102,7 +108,10 @@ class Service implements ServiceInterface
     protected GuestValidation $agreementGuestValidation;
     protected AgreementsConfigProvider $agreementsConfigProvider;
     protected Confirm $confirm;
+    protected OrderRepositoryInterface $orderRepository;
+    public PaymentIntentRepository $paymentIntentRepository;
     public OrderInterface $order;
+    private OrderCollectionFactory $orderCollectionFactory;
 
     /**
      * Index constructor.
@@ -144,6 +153,9 @@ class Service implements ServiceInterface
      * @param GuestValidation $agreementGuestValidation
      * @param AgreementsConfigProvider $agreementsConfigProvider
      * @param Confirm $confirm
+     * @param OrderRepositoryInterface $orderRepository
+     * @param PaymentIntentRepository $paymentIntentRepository
+     * @param OrderCollectionFactory $orderCollectionFactory
      * @param OrderInterface $order
      */
     public function __construct(
@@ -184,6 +196,9 @@ class Service implements ServiceInterface
         GuestValidation                            $agreementGuestValidation,
         AgreementsConfigProvider                   $agreementsConfigProvider,
         Confirm                                    $confirm,
+        OrderRepositoryInterface                   $orderRepository,
+        PaymentIntentRepository                    $paymentIntentRepository,
+        OrderCollectionFactory                     $orderCollectionFactory,
         OrderInterface                             $order
     )
     {
@@ -224,6 +239,9 @@ class Service implements ServiceInterface
         $this->agreementGuestValidation = $agreementGuestValidation;
         $this->agreementsConfigProvider = $agreementsConfigProvider;
         $this->confirm = $confirm;
+        $this->orderRepository = $orderRepository;
+        $this->paymentIntentRepository = $paymentIntentRepository;
+        $this->orderCollectionFactory = $orderCollectionFactory;
         $this->order = $order;
     }
 
@@ -305,30 +323,6 @@ class Service implements ServiceInterface
     }
 
     /**
-     * @throws CouldNotSaveException
-     */
-    protected function checkAgreements($uid, PaymentInterface $paymentMethod, $cartId, $email)
-    {
-        if ($paymentMethod->getMethod() === ExpressCheckout::CODE) {
-            return;
-        }
-        if ($uid) {
-            $this->agreementValidation->beforeSavePaymentInformationAndPlaceOrder(
-                $this->paymentInformationManagement,
-                $cartId,
-                $paymentMethod
-            );
-        } else {
-            $this->agreementGuestValidation->beforeSavePaymentInformationAndPlaceOrder(
-                $this->guestPaymentInformationManagement,
-                $cartId,
-                $email,
-                $paymentMethod
-            );
-        }
-    }
-
-    /**
      * Get region id
      *
      * @param string $country
@@ -364,67 +358,34 @@ class Service implements ServiceInterface
     {
         /** @var PlaceOrderResponse $response */
         $response = $this->placeOrderResponseFactory->create();
-
         $quote = $this->checkoutHelper->getQuote();
-        $uid = $this->checkoutHelper->getQuote()->getCustomer()->getId();
-//        $this->checkAgreements($uid, $paymentMethod, $cartId, $email);
+        $uid = $quote->getCustomer()->getId();
 
         if (!$intentId) {
-            if (!$paymentMethod->getMethod()) {
-                throw new InputException(__('payment method is required'));
-            }
-
-            $cacheName = AbstractClient::METADATA_PAYMENT_METHOD_PREFIX . $quote->getEntityId();
-            $this->cache->save($from ?: $paymentMethod->getMethod(), $cacheName, [], 60);
-
-            $intent = $this->paymentIntents->getIntent();
-
-            /** @var Payment $paymentMethod */
-            $paymentMethod->setData(PaymentInterface::KEY_ADDITIONAL_DATA, ['intent_id' => $intent['id']]);
-            if ($uid) {
-                $orderId = $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
-                    $cartId,
-                    $paymentMethod,
-                    $billingAddress
-                );
-            } else {
-                $orderId = $this->guestPaymentInformationManagement->savePaymentInformationAndPlaceOrder(
-                    $cartId,
-                    $email,
-                    $paymentMethod,
-                    $billingAddress
-                );
-            }
-
-            $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
-
-            $resp = $this->intentGet->setPaymentIntentId($intent['id'])->send();
-            $respArr = json_decode($resp, true);
-            $this->checkIntentWithQuote(
-                PaymentIntentInterface::INTENT_STATUS_SUCCEEDED,
-                $respArr['currency'],
-                $order->getQuoteCurrencyCode(),
-                $respArr['merchant_order_id'],
-                $quote->getReservedOrderId(),
-                floatval($respArr['amount']),
-                $quote->getGrandTotal(),
-            );
-
-            $response->setData([
-                'response_type' => 'confirmation_required',
-                'intent_id' => $intent['id'],
-                'client_secret' => $intent['clientSecret']
-            ]);
-            return $response;
+            return $this->orderThenIntent($quote, $uid, $cartId, $paymentMethod, $billingAddress, $email, $from, $response);
         }
 
+        $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
+        $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
+        $intentResponse = json_decode($resp, true);
+        /** @var Order $order */
+        $order = $this->orderRepository->get($paymentIntent->getOrderId());
         try {
-            $this->checkIntent($intentId);
-            $quoteId = $this->checkoutHelper->getQuote()->getId();
-            $orderId = $this->placeOrderByQuoteId($quoteId);
+            $this->checkIntentWithOrder($intentResponse, $order);
+            $order->setIsInProcess(true);
+            $this->orderRepository->save($order);
+
+            $payment = $order->getPayment();
+            // todo is here need add the redirect method
+            if (($payment->getMethod() === CardMethod::CODE && !$this->configuration->isCardCaptureEnabled())
+                || ($payment->getMethod() === ExpressCheckout::CODE && !$this->configuration->isExpressCaptureEnabled())) {
+                $this->authorize($order, $intentResponse);
+            }
+
+            $quote->setIsActive(false);
+            $this->quoteRepository->save($quote);
         } catch (Exception $e) {
-            $message = trim($e->getMessage(), ' .')
-                . '. Your payment was successful, but the order could not be placed. Please try again.';
+            $message = trim($e->getMessage(), ' .') . '. Order status change failed. Please try again.';
             $this->errorLog->setMessage($message, $e->getTraceAsString(), $intentId)->send();
             $response->setData([
                 'response_type' => 'error',
@@ -443,9 +404,79 @@ class Service implements ServiceInterface
 
         $response->setData([
             'response_type' => 'success',
-            'order_id' => $orderId
+            'order_id' => $order->getId()
         ]);
 
+        return $response;
+    }
+
+    /**
+     * @param Quote $quote
+     * @param $uid
+     * @param string $cartId
+     * @param PaymentInterface $paymentMethod
+     * @param AddressInterface|null $billingAddress
+     * @param string|null $email
+     * @param string|null $from
+     * @param PlaceOrderResponse $response
+     * @return PlaceOrderResponse
+     * @throws CouldNotSaveException
+     * @throws GuzzleException
+     * @throws InputException
+     * @throws JsonException
+     * @throws AlreadyExistsException
+     */
+    public function orderThenIntent(Quote $quote, $uid, string $cartId, PaymentInterface $paymentMethod, ?AddressInterface $billingAddress, ?string $email, ?string $from, PlaceOrderResponse $response): PlaceOrderResponse
+    {
+        $order = $this->getOrderByQuote($quote);
+        $orderId = $order->getId();
+        if (
+            !$orderId
+            || !$this->isAmountEqual($order->getGrandTotal(), $quote->getGrandTotal())
+            || $order->getOrderCurrencyCode() !== $quote->getQuoteCurrencyCode()
+            || $this->paymentIntents->getProductsForCompare($this->getProducts($order)) !== $this->paymentIntents->getProductsForCompare($this->getProducts($quote))
+        ) {
+            if ($uid) {
+                $orderId = $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
+                    $cartId,
+                    $paymentMethod,
+                    $billingAddress
+                );
+            } else {
+                $orderId = $this->guestPaymentInformationManagement->savePaymentInformationAndPlaceOrder(
+                    $cartId,
+                    $email,
+                    $paymentMethod,
+                    $billingAddress
+                );
+            }
+            /** @var Order $order */
+            $order = $this->orderRepository->get($orderId);
+        }
+
+        $cacheName = AbstractClient::METADATA_PAYMENT_METHOD_PREFIX . $quote->getEntityId();
+        $this->cache->save($from ?: $paymentMethod->getMethod(), $cacheName, [], 60);
+
+        $intent = $this->paymentIntents->getIntentByOrder($order);
+
+        $resp = $this->intentGet->setPaymentIntentId($intent['id'])->send();
+        $intentResponse = json_decode($resp, true);
+        $this->checkIntent(
+            PaymentIntentInterface::INTENT_STATUS_SUCCEEDED,
+            $intentResponse['currency'],
+            $order->getOrderCurrencyCode(),
+            $intentResponse['merchant_order_id'],
+            $order->getIncrementId(),
+            floatval($intentResponse['amount']),
+            $order->getGrandTotal(),
+        );
+
+        $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
+        $response->setData([
+            'response_type' => 'confirmation_required',
+            'intent_id' => $intent['id'],
+            'client_secret' => $intent['clientSecret']
+        ]);
         return $response;
     }
 
@@ -669,14 +700,6 @@ class Service implements ServiceInterface
         }
     }
 
-    private function error($message)
-    {
-        return json_encode([
-            'type' => 'error',
-            'message' => $message
-        ]);
-    }
-
     /**
      * Post Address to get method and quote data
      *
@@ -832,28 +855,5 @@ class Service implements ServiceInterface
             'method_code' => $method->getMethodCode(),
             'method_title' => $method->getMethodTitle(),
         ];
-    }
-
-    /**
-     * Check intent status if available to place order
-     *
-     * @param string $id
-     * @throws Exception|GuzzleException
-     */
-    protected function checkIntent(string $id): void
-    {
-        $resp = $this->intentGet->setPaymentIntentId($id)->send();
-
-        $respArr = json_decode($resp, true);
-        $quote = $this->checkoutHelper->getQuote();
-        $this->checkIntentWithQuote(
-            $respArr['status'],
-            $respArr['currency'],
-            $quote->getQuoteCurrencyCode(),
-            $respArr['merchant_order_id'],
-            $quote->getReservedOrderId(),
-            floatval($respArr['amount']),
-            $quote->getGrandTotal(),
-        );
     }
 }

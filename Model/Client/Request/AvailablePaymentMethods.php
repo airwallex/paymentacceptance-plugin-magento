@@ -1,34 +1,17 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
+
 namespace Airwallex\Payments\Model\Client\Request;
 
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
+use JsonException;
 use Psr\Http\Message\ResponseInterface;
 
 class AvailablePaymentMethods extends AbstractClient implements BearerAuthenticationInterface
 {
     private const TRANSACTION_MODE = 'oneoff';
 
-    public $cacheName = 'available_payment_method_types';
-
-    /**
-     * @var string
-     */
-    private string $currency;
+    public string $cacheName = 'available_payment_method_types';
 
     /**
      * @param string $currency
@@ -67,21 +50,21 @@ class AvailablePaymentMethods extends AbstractClient implements BearerAuthentica
     }
 
     /**
-     * @param ResponseInterface $request
+     * @param ResponseInterface $response
      *
      * @return array
-     * @throws \JsonException
+     * @throws JsonException
      */
-    protected function parseResponse(ResponseInterface $request): array
+    protected function parseResponse(ResponseInterface $response): array
     {
         $this->cache->save(
-            $request->getBody(),
+            $response->getBody(),
             $this->cacheName,
             [],
             60
         );
 
-        $response = $this->parseJson($request);
+        $response = $this->parseJson($response);
 
         return array_map(static function (object $item) {
             return $item->name;

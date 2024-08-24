@@ -15,7 +15,6 @@ use GuzzleHttp\Exception\GuzzleException;
 use Magento\Checkout\Helper\Data as CheckoutData;
 use Magento\Framework\DataObject;
 use Magento\Framework\Event\ManagerInterface;
-use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Payment\Gateway\Command\CommandManagerInterface;
 use Magento\Payment\Gateway\Command\CommandPoolInterface;
@@ -201,12 +200,12 @@ abstract class AbstractMethod extends Adapter
      * @param float $amount
      *
      * @return $this
-     * @throws AlreadyExistsException|LocalizedException
      * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function authorize(InfoInterface $payment, $amount): self
     {
-        $this->setTransactionId($payment);
+
+//        $this->setTransactionId($payment);
         return $this;
     }
 
@@ -230,11 +229,11 @@ abstract class AbstractMethod extends Adapter
      *
      * @return $this
      * @SuppressWarnings(PHPMD.UnusedFormalParameter)
-     * @throws LocalizedException
      */
     public function capture(InfoInterface $payment, $amount): self
     {
-        $this->setTransactionId($payment);
+
+//        $this->setTransactionId($payment);
         return $this;
     }
 
@@ -310,6 +309,7 @@ abstract class AbstractMethod extends Adapter
      * @param CartInterface|null $quote
      *
      * @return bool
+     * @throws GuzzleException
      */
     public function isAvailable(CartInterface $quote = null): bool
     {
@@ -323,7 +323,8 @@ abstract class AbstractMethod extends Adapter
      */
     protected function getIntentId(): string
     {
-        return $this->getInfoInstance()->getAdditionalInformation('intent_id');
+        // todo
+        return $this->getInfoInstance()->getAdditionalInformation('intent_id') ??'';
     }
 
     /**
@@ -332,5 +333,10 @@ abstract class AbstractMethod extends Adapter
     protected function getPaymentMethodCode(): string
     {
         return str_replace(self::PAYMENT_PREFIX, '', $this->getCode());
+    }
+
+    public function getConfigPaymentAction(): string
+    {
+        return '';
     }
 }

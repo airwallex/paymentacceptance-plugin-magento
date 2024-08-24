@@ -4,7 +4,7 @@ namespace Airwallex\Payments\Model\Config\Source\Express;
 
 class Checkout
 {
-    public function toOptionArray()
+    public function toOptionArray(): array
     {
         return [
             [

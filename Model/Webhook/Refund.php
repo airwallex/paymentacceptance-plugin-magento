@@ -22,6 +22,21 @@ class Refund extends AbstractWebhook
     public const WEBHOOK_SUCCESS_NAME = 'refund.accepted';
 
     /**
+     * @var OrderRepository
+     */
+    private OrderRepository $orderRepository;
+
+    /**
+     * @var PaymentIntentRepository
+     */
+    private PaymentIntentRepository $paymentIntentRepository;
+
+    /**
+     * @var CacheInterface
+     */
+    private CacheInterface $cache;
+
+    /**
      * @var CreditmemoFactory
      */
     private CreditmemoFactory $creditmemoFactory;
@@ -30,11 +45,6 @@ class Refund extends AbstractWebhook
      * @var CreditmemoService
      */
     private CreditmemoService $creditmemoService;
-
-    /**
-     * @var CacheInterface
-     */
-    private CacheInterface $cache;
 
     /**
      * Refund constructor.
@@ -48,14 +58,15 @@ class Refund extends AbstractWebhook
     public function __construct(
         OrderRepository $orderRepository,
         PaymentIntentRepository $paymentIntentRepository,
+        CacheInterface $cache,
         CreditmemoFactory $creditmemoFactory,
-        CreditmemoService $creditmemoService,
-        CacheInterface $cache
+        CreditmemoService $creditmemoService
     ) {
-        parent::__construct($orderRepository, $paymentIntentRepository);
+        $this->orderRepository = $orderRepository;
+        $this->paymentIntentRepository = $paymentIntentRepository;
+        $this->cache = $cache;
         $this->creditmemoFactory = $creditmemoFactory;
         $this->creditmemoService = $creditmemoService;
-        $this->cache = $cache;
     }
 
     /**

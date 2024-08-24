@@ -2,8 +2,12 @@
 
 namespace Airwallex\Payments\Model\Webhook;
 
+use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
+use Airwallex\Payments\Model\Methods\CardMethod;
+use Airwallex\Payments\Model\Methods\ExpressCheckout;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Exception;
+use GuzzleHttp\Exception\GuzzleException;
 use Magento\Framework\DB\TransactionFactory;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Quote\Api\CartRepositoryInterface;
@@ -14,7 +18,7 @@ use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\Sales\Model\Order;
 use Magento\Framework\App\CacheInterface;
 
-class Capture extends AbstractWebhook
+class Authorize extends AbstractWebhook
 {
     use HelperTrait;
 
@@ -22,7 +26,7 @@ class Capture extends AbstractWebhook
      * Array of webhooks that trigger capture process.
      */
     public const WEBHOOK_NAMES = [
-        'payment_intent.succeeded'
+        'payment_intent.requires_capture'
     ];
 
     /**
@@ -43,6 +47,7 @@ class Capture extends AbstractWebhook
     public CacheInterface $cache;
     private OrderRepository $orderRepository;
     private PaymentIntentRepository $paymentIntentRepository;
+    private Get $intentGet;
 
     /**
      * Capture constructor.
@@ -52,6 +57,7 @@ class Capture extends AbstractWebhook
      * @param InvoiceService $invoiceService
      * @param TransactionFactory $transactionFactory
      * @param CartRepositoryInterface $quoteRepository
+     * @param Get $intentGet
      * @param CacheInterface $cache
      */
     public function __construct(
@@ -60,6 +66,7 @@ class Capture extends AbstractWebhook
         InvoiceService          $invoiceService,
         TransactionFactory      $transactionFactory,
         CartRepositoryInterface $quoteRepository,
+        Get $intentGet,
         CacheInterface          $cache
     )
     {
@@ -68,6 +75,7 @@ class Capture extends AbstractWebhook
         $this->invoiceService = $invoiceService;
         $this->transactionFactory = $transactionFactory;
         $this->quoteRepository = $quoteRepository;
+        $this->intentGet = $intentGet;
         $this->cache = $cache;
     }
 
@@ -77,49 +85,24 @@ class Capture extends AbstractWebhook
      * @return void
      * @throws LocalizedException
      * @throws Exception
+     * @throws GuzzleException
      */
     public function execute(object $data): void
     {
         $paymentIntentId = $data->payment_intent_id ?? $data->id;
-
-        if ($this->cache->load($this->captureCacheName($paymentIntentId))) {
-            $this->cache->remove($this->captureCacheName($paymentIntentId));
-            return;
-        }
-
+        $paymentIntent = $this->paymentIntentRepository->getByIntentId($paymentIntentId);
         /** @var Order $order */
-        $order = $this->paymentIntentRepository->getOrder($paymentIntentId);
-
-        if (!$order->getPayment() || $order->getTotalPaid()) return;
-
+        $order = $this->orderRepository->get($paymentIntent->getOrderId());
+        $resp = $this->intentGet->setPaymentIntentId($paymentIntentId)->send();
+        $intentResponse = json_decode($resp, true);
+        $this->checkIntentWithOrder($intentResponse, $order);
         $order->setIsInProcess(true);
         $this->orderRepository->save($order);
 
-        $amount = $data->captured_amount;
-        $baseAmount = $this->getBaseAmount($amount, $order->getBaseToOrderRate(), $order->getGrandTotal(), $order->getBaseGrandTotal());
-        $amountFormat = $this->priceForComment($amount, $baseAmount, $order);
-        $comment = "Captured amount of $amountFormat through Airwallex. Transaction id: \"$paymentIntentId\".";
-        $this->addComment($order, $comment);
-        $invoice = $this->invoiceService->prepareInvoice($order);
-        if (!$this->isAmountEqual($amount, $order->getGrandTotal())) {
-            $invoice->setGrandTotal($amount);
-            $invoice->setBaseGrandTotal($baseAmount);
-        }
-        $invoice->setTransactionId($data->id);
-        $invoice->setRequestedCaptureCase(Invoice::CAPTURE_OFFLINE);
-        $invoice->register();
-        $transactionSave = $this->transactionFactory->create()
-            ->addObject($invoice)
-            ->addObject($invoice->getOrder());
+        $this->authorize($order, $intentResponse);
 
-        $transactionSave->save();
-
-        // todo: request place-order 404 should return to success page
-        // todo: test
         $quote = $this->quoteRepository->get($order->getQuoteId());
-        if ($quote->getIsActive()) {
-            $quote->setIsActive(false);
-            $this->quoteRepository->save($quote);
-        }
+        $quote->setIsActive(false);
+        $this->quoteRepository->save($quote);
     }
 }

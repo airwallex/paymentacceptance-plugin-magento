@@ -2,6 +2,7 @@
 
 namespace Airwallex\Payments\Model\Ui;
 
+use Magento\Vault\Model\Ui\TokenUiComponentInterface;
 use Magento\Vault\Model\Ui\TokenUiComponentProviderInterface;
 use Magento\Vault\Api\Data\PaymentTokenInterface;
 use Airwallex\Payments\Model\Methods\Vault;
@@ -18,7 +19,8 @@ class TokenUiComponentProvider implements TokenUiComponentProviderInterface
      */
     public function __construct(
         TokenUiComponentInterfaceFactory $componentFactory
-    ) {
+    )
+    {
         $this->componentFactory = $componentFactory;
     }
 
@@ -27,10 +29,10 @@ class TokenUiComponentProvider implements TokenUiComponentProviderInterface
      * @param PaymentTokenInterface $paymentToken
      * @return TokenUiComponentInterface
      */
-    public function getComponentForToken(PaymentTokenInterface $paymentToken)
+    public function getComponentForToken(PaymentTokenInterface $paymentToken): TokenUiComponentInterface
     {
         $jsonDetails = json_decode($paymentToken->getTokenDetails() ?: '{}', true);
-        $component = $this->componentFactory->create(
+        return $this->componentFactory->create(
             [
                 'config' => [
                     'code' => Vault::CODE,
@@ -40,7 +42,5 @@ class TokenUiComponentProvider implements TokenUiComponentProviderInterface
                 'name' => 'Airwallex_Payments/js/view/payment/method-renderer/vault'
             ]
         );
-
-        return $component;
     }
 }

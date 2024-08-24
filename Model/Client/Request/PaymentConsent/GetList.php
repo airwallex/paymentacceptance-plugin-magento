@@ -11,6 +11,8 @@ use Airwallex\Payments\Logger\Guzzle\RequestLogger;
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
 use Airwallex\Payments\Model\SavedPaymentResponse;
+use GuzzleHttp\Exception\GuzzleException;
+use JsonException;
 use Magento\Framework\DataObject\IdentityService;
 use Magento\Framework\Module\ModuleListInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -30,18 +32,19 @@ class GetList extends AbstractClient implements BearerAuthenticationInterface
     protected CheckoutData $checkoutData;
 
     public function __construct(
-        AuthenticationHelper $authenticationHelper,
-        IdentityService $identityService,
-        RequestLogger $requestLogger,
-        Configuration $configuration,
-        ModuleListInterface $moduleList,
-        ProductMetadataInterface $productMetada,
+        AuthenticationHelper                 $authenticationHelper,
+        IdentityService                      $identityService,
+        RequestLogger                        $requestLogger,
+        Configuration                         $configuration,
+        ModuleListInterface                  $moduleList,
+        ProductMetadataInterface             $productMetadata,
         SavedPaymentResponseInterfaceFactory $savedPaymentResponseFactory,
-        CheckoutData $checkoutData,
-        CacheInterface $cache,
-        AvailablePaymentMethodsHelper $availablePaymentMethodsHelper
-    ) {
-        parent::__construct($authenticationHelper, $identityService, $requestLogger, $configuration, $productMetada, $moduleList, $checkoutData, $cache);
+        CheckoutData                         $checkoutData,
+        CacheInterface                       $cache,
+        AvailablePaymentMethodsHelper        $availablePaymentMethodsHelper
+    )
+    {
+        parent::__construct($authenticationHelper, $identityService, $requestLogger, $configuration, $productMetadata, $moduleList, $checkoutData, $cache);
         $this->savedPaymentResponseFactory = $savedPaymentResponseFactory;
         $this->availablePaymentMethodsHelper = $availablePaymentMethodsHelper;
     }
@@ -109,6 +112,9 @@ class GetList extends AbstractClient implements BearerAuthenticationInterface
         return $this->setParam('next_triggered_by', $triggeredBy);
     }
 
+    /**
+     * @throws GuzzleException
+     */
     public function getCardSchemes()
     {
         $methods = $this->availablePaymentMethodsHelper->getAllPaymentMethodTypes();
@@ -124,24 +130,24 @@ class GetList extends AbstractClient implements BearerAuthenticationInterface
     }
 
     /**
-     * @param ResponseInterface $request
+     * @param ResponseInterface $response
      *
      * @return SavedPaymentResponseInterface[]
-     * @throws \JsonException
+     * @throws JsonException|GuzzleException
      */
-    protected function parseResponse(ResponseInterface $request)
+    protected function parseResponse(ResponseInterface $response): array
     {
-        $request = $this->parseJson($request);
+        $response = $this->parseJson($response);
 
         $result = [];
-        foreach ($request->items as $item) {
+        foreach ($response->items as $item) {
             if (!property_exists($item, 'payment_method')
                 || !property_exists($item->payment_method, 'card')) {
                 continue;
             }
 
             $cards = [];
-            foreach($this->getCardSchemes() as $scheme) {
+            foreach ($this->getCardSchemes() as $scheme) {
                 $cards[$scheme['name']] = $scheme;
             }
             $iconIndex = strtolower($item->payment_method->card->brand);
@@ -173,7 +179,7 @@ class GetList extends AbstractClient implements BearerAuthenticationInterface
         }
 
         return [
-            'has_more' => $request->has_more,
+            'has_more' => $response->has_more,
             'items' => $result,
         ];
     }

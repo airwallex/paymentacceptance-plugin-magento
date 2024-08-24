@@ -10,22 +10,22 @@ interface ClientSecretResponseInterface
     /**
      * @return string|null
      */
-    public function getClientSecret();
+    public function getClientSecret(): ?string;
 
     /**
      * @param string|null $secret
      * @return $this
      */
-    public function setClientSecret(string $secret = null);
+    public function setClientSecret(string $secret = null): ClientSecretResponseInterface;
 
     /**
      * @return string|null
      */
-    public function getExpiredTime();
+    public function getExpiredTime(): ?string;
 
     /**
      * @param string|null $time
      * @return $this
      */
-    public function setExpiredTime(string $time = null);
+    public function setExpiredTime(string $time = null): ClientSecretResponseInterface;
 }

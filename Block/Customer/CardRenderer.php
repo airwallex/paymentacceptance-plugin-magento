@@ -12,7 +12,6 @@ use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\Customer\Model\Session;
 use Magento\Customer\Api\CustomerRepositoryInterface;
 use Airwallex\Payments\Api\PaymentConsentsInterface;
-use Airwallex\Payments\Model\PaymentConsents;
 
 /**
  * @api
@@ -27,13 +26,16 @@ class CardRenderer extends AbstractTokenRenderer implements CardRendererInterfac
     protected PaymentConsentsInterface $paymentConsents;
 
     /**
-     * @var ConfigProvider
+     * @var CcConfigProvider
      */
     private CcConfigProvider $configProvider;
 
     /**
      * @param Context $context
-     * @param ConfigProvider $configProvider
+     * @param CcConfigProvider $configProvider
+     * @param Session $customerSession
+     * @param CustomerRepositoryInterface $customerRepository
+     * @param PaymentConsentsInterface $paymentConsents
      * @param array $data
      */
     public function __construct(
@@ -87,7 +89,7 @@ class CardRenderer extends AbstractTokenRenderer implements CardRendererInterfac
         return $this->getTokenDetails()['customer_id'] ?? '';
     }
 
-    public function currentCustomerId()
+    public function currentCustomerId(): string
     {
         return $this->paymentConsents->getAirwallexCustomerIdInDB($this->customerSession->getId());
     }
@@ -105,9 +107,9 @@ class CardRenderer extends AbstractTokenRenderer implements CardRendererInterfac
     /**
      * Get Icon
      *
-     * @return array
+     * @return ?array
      */
-    public function icon()
+    public function icon(): ?array
     {
         return $this->getIconForType($this->convertCcType($this->getBrand()));
     }
