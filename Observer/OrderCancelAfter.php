@@ -65,17 +65,5 @@ class OrderCancelAfter implements ObserverInterface
         $order = $observer->getOrder();
         $method = $order->getPayment()->getMethod();
         if (strpos($method, 'airwallex') !== 0) return;
-
-        if ($this->cancelHelper->isWebhookCanceling()) return;
-
-        $record = $this->paymentIntentRepository->getByOrderId($order->getId());
-        $this->cache->save(true, $this->cancelCacheName($record->getIntentId()), [], 3600);
-        try {
-            $this->cancel->setPaymentIntentId($record->getIntentId())->send();
-            $this->addComment($order, 'Order canceled online.');
-        } catch (Exception $e) {
-            $this->errorLog->setMessage($e->getMessage(), $e->getTraceAsString(), $order->getIncrementId())->send();
-            throw new Exception($e->getMessage());
-        }
     }
 }

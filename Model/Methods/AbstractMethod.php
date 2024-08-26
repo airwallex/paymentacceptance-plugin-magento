@@ -204,8 +204,6 @@ abstract class AbstractMethod extends Adapter
      */
     public function authorize(InfoInterface $payment, $amount): self
     {
-
-//        $this->setTransactionId($payment);
         return $this;
     }
 
@@ -214,6 +212,7 @@ abstract class AbstractMethod extends Adapter
      */
     protected function setTransactionId($payment)
     {
+        $order = $payment->getOrder();
         $intentId = $this->getIntentId();
         if (empty($intentId)) {
             throw new LocalizedException(__('Something went wrong while trying to capture the payment.'));
@@ -272,7 +271,10 @@ abstract class AbstractMethod extends Adapter
         /** @var Payment $payment */
         $credit = $payment->getCreditmemo();
 
-        $intentId = $this->getIntentId();
+        $order = $payment->getOrder();
+        $paymentIntent = $this->paymentIntentRepository->getByOrderId($order->getId());
+        $intentId = $paymentIntent->getIntentId();
+
         $this->cache->save(true, $this->refundCacheName($intentId), [], 3600);
         try {
             /** @var Creditmemo $credit */

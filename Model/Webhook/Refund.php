@@ -81,21 +81,21 @@ class Refund extends AbstractWebhook
      */
     public function execute(object $data): void
     {
-        $paymentIntentId = $data->payment_intent_id;
+        $intentId = $data->payment_intent_id;
 
         /** @var Order $order */
-        $order = $this->paymentIntentRepository->getOrder($paymentIntentId);
+        $order = $this->paymentIntentRepository->getOrder($intentId);
         if (!$order) {
             throw new WebhookException(__('Can\'t find order'));
         }
 
-        $cacheName = $this->refundCacheName($paymentIntentId);
+        $cacheName = $this->refundCacheName($intentId);
         if ($this->cache->load($cacheName)) {
             $this->cache->remove($cacheName);
             return;
         }
 
-        $record = $this->paymentIntentRepository->getByIntentId($paymentIntentId);
+        $record = $this->paymentIntentRepository->getByIntentId($intentId);
         $detail = $record->getDetail();
         $detailArray = $detail ? json_decode($detail, true) : [];
         if (!empty($detailArray['refund_ids']) && in_array($data->id, $detailArray['refund_ids'], true)) {
@@ -155,7 +155,6 @@ class Refund extends AbstractWebhook
         $creditMemo->setGrandTotal($refundAmount);
 
         $this->creditmemoService->refund($creditMemo, true);
-        $order->addCommentToStatusHistory(__('Order refunded through Airwallex.'));
         $this->orderRepository->save($order);
     }
 }
