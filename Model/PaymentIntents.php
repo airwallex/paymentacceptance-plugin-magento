@@ -70,7 +70,7 @@ class PaymentIntents
     public function createIntentByOrder(Order $order): array
     {
         $uid = $order->getCustomerId() ?: 0;
-        if ($uid && interface_exists(CompanyConsentsInterface::class)) {
+        if ($uid && file_exists('../app/code/airwallex/paymentacceptance-minifeature-magento-admin-card/Model/CompanyConsents.php')) {
             $uid = ObjectManager::getInstance()->get(CompanyConsentsInterface::class)->getSuperId($uid);
         }
         $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($uid);
