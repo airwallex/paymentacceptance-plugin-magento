@@ -89,20 +89,20 @@ class Authorize extends AbstractWebhook
      */
     public function execute(object $data): void
     {
-        $paymentIntentId = $data->payment_intent_id ?? $data->id;
-        $paymentIntent = $this->paymentIntentRepository->getByIntentId($paymentIntentId);
-        /** @var Order $order */
-        $order = $this->orderRepository->get($paymentIntent->getOrderId());
-        $resp = $this->intentGet->setPaymentIntentId($paymentIntentId)->send();
-        $intentResponse = json_decode($resp, true);
-        $this->checkIntentWithOrder($intentResponse, $order);
-        $order->setIsInProcess(true);
-        $this->orderRepository->save($order);
-
-        $this->authorize($order, $intentResponse);
-
-        $quote = $this->quoteRepository->get($order->getQuoteId());
-        $quote->setIsActive(false);
-        $this->quoteRepository->save($quote);
+//        $paymentIntentId = $data->payment_intent_id ?? $data->id;
+//        $paymentIntent = $this->paymentIntentRepository->getByIntentId($paymentIntentId);
+//        /** @var Order $order */
+//        $order = $this->orderRepository->get($paymentIntent->getOrderId());
+//        $resp = $this->intentGet->setPaymentIntentId($paymentIntentId)->send();
+//        $intentResponse = json_decode($resp, true);
+//        $this->checkIntentWithOrder($intentResponse, $order);
+//        $order->setIsInProcess(true);
+//        $this->orderRepository->save($order);
+//
+//        $this->authorize($order, $intentResponse);
+//
+//        $quote = $this->quoteRepository->get($order->getQuoteId());
+//        $quote->setIsActive(false);
+//        $this->quoteRepository->save($quote);
     }
 }

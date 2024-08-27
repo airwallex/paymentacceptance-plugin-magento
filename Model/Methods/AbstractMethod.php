@@ -24,6 +24,7 @@ use Magento\Payment\Gateway\Validator\ValidatorPoolInterface;
 use Magento\Payment\Model\InfoInterface;
 use Magento\Payment\Model\Method\Adapter;
 use Magento\Quote\Api\Data\CartInterface;
+use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Creditmemo;
 use Magento\Sales\Model\Order\Payment;
 use RuntimeException;
@@ -210,13 +211,8 @@ abstract class AbstractMethod extends Adapter
     /**
      * @throws LocalizedException
      */
-    protected function setTransactionId($payment)
+    protected function setTransactionId($payment, $intentId)
     {
-        $order = $payment->getOrder();
-        $intentId = $this->getIntentId();
-        if (empty($intentId)) {
-            throw new LocalizedException(__('Something went wrong while trying to capture the payment.'));
-        }
         /** @var Payment $payment */
         $payment->setTransactionId($intentId);
         $payment->setIsTransactionClosed(false);
@@ -248,8 +244,10 @@ abstract class AbstractMethod extends Adapter
             return $this;
         }
 
+        $intentId = $this->getIntentId($payment);
+        $this->cache->save(true, $this->cancelCacheName($intentId), [], 3600);
         try {
-            $this->cancel->setPaymentIntentId($this->getIntentId())->send();
+            $this->cancel->setPaymentIntentId($intentId)->send();
         } catch (GuzzleException $exception) {
             /** @var Payment $payment */
             $this->logger->orderError($payment->getOrder(), 'cancel', $exception->getMessage());
@@ -323,10 +321,11 @@ abstract class AbstractMethod extends Adapter
      * @return string
      * @throws LocalizedException
      */
-    protected function getIntentId(): string
+    protected function getIntentId($payment): string
     {
-        // todo
-        return $this->getInfoInstance()->getAdditionalInformation('intent_id') ??'';
+        $order = $payment->getOrder();
+        $paymentIntent = $this->paymentIntentRepository->getByOrderId($order->getId());
+        return $paymentIntent->getIntentId();
     }
 
     /**

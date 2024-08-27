@@ -46,8 +46,7 @@ class CardMethod extends AbstractMethod
             return $this;
         }
 
-        $payment->setTransactionId($intentId);
-        $payment->setIsTransactionClosed(false);
+        $this->setTransactionId($payment, $intentId);
 
         $this->cache->save(true, $this->captureCacheName($intentId), [], 3600);
         try {

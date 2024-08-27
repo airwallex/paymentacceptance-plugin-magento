@@ -33,6 +33,7 @@ use Magento\Quote\Api\Data\PaymentInterface;
 use Magento\Quote\Api\Data\ShippingMethodInterface;
 use Magento\Quote\Model\Quote;
 use Magento\Quote\Model\Quote\Payment;
+use Magento\Sales\Api\Data\TransactionInterface;
 use Magento\Sales\Model\ResourceModel\Order\CollectionFactory as OrderCollectionFactory;
 use Magento\Quote\Model\QuoteIdToMaskedQuoteIdInterface;
 use Magento\Quote\Model\ResourceModel\Quote\QuoteIdMask as QuoteIdMaskResourceModel;
@@ -66,6 +67,7 @@ use Magento\Sales\Api\Data\OrderInterface;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Confirm;
 use Airwallex\Payments\Model\Methods\AbstractMethod;
 use Mobile_Detect;
+use Magento\Sales\Api\TransactionRepositoryInterface;
 
 class Service implements ServiceInterface
 {
@@ -112,6 +114,7 @@ class Service implements ServiceInterface
     public PaymentIntentRepository $paymentIntentRepository;
     public OrderInterface $order;
     private OrderCollectionFactory $orderCollectionFactory;
+    private TransactionRepositoryInterface $transactionRepository;
 
     /**
      * Index constructor.
@@ -157,6 +160,7 @@ class Service implements ServiceInterface
      * @param PaymentIntentRepository $paymentIntentRepository
      * @param OrderCollectionFactory $orderCollectionFactory
      * @param OrderInterface $order
+     * @param TransactionRepositoryInterface $transactionRepository
      */
     public function __construct(
         PaymentConsentsInterface                   $paymentConsents,
@@ -199,7 +203,8 @@ class Service implements ServiceInterface
         OrderRepositoryInterface                   $orderRepository,
         PaymentIntentRepository                    $paymentIntentRepository,
         OrderCollectionFactory                     $orderCollectionFactory,
-        OrderInterface                             $order
+        OrderInterface                             $order,
+        TransactionRepositoryInterface $transactionRepository
     )
     {
         $this->paymentConsents = $paymentConsents;
@@ -243,6 +248,7 @@ class Service implements ServiceInterface
         $this->paymentIntentRepository = $paymentIntentRepository;
         $this->orderCollectionFactory = $orderCollectionFactory;
         $this->order = $order;
+        $this->transactionRepository = $transactionRepository;
     }
 
     /**
@@ -381,6 +387,15 @@ class Service implements ServiceInterface
                 || ($payment->getMethod() === ExpressCheckout::CODE && !$this->configuration->isExpressCaptureEnabled())) {
                 $this->authorize($order, $intentResponse);
             }
+
+            $transaction = $this->transactionRepository->create();
+            $transaction->setTxnId($intentId);
+            $transaction->setOrderId($order->getId());
+            $transaction->setPaymentId($order->getId());
+            $transaction->setTxnType(TransactionInterface::TYPE_AUTH);
+            $transaction->setIsClosed(false);
+            $this->transactionRepository->save($transaction);
+
 
             $quote->setIsActive(false);
             $this->quoteRepository->save($quote);

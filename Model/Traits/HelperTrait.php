@@ -273,7 +273,7 @@ trait HelperTrait
     {
         $histories = $order->getStatusHistories();
 
-        $log = $src = 'Authorized amount of ';
+        $log = 'Authorized amount of ';
         if ($histories) {
             foreach ($histories as $history) {
                 if (!$history->getComment()) continue;
@@ -283,6 +283,7 @@ trait HelperTrait
         $message = $log . "{$this->totalPriceForComment($order)} online. Transaction ID: \"{$intentResponse['id']}\".";
         $this->addComment($order, $message);
         $this->addAVSResultToOrder($order, $intentResponse);
+
     }
 
     public function addComment(Order $order, string $comment)
