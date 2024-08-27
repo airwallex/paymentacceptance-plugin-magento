@@ -89,8 +89,14 @@ class Capture extends AbstractWebhook
 
         /** @var Order $order */
         $order = $this->paymentIntentRepository->getOrder($paymentIntentId);
+        \Magento\Framework\App\ObjectManager::getInstance()->get(\Psr\Log\LoggerInterface::class)->debug(
+                    '11'
+                    );
 
         if (!$order->getPayment() || $order->getTotalPaid()) return;
+        \Magento\Framework\App\ObjectManager::getInstance()->get(\Psr\Log\LoggerInterface::class)->debug(
+            '22'
+        );
 
         $order->setIsInProcess(true);
         $this->orderRepository->save($order);
@@ -113,6 +119,9 @@ class Capture extends AbstractWebhook
             ->addObject($invoice->getOrder());
 
         $transactionSave->save();
+        \Magento\Framework\App\ObjectManager::getInstance()->get(\Psr\Log\LoggerInterface::class)->debug(
+            '33'
+        );
 
         // todo: request place-order 404 should return to success page
         // todo: test

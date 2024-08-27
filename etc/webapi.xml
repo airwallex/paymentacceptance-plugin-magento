@@ -2,14 +2,14 @@
 
 <routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Webapi:etc/webapi.xsd">
     <route url="/V1/airwallex/payments/guest-place-order" method="POST">
-        <service class="Airwallex\Payments\Api\ServiceInterface" method="airwallexGuestPlaceOrder"/>
+        <service class="Airwallex\Payments\Api\OrderServiceInterface" method="airwallexGuestPlaceOrder"/>
         <resources>
             <resource ref="anonymous"/>
         </resources>
     </route>
 
     <route url="/V1/airwallex/payments/place-order" method="POST">
-        <service class="Airwallex\Payments\Api\ServiceInterface" method="airwallexPlaceOrder"/>
+        <service class="Airwallex\Payments\Api\OrderServiceInterface" method="airwallexPlaceOrder"/>
         <resources>
             <resource ref="self"/>
         </resources>

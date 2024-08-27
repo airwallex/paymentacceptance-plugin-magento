@@ -97,8 +97,7 @@ class Cancel extends AbstractWebhook
         try {
             $this->orderRepository->save($order);
         } catch (Exception $e) {
-            throw new Exception($e->getMessage()
-                . " intent id: $paymentIntentId order id: {$order->getIncrementId()}");
+            throw new Exception($e->getMessage() . " intent id: $paymentIntentId");
         }
     }
 }

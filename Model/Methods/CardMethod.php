@@ -58,4 +58,9 @@ class CardMethod extends AbstractMethod
 
         return $this;
     }
+
+    public function getConfigPaymentAction(): string
+    {
+        return '';
+    }
 }
