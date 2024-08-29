@@ -11,7 +11,6 @@ use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\OrderRepository;
-use Magento\Sales\Model\ResourceModel\Order\CollectionFactory as OrderFactory;
 use Magento\Sales\Model\ResourceModel\Order\Grid\CollectionFactory as OrderGridFactory;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Airwallex\Payments\Model\Client\Request\Log;
@@ -31,7 +30,6 @@ class CheckoutSubmitAllAfter implements ObserverInterface
      */
     public Get $intentGet;
 
-    public OrderFactory $orderFactory;
     public OrderGridFactory $orderGridFactory;
     public Log $errorLog;
     public HistoryFactory $historyFactory;
@@ -40,7 +38,6 @@ class CheckoutSubmitAllAfter implements ObserverInterface
     public function __construct(
         OrderRepository $orderRepository,
         Get $intentGet,
-        OrderFactory $orderFactory,
         OrderGridFactory $orderGridFactory,
         Log $errorLog,
         HistoryFactory $historyFactory,
@@ -48,7 +45,6 @@ class CheckoutSubmitAllAfter implements ObserverInterface
     ) {
         $this->orderRepository = $orderRepository;
         $this->intentGet = $intentGet;
-        $this->orderFactory = $orderFactory;
         $this->orderGridFactory = $orderGridFactory;
         $this->errorLog = $errorLog;
         $this->historyFactory = $historyFactory;

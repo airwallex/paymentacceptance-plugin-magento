@@ -4,71 +4,81 @@ namespace Airwallex\Payments\Model\Webhook;
 
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Exception;
+use GuzzleHttp\Exception\GuzzleException;
+use JsonException;
 use Magento\Framework\DB\TransactionFactory;
+use Magento\Framework\Exception\AlreadyExistsException;
+use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
+use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Quote\Api\CartRepositoryInterface;
+use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order\Invoice;
-use Magento\Sales\Model\OrderRepository;
 use Magento\Sales\Model\Service\InvoiceService;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\Sales\Model\Order;
 use Magento\Framework\App\CacheInterface;
+use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
+use Magento\Sales\Api\OrderManagementInterface;
+use Magento\Sales\Model\OrderFactory;
+use Magento\Sales\Model\Spi\OrderResourceInterface;
 
 class Capture extends AbstractWebhook
 {
     use HelperTrait;
 
-    /**
-     * Array of webhooks that trigger capture process.
-     */
     public const WEBHOOK_NAMES = [
         'payment_intent.succeeded'
     ];
 
-    /**
-     * @var InvoiceService
-     */
     private InvoiceService $invoiceService;
-
-    /**
-     * @var TransactionFactory
-     */
     private TransactionFactory $transactionFactory;
-
     private CartRepositoryInterface $quoteRepository;
-
-    /**
-     * @var CacheInterface
-     */
     public CacheInterface $cache;
-    private OrderRepository $orderRepository;
+    private Get $intentGet;
+    private OrderManagementInterface $orderManagement;
+    private OrderFactory $orderFactory;
     private PaymentIntentRepository $paymentIntentRepository;
+    private OrderRepositoryInterface $orderRepository;
+    private OrderResourceInterface $orderResource;
 
     /**
      * Capture constructor.
      *
-     * @param OrderRepository $orderRepository
-     * @param PaymentIntentRepository $paymentIntentRepository
      * @param InvoiceService $invoiceService
      * @param TransactionFactory $transactionFactory
      * @param CartRepositoryInterface $quoteRepository
      * @param CacheInterface $cache
+     * @param Get $intentGet
+     * @param OrderManagementInterface $orderManagement
+     * @param OrderFactory $orderFactory
+     * @param PaymentIntentRepository $paymentIntentRepository
+     * @param OrderRepositoryInterface $orderRepository
+     * @param OrderResourceInterface $orderResource
      */
     public function __construct(
-        OrderRepository         $orderRepository,
-        PaymentIntentRepository $paymentIntentRepository,
-        InvoiceService          $invoiceService,
-        TransactionFactory      $transactionFactory,
-        CartRepositoryInterface $quoteRepository,
-        CacheInterface          $cache
+        InvoiceService           $invoiceService,
+        TransactionFactory       $transactionFactory,
+        CartRepositoryInterface  $quoteRepository,
+        CacheInterface           $cache,
+        Get                      $intentGet,
+        OrderManagementInterface $orderManagement,
+        OrderFactory             $orderFactory,
+        PaymentIntentRepository  $paymentIntentRepository,
+        OrderRepositoryInterface $orderRepository,
+        OrderResourceInterface   $orderResource
     )
     {
-        $this->orderRepository = $orderRepository;
-        $this->paymentIntentRepository = $paymentIntentRepository;
         $this->invoiceService = $invoiceService;
         $this->transactionFactory = $transactionFactory;
         $this->quoteRepository = $quoteRepository;
         $this->cache = $cache;
+        $this->intentGet = $intentGet;
+        $this->orderManagement = $orderManagement;
+        $this->orderFactory = $orderFactory;
+        $this->paymentIntentRepository = $paymentIntentRepository;
+        $this->orderRepository = $orderRepository;
+        $this->orderResource = $orderResource;
     }
 
     /**
@@ -76,27 +86,34 @@ class Capture extends AbstractWebhook
      *
      * @return void
      * @throws LocalizedException
+     * @throws GuzzleException
+     * @throws JsonException
+     * @throws AlreadyExistsException
+     * @throws InputException
+     * @throws NoSuchEntityException
      * @throws Exception
      */
     public function execute(object $data): void
     {
-        $paymentIntentId = $data->payment_intent_id ?? $data->id;
+        $intentId = $data->payment_intent_id ?? $data->id;
 
-        if ($this->cache->load($this->captureCacheName($paymentIntentId))) {
-            $this->cache->remove($this->captureCacheName($paymentIntentId));
+        if ($this->cache->load($this->captureCacheName($intentId))) {
+            $this->cache->remove($this->captureCacheName($intentId));
             return;
         }
 
         /** @var Order $order */
-        $order = $this->paymentIntentRepository->getOrder($paymentIntentId);
-        \Magento\Framework\App\ObjectManager::getInstance()->get(\Psr\Log\LoggerInterface::class)->debug(
-                    '11'
-                    );
+        $order = $this->paymentIntentRepository->getOrder($intentId);
+        if ($this->isAmountEqual($order->getGrandTotal(), $data->captured_amount)) {
+            $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
+            $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
+            $intentResponse = json_decode($resp, true);
+            $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
+            $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote, true);
+            return;
+        }
 
         if (!$order->getPayment() || $order->getTotalPaid()) return;
-        \Magento\Framework\App\ObjectManager::getInstance()->get(\Psr\Log\LoggerInterface::class)->debug(
-            '22'
-        );
 
         $order->setIsInProcess(true);
         $this->orderRepository->save($order);
@@ -104,7 +121,7 @@ class Capture extends AbstractWebhook
         $amount = $data->captured_amount;
         $baseAmount = $this->getBaseAmount($amount, $order->getBaseToOrderRate(), $order->getGrandTotal(), $order->getBaseGrandTotal());
         $amountFormat = $this->priceForComment($amount, $baseAmount, $order);
-        $comment = "Captured amount of $amountFormat through Airwallex. Transaction id: \"$paymentIntentId\".";
+        $comment = "Captured amount of $amountFormat through Airwallex. Transaction id: \"$intentId\".";
         $this->addComment($order, $comment);
         $invoice = $this->invoiceService->prepareInvoice($order);
         if (!$this->isAmountEqual($amount, $order->getGrandTotal())) {
@@ -119,16 +136,5 @@ class Capture extends AbstractWebhook
             ->addObject($invoice->getOrder());
 
         $transactionSave->save();
-        \Magento\Framework\App\ObjectManager::getInstance()->get(\Psr\Log\LoggerInterface::class)->debug(
-            '33'
-        );
-
-        // todo: request place-order 404 should return to success page
-        // todo: test
-        $quote = $this->quoteRepository->get($order->getQuoteId());
-        if ($quote->getIsActive()) {
-            $quote->setIsActive(false);
-            $this->quoteRepository->save($quote);
-        }
     }
 }

@@ -39,10 +39,10 @@ use Magento\Quote\Model\ValidationRules\BillingAddressValidationRule;
 use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\CheckoutAgreements\Model\AgreementsConfigProvider;
-use Magento\Sales\Api\Data\OrderInterface;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Confirm;
 use Airwallex\Payments\Model\Methods\AbstractMethod;
 use Mobile_Detect;
+use Magento\Sales\Model\Spi\OrderResourceInterface;
 
 class Service implements ServiceInterface
 {
@@ -72,7 +72,7 @@ class Service implements ServiceInterface
     protected ErrorLog $errorLog;
     protected AgreementsConfigProvider $agreementsConfigProvider;
     protected Confirm $confirm;
-    public OrderInterface $order;
+    protected OrderResourceInterface $orderResource;
 
     /**
      * Index constructor.
@@ -101,34 +101,34 @@ class Service implements ServiceInterface
      * @param ErrorLog $errorLog
      * @param AgreementsConfigProvider $agreementsConfigProvider
      * @param Confirm $confirm
-     * @param OrderInterface $order
+     * @param OrderResourceInterface $orderResource
      */
     public function __construct(
-        Configuration                              $configuration,
-        CheckoutData                               $checkoutHelper,
-        QuoteIdToMaskedQuoteIdInterface            $quoteIdToMaskedQuoteId,
-        StoreManagerInterface                      $storeManager,
-        RequestInterface                           $request,
-        ProductRepositoryInterface                 $productRepository,
-        SerializerInterface                        $serializer,
-        Get                                        $intentGet,
-        LocalizedToNormalized                      $localizedToNormalized,
-        Resolver                                   $localeResolver,
-        CartRepositoryInterface                    $quoteRepository,
-        QuoteIdMaskFactory                         $quoteIdMaskFactory,
-        QuoteIdMaskResourceModel                   $quoteIdMaskResourceModel,
-        ShipmentEstimationInterface                $shipmentEstimation,
-        RegionFactory                              $regionFactory,
-        ShippingInformationManagementInterface     $shippingInformationManagement,
-        ShippingInformationInterfaceFactory        $shippingInformationFactory,
-        ConfigProvider                             $configProvider,
-        ApplePayValidateMerchant                   $validateMerchant,
-        ShippingAddressValidationRule              $shippingAddressValidationRule,
-        BillingAddressValidationRule               $billingAddressValidationRule,
-        ErrorLog                                   $errorLog,
-        AgreementsConfigProvider                   $agreementsConfigProvider,
-        Confirm                                    $confirm,
-        OrderInterface                             $order
+        Configuration                          $configuration,
+        CheckoutData                           $checkoutHelper,
+        QuoteIdToMaskedQuoteIdInterface        $quoteIdToMaskedQuoteId,
+        StoreManagerInterface                  $storeManager,
+        RequestInterface                       $request,
+        ProductRepositoryInterface             $productRepository,
+        SerializerInterface                    $serializer,
+        Get                                    $intentGet,
+        LocalizedToNormalized                  $localizedToNormalized,
+        Resolver                               $localeResolver,
+        CartRepositoryInterface                $quoteRepository,
+        QuoteIdMaskFactory                     $quoteIdMaskFactory,
+        QuoteIdMaskResourceModel               $quoteIdMaskResourceModel,
+        ShipmentEstimationInterface            $shipmentEstimation,
+        RegionFactory                          $regionFactory,
+        ShippingInformationManagementInterface $shippingInformationManagement,
+        ShippingInformationInterfaceFactory    $shippingInformationFactory,
+        ConfigProvider                         $configProvider,
+        ApplePayValidateMerchant               $validateMerchant,
+        ShippingAddressValidationRule          $shippingAddressValidationRule,
+        BillingAddressValidationRule           $billingAddressValidationRule,
+        ErrorLog                               $errorLog,
+        AgreementsConfigProvider               $agreementsConfigProvider,
+        Confirm                                $confirm,
+        OrderResourceInterface                 $orderResource
     )
     {
         $this->configuration = $configuration;
@@ -155,7 +155,7 @@ class Service implements ServiceInterface
         $this->errorLog = $errorLog;
         $this->agreementsConfigProvider = $agreementsConfigProvider;
         $this->confirm = $confirm;
-        $this->order = $order;
+        $this->orderResource = $orderResource;
     }
 
     /**
@@ -337,8 +337,7 @@ class Service implements ServiceInterface
         $product = $this->productRepository->getById(
             $this->request->getParam("product_id"),
             false,
-            $this->storeManager->getStore()->getId(),
-            false
+            $this->storeManager->getStore()->getId()
         );
         return $product->isVirtual();
     }

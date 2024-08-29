@@ -11,7 +11,7 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Model\Order;
-
+use Magento\Sales\Api\OrderRepositoryInterface;
 
 class PaymentIntentRepository
 {
@@ -31,9 +31,11 @@ class PaymentIntentRepository
     private PaymentIntentResource $paymentIntentResource;
 
     /**
-     * @var Order
+     * @var OrderRepositoryInterface
      */
-    private OrderInterface $order;
+    private OrderRepositoryInterface $orderRepository;
+
+
 
     /**
      * PaymentIntentRepository constructor.
@@ -41,19 +43,19 @@ class PaymentIntentRepository
      * @param PaymentIntentCollectionFactory $paymentIntentCollectionFactory
      * @param PaymentIntentFactory $paymentIntentFactory
      * @param PaymentIntentResource $paymentIntentResource
-     * @param OrderInterface $order
+     * @param OrderRepositoryInterface $orderRepository
      */
     public function __construct(
         PaymentIntentCollectionFactory $paymentIntentCollectionFactory,
         PaymentIntentFactory           $paymentIntentFactory,
         PaymentIntentResource          $paymentIntentResource,
-        OrderInterface                 $order
+        OrderRepositoryInterface $orderRepository
     )
     {
         $this->paymentIntentCollectionFactory = $paymentIntentCollectionFactory;
         $this->paymentIntentFactory = $paymentIntentFactory;
         $this->paymentIntentResource = $paymentIntentResource;
-        $this->order = $order;
+        $this->orderRepository = $orderRepository;
     }
 
 
@@ -176,25 +178,25 @@ class PaymentIntentRepository
     }
 
     /**
-     * @throws AlreadyExistsException
-     */
-    public function updateDetail($paymentIntent, $detail): void
-    {
-        $paymentIntent->setDetail($detail);
-        $this->paymentIntentResource->save($paymentIntent);
-    }
-
-    /**
      * @param string $paymentIntentId
      *
      * @return OrderInterface|null
      * @throws InputException
      * @throws NoSuchEntityException
      */
-    public function getOrder(string $paymentIntentId): ?OrderInterface
+    public function getOrder(string $paymentIntentId): ?Order
     {
         $record = $this->getByIntentId($paymentIntentId);
-        return $this->order->loadByIncrementIdAndStoreId($record->getOrderIncrementId(), $record->getStoreId());
+        return $this->orderRepository->get($record->getOrderId());
+    }
+
+    /**
+     * @throws AlreadyExistsException
+     */
+    public function updateDetail($paymentIntent, $detail): void
+    {
+        $paymentIntent->setDetail($detail);
+        $this->paymentIntentResource->save($paymentIntent);
     }
 
     /**

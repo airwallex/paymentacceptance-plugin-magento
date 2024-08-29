@@ -46,8 +46,6 @@ class CardMethod extends AbstractMethod
             return $this;
         }
 
-        $this->setTransactionId($payment, $intentId);
-
         $this->cache->save(true, $this->captureCacheName($intentId), [], 3600);
         try {
             $this->capture->setPaymentIntentId($intentId)->setInformation($order->getGrandTotal())->send();
@@ -55,12 +53,15 @@ class CardMethod extends AbstractMethod
             $this->logger->orderError($order, 'capture', $exception->getMessage());
             throw $exception;
         }
-
         return $this;
     }
 
+    /**
+     * @return string
+     */
     public function getConfigPaymentAction(): string
     {
-        return '';
+        if (!$this->isOrderCreatedHelper->isCreated()) return '';
+        return $this->getConfigData('airwallex_payment_action');
     }
 }

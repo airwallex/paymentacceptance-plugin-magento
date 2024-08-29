@@ -4,6 +4,7 @@ namespace Airwallex\Payments\Model\Methods;
 
 use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
 use Airwallex\Payments\Helper\CancelHelper;
+use Airwallex\Payments\Helper\IsOrderCreatedHelper;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Cancel;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Capture;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Confirm;
@@ -15,6 +16,7 @@ use GuzzleHttp\Exception\GuzzleException;
 use Magento\Checkout\Helper\Data as CheckoutData;
 use Magento\Framework\DataObject;
 use Magento\Framework\Event\ManagerInterface;
+use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Payment\Gateway\Command\CommandManagerInterface;
 use Magento\Payment\Gateway\Command\CommandPoolInterface;
@@ -24,7 +26,6 @@ use Magento\Payment\Gateway\Validator\ValidatorPoolInterface;
 use Magento\Payment\Model\InfoInterface;
 use Magento\Payment\Model\Method\Adapter;
 use Magento\Quote\Api\Data\CartInterface;
-use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Creditmemo;
 use Magento\Sales\Model\Order\Payment;
 use RuntimeException;
@@ -101,6 +102,7 @@ abstract class AbstractMethod extends Adapter
     protected CacheInterface $cache;
 
     protected Get $intentGet;
+    protected IsOrderCreatedHelper $isOrderCreatedHelper;
 
     /**
      * Payment constructor.
@@ -125,6 +127,7 @@ abstract class AbstractMethod extends Adapter
      * @param CacheInterface $cache
      * @param CommandPoolInterface|null $commandPool
      * @param ValidatorPoolInterface|null $validatorPool
+     * @param IsOrderCreatedHelper|null $isOrderCreatedHelper
      * @param CommandManagerInterface|null $commandExecutor
      */
     public function __construct(
@@ -146,6 +149,7 @@ abstract class AbstractMethod extends Adapter
         Get                           $intentGet,
         Logger                        $logger,
         CacheInterface                $cache,
+        IsOrderCreatedHelper          $isOrderCreatedHelper,
         CommandPoolInterface          $commandPool = null,
         ValidatorPoolInterface        $validatorPool = null,
         CommandManagerInterface       $commandExecutor = null
@@ -175,25 +179,7 @@ abstract class AbstractMethod extends Adapter
         $this->checkoutHelper = $checkoutHelper;
         $this->intentGet = $intentGet;
         $this->cache = $cache;
-    }
-
-    /**
-     * @param DataObject $data
-     *
-     * @return $this
-     * @throws LocalizedException
-     */
-    public function assignData(DataObject $data): self
-    {
-        $additionalData = $data->getData('additional_data');
-        $info = $this->getInfoInstance();
-        foreach (self::ADDITIONAL_DATA as $additionalDatum) {
-            if (isset($additionalData[$additionalDatum])) {
-                $info->setAdditionalInformation($additionalDatum, $additionalData[$additionalDatum]);
-            }
-        }
-
-        return $this;
+        $this->isOrderCreatedHelper = $isOrderCreatedHelper;
     }
 
     /**
@@ -206,16 +192,6 @@ abstract class AbstractMethod extends Adapter
     public function authorize(InfoInterface $payment, $amount): self
     {
         return $this;
-    }
-
-    /**
-     * @throws LocalizedException
-     */
-    protected function setTransactionId($payment, $intentId)
-    {
-        /** @var Payment $payment */
-        $payment->setTransactionId($intentId);
-        $payment->setIsTransactionClosed(false);
     }
 
     /**
@@ -259,12 +235,12 @@ abstract class AbstractMethod extends Adapter
 
     /**
      * @param InfoInterface $payment
-     * @param float $baseAmount
+     * @param float $amount
      *
      * @return $this
      * @throws Exception
      */
-    public function refund(InfoInterface $payment, $baseAmount): self
+    public function refund(InfoInterface $payment, $amount): self
     {
         /** @var Payment $payment */
         $credit = $payment->getCreditmemo();
@@ -318,8 +294,9 @@ abstract class AbstractMethod extends Adapter
     }
 
     /**
+     * @param $payment
      * @return string
-     * @throws LocalizedException
+     * @throws InputException
      */
     protected function getIntentId($payment): string
     {

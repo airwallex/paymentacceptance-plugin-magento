@@ -128,6 +128,7 @@ class Refund extends AbstractWebhook
      */
     private function createCreditMemo(Order $order, float $refundAmount, string $reason): void
     {
+        /** @var Order\Invoice $invoice */
         $invoice = $order->getInvoiceCollection()->getFirstItem();
 
         if (!$invoice) {

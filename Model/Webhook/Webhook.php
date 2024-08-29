@@ -4,6 +4,8 @@ namespace Airwallex\Payments\Model\Webhook;
 
 use Airwallex\Payments\Exception\WebhookException;
 use Airwallex\Payments\Helper\Configuration;
+use GuzzleHttp\Exception\GuzzleException;
+use JsonException;
 use Magento\Framework\App\Request\Http;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\InputException;
@@ -14,9 +16,7 @@ use stdClass;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\Quote\Api\CartRepositoryInterface;
-use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
-use Magento\Sales\Model\Order;
 use Magento\Quote\Api\CartManagementInterface;
 use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
 use Magento\Framework\App\CacheInterface;
@@ -74,11 +74,6 @@ class Webhook
     public OrderRepositoryInterface $orderRepository;
 
     /**
-     * @var Order
-     */
-    public OrderInterface $order;
-
-    /**
      * @var CartRepositoryInterface
      */
     public CartRepositoryInterface $quoteRepository;
@@ -113,7 +108,6 @@ class Webhook
         PaymentIntentRepository  $paymentIntentRepository,
         Get                      $intentGet,
         OrderRepositoryInterface $orderRepository,
-        OrderInterface           $order,
         CartRepositoryInterface  $quoteRepository,
         CartManagementInterface  $cartManagement,
         ErrorLog                 $errorLog,
@@ -130,7 +124,6 @@ class Webhook
         $this->paymentIntentRepository = $paymentIntentRepository;
         $this->intentGet = $intentGet;
         $this->orderRepository = $orderRepository;
-        $this->order = $order;
         $this->quoteRepository = $quoteRepository;
         $this->cartManagement = $cartManagement;
         $this->errorLog = $errorLog;
@@ -160,7 +153,9 @@ class Webhook
      *
      * @return void
      * @throws AlreadyExistsException
+     * @throws GuzzleException
      * @throws InputException
+     * @throws JsonException
      * @throws LocalizedException
      * @throws NoSuchEntityException
      * @throws WebhookException

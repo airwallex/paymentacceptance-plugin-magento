@@ -9,6 +9,7 @@ use JsonException;
 use Magento\Framework\App\ObjectManager;
 use Magento\Quote\Model\Quote;
 use Magento\Sales\Model\Order;
+use Magento\Sales\Model\Order\Payment;
 use Magento\Sales\Model\Order\Status\HistoryFactory;
 use ReflectionClass;
 
@@ -23,6 +24,16 @@ trait HelperTrait
             return round($amount / $rate, 4);
         }
         return round($amount * $rate, 4);
+    }
+
+    /**
+     * @param Payment $payment
+     * @param string $intentId
+     */
+    protected function setTransactionId(Payment $payment, string $intentId)
+    {
+        $payment->setTransactionId($intentId);
+        $payment->setIsTransactionClosed(false);
     }
 
     public function getBaseAmount(float $amount, float $rate, float $amountMax, float $baseAmountMax): float
@@ -269,23 +280,6 @@ trait HelperTrait
         }
     }
 
-    protected function authorize(Order $order, array $intentResponse)
-    {
-        $histories = $order->getStatusHistories();
-
-        $log = 'Authorized amount of ';
-        if ($histories) {
-            foreach ($histories as $history) {
-                if (!$history->getComment()) continue;
-                if (strstr($history->getComment(), $log)) return;
-            }
-        }
-        $message = $log . "{$this->totalPriceForComment($order)} online. Transaction ID: \"{$intentResponse['id']}\".";
-        $this->addComment($order, $message);
-        $this->addAVSResultToOrder($order, $intentResponse);
-
-    }
-
     public function addComment(Order $order, string $comment)
     {
         ObjectManager::getInstance()->get(HistoryFactory::class)->create()
@@ -309,5 +303,41 @@ trait HelperTrait
             return "$formatBasePrice($formatPrice)";
         }
         return $formatBasePrice;
+    }
+
+    /**
+     * @param $intentResponse
+     * @param int $orderId
+     * @param Quote $quote
+     * @param bool $isFromWebhook
+     * @return void
+     * @throws GuzzleException
+     * @throws JsonException
+     */
+    public function changeOrderStatus($intentResponse, int $orderId, Quote $quote, bool $isFromWebhook = false): void
+    {
+        $seconds = 5;
+        $lockKey = 'airwallex_change_order_status_' . $orderId;
+        if ($this->cache->load($lockKey)) {
+            sleep($seconds);
+        }
+        $this->cache->save('locked', $lockKey, [], $seconds);
+        try {
+            $order = $this->orderFactory->create();
+            $this->orderResource->load($order, $orderId);
+            $payment = $order->getPayment();
+            if ($payment && $payment->getAmountAuthorized() > 0 && $order->getStatus() === PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE) {
+                return;
+            }
+            if ($order->getTotalPaid() > 0) return;
+            $this->checkIntentWithOrder($intentResponse, $order);
+            $this->setTransactionId($order->getPayment(), $intentResponse['id']);
+            $this->orderManagement->place($order);
+            $this->addAVSResultToOrder($order, $intentResponse);
+            $quote->setIsActive(false);
+            $this->quoteRepository->save($quote);
+        } finally {
+            $this->cache->remove($lockKey);
+        }
     }
 }

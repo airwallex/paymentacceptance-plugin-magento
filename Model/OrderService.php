@@ -8,7 +8,7 @@ use Airwallex\Payments\Api\Data\PlaceOrderResponseInterfaceFactory;
 use Airwallex\Payments\Api\OrderServiceInterface;
 use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Helper\Configuration;
-use Airwallex\Payments\Model\Methods\CardMethod;
+use Airwallex\Payments\Helper\isOrderCreatedHelper;
 use Airwallex\Payments\Plugin\ReCaptchaValidationPlugin;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
@@ -25,16 +25,18 @@ use Magento\Quote\Api\Data\AddressInterface;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Quote\Api\Data\PaymentInterface;
 use Magento\Quote\Model\Quote;
+use Magento\Sales\Api\OrderManagementInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Magento\Framework\Exception\InputException;
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
-use Airwallex\Payments\Model\Methods\ExpressCheckout;
 use Airwallex\Payments\Model\Traits\HelperTrait;
-use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Api\TransactionRepositoryInterface;
+use Magento\Sales\Model\ResourceModel\Order\CollectionFactory as OrderCollectionFactory;
+use Magento\Sales\Model\OrderFactory;
+use Magento\Sales\Model\Spi\OrderResourceInterface;
 
 class OrderService implements OrderServiceInterface
 {
@@ -54,29 +56,13 @@ class OrderService implements OrderServiceInterface
     protected ErrorLog $errorLog;
     protected OrderRepositoryInterface $orderRepository;
     public PaymentIntentRepository $paymentIntentRepository;
-    public OrderInterface $order;
     private TransactionRepositoryInterface $transactionRepository;
+    private OrderCollectionFactory $orderCollectionFactory;
+    private OrderManagementInterface $orderManagement;
+    private IsOrderCreatedHelper $isOrderCreatedHelper;
+    private OrderFactory $orderFactory;
+    private OrderResourceInterface $orderResource;
 
-    /**
-     * Index constructor.
-     *
-     * @param PaymentConsentsInterface $paymentConsents
-     * @param PaymentIntents $paymentIntents
-     * @param Configuration $configuration
-     * @param CheckoutData $checkoutHelper
-     * @param GuestPaymentInformationManagementInterface $guestPaymentInformationManagement
-     * @param PaymentInformationManagementInterface $paymentInformationManagement
-     * @param PlaceOrderResponseInterfaceFactory $placeOrderResponseFactory
-     * @param CacheInterface $cache
-     * @param Get $intentGet
-     * @param CartRepositoryInterface $quoteRepository
-     * @param ReCaptchaValidationPlugin $reCaptchaValidationPlugin
-     * @param ErrorLog $errorLog
-     * @param OrderRepositoryInterface $orderRepository
-     * @param PaymentIntentRepository $paymentIntentRepository
-     * @param OrderInterface $order
-     * @param TransactionRepositoryInterface $transactionRepository
-     */
     public function __construct(
         PaymentConsentsInterface                   $paymentConsents,
         PaymentIntents                             $paymentIntents,
@@ -92,8 +78,12 @@ class OrderService implements OrderServiceInterface
         ErrorLog                                   $errorLog,
         OrderRepositoryInterface                   $orderRepository,
         PaymentIntentRepository                    $paymentIntentRepository,
-        OrderInterface                             $order,
-        TransactionRepositoryInterface $transactionRepository
+        TransactionRepositoryInterface             $transactionRepository,
+        OrderCollectionFactory                     $orderCollectionFactory,
+        OrderManagementInterface                   $orderManagement,
+        IsOrderCreatedHelper                       $isOrderCreatedHelper,
+        OrderFactory                               $orderFactory,
+        OrderResourceInterface                     $orderResource
     )
     {
         $this->paymentConsents = $paymentConsents;
@@ -110,8 +100,12 @@ class OrderService implements OrderServiceInterface
         $this->errorLog = $errorLog;
         $this->orderRepository = $orderRepository;
         $this->paymentIntentRepository = $paymentIntentRepository;
-        $this->order = $order;
         $this->transactionRepository = $transactionRepository;
+        $this->orderCollectionFactory = $orderCollectionFactory;
+        $this->orderManagement = $orderManagement;
+        $this->isOrderCreatedHelper = $isOrderCreatedHelper;
+        $this->orderFactory = $orderFactory;
+        $this->orderResource = $orderResource;
     }
 
     /**
@@ -177,7 +171,6 @@ class OrderService implements OrderServiceInterface
      * @throws LocalizedException
      * @throws JsonException
      * @throws NoSuchEntityException
-     * @throws \Magento\Framework\Validator\Exception
      * @throws GuzzleException
      * @throws InputException
      */
@@ -196,49 +189,23 @@ class OrderService implements OrderServiceInterface
         $uid = $quote->getCustomer()->getId();
 
         if (!$intentId) {
+            $this->isOrderCreatedHelper->setIsCreated(false);
             return $this->orderThenIntent($quote, $uid, $cartId, $paymentMethod, $billingAddress, $email, $from, $response);
         }
 
         $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
         $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
         $intentResponse = json_decode($resp, true);
-        /** @var Order $order */
-        $order = $this->orderRepository->get($paymentIntent->getOrderId());
+
         try {
-            $this->checkIntentWithOrder($intentResponse, $order);
-            $order->setIsInProcess(true);
-            $this->orderRepository->save($order);
-
-            $payment = $order->getPayment();
-            // todo is here need add the redirect method
-            if (($payment->getMethod() === CardMethod::CODE && !$this->configuration->isCardCaptureEnabled())
-                || ($payment->getMethod() === ExpressCheckout::CODE && !$this->configuration->isExpressCaptureEnabled())) {
-                $this->authorize($order, $intentResponse);
-            }
-
-//            $payment->setAmountAuthorized($totalDue);
-//            $payment->setBaseAmountAuthorized($baseTotalDue);
-
-                $payment->capture(null);
-//            $transaction = $this->transactionRepository->create();
-//            $transaction->setTxnId($intentId);
-//            $transaction->setOrderId($order->getId());
-//            $transaction->setPaymentId($order->getId());
-//            $transaction->setTxnType(TransactionInterface::TYPE_AUTH);
-//            $transaction->setIsClosed(false);
-//            $this->transactionRepository->save($transaction);
-
-
-            $quote->setIsActive(false);
-            $this->quoteRepository->save($quote);
+            $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote);
         } catch (Exception $e) {
             $message = trim($e->getMessage(), ' .') . '. Order status change failed. Please try again.';
             $this->errorLog->setMessage($message, $e->getTraceAsString(), $intentId)->send();
-            $response->setData([
+            return $response->setData([
                 'response_type' => 'error',
                 'message' => __($message),
             ]);
-            return $response;
         }
 
         if ($this->configuration->isCardVaultActive() && $from === 'card_with_saved') {
@@ -249,12 +216,10 @@ class OrderService implements OrderServiceInterface
             }
         }
 
-        $response->setData([
+        return $response->setData([
             'response_type' => 'success',
-            'order_id' => $order->getId()
+            'order_id' => $paymentIntent->getOrderId()
         ]);
-
-        return $response;
     }
 
     /**
@@ -276,13 +241,7 @@ class OrderService implements OrderServiceInterface
     public function orderThenIntent(Quote $quote, $uid, string $cartId, PaymentInterface $paymentMethod, ?AddressInterface $billingAddress, ?string $email, ?string $from, PlaceOrderResponse $response): PlaceOrderResponse
     {
         $order = $this->getOrderByQuote($quote);
-        $orderId = $order->getId();
-        if (
-            !$orderId
-            || !$this->isAmountEqual($order->getGrandTotal(), $quote->getGrandTotal())
-            || $order->getOrderCurrencyCode() !== $quote->getQuoteCurrencyCode()
-            || $this->paymentIntents->getProductsForCompare($this->getProducts($order)) !== $this->paymentIntents->getProductsForCompare($this->getProducts($quote))
-        ) {
+        if (!$this->isOrderEqualToQuote($order, $quote)) {
             if ($uid) {
                 $orderId = $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
                     $cartId,
@@ -305,25 +264,29 @@ class OrderService implements OrderServiceInterface
         $this->cache->save($from ?: $paymentMethod->getMethod(), $cacheName, [], 60);
 
         $intent = $this->paymentIntents->getIntentByOrder($order);
-
         $resp = $this->intentGet->setPaymentIntentId($intent['id'])->send();
         $intentResponse = json_decode($resp, true);
-        $this->checkIntent(
-            PaymentIntentInterface::INTENT_STATUS_SUCCEEDED,
-            $intentResponse['currency'],
-            $order->getOrderCurrencyCode(),
-            $intentResponse['merchant_order_id'],
-            $order->getIncrementId(),
-            floatval($intentResponse['amount']),
-            $order->getGrandTotal(),
-        );
+        $intentResponse['status'] = PaymentIntentInterface::INTENT_STATUS_SUCCEEDED;
+        $this->checkIntentWithOrder($intentResponse, $order);
 
         $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
-        $response->setData([
+        return $response->setData([
             'response_type' => 'confirmation_required',
             'intent_id' => $intent['id'],
             'client_secret' => $intent['clientSecret']
         ]);
-        return $response;
+    }
+
+    /**
+     * @param Order $order
+     * @param Quote $quote
+     * @return bool
+     */
+    public function isOrderEqualToQuote(Order $order, Quote $quote): bool
+    {
+        return $order->getId()
+            && $this->isAmountEqual($order->getGrandTotal(), $quote->getGrandTotal())
+            && $order->getOrderCurrencyCode() === $quote->getQuoteCurrencyCode()
+            && $this->paymentIntents->getProductsForCompare($this->getProducts($order)) === $this->paymentIntents->getProductsForCompare($this->getProducts($quote));
     }
 }

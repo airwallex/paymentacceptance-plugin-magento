@@ -116,7 +116,7 @@ class PaymentConsents implements PaymentConsentsInterface
      */
     public function createAirwallexCustomer(CustomerInterface $customer): string
     {
-        $eavSetup = $this->eavSetupFactory->create([]);
+        $eavSetup = $this->eavSetupFactory->create();
         $attr = $eavSetup->getAttribute(Customer::ENTITY, self::KEY_AIRWALLEX_CUSTOMER_ID);
         if (!$attr) {
             return '';
@@ -397,6 +397,7 @@ class PaymentConsents implements PaymentConsentsInterface
         }
 
         $allTokens = $this->tokenManagement->getListByCustomerId($customerId);
+        /** @var PaymentTokenInterface $token */
         foreach ($allTokens as $token) {
             $detail = $token->getTokenDetails();
             if (!$detail) continue;

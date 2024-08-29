@@ -93,7 +93,7 @@ class Cancel extends AbstractWebhook
 
         $this->cancelHelper->setWebhookCanceling(true);
         $order->cancel();
-        $order->addCommentToStatusHistory(__('Order canceled through Airwallex.'));
+        $order->addCommentToStatusHistory(__('Order canceled through Airwallex. Reason: ' . $data->cancellation_reason . '.'));
         try {
             $this->orderRepository->save($order);
         } catch (Exception $e) {

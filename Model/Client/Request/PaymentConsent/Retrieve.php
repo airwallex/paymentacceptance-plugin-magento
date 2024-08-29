@@ -43,11 +43,11 @@ class Retrieve extends AbstractClient implements BearerAuthenticationInterface
     /**
      * @param ResponseInterface $response
      *
-     * @return stdClass
+     * @return mixed|object
      * @throws JsonException
      * @throws LocalizedException
      */
-    protected function parseResponse(ResponseInterface $response)
+    protected function parseResponse(ResponseInterface $response): stdClass
     {
         if ($this->paymentConsentId === null) {
             throw new LocalizedException(__('Payment Consent ID not set'));
