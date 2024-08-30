@@ -109,7 +109,7 @@ class Capture extends AbstractWebhook
 
         /** @var Order $order */
         $order = $this->paymentIntentRepository->getOrder($intentId);
-        if ($this->isAmountEqual($order->getGrandTotal(), $data->captured_amount)) {
+        if ($this->isAmountEqual($order->getGrandTotal(), $data->captured_amount) && $order->getStatus() !== Order::STATE_PROCESSING) {
             $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
             $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
             $intentResponse = json_decode($resp, true);
