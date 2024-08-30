@@ -198,7 +198,7 @@ class OrderService implements OrderServiceInterface
             return $this->orderThenIntent($quote, $uid, $cartId, $paymentMethod, $billingAddress, $email, $from, $response);
         }
 
-        $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
+          $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
         $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
         $intentResponse = json_decode($resp, true);
 

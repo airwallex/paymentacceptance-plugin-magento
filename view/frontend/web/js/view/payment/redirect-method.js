@@ -9,8 +9,22 @@ define([
     'Magento_Checkout/js/action/redirect-on-success',
     'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
     'Magento_Checkout/js/model/quote',
+    'Magento_Customer/js/customer-data',
     'mage/translate'
-], function (Component, $, url, storage, globalMessageList, utils, additionalValidators, redirectOnSuccessAction, addressHandler, quote, $t) {
+], function (
+    Component,
+    $,
+    url,
+    storage,
+    globalMessageList,
+    utils,
+    additionalValidators,
+    redirectOnSuccessAction,
+    addressHandler,
+    quote,
+    customerData,
+    $t
+) {
     'use strict';
 
     return Component.extend({
@@ -81,17 +95,18 @@ define([
                     this.intentId(intentResponse.intent_id);
                     $("._active .qrcode-payment .qrcode").html('');
                     $("._active .qrcode-payment").css('display', 'flex');
-                    let nextAction = JSON.parse(intentResponse.next_action)
+                    let nextAction = JSON.parse(intentResponse.next_action);
                     // url qrcode_url qrcode
                     new QRCode(document.querySelector(".airwallex-payments._active .qrcode"), nextAction.url);
-                    if (this.timer) clearInterval(this.timer)
-                    this.timer = setInterval(async ()=>{
-                        let res = await this.getIntent(intentResponse.intent_id)
-                        let response = JSON.parse(res)
+                    if (this.timer) clearInterval(this.timer);
+                    this.timer = setInterval(async () => {
+                        let res = await this.getIntent(intentResponse.intent_id);
+                        let response = JSON.parse(res);
                         if (response.paid) {
+                            utils.clearDataAfterPay(response, customerData);
                             redirectOnSuccessAction.execute();
                         }
-                    }, 2500)
+                    }, 2500);
                 } catch (e) {
                     utils.error(e);
                     return;

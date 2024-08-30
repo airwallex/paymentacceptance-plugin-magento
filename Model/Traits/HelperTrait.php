@@ -4,7 +4,6 @@ namespace Airwallex\Payments\Model\Traits;
 
 use Airwallex\Payments\Api\Data\PaymentIntentInterface;
 use Airwallex\Payments\Model\Methods\AbstractMethod;
-use Airwallex\Payments\Model\Methods\RedirectMethod;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
@@ -275,8 +274,8 @@ trait HelperTrait
             if ($cvc_check) $cvc_check = ' CVC Result: ' . $cvc_check . '.';
             $log .= $brand . $last4 . $avs_check . $cvc_check;
             if ($log === $src) return;
-            $latestOrder = $this->orderRepository->get($order->getEntityId());
-            /** @var Order $latestOrder */
+            $latestOrder = $this->orderFactory->create();
+            $this->orderResource->load($latestOrder, $order->getEntityId());
             $this->addComment($latestOrder, $log);
         } catch (Exception $e) {
         }
@@ -328,7 +327,7 @@ trait HelperTrait
             $order = $this->orderFactory->create();
             $this->orderResource->load($order, $orderId);
             $payment = $order->getPayment();
-            if ($payment && $payment->getAmountAuthorized() > 0 && $order->getStatus() === PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE) {
+            if ($payment && $payment->getAmountAuthorized() > 0 && $intentResponse['status'] === PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE) {
                 return;
             }
             if ($order->getTotalPaid() > 0) return;
