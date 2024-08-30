@@ -271,6 +271,9 @@ class OrderService implements OrderServiceInterface
         $intentResponse['status'] = PaymentIntentInterface::INTENT_STATUS_SUCCEEDED;
         $this->checkIntentWithOrder($intentResponse, $order);
 
+        $order->setState(Order::STATE_PENDING_PAYMENT)->setStatus(Order::STATE_PENDING_PAYMENT);
+        $this->orderResource->save($order);
+
         $data = [
             'response_type' => 'confirmation_required',
             'intent_id' => $intent['id'],

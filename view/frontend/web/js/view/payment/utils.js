@@ -133,7 +133,7 @@ define([
         validateAgreements: function (selector) {
             var checkoutConfig = window.checkoutConfig,
             agreementsConfig = checkoutConfig ? checkoutConfig.checkoutAgreements : {};
-    
+
             var isValid = true;
 
             if (!agreementsConfig.isEnabled || $(selector).length === 0) {
@@ -165,7 +165,7 @@ define([
             $(this.agreementSelector).each(function() {
                 if (!this.checked) {
                     status = false;
-                    return false; 
+                    return false;
                 }
             });
             return status;
@@ -287,7 +287,7 @@ define([
         async getRegionId(country, region) {
             let url = urlBuilder.build('rest/V1/airwallex/region_id?country=' + country + '&region=' + region);
             return await storage.get(url, undefined, 'application/json', {});
-        },        
+        },
 
         isRequireShippingAddress() {
             if (this.isProductPage()) {
@@ -416,8 +416,8 @@ define([
             } catch (e) {
                 if (e.status === 404) {
                     this.clearDataAfterPay({}, customerData)
-                    this.redirectToSuccess();
-                    return;
+                    // this.redirectToSuccess();
+                    // return;
                 }
                 throw e;
             }
@@ -471,7 +471,7 @@ define([
             let agreementForm = $('.payment-method._active div[data-role=checkout-agreements] input');
             let agreementData = agreementForm.serializeArray();
             let agreementIds = [];
-    
+
             agreementData.forEach(function (item) {
                 agreementIds.push(item.value);
             });

@@ -137,6 +137,11 @@ class PaymentIntents
 
     public function isRequiredToGenerateIntent(Order $order, PaymentIntent $paymentIntent): bool
     {
+        $freshOrder = $this->orderFactory->create();
+        $this->orderResource->load($freshOrder, $order->getId());
+        if ($order->getStatus() !== Order::STATE_PENDING_PAYMENT) {
+            return true;
+        }
         if (!$paymentIntent->getDetail()) return false;
         $detail = json_decode($paymentIntent->getDetail(), true);
         if (empty($detail['products'])) return false;

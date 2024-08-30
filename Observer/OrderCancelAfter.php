@@ -16,6 +16,7 @@ use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
+use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Sales\Model\Order;
 
 class OrderCancelAfter implements ObserverInterface
@@ -27,13 +28,15 @@ class OrderCancelAfter implements ObserverInterface
     protected ErrorLog $errorLog;
     protected CacheInterface $cache;
     protected CancelHelper $cancelHelper;
+    protected CartRepositoryInterface $quoteRepository;
 
     public function __construct(
         PaymentIntentRepository  $paymentIntentRepository,
         Cancel                   $cancel,
         ErrorLog                 $errorLog,
         CacheInterface           $cache,
-        CancelHelper             $cancelHelper
+        CancelHelper             $cancelHelper,
+        CartRepositoryInterface   $quoteRepository
     )
     {
         $this->paymentIntentRepository = $paymentIntentRepository;
@@ -41,6 +44,7 @@ class OrderCancelAfter implements ObserverInterface
         $this->errorLog = $errorLog;
         $this->cache = $cache;
         $this->cancelHelper = $cancelHelper;
+        $this->quoteRepository = $quoteRepository;
     }
 
     /**
@@ -61,5 +65,10 @@ class OrderCancelAfter implements ObserverInterface
         $order = $observer->getOrder();
         $method = $order->getPayment()->getMethod();
         if (strpos($method, 'airwallex') !== 0) return;
+        $quote = $this->quoteRepository->get($order->getQuoteId());
+        if ($quote->getIsActive()) {
+            $quote->setIsActive(false);
+            $this->quoteRepository->save($quote);
+        }
     }
 }
