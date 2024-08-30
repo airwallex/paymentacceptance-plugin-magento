@@ -8,7 +8,6 @@ use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Framework\App\CacheInterface;
-use Magento\Framework\Serialize\SerializerInterface;
 use Magento\Checkout\Helper\Data as CheckoutData;
 
 class AvailablePaymentMethodsHelper
@@ -24,11 +23,6 @@ class AvailablePaymentMethodsHelper
      * @var CacheInterface
      */
     private CacheInterface $cache;
-
-    /**
-     * @var SerializerInterface
-     */
-    private SerializerInterface $serializer;
 
     /**
      * @var Configuration
@@ -50,21 +44,18 @@ class AvailablePaymentMethodsHelper
      *
      * @param AvailablePaymentMethods $availablePaymentMethod
      * @param CacheInterface $cache
-     * @param SerializerInterface $serializer
      * @param Configuration $configuration
      * @param CheckoutData $checkoutHelper
      */
     public function __construct(
         AvailablePaymentMethods $availablePaymentMethod,
         CacheInterface          $cache,
-        SerializerInterface     $serializer,
         Configuration           $configuration,
         CheckoutData            $checkoutHelper
     )
     {
         $this->availablePaymentMethod = $availablePaymentMethod;
         $this->cache = $cache;
-        $this->serializer = $serializer;
         $this->configuration = $configuration;
         $this->checkoutHelper = $checkoutHelper;
     }
@@ -89,7 +80,7 @@ class AvailablePaymentMethodsHelper
      * @param string $code
      *
      * @return bool
-     * @throws GuzzleException
+     * @throws GuzzleException|JsonException
      */
     public function isAvailable(string $code): bool
     {
@@ -107,57 +98,44 @@ class AvailablePaymentMethodsHelper
      * @throws GuzzleException
      * @throws JsonException
      */
-    private function fetch()
+    private function getItems()
     {
-        return $this->availablePaymentMethod->setCurrency($this->getCurrencyCode())->setResources()->setActive()->send();
+        $items = $this->cache->load($this->getCacheName());
+        if ($items) return json_decode($items, true);
+
+        $resp = $this->availablePaymentMethod
+            ->setCurrency($this->getCurrencyCode())
+            ->setResources()
+            ->setActive()
+            ->setTransactionMode(AvailablePaymentMethods::TRANSACTION_MODE)
+            ->send();
+        $this->cache->save(json_encode($resp), $this->getCacheName(), AbstractMethod::CACHE_TAGS, self::CACHE_TIME);
+        return $resp;
     }
 
     /**
      * @return array
      * @throws GuzzleException
+     * @throws JsonException
      */
     private function getAllMethods(): array
     {
-        $methods = $this->cache->load($this->getCacheName());
-
-        if ($methods) {
-            return $this->serializer->unserialize($methods);
+        $items = $this->getItems();
+        $methods = [];
+        foreach ($items as $item) {
+            if (!empty($item['name'])) $methods[] = $item['name'];
         }
-
-        try {
-            $methods = $this->fetch();
-        } catch (Exception $e) {
-            $methods = [];
-        }
-
-        $this->cache->save(
-            $this->serializer->serialize($methods),
-            $this->getCacheName(),
-            AbstractMethod::CACHE_TAGS,
-            self::CACHE_TIME
-        );
         return $methods;
     }
 
     /**
      * @return array
      * @throws GuzzleException
+     * @throws JsonException
      */
     public function getAllPaymentMethodTypes(): array
     {
-        $methods = $this->cache->load($this->availablePaymentMethod->cacheName);
-
-        if (!$methods) {
-            try {
-                $this->fetch();
-            } catch (Exception $e) {
-            }
-            $methods = $this->cache->load($this->availablePaymentMethod->cacheName);
-        }
-        if (!$methods) {
-            return [];
-        }
-        return json_decode($methods, true);
+        return $this->getItems();
     }
 
     /**

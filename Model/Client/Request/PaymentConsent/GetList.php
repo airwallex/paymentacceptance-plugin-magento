@@ -121,8 +121,8 @@ class GetList extends AbstractClient implements BearerAuthenticationInterface
         if (!$methods) {
             return [];
         }
-        foreach ($methods['items'] as $method) {
-            if ($method['name'] === 'card' && $method['transaction_mode'] === "recurring") {
+        foreach ($methods as $method) {
+            if ($method['name'] === 'card') {
                 return $method['card_schemes'];
             }
         }

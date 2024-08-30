@@ -115,11 +115,14 @@ abstract class AbstractClient
      */
     public function send()
     {
-        $client = new Client([
+        $data = [
             'base_uri' => $this->configuration->getApiUrl(),
             'timeout' => self::TIME_OUT,
-            'handler' => $this->requestLogger->getStack()
-        ]);
+        ];
+        if ($this->getMethod() !== 'GET') {
+            $data['handler'] = $this->requestLogger->getStack();
+        }
+        $client = new Client($data);
 
         $request = $this->createRequest($client);
         $statusCode = $request->getStatusCode();

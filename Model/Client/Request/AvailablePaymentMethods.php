@@ -9,7 +9,7 @@ use Psr\Http\Message\ResponseInterface;
 
 class AvailablePaymentMethods extends AbstractClient implements BearerAuthenticationInterface
 {
-    private const TRANSACTION_MODE = 'oneoff';
+    public const TRANSACTION_MODE = 'oneoff';
 
     public string $cacheName = 'available_payment_method_types';
 
@@ -33,6 +33,11 @@ class AvailablePaymentMethods extends AbstractClient implements BearerAuthentica
         return $this->setParam('active', 'true');
     }
 
+    public function setTransactionMode(string $mode): self
+    {
+        return $this->setParam('transaction_mode', $mode);
+    }
+
     /**
      * @return string
      */
@@ -53,21 +58,12 @@ class AvailablePaymentMethods extends AbstractClient implements BearerAuthentica
      * @param ResponseInterface $response
      *
      * @return array
-     * @throws JsonException
      */
     protected function parseResponse(ResponseInterface $response): array
     {
-        $this->cache->save(
-            $response->getBody(),
-            $this->cacheName,
-            [],
-            60
-        );
-
-        $response = $this->parseJson($response);
-
-        return array_map(static function (object $item) {
-            return $item->name;
-        }, $response->items);
+        $content = $response->getBody()->getContents();
+        if (empty($content)) return [];
+        $content = json_decode($content, true);
+        return $content['items'] ?? [];
     }
 }

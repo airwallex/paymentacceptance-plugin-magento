@@ -26,7 +26,6 @@ use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Quote\Api\Data\PaymentInterface;
 use Magento\Quote\Model\Quote;
 use Magento\Sales\Api\OrderManagementInterface;
-use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Magento\Framework\Exception\InputException;
@@ -56,7 +55,6 @@ class OrderService implements OrderServiceInterface
     private CartRepositoryInterface $quoteRepository;
     private ReCaptchaValidationPlugin $reCaptchaValidationPlugin;
     protected ErrorLog $errorLog;
-    protected OrderRepositoryInterface $orderRepository;
     public PaymentIntentRepository $paymentIntentRepository;
     private TransactionRepositoryInterface $transactionRepository;
     private OrderCollectionFactory $orderCollectionFactory;
@@ -79,7 +77,6 @@ class OrderService implements OrderServiceInterface
         CartRepositoryInterface                    $quoteRepository,
         ReCaptchaValidationPlugin                  $reCaptchaValidationPlugin,
         ErrorLog                                   $errorLog,
-        OrderRepositoryInterface                   $orderRepository,
         PaymentIntentRepository                    $paymentIntentRepository,
         TransactionRepositoryInterface             $transactionRepository,
         OrderCollectionFactory                     $orderCollectionFactory,
@@ -102,7 +99,6 @@ class OrderService implements OrderServiceInterface
         $this->quoteRepository = $quoteRepository;
         $this->reCaptchaValidationPlugin = $reCaptchaValidationPlugin;
         $this->errorLog = $errorLog;
-        $this->orderRepository = $orderRepository;
         $this->paymentIntentRepository = $paymentIntentRepository;
         $this->transactionRepository = $transactionRepository;
         $this->orderCollectionFactory = $orderCollectionFactory;
@@ -198,7 +194,7 @@ class OrderService implements OrderServiceInterface
             return $this->orderThenIntent($quote, $uid, $cartId, $paymentMethod, $billingAddress, $email, $from, $response);
         }
 
-          $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
+        $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
         $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
         $intentResponse = json_decode($resp, true);
 
@@ -262,8 +258,8 @@ class OrderService implements OrderServiceInterface
                     $billingAddress
                 );
             }
-            /** @var Order $order */
-            $order = $this->orderRepository->get($orderId);
+            $order = $this->orderFactory->create();
+            $this->orderResource->load($order, $orderId);
         }
 
         $cacheName = AbstractClient::METADATA_PAYMENT_METHOD_PREFIX . $quote->getEntityId();

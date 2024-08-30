@@ -11,7 +11,8 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Model\Order;
-use Magento\Sales\Api\OrderRepositoryInterface;
+use Magento\Sales\Model\OrderFactory;
+use Magento\Sales\Model\Spi\OrderResourceInterface;
 
 class PaymentIntentRepository
 {
@@ -31,10 +32,14 @@ class PaymentIntentRepository
     private PaymentIntentResource $paymentIntentResource;
 
     /**
-     * @var OrderRepositoryInterface
+     * @var OrderFactory
      */
-    private OrderRepositoryInterface $orderRepository;
+    private OrderFactory $orderFactory;
 
+    /**
+     * @var OrderResourceInterface
+     */
+    private OrderResourceInterface $orderResource;
 
 
     /**
@@ -43,19 +48,22 @@ class PaymentIntentRepository
      * @param PaymentIntentCollectionFactory $paymentIntentCollectionFactory
      * @param PaymentIntentFactory $paymentIntentFactory
      * @param PaymentIntentResource $paymentIntentResource
-     * @param OrderRepositoryInterface $orderRepository
+     * @param OrderFactory $orderFactory
+     * @param OrderResourceInterface $orderResource
      */
     public function __construct(
         PaymentIntentCollectionFactory $paymentIntentCollectionFactory,
         PaymentIntentFactory           $paymentIntentFactory,
         PaymentIntentResource          $paymentIntentResource,
-        OrderRepositoryInterface $orderRepository
+        OrderFactory                   $orderFactory,
+        OrderResourceInterface         $orderResource
     )
     {
         $this->paymentIntentCollectionFactory = $paymentIntentCollectionFactory;
         $this->paymentIntentFactory = $paymentIntentFactory;
         $this->paymentIntentResource = $paymentIntentResource;
-        $this->orderRepository = $orderRepository;
+        $this->orderFactory = $orderFactory;
+        $this->orderResource = $orderResource;
     }
 
 
@@ -187,7 +195,9 @@ class PaymentIntentRepository
     public function getOrder(string $paymentIntentId): ?Order
     {
         $record = $this->getByIntentId($paymentIntentId);
-        return $this->orderRepository->get($record->getOrderId());
+        $order = $this->orderFactory->create();
+        $this->orderResource->load($order, $record->getOrderId());
+        return $order;
     }
 
     /**

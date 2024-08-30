@@ -19,8 +19,9 @@ use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\UrlInterface;
 use Magento\Quote\Model\QuoteRepository;
 use JsonException;
-use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
+use Magento\Sales\Model\OrderFactory;
+use Magento\Sales\Model\Spi\OrderResourceInterface;
 
 class PaymentIntents
 {
@@ -34,8 +35,9 @@ class PaymentIntents
     private QuoteRepository $quoteRepository;
     private Logger $logger;
     private UrlInterface $urlInterface;
-    private OrderRepositoryInterface $orderRepository;
     private PaymentIntentRepository $paymentIntentRepository;
+    private OrderFactory $orderFactory;
+    private OrderResourceInterface $orderResource;
 
     public function __construct(
         PaymentConsentsInterface $paymentConsents,
@@ -46,8 +48,9 @@ class PaymentIntents
         QuoteRepository          $quoteRepository,
         Logger                   $logger,
         UrlInterface             $urlInterface,
-        OrderRepositoryInterface $orderRepository,
-        PaymentIntentRepository  $paymentIntentRepository
+        PaymentIntentRepository  $paymentIntentRepository,
+        OrderFactory             $orderFactory,
+        OrderResourceInterface   $orderResource
     )
     {
         $this->paymentConsents = $paymentConsents;
@@ -59,7 +62,8 @@ class PaymentIntents
         $this->logger = $logger;
         $this->urlInterface = $urlInterface;
         $this->paymentIntentRepository = $paymentIntentRepository;
-        $this->orderRepository = $orderRepository;
+        $this->orderFactory = $orderFactory;
+        $this->orderResource = $orderResource;
     }
 
     /**
@@ -106,8 +110,8 @@ class PaymentIntents
      */
     public function getIntentByOrderId(int $orderId): array
     {
-        /** @var Order $order */
-        $order = $this->orderRepository->get($orderId);
+        $order = $this->orderFactory->create();
+        $this->orderResource->load($order, $orderId);
         return $this->getIntentByOrder($order);
     }
 

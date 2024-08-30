@@ -15,7 +15,6 @@ use Airwallex\Payments\Model\PaymentIntentRepository;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
-use Magento\Sales\Api\OrderRepositoryInterface;
 use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
 use Magento\Sales\Model\Order;
 
@@ -25,7 +24,6 @@ class OrderCancelAfter implements ObserverInterface
 
     private Cancel $cancel;
     protected PaymentIntentRepository $paymentIntentRepository;
-    protected OrderRepositoryInterface $orderRepository;
     protected ErrorLog $errorLog;
     protected CacheInterface $cache;
     protected CancelHelper $cancelHelper;
@@ -33,14 +31,12 @@ class OrderCancelAfter implements ObserverInterface
     public function __construct(
         PaymentIntentRepository  $paymentIntentRepository,
         Cancel                   $cancel,
-        OrderRepositoryInterface $orderRepository,
         ErrorLog                 $errorLog,
         CacheInterface           $cache,
         CancelHelper             $cancelHelper
     )
     {
         $this->paymentIntentRepository = $paymentIntentRepository;
-        $this->orderRepository = $orderRepository;
         $this->cancel = $cancel;
         $this->errorLog = $errorLog;
         $this->cache = $cache;
