@@ -2,6 +2,7 @@
 
 namespace Airwallex\Payments\Model\Webhook;
 
+use Airwallex\Payments\Helper\IntentHelper;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
@@ -41,6 +42,7 @@ class Capture extends AbstractWebhook
     private PaymentIntentRepository $paymentIntentRepository;
     private OrderRepositoryInterface $orderRepository;
     private OrderResourceInterface $orderResource;
+    public IntentHelper $intentHelper;
 
     /**
      * Capture constructor.
@@ -55,6 +57,7 @@ class Capture extends AbstractWebhook
      * @param PaymentIntentRepository $paymentIntentRepository
      * @param OrderRepositoryInterface $orderRepository
      * @param OrderResourceInterface $orderResource
+     * @param IntentHelper $intentHelper
      */
     public function __construct(
         InvoiceService           $invoiceService,
@@ -66,7 +69,8 @@ class Capture extends AbstractWebhook
         OrderFactory             $orderFactory,
         PaymentIntentRepository  $paymentIntentRepository,
         OrderRepositoryInterface $orderRepository,
-        OrderResourceInterface   $orderResource
+        OrderResourceInterface   $orderResource,
+        IntentHelper             $intentHelper
     )
     {
         $this->invoiceService = $invoiceService;
@@ -79,6 +83,7 @@ class Capture extends AbstractWebhook
         $this->paymentIntentRepository = $paymentIntentRepository;
         $this->orderRepository = $orderRepository;
         $this->orderResource = $orderResource;
+        $this->intentHelper = $intentHelper;
     }
 
     /**
@@ -109,6 +114,7 @@ class Capture extends AbstractWebhook
             $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
             $intentResponse = json_decode($resp, true);
             $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
+            $this->intentHelper->setIntent($intentResponse);
             $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote, true);
             return;
         }

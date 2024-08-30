@@ -49,7 +49,8 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
             ];
         } else {
             $data[$method] = [
-                'flow' => $isMobile ? self::MOBILE_FLOW : self::DESKTOP_FLOW
+//                'flow' => $isMobile ? self::MOBILE_FLOW : self::DESKTOP_FLOW
+                'flow' => 'qrcode'
             ];
         }
 
@@ -73,13 +74,13 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
     /**
      * @param ResponseInterface $response
      *
-     * @return string
+     * @return array
      * @throws JsonException
      */
-    protected function parseResponse(ResponseInterface $response): string
+    protected function parseResponse(ResponseInterface $response): array
     {
         $response = $this->parseJson($response);
 
-        return $response->next_action->url;
+        return (array)$response->next_action ?? [];
     }
 }

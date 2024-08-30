@@ -2,12 +2,14 @@
 
 namespace Airwallex\Payments\Model\Methods;
 
+use Airwallex\Payments\Api\Data\PaymentIntentInterface;
 use Airwallex\Payments\Model\Client\AbstractClient;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Payment\Model\InfoInterface;
+use Magento\Payment\Model\MethodInterface;
 use Magento\Quote\Api\Data\CartInterface;
 use Magento\Sales\Model\Order\Payment;
 use Mobile_Detect;
@@ -25,59 +27,6 @@ class RedirectMethod extends AbstractMethod
     public const PAY_NOW_CODE = 'airwallex_payments_pay_now';
 
     /**
-     * @param InfoInterface $payment
-     * @param float $amount
-     *
-     * @return $this
-     * @throws GuzzleException
-     * @throws AlreadyExistsException
-     * @throws LocalizedException|JsonException
-     */
-    public function authorize(InfoInterface $payment, $amount): self
-    {
-        $cacheName = AbstractClient::METADATA_PAYMENT_METHOD_PREFIX . $this->checkoutHelper->getQuote()->getEntityId();
-        /** @var Payment $payment */
-        $this->cache->save($payment->getMethod(), $cacheName, [], 60);
-        $intendResponse = $this->paymentIntents->getIntent(); // todo
-        $returnUrl = $this->getAirwallexPaymentsRedirectUrl($intendResponse['id']);
-        $this->checkoutHelper->getCheckout()->setAirwallexPaymentsRedirectUrl($returnUrl);
-        return $this;
-    }
-
-    /**
-     * @throws GuzzleException
-     * @throws LocalizedException
-     */
-    public function getAirwallexPaymentsRedirectUrl($intentId)
-    {
-        $detect = new Mobile_Detect();
-        try {
-            $returnUrl = $this->confirm
-                ->setPaymentIntentId($intentId)
-                ->setInformation($this->getPaymentMethodCode(), $detect->isMobile(), $this->getMobileOS($detect))
-                ->send();
-        } catch (Exception $exception) {
-            throw new LocalizedException(__($exception->getMessage()));
-        }
-
-        return $returnUrl;
-    }
-
-    /**
-     * @param Mobile_Detect $detect
-     *
-     * @return string|null
-     */
-    private function getMobileOS(Mobile_Detect $detect): ?string
-    {
-        if (!$detect->isMobile()) {
-            return null;
-        }
-
-        return $detect->isAndroidOS() ? 'android' : 'ios';
-    }
-
-    /**
      * @param CartInterface|null $quote
      *
      * @return bool
@@ -87,5 +36,15 @@ class RedirectMethod extends AbstractMethod
     {
         return parent::isAvailable($quote) &&
             $this->availablePaymentMethodsHelper->isMobileDetectInstalled();
+    }
+
+    public function getConfigPaymentAction(): string
+    {
+        if (!$this->isOrderCreatedHelper->isCreated()) return '';
+        $intent = $this->intentHelper->getIntent();
+        if ($intent['status'] ===  PaymentIntentInterface::INTENT_STATUS_SUCCEEDED) {
+            return MethodInterface::ACTION_AUTHORIZE_CAPTURE;
+        }
+        return MethodInterface::ACTION_AUTHORIZE;
     }
 }

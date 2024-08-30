@@ -7,11 +7,6 @@ use Exception;
 interface ServiceInterface
 {
     /**
-     * @return string
-     */
-    public function redirectUrl(): string;
-
-    /**
      * Get express data when initialize and quote data updated
      *
      * @return string

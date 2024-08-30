@@ -3,6 +3,8 @@
 namespace Airwallex\Payments\Model\Traits;
 
 use Airwallex\Payments\Api\Data\PaymentIntentInterface;
+use Airwallex\Payments\Model\Methods\AbstractMethod;
+use Airwallex\Payments\Model\Methods\RedirectMethod;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
@@ -339,5 +341,15 @@ trait HelperTrait
         } finally {
             $this->cache->remove($lockKey);
         }
+    }
+
+
+    /**
+     * @param $code
+     * @return string
+     */
+    protected function getPaymentMethodCode($code): string
+    {
+        return str_replace(AbstractMethod::PAYMENT_PREFIX, '', $code);
     }
 }

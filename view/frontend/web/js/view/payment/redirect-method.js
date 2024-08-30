@@ -2,6 +2,7 @@ define([
     'Airwallex_Payments/js/view/payment/abstract-method',
     'jquery',
     'mage/url',
+    'mage/storage',
     'Magento_Ui/js/model/messageList',
     'Airwallex_Payments/js/view/payment/utils',
     'Magento_Checkout/js/model/payment/additional-validators',
@@ -9,13 +10,14 @@ define([
     'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
     'Magento_Checkout/js/model/quote',
     'mage/translate'
-], function (Component, $, url, globalMessageList, utils, additionalValidators, redirectOnSuccessAction, addressHandler, quote, $t) {
+], function (Component, $, url, storage, globalMessageList, utils, additionalValidators, redirectOnSuccessAction, addressHandler, quote, $t) {
     'use strict';
 
     return Component.extend({
         type: 'redirect',
         redirectAfterPlaceOrder: false,
         defaults: {
+            timer: null,
             template: 'Airwallex_Payments/payment/redirect-method'
         },
 
@@ -26,7 +28,7 @@ define([
         },
 
         placeOrder: async function (data, event) {
-            var self = this;
+            let self = this;
 
             if (event) {
                 event.preventDefault();
@@ -69,61 +71,42 @@ define([
                     if (!utils.isLoggedIn()) {
                         payload.email = quote.guestEmail;
                     }
-    
+
                     await addressHandler.postBillingAddress({
                         'cartId': quote.getQuoteId(),
                         'address': quote.billingAddress()
                     }, utils.isLoggedIn(), quote.getQuoteId());
-    
+
                     let intentResponse = await utils.getIntent(payload, {});
-                    this.intentId(intentResponse.intent_id)
-                } catch (e) { 
-                    $('body').trigger('processStop'); 
-                    self.isPlaceOrderActionAllowed(true);
-                    utils.error(e); 
+                    this.intentId(intentResponse.intent_id);
+                    $("._active .qrcode-payment .qrcode").html('');
+                    $("._active .qrcode-payment").css('display', 'flex');
+                    let nextAction = JSON.parse(intentResponse.next_action)
+                    // url qrcode_url qrcode
+                    new QRCode(document.querySelector(".airwallex-payments._active .qrcode"), nextAction.url);
+                    if (this.timer) clearInterval(this.timer)
+                    this.timer = setInterval(async ()=>{
+                        let res = await this.getIntent(intentResponse.intent_id)
+                        let response = JSON.parse(res)
+                        if (response.paid) {
+                            redirectOnSuccessAction.execute();
+                        }
+                    }, 2500)
+                } catch (e) {
+                    utils.error(e);
                     return;
+                } finally {
+                    self.isPlaceOrderActionAllowed(true);
+                    $('body').trigger('processStop');
                 }
-
-                this.getPlaceOrderDeferredObject()
-                    .done(
-                        function () {
-                            self.afterPlaceOrder();
-
-                            if (self.redirectAfterPlaceOrder) {
-                                redirectOnSuccessAction.execute();
-                            }
-                        }
-                    ).always(
-                        function () {
-                            self.isPlaceOrderActionAllowed(true);
-                        }
-                    );
-
                 return true;
             }
-
             return false;
         },
 
-        afterPlaceOrder: function () {
-            $.ajax({
-                url: url.build('rest/V1/airwallex/payments/redirect_url'),
-                method: 'POST',
-                contentType: 'application/json',
-                data: {},
-                beforeSend: function () {
-                    $('body').trigger('processStart');
-                },
-                success: function (response) {
-                    $.mage.redirect(response);
-                },
-                error: function (e) {
-                    globalMessageList.addErrorMessage({
-                        message: $t(e.responseJSON.message)
-                    });
-                    $('body').trigger('processStop');
-                }
-            });
-        }
+        async getIntent(intentId) {
+            let requestUrl = url.build('rest/V1/airwallex/payments/intent?intent_id=' + intentId);
+            return storage.get(requestUrl, undefined, 'application/json', {});
+        },
     });
 });

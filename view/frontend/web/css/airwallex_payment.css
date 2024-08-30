@@ -40,7 +40,7 @@
 }
 
 .aws-button-mask,
-.aws-button-mask-for-login, 
+.aws-button-mask-for-login,
 .aws-button-mask-for-agreement {
     position: absolute;
     top: 0;
@@ -191,4 +191,15 @@
 
 .airwallex input[type="checkbox"] {
     margin-top: -5px;
+}
+
+.qrcode-payment {
+    display: none;
+    justify-content: center;
+}
+
+.qrcode-payment .qrcode {
+    border: 1px solid darkgrey;
+    padding: 10px;
+    margin: 10px;
 }

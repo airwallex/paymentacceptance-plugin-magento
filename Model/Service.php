@@ -159,25 +159,6 @@ class Service implements ServiceInterface
     }
 
     /**
-     * Return URL
-     *
-     * @return string
-     * @throws LocalizedException
-     */
-    public function redirectUrl(): string
-    {
-        $checkout = $this->checkoutHelper->getCheckout();
-
-        if (empty($checkout->getLastRealOrderId())) {
-            throw new LocalizedException(
-                __("Sorry, the order could not be placed. Please contact us for more help.")
-            );
-        }
-
-        return $checkout->getAirwallexPaymentsRedirectUrl();
-    }
-
-    /**
      * Get region id
      *
      * @param string $country
@@ -191,25 +172,6 @@ class Service implements ServiceInterface
             $regionId = $this->regionFactory->create()->loadByCode($region, $country)->getRegionId();
         }
         return $regionId ?? 0;
-    }
-
-    /**
-     * @throws GuzzleException
-     * @throws JsonException
-     */
-    protected function getRedirectUrl($intentId, $code)
-    {
-        $detect = new Mobile_Detect();
-        $shortCode = str_replace(AbstractMethod::PAYMENT_PREFIX, '', $code);
-        $os = '';
-        if ($detect->isMobile()) {
-            $os = $detect->isAndroidOS() ? 'android' : 'ios';
-        }
-
-        return $this->confirm
-            ->setPaymentIntentId($intentId)
-            ->setInformation($shortCode, $detect->isMobile(), $os)
-            ->send();
     }
 
     /**

@@ -27,18 +27,18 @@ class PlaceOrderResponse extends DataObject implements PlaceOrderResponseInterfa
     /**
      * @return string|null
      */
-    public function getRedirectUrl(): ?string
+    public function getNextAction(): ?string
     {
-        return $this->getData(self::DATA_KEY_REDIRECT_URL);
+        return $this->getData(self::DATA_KEY_NEXT_ACTION);
     }
 
     /**
-     * @param string|null $redirectUrl
+     * @param string|null $nextAction
      * @return PlaceOrderResponse
      */
-    public function setRedirectUrl(string $redirectUrl = null): PlaceOrderResponse
+    public function setNextAction(string $nextAction = null): PlaceOrderResponse
     {
-        return $this->setData(self::DATA_KEY_INTENT_ID, $redirectUrl);
+        return $this->setData(self::DATA_KEY_INTENT_ID, $nextAction);
     }
 
     /**

@@ -37,6 +37,8 @@ use Magento\Sales\Api\TransactionRepositoryInterface;
 use Magento\Sales\Model\ResourceModel\Order\CollectionFactory as OrderCollectionFactory;
 use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
+use Airwallex\Payments\Model\Client\Request\PaymentIntents\Confirm;
+use Mobile_Detect;
 
 class OrderService implements OrderServiceInterface
 {
@@ -62,6 +64,7 @@ class OrderService implements OrderServiceInterface
     private IsOrderCreatedHelper $isOrderCreatedHelper;
     private OrderFactory $orderFactory;
     private OrderResourceInterface $orderResource;
+    private Confirm $confirm;
 
     public function __construct(
         PaymentConsentsInterface                   $paymentConsents,
@@ -83,7 +86,8 @@ class OrderService implements OrderServiceInterface
         OrderManagementInterface                   $orderManagement,
         IsOrderCreatedHelper                       $isOrderCreatedHelper,
         OrderFactory                               $orderFactory,
-        OrderResourceInterface                     $orderResource
+        OrderResourceInterface                     $orderResource,
+        Confirm                                    $confirm
     )
     {
         $this->paymentConsents = $paymentConsents;
@@ -106,6 +110,7 @@ class OrderService implements OrderServiceInterface
         $this->isOrderCreatedHelper = $isOrderCreatedHelper;
         $this->orderFactory = $orderFactory;
         $this->orderResource = $orderResource;
+        $this->confirm = $confirm;
     }
 
     /**
@@ -237,6 +242,7 @@ class OrderService implements OrderServiceInterface
      * @throws InputException
      * @throwsJsonException
      * @throws AlreadyExistsException|JsonException
+     * @throws LocalizedException
      */
     public function orderThenIntent(Quote $quote, $uid, string $cartId, PaymentInterface $paymentMethod, ?AddressInterface $billingAddress, ?string $email, ?string $from, PlaceOrderResponse $response): PlaceOrderResponse
     {
@@ -269,12 +275,17 @@ class OrderService implements OrderServiceInterface
         $intentResponse['status'] = PaymentIntentInterface::INTENT_STATUS_SUCCEEDED;
         $this->checkIntentWithOrder($intentResponse, $order);
 
-        $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
-        return $response->setData([
+        $data = [
             'response_type' => 'confirmation_required',
             'intent_id' => $intent['id'],
             'client_secret' => $intent['clientSecret']
-        ]);
+        ];
+        if ($this->isRedirectMethodConstant($order->getPayment()->getMethod())) {
+            $data['next_action'] = $this->getAirwallexPaymentsNextAction($order, $intent['id'], $paymentMethod->getMethod());
+        }
+
+        $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
+        return $response->setData($data);
     }
 
     /**
@@ -288,5 +299,47 @@ class OrderService implements OrderServiceInterface
             && $this->isAmountEqual($order->getGrandTotal(), $quote->getGrandTotal())
             && $order->getOrderCurrencyCode() === $quote->getQuoteCurrencyCode()
             && $this->paymentIntents->getProductsForCompare($this->getProducts($order)) === $this->paymentIntents->getProductsForCompare($this->getProducts($quote));
+    }
+
+    /**
+     * @throws GuzzleException
+     * @throws LocalizedException
+     * @throws Exception
+     */
+    public function getAirwallexPaymentsNextAction(Order $order, string $intentId, $code)
+    {
+        if (!$intentId) {
+            throw new Exception('Intent id is required.');
+        }
+        $cacheName = $code . '-qrcode-' . $intentId;
+        if (!$returnUrl = $this->cache->load($cacheName)) {
+            $detect = new Mobile_Detect();
+            try {
+                $resp = $this->confirm
+                    ->setPaymentIntentId($intentId)
+                    ->setInformation($this->getPaymentMethodCode($order->getPayment()->getMethod()), $detect->isMobile(), $this->getMobileOS($detect))
+                    ->send();
+            } catch (Exception $exception) {
+                throw new LocalizedException(__($exception->getMessage()));
+            }
+
+            $returnUrl = json_encode($resp);
+            $this->cache->save($returnUrl, $cacheName, [], 120);
+        }
+        return $returnUrl;
+    }
+
+    /**
+     * @param Mobile_Detect $detect
+     *
+     * @return string|null
+     */
+    private function getMobileOS(Mobile_Detect $detect): ?string
+    {
+        if (!$detect->isMobile()) {
+            return null;
+        }
+
+        return $detect->isAndroidOS() ? 'android' : 'ios';
     }
 }

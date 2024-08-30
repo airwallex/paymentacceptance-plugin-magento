@@ -18,6 +18,7 @@ use Magento\Framework\DataObject;
 use Magento\Framework\Event\ManagerInterface;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
+use Magento\Framework\GraphQl\Config\Element\InterfaceFactory;
 use Magento\Payment\Gateway\Command\CommandManagerInterface;
 use Magento\Payment\Gateway\Command\CommandPoolInterface;
 use Magento\Payment\Gateway\Config\ValueHandlerPoolInterface;
@@ -33,6 +34,7 @@ use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Airwallex\Payments\Logger\Logger;
 use Magento\Framework\App\CacheInterface;
+use Airwallex\Payments\Helper\IntentHelper;
 
 /**
  * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
@@ -103,6 +105,7 @@ abstract class AbstractMethod extends Adapter
 
     protected Get $intentGet;
     protected IsOrderCreatedHelper $isOrderCreatedHelper;
+    protected IntentHelper $intentHelper;
 
     /**
      * Payment constructor.
@@ -149,6 +152,7 @@ abstract class AbstractMethod extends Adapter
         Get                           $intentGet,
         Logger                        $logger,
         CacheInterface                $cache,
+        IntentHelper                  $intentHelper,
         IsOrderCreatedHelper          $isOrderCreatedHelper,
         CommandPoolInterface          $commandPool = null,
         ValidatorPoolInterface        $validatorPool = null,
@@ -180,6 +184,7 @@ abstract class AbstractMethod extends Adapter
         $this->intentGet = $intentGet;
         $this->cache = $cache;
         $this->isOrderCreatedHelper = $isOrderCreatedHelper;
+        $this->intentHelper = $intentHelper;
     }
 
     /**
@@ -290,7 +295,7 @@ abstract class AbstractMethod extends Adapter
     public function isAvailable(CartInterface $quote = null): bool
     {
         return parent::isAvailable($quote) &&
-            $this->availablePaymentMethodsHelper->isAvailable($this->getPaymentMethodCode());
+            $this->availablePaymentMethodsHelper->isAvailable($this->getPaymentMethodCode($this->getCode()));
     }
 
     /**
@@ -303,18 +308,5 @@ abstract class AbstractMethod extends Adapter
         $order = $payment->getOrder();
         $paymentIntent = $this->paymentIntentRepository->getByOrderId($order->getId());
         return $paymentIntent->getIntentId();
-    }
-
-    /**
-     * @return string
-     */
-    protected function getPaymentMethodCode(): string
-    {
-        return str_replace(self::PAYMENT_PREFIX, '', $this->getCode());
-    }
-
-    public function getConfigPaymentAction(): string
-    {
-        return '';
     }
 }

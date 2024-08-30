@@ -18,13 +18,6 @@
         </data>
     </route>
 
-    <route url="/V1/airwallex/payments/redirect_url" method="POST">
-        <service class="Airwallex\Payments\Api\ServiceInterface" method="redirectUrl"/>
-        <resources>
-            <resource ref="anonymous"/>
-        </resources>
-    </route>
-
     <route url="/V1/airwallex/payments/express-data" method="GET">
         <service class="Airwallex\Payments\Api\ServiceInterface" method="expressData"/>
         <resources>
