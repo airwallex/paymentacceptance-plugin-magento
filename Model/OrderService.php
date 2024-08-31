@@ -247,7 +247,7 @@ class OrderService implements OrderServiceInterface
     public function orderThenIntent(Quote $quote, $uid, string $cartId, PaymentInterface $paymentMethod, ?AddressInterface $billingAddress, ?string $email, ?string $from, PlaceOrderResponse $response): PlaceOrderResponse
     {
         $order = $this->getOrderByQuote($quote);
-        if (!$this->isOrderEqualToQuote($order, $quote)) {
+        if ($order->getStatus() !== Order::STATE_PENDING_PAYMENT || !$this->isOrderEqualToQuote($order, $quote)) {
             if ($uid) {
                 $orderId = $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
                     $cartId,
