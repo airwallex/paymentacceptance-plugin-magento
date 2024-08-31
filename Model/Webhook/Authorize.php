@@ -13,6 +13,7 @@ use Magento\Framework\App\CacheInterface;
 use Magento\Sales\Api\OrderManagementInterface;
 use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
+use Airwallex\Payments\Helper\IntentHelper;
 
 class Authorize extends AbstractWebhook
 {
@@ -29,6 +30,7 @@ class Authorize extends AbstractWebhook
     private OrderManagementInterface $orderManagement;
     private OrderFactory $orderFactory;
     private OrderResourceInterface $orderResource;
+    private IntentHelper $intentHelper;
 
     /**
      * Capture constructor.
@@ -40,6 +42,7 @@ class Authorize extends AbstractWebhook
      * @param OrderManagementInterface $orderManagement
      * @param OrderFactory $orderFactory
      * @param OrderResourceInterface $orderResource
+     * @param IntentHelper $intentHelper
      */
     public function __construct(
         PaymentIntentRepository  $paymentIntentRepository,
@@ -48,7 +51,8 @@ class Authorize extends AbstractWebhook
         CacheInterface           $cache,
         OrderManagementInterface $orderManagement,
         OrderFactory             $orderFactory,
-        OrderResourceInterface   $orderResource
+        OrderResourceInterface   $orderResource,
+        IntentHelper             $intentHelper
     )
     {
         $this->paymentIntentRepository = $paymentIntentRepository;
@@ -58,6 +62,7 @@ class Authorize extends AbstractWebhook
         $this->orderManagement = $orderManagement;
         $this->orderFactory = $orderFactory;
         $this->orderResource = $orderResource;
+        $this->intentHelper = $intentHelper;
     }
 
     /**
@@ -76,6 +81,6 @@ class Authorize extends AbstractWebhook
         $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
         $intentResponse = json_decode($resp, true);
         $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
-        $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote, true);
+        $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote, 'webhook authorize');
     }
 }

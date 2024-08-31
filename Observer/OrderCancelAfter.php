@@ -61,14 +61,5 @@ class OrderCancelAfter implements ObserverInterface
      */
     public function execute(Observer $observer): void
     {
-        /** @var Order $order */
-        $order = $observer->getOrder();
-        $method = $order->getPayment()->getMethod();
-        if (strpos($method, 'airwallex') !== 0) return;
-        $quote = $this->quoteRepository->get($order->getQuoteId());
-        if ($quote->getIsActive()) {
-            $quote->setIsActive(false);
-            $this->quoteRepository->save($quote);
-        }
     }
 }

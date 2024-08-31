@@ -114,8 +114,7 @@ class Capture extends AbstractWebhook
             $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
             $intentResponse = json_decode($resp, true);
             $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
-            $this->intentHelper->setIntent($intentResponse);
-            $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote, true);
+            $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote, 'webhook capture');
             return;
         }
 

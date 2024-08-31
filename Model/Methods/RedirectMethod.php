@@ -2,18 +2,10 @@
 
 namespace Airwallex\Payments\Model\Methods;
 
-use Airwallex\Payments\Api\Data\PaymentIntentInterface;
-use Airwallex\Payments\Model\Client\AbstractClient;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
-use Magento\Framework\Exception\AlreadyExistsException;
-use Magento\Framework\Exception\LocalizedException;
-use Magento\Payment\Model\InfoInterface;
-use Magento\Payment\Model\MethodInterface;
 use Magento\Quote\Api\Data\CartInterface;
-use Magento\Sales\Model\Order\Payment;
 use Mobile_Detect;
-use Exception;
 
 class RedirectMethod extends AbstractMethod
 {
@@ -30,21 +22,11 @@ class RedirectMethod extends AbstractMethod
      * @param CartInterface|null $quote
      *
      * @return bool
-     * @throws GuzzleException
+     * @throws GuzzleException|JsonException
      */
     public function isAvailable(CartInterface $quote = null): bool
     {
         return parent::isAvailable($quote) &&
             $this->availablePaymentMethodsHelper->isMobileDetectInstalled();
-    }
-
-    public function getConfigPaymentAction(): string
-    {
-        if (!$this->isOrderCreatedHelper->isCreated()) return '';
-        $intent = $this->intentHelper->getIntent();
-        if ($intent['status'] ===  PaymentIntentInterface::INTENT_STATUS_SUCCEEDED) {
-            return MethodInterface::ACTION_AUTHORIZE_CAPTURE;
-        }
-        return MethodInterface::ACTION_AUTHORIZE;
     }
 }

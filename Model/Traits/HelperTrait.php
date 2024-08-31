@@ -310,12 +310,12 @@ trait HelperTrait
      * @param $intentResponse
      * @param int $orderId
      * @param Quote $quote
-     * @param bool $isFromWebhook
+     * @param string $from
      * @return void
      * @throws GuzzleException
      * @throws JsonException
      */
-    public function changeOrderStatus($intentResponse, int $orderId, Quote $quote, bool $isFromWebhook = false): void
+    public function changeOrderStatus($intentResponse, int $orderId, Quote $quote, string $from = ''): void
     {
         $seconds = 5;
         $lockKey = 'airwallex_change_order_status_' . $orderId;
@@ -333,6 +333,7 @@ trait HelperTrait
             if ($order->getTotalPaid() > 0) return;
             $this->checkIntentWithOrder($intentResponse, $order);
             $this->setTransactionId($order->getPayment(), $intentResponse['id']);
+            $this->intentHelper->setIntent($intentResponse);
             $this->orderManagement->place($order);
             $this->addAVSResultToOrder($order, $intentResponse);
             $quote->setIsActive(false);

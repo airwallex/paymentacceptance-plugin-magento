@@ -38,6 +38,7 @@ use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Confirm;
 use Mobile_Detect;
+use Airwallex\Payments\Helper\IntentHelper;
 
 class OrderService implements OrderServiceInterface
 {
@@ -63,6 +64,7 @@ class OrderService implements OrderServiceInterface
     private OrderFactory $orderFactory;
     private OrderResourceInterface $orderResource;
     private Confirm $confirm;
+    private IntentHelper $intentHelper;
 
     public function __construct(
         PaymentConsentsInterface                   $paymentConsents,
@@ -84,7 +86,8 @@ class OrderService implements OrderServiceInterface
         IsOrderCreatedHelper                       $isOrderCreatedHelper,
         OrderFactory                               $orderFactory,
         OrderResourceInterface                     $orderResource,
-        Confirm                                    $confirm
+        Confirm                                    $confirm,
+        IntentHelper                               $intentHelper
     )
     {
         $this->paymentConsents = $paymentConsents;
@@ -107,6 +110,7 @@ class OrderService implements OrderServiceInterface
         $this->orderFactory = $orderFactory;
         $this->orderResource = $orderResource;
         $this->confirm = $confirm;
+        $this->intentHelper = $intentHelper;
     }
 
     /**
@@ -199,7 +203,7 @@ class OrderService implements OrderServiceInterface
         $intentResponse = json_decode($resp, true);
 
         try {
-            $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote);
+            $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote, 'OrderService');
         } catch (Exception $e) {
             $message = trim($e->getMessage(), ' .') . '. Order status change failed. Please try again.';
             $this->errorLog->setMessage($message, $e->getTraceAsString(), $intentId)->send();

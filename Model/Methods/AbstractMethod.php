@@ -2,6 +2,7 @@
 
 namespace Airwallex\Payments\Model\Methods;
 
+use Airwallex\Payments\Api\Data\PaymentIntentInterface;
 use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
 use Airwallex\Payments\Helper\CancelHelper;
 use Airwallex\Payments\Helper\IsOrderCreatedHelper;
@@ -13,12 +14,10 @@ use Airwallex\Payments\Model\PaymentIntentRepository;
 use Airwallex\Payments\Model\PaymentIntents;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
+use JsonException;
 use Magento\Checkout\Helper\Data as CheckoutData;
-use Magento\Framework\DataObject;
 use Magento\Framework\Event\ManagerInterface;
 use Magento\Framework\Exception\InputException;
-use Magento\Framework\Exception\LocalizedException;
-use Magento\Framework\GraphQl\Config\Element\InterfaceFactory;
 use Magento\Payment\Gateway\Command\CommandManagerInterface;
 use Magento\Payment\Gateway\Command\CommandPoolInterface;
 use Magento\Payment\Gateway\Config\ValueHandlerPoolInterface;
@@ -26,8 +25,8 @@ use Magento\Payment\Gateway\Data\PaymentDataObjectFactory;
 use Magento\Payment\Gateway\Validator\ValidatorPoolInterface;
 use Magento\Payment\Model\InfoInterface;
 use Magento\Payment\Model\Method\Adapter;
+use Magento\Payment\Model\MethodInterface;
 use Magento\Quote\Api\Data\CartInterface;
-use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Creditmemo;
 use Magento\Sales\Model\Order\Payment;
 use RuntimeException;
@@ -129,9 +128,10 @@ abstract class AbstractMethod extends Adapter
      * @param Get $intentGet
      * @param Logger $logger
      * @param CacheInterface $cache
+     * @param IntentHelper $intentHelper
+     * @param IsOrderCreatedHelper|null $isOrderCreatedHelper
      * @param CommandPoolInterface|null $commandPool
      * @param ValidatorPoolInterface|null $validatorPool
-     * @param IsOrderCreatedHelper|null $isOrderCreatedHelper
      * @param CommandManagerInterface|null $commandExecutor
      */
     public function __construct(
@@ -291,7 +291,7 @@ abstract class AbstractMethod extends Adapter
      * @param CartInterface|null $quote
      *
      * @return bool
-     * @throws GuzzleException
+     * @throws GuzzleException|JsonException
      */
     public function isAvailable(CartInterface $quote = null): bool
     {
@@ -309,5 +309,15 @@ abstract class AbstractMethod extends Adapter
         $order = $payment->getOrder();
         $paymentIntent = $this->paymentIntentRepository->getByOrderId($order->getId());
         return $paymentIntent->getIntentId();
+    }
+
+    public function getConfigPaymentAction(): string
+    {
+        if (!$this->isOrderCreatedHelper->isCreated()) return '';
+        $intent = $this->intentHelper->getIntent();
+        if ($intent['status'] ===  PaymentIntentInterface::INTENT_STATUS_SUCCEEDED) {
+            return MethodInterface::ACTION_AUTHORIZE_CAPTURE;
+        }
+        return MethodInterface::ACTION_AUTHORIZE;
     }
 }

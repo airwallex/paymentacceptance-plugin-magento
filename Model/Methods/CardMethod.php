@@ -55,13 +55,4 @@ class CardMethod extends AbstractMethod
         }
         return $this;
     }
-
-    /**
-     * @return string
-     */
-    public function getConfigPaymentAction(): string
-    {
-        if (!$this->isOrderCreatedHelper->isCreated()) return '';
-        return $this->getConfigData('airwallex_payment_action');
-    }
 }
