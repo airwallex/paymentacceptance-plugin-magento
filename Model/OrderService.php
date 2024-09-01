@@ -277,6 +277,7 @@ class OrderService implements OrderServiceInterface
 
         $order->setState(Order::STATE_PENDING_PAYMENT)->setStatus(Order::STATE_PENDING_PAYMENT);
         $this->orderResource->save($order);
+        $this->addComment($order, '');
 
         $data = [
             'response_type' => 'confirmation_required',
