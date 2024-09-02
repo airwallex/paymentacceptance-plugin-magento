@@ -264,6 +264,10 @@ class OrderService implements OrderServiceInterface
             }
             $order = $this->orderFactory->create();
             $this->orderResource->load($order, $orderId);
+
+            $order->setState(Order::STATE_PENDING_PAYMENT)->setStatus(Order::STATE_PENDING_PAYMENT);
+            $this->orderResource->save($order);
+            $this->addComment($order, '');
         }
 
         $cacheName = AbstractClient::METADATA_PAYMENT_METHOD_PREFIX . $quote->getEntityId();
@@ -274,10 +278,6 @@ class OrderService implements OrderServiceInterface
         $intentResponse = json_decode($resp, true);
         $intentResponse['status'] = PaymentIntentInterface::INTENT_STATUS_SUCCEEDED;
         $this->checkIntentWithOrder($intentResponse, $order);
-
-        $order->setState(Order::STATE_PENDING_PAYMENT)->setStatus(Order::STATE_PENDING_PAYMENT);
-        $this->orderResource->save($order);
-        $this->addComment($order, '');
 
         $data = [
             'response_type' => 'confirmation_required',
