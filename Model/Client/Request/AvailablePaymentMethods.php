@@ -20,6 +20,7 @@ class AvailablePaymentMethods extends AbstractClient implements BearerAuthentica
      */
     public function setCurrency(string $currency): self
     {
+        if (empty($currency)) return $this;
         return $this->setParam('transaction_currency', $currency);
     }
 
