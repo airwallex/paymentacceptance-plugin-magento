@@ -334,6 +334,14 @@ trait HelperTrait
             $this->checkIntentWithOrder($intentResponse, $order);
             $this->setTransactionId($order->getPayment(), $intentResponse['id']);
             $this->intentHelper->setIntent($intentResponse);
+            if ($this->isMiniPluginExists()) {
+                $companyOrder = ObjectManager::getInstance()->get('\Magento\Company\Api\Data\CompanyOrderInterfaceFactory')->create();
+                $companyResource = ObjectManager::getInstance()->get('\Magento\Company\Model\ResourceModel\Order');
+                $companyResource->load($companyOrder, $order->getId(), 'order_id');
+                if ($companyOrder && $companyOrder->getId()) {
+                    $companyResource->delete($companyOrder);
+                }
+            }
             $this->orderManagement->place($order);
             $this->addAVSResultToOrder($order, $intentResponse);
             $quote->setIsActive(false);
@@ -343,7 +351,6 @@ trait HelperTrait
         }
     }
 
-
     /**
      * @param $code
      * @return string
@@ -351,5 +358,10 @@ trait HelperTrait
     protected function getPaymentMethodCode($code): string
     {
         return str_replace(AbstractMethod::PAYMENT_PREFIX, '', $code);
+    }
+
+    public function isMiniPluginExists(): bool
+    {
+        return file_exists('../app/code/airwallex/paymentacceptance-minifeature-magento-admin-card/Model/CompanyConsents.php');
     }
 }
