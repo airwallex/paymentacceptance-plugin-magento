@@ -268,6 +268,13 @@ class OrderService implements OrderServiceInterface
             $order->setState(Order::STATE_PENDING_PAYMENT)->setStatus(Order::STATE_PENDING_PAYMENT);
             $this->orderResource->save($order);
             $this->addComment($order, '');
+        } else {
+            $payment = $order->getPayment();
+            if ($payment->getMethod() !== $paymentMethod->getMethod()) {
+                $payment->setMethod($paymentMethod->getMethod());
+                $order->setPayment($payment);
+                $this->orderResource->save($order);
+            }
         }
 
         $cacheName = AbstractClient::METADATA_PAYMENT_METHOD_PREFIX . $quote->getEntityId();
@@ -284,7 +291,7 @@ class OrderService implements OrderServiceInterface
             'intent_id' => $intent['id'],
             'client_secret' => $intent['clientSecret']
         ];
-        if ($this->isRedirectMethodConstant($order->getPayment()->getMethod())) {
+        if ($this->isRedirectMethodConstant($paymentMethod->getMethod())) {
             $data['next_action'] = $this->getAirwallexPaymentsNextAction($order, $intent['id'], $paymentMethod->getMethod());
         }
 
@@ -328,7 +335,7 @@ class OrderService implements OrderServiceInterface
             }
 
             $returnUrl = json_encode($resp);
-            $this->cache->save($returnUrl, $cacheName, [], 120);
+            $this->cache->save($returnUrl, $cacheName, [], 300);
         }
         return $returnUrl;
     }

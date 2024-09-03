@@ -73,25 +73,5 @@ class Expire extends AbstractWebhook
      */
     public function execute(object $data): void
     {
-        $paymentIntentId = $data->payment_intent_id ?? $data->id;
-        /** @var Order $order */
-        $order = $this->paymentIntentRepository->getOrder($paymentIntentId);
-        if (!$order) {
-            throw new WebhookException(__("Can't find order $paymentIntentId"));
-        }
-
-        if (!$this->isRedirectMethodConstant($order->getPayment()->getMethod())) {
-            return;
-        }
-
-        if (!$order->canCancel()) {
-            if ($order->isCanceled()) return;
-            throw new WebhookException(__("Can't cancel order $paymentIntentId"));
-        }
-
-        $this->cancelHelper->setWebhookCanceling(true);
-        $order->cancel();
-        $order->addCommentToStatusHistory(__('Payment expired.'));
-        $this->orderRepository->save($order);
     }
 }

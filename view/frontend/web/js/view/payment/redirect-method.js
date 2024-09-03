@@ -1,5 +1,6 @@
 define([
     'Airwallex_Payments/js/view/payment/abstract-method',
+    'ko',
     'jquery',
     'mage/url',
     'mage/storage',
@@ -13,6 +14,7 @@ define([
     'mage/translate'
 ], function (
     Component,
+    ko,
     $,
     url,
     storage,
@@ -30,6 +32,7 @@ define([
     return Component.extend({
         type: 'redirect',
         redirectAfterPlaceOrder: false,
+        validationError: ko.observable(),
         defaults: {
             timer: null,
             template: 'Airwallex_Payments/payment/redirect-method'
@@ -43,6 +46,7 @@ define([
 
         placeOrder: async function (data, event) {
             let self = this;
+            this.validationError('');
 
             if (event) {
                 event.preventDefault();
@@ -93,15 +97,36 @@ define([
 
                     let intentResponse = await utils.getIntent(payload, {});
                     this.intentId(intentResponse.intent_id);
-                    $("._active .qrcode-payment .qrcode").html('');
+                    const iframeSelector = "._active .qrcode-payment .iframe";
+                    const qrcodeSelector = "._active .qrcode-payment .qrcode";
+                    $(iframeSelector).html('').hide();
+                    $(qrcodeSelector).html('').hide();
                     $("._active .qrcode-payment").css('display', 'flex');
                     let nextAction = JSON.parse(intentResponse.next_action);
-                    console.log(nextAction, this.code)
                     
                     // url qrcode_url qrcode
                     if (['airwallex_payments_pay_now'].indexOf(this.code) === -1) {
-                        new QRCode(document.querySelector(".airwallex-payments._active .qrcode"), nextAction.qrcode);
+                        $(qrcodeSelector).show();
+                        new QRCode(document.querySelector(qrcodeSelector), nextAction.qrcode);
                     } else {
+                        $(iframeSelector).show();
+                        $(iframeSelector).html(`<iframe src="${nextAction.url}"></iframe>`);
+                        const iframeElement = $(iframeSelector).find('iframe');
+                        let setHeight = function() {
+                            let height = 1200;
+                            if (window.innerWidth > 768 && window.innerWidth <= 1000) {
+                                height = window.innerWidth * 1.3;
+                            } else if (window.innerWidth > 550 && window.innerWidth < 640) {
+                                height = window.innerWidth * 2
+                            } else if (window.innerWidth <= 550) {
+                                height = 1100;
+                            }
+                            $(iframeElement).height(height);
+                        };
+                        setHeight();
+                        iframeElement.on('load', function() {
+                            window.addEventListener('resize', setHeight)
+                        });
 
                     }
                     if (this.timer) clearInterval(this.timer);
@@ -114,7 +139,12 @@ define([
                         }
                     }, 2500);
                 } catch (e) {
-                    utils.error(e);
+                    if (e.responseJSON && e.responseJSON.message) {
+                        this.validationError($t(e.responseJSON.message));
+                    } else {
+                        this.validationError($t('Something went wrong while processing your request. Please try again.'));
+                    }
+                    console.log(e.responseJSON.message);
                     return;
                 } finally {
                     self.isPlaceOrderActionAllowed(true);

@@ -203,3 +203,12 @@
     padding: 10px;
     margin: 10px;
 }
+
+.qrcode-payment .iframe {
+    width: 100%;
+}
+
+.qrcode-payment iframe {
+    width: 100%;
+    border: none;
+}
