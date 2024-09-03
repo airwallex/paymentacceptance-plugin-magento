@@ -230,10 +230,13 @@ abstract class AbstractMethod extends Adapter
         $this->cache->save(true, $this->cancelCacheName($intentId), [], 3600);
         try {
             $this->cancel->setPaymentIntentId($intentId)->send();
-        } catch (GuzzleException $exception) {
+        } catch (Exception $e) {
+            if (strstr($e->getMessage(), 'CANCELLED')) {
+                return $this;
+            }
             /** @var Payment $payment */
-            $this->logger->orderError($payment->getOrder(), 'cancel', $exception->getMessage());
-            throw new RuntimeException(__($exception->getMessage()));
+            $this->logger->orderError($payment->getOrder(), 'cancel', $e->getMessage());
+            throw new RuntimeException(__($e->getMessage()));
         }
 
         return $this;

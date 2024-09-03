@@ -14,6 +14,7 @@ use Magento\Sales\Api\OrderManagementInterface;
 use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
 use Airwallex\Payments\Helper\IntentHelper;
+use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
 
 class Authorize extends AbstractWebhook
 {
@@ -30,6 +31,7 @@ class Authorize extends AbstractWebhook
     private OrderManagementInterface $orderManagement;
     private OrderFactory $orderFactory;
     private OrderResourceInterface $orderResource;
+    private ErrorLog $errorLog;
     private IntentHelper $intentHelper;
 
     /**
@@ -42,6 +44,7 @@ class Authorize extends AbstractWebhook
      * @param OrderManagementInterface $orderManagement
      * @param OrderFactory $orderFactory
      * @param OrderResourceInterface $orderResource
+     * @param ErrorLog $errorLog
      * @param IntentHelper $intentHelper
      */
     public function __construct(
@@ -52,6 +55,7 @@ class Authorize extends AbstractWebhook
         OrderManagementInterface $orderManagement,
         OrderFactory             $orderFactory,
         OrderResourceInterface   $orderResource,
+        ErrorLog                 $errorLog,
         IntentHelper             $intentHelper
     )
     {
@@ -62,6 +66,7 @@ class Authorize extends AbstractWebhook
         $this->orderManagement = $orderManagement;
         $this->orderFactory = $orderFactory;
         $this->orderResource = $orderResource;
+        $this->errorLog = $errorLog;
         $this->intentHelper = $intentHelper;
     }
 

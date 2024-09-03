@@ -96,8 +96,14 @@ define([
                     $("._active .qrcode-payment .qrcode").html('');
                     $("._active .qrcode-payment").css('display', 'flex');
                     let nextAction = JSON.parse(intentResponse.next_action);
+                    console.log(nextAction, this.code)
+                    
                     // url qrcode_url qrcode
-                    new QRCode(document.querySelector(".airwallex-payments._active .qrcode"), nextAction.url);
+                    if (['airwallex_payments_pay_now'].indexOf(this.code) === -1) {
+                        new QRCode(document.querySelector(".airwallex-payments._active .qrcode"), nextAction.qrcode);
+                    } else {
+
+                    }
                     if (this.timer) clearInterval(this.timer);
                     this.timer = setInterval(async () => {
                         let res = await this.getIntent(intentResponse.intent_id);

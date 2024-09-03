@@ -8,7 +8,7 @@ use Psr\Http\Message\ResponseInterface;
 
 class Authentication extends AbstractClient
 {
-    private const X_API_VERSION = '2020-04-30';
+    public const X_API_VERSION = '2024-06-30';
 
     /**
      * @return string[]

@@ -23,6 +23,7 @@ use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Magento\Sales\Api\OrderManagementInterface;
 use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
+use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
 
 class Capture extends AbstractWebhook
 {
@@ -42,6 +43,7 @@ class Capture extends AbstractWebhook
     private PaymentIntentRepository $paymentIntentRepository;
     private OrderRepositoryInterface $orderRepository;
     private OrderResourceInterface $orderResource;
+    public ErrorLog $errorLog;
     public IntentHelper $intentHelper;
 
     /**
@@ -57,6 +59,7 @@ class Capture extends AbstractWebhook
      * @param PaymentIntentRepository $paymentIntentRepository
      * @param OrderRepositoryInterface $orderRepository
      * @param OrderResourceInterface $orderResource
+     * @param ErrorLog $errorLog
      * @param IntentHelper $intentHelper
      */
     public function __construct(
@@ -70,6 +73,7 @@ class Capture extends AbstractWebhook
         PaymentIntentRepository  $paymentIntentRepository,
         OrderRepositoryInterface $orderRepository,
         OrderResourceInterface   $orderResource,
+        ErrorLog                 $errorLog,
         IntentHelper             $intentHelper
     )
     {
@@ -83,6 +87,7 @@ class Capture extends AbstractWebhook
         $this->paymentIntentRepository = $paymentIntentRepository;
         $this->orderRepository = $orderRepository;
         $this->orderResource = $orderResource;
+        $this->errorLog = $errorLog;
         $this->intentHelper = $intentHelper;
     }
 

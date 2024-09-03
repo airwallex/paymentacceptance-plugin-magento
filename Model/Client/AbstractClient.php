@@ -6,6 +6,7 @@ use Airwallex\Payments\Helper\AuthenticationHelper;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Logger\Guzzle\RequestLogger;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
+use Airwallex\Payments\Model\Client\Request\Authentication;
 use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
@@ -214,7 +215,7 @@ abstract class AbstractClient
 
         if ($this instanceof BearerAuthenticationInterface) {
             $header['Authorization'] = 'Bearer ' . $this->authenticationHelper->getBearerToken();
-            $header['x-api-version'] = '2022-11-11';
+            $header['x-api-version'] = Authentication::X_API_VERSION;
         }
 
         return $header;

@@ -19,12 +19,10 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
 use Magento\Quote\Api\CartRepositoryInterface;
-use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
 use Airwallex\Payments\Logger\Logger;
 use Magento\Sales\Model\OrderFactory;
-use Magento\Sales\Model\OrderRepository;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
 use Magento\Sales\Api\OrderManagementInterface;
 use Airwallex\Payments\Helper\IntentHelper;
@@ -99,10 +97,15 @@ class SalesOrderPaymentCancel implements ObserverInterface
         $paymentIntent = $this->paymentIntentRepository->getByOrderId($order->getEntityId());
         if (!$paymentIntent) return;
         $intentId = $paymentIntent->getIntentId();
-
+        if ($this->cancelHelper->isWebhookCanceling()) {
+            return;
+        }
         try {
             $this->cancel->setPaymentIntentId($intentId)->send();
         } catch (Exception $e) {
+            if (strstr($e->getMessage(), 'CANCELLED')) {
+                return;
+            }
             $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
             $intentResponse = json_decode($resp, true);
 

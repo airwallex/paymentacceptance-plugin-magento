@@ -321,7 +321,7 @@ class OrderService implements OrderServiceInterface
             try {
                 $resp = $this->confirm
                     ->setPaymentIntentId($intentId)
-                    ->setInformation($this->getPaymentMethodCode($order->getPayment()->getMethod()), $detect->isMobile(), $this->getMobileOS($detect))
+                    ->setInformation($this->getPaymentMethodCode($code), $detect->isMobile(), $this->getMobileOS($detect))
                     ->send();
             } catch (Exception $exception) {
                 throw new LocalizedException(__($exception->getMessage()));

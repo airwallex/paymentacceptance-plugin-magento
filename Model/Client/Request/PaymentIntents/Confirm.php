@@ -43,11 +43,7 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
             'type' => $method
         ];
 
-        if ($method === 'wechatpay') {
-            $data[$method] = [
-                'flow' => self::WECHAT_FLOW
-            ];
-        } else {
+        if ($method !== 'pay_now') {
             $data[$method] = [
 //                'flow' => $isMobile ? self::MOBILE_FLOW : self::DESKTOP_FLOW
                 'flow' => 'qrcode'
