@@ -5,6 +5,7 @@ namespace Airwallex\Payments\Model;
 use Airwallex\Payments\Admin\Cards\Api\CompanyConsentsInterface;
 use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Logger\Logger;
+use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Create;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Cancel;
@@ -18,6 +19,7 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\UrlInterface;
 use Magento\Quote\Model\QuoteRepository;
+use Exception;
 use JsonException;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\OrderFactory;
@@ -127,7 +129,14 @@ class PaymentIntents
         if (!$paymentIntent || $this->isRequiredToGenerateIntent($order, $paymentIntent)) {
             return $this->createIntentByOrder($order);
         }
-        $resp = $this->paymentIntentsGet->setPaymentIntentId($paymentIntent->getIntentId())->send();
+        try {
+            $resp = $this->paymentIntentsGet->setPaymentIntentId($paymentIntent->getIntentId())->send();
+        } catch (Exception $e) {
+            if ($e->getMessage() === AbstractClient::NOT_FOUND) {
+                return $this->createIntentByOrder($order);
+            }
+            throw new $e;
+        }
         $intentResponse = json_decode($resp, true);
         return [
             'clientSecret' => $intentResponse['client_secret'],
