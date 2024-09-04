@@ -39,6 +39,8 @@ use Magento\Sales\Model\Spi\OrderResourceInterface;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Confirm;
 use Mobile_Detect;
 use Airwallex\Payments\Helper\IntentHelper;
+use Magento\Quote\Model\Quote\Address;
+use Magento\Sales\Model\Order\Address as OrderAddress;
 
 class OrderService implements OrderServiceInterface
 {
@@ -247,7 +249,7 @@ class OrderService implements OrderServiceInterface
     public function orderThenIntent(Quote $quote, $uid, string $cartId, PaymentInterface $paymentMethod, ?AddressInterface $billingAddress, ?string $email, ?string $from, PlaceOrderResponse $response): PlaceOrderResponse
     {
         $order = $this->getOrderByQuote($quote);
-        if ($order->getStatus() !== Order::STATE_PENDING_PAYMENT || !$this->isOrderEqualToQuote($order, $quote)) {
+        if ($order->getStatus() !== Order::STATE_PENDING_PAYMENT || !$this->isOrderEqualToQuote($order, $quote, $billingAddress)) {
             if ($uid) {
                 $orderId = $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
                     $cartId,
@@ -299,17 +301,58 @@ class OrderService implements OrderServiceInterface
         return $response->setData($data);
     }
 
+
     /**
      * @param Order $order
      * @param Quote $quote
+     * @param ?AddressInterface $billingAddress
      * @return bool
      */
-    public function isOrderEqualToQuote(Order $order, Quote $quote): bool
+    public function isOrderEqualToQuote(Order $order, Quote $quote, ?AddressInterface $billingAddress): bool
     {
+        $quoteAddr = $quote->getShippingAddress();
+        $orderAddr = $order->getShippingAddress();
+        if ($quoteAddr && !$orderAddr) return false;
+        if (!$quoteAddr && $orderAddr) return false;
+        if ($quoteAddr && $orderAddr) {
+            if (!$this->isQuoteAddressSameAsOrderAddress($quoteAddr, $orderAddr)) return false;
+            $method1 = $quoteAddr->getShippingMethod();
+            $method2 = $order->getShippingMethod();
+            if ((string)$method1 !== (string)$method2) return false;
+        }
+
+        if (!$billingAddress) {
+            $billingAddress = $quote->getBillingAddress();
+        }
+        $quoteAddr = $billingAddress;
+        $orderAddr = $order->getBillingAddress();
+        if ($quoteAddr && !$orderAddr) return false;
+        if (!$quoteAddr && $orderAddr) return false;       
+        if ($quoteAddr && $orderAddr) {
+            if (!$this->isQuoteAddressSameAsOrderAddress($quoteAddr, $orderAddr)) return false;
+        }
+
         return $order->getId()
             && $this->isAmountEqual($order->getGrandTotal(), $quote->getGrandTotal())
             && $order->getOrderCurrencyCode() === $quote->getQuoteCurrencyCode()
             && $this->paymentIntents->getProductsForCompare($this->getProducts($order)) === $this->paymentIntents->getProductsForCompare($this->getProducts($quote));
+    }
+
+    public function isQuoteAddressSameAsOrderAddress(Address $quoteAddr, OrderAddress $orderAddr): bool
+    {
+        if ((string)$quoteAddr->getFirstname() !== (string)$orderAddr->getFirstname()) return false;
+        if ((string)$quoteAddr->getLastname() !== (string)$orderAddr->getLastname()) return false;
+        if ((string)$quoteAddr->getCompany() !== (string)$orderAddr->getCompany()) return false;
+        if ((string)$quoteAddr->getRegion() !== (string)$orderAddr->getRegion()) return false;
+        if (intval($quoteAddr->getRegionId()) !== intval($orderAddr->getRegionId())) return false;
+        if ((string)$quoteAddr->getCountryId() !== (string)$orderAddr->getCountryId()) return false;
+        if ((string)$quoteAddr->getCity() !== (string)$orderAddr->getCity()) return false;
+        $street1 = implode(', ', $quoteAddr->getStreet());
+        $street2 = implode(', ', $orderAddr->getStreet());
+        if ($street1 !== $street2) return false;
+        if ((string)$quoteAddr->getPostcode() !== (string)$orderAddr->getPostcode()) return false;
+        if ((string)$quoteAddr->getTelephone() !== (string)$orderAddr->getTelephone()) return false;
+        return true;
     }
 
     /**
