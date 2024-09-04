@@ -151,9 +151,6 @@ class PaymentIntents
         if ($order->getStatus() !== Order::STATE_PENDING_PAYMENT) {
             return true;
         }
-        if (!$paymentIntent->getDetail()) return false;
-        $detail = json_decode($paymentIntent->getDetail(), true);
-        if (empty($detail['products'])) return false;
 
         if ($order->getOrderCurrencyCode() !== $paymentIntent->getCurrencyCode()) {
             return false;
@@ -162,6 +159,10 @@ class PaymentIntents
         if (!$this->isAmountEqual($order->getGrandTotal(), $paymentIntent->getGrandTotal())) {
             return false;
         }
+
+        if (!$paymentIntent->getDetail()) return false;
+        $detail = json_decode($paymentIntent->getDetail(), true);
+        if (empty($detail['products'])) return false;
 
         $products = $this->paymentIntentsCreate->getProducts($order);
         return $this->getProductsForCompare($products) !== $this->getProductsForCompare($detail['products']);
