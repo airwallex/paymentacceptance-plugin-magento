@@ -209,8 +209,6 @@ abstract class AbstractMethod extends Adapter
      */
     public function capture(InfoInterface $payment, $amount): self
     {
-
-//        $this->setTransactionId($payment);
         return $this;
     }
 
@@ -275,7 +273,6 @@ abstract class AbstractMethod extends Adapter
             $this->logger->orderError($payment->getOrder(), 'refund', $exception->getMessage());
             throw new RuntimeException(__($exception->getMessage()));
         }
-//        sleep(4);
         return $this;
     }
 

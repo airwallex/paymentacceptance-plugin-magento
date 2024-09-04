@@ -35,7 +35,7 @@ class GetList extends AbstractClient implements BearerAuthenticationInterface
         AuthenticationHelper                 $authenticationHelper,
         IdentityService                      $identityService,
         RequestLogger                        $requestLogger,
-        Configuration                         $configuration,
+        Configuration                        $configuration,
         ModuleListInterface                  $moduleList,
         ProductMetadataInterface             $productMetadata,
         SavedPaymentResponseInterfaceFactory $savedPaymentResponseFactory,

@@ -110,19 +110,6 @@ class PaymentIntents
      * @throws InputException
      * @throws JsonException
      */
-    public function getIntentByOrderId(int $orderId): array
-    {
-        $order = $this->orderFactory->create();
-        $this->orderResource->load($order, $orderId);
-        return $this->getIntentByOrder($order);
-    }
-
-    /**
-     * @throws GuzzleException
-     * @throws AlreadyExistsException
-     * @throws InputException
-     * @throws JsonException
-     */
     public function getIntentByOrder(Order $order): array
     {
         $paymentIntent = $this->paymentIntentRepository->getByOrderId($order->getId());
@@ -153,16 +140,16 @@ class PaymentIntents
         }
 
         if ($order->getOrderCurrencyCode() !== $paymentIntent->getCurrencyCode()) {
-            return false;
+            return true;
         }
 
         if (!$this->isAmountEqual($order->getGrandTotal(), $paymentIntent->getGrandTotal())) {
-            return false;
+            return true;
         }
 
-        if (!$paymentIntent->getDetail()) return false;
+        if (!$paymentIntent->getDetail()) return true;
         $detail = json_decode($paymentIntent->getDetail(), true);
-        if (empty($detail['products'])) return false;
+        if (empty($detail['products'])) return true;
 
         $products = $this->paymentIntentsCreate->getProducts($order);
         return $this->getProductsForCompare($products) !== $this->getProductsForCompare($detail['products']);
@@ -185,25 +172,5 @@ class PaymentIntents
             return $a['code'] <=> $b['code'];
         });
         return json_encode($filteredData);
-    }
-
-    /**
-     * @param string $intentId
-     * @return mixed
-     * @throws GuzzleException
-     * @throws LocalizedException
-     * @throws NoSuchEntityException
-     * @throws JsonException
-     */
-    public function cancelIntent(string $intentId)
-    {
-        try {
-            $response = $this->paymentIntentsCancel->setPaymentIntentId($intentId)->send();
-        } catch (GuzzleException $exception) {
-            $quote = $this->checkoutSession->getQuote();
-            $this->logger->quoteError($quote, 'intents', $exception->getMessage());
-            throw $exception;
-        }
-        return $response;
     }
 }
