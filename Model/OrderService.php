@@ -312,9 +312,9 @@ class OrderService implements OrderServiceInterface
     {
         $quoteAddr = $quote->getShippingAddress();
         $orderAddr = $order->getShippingAddress();
-        if ($quoteAddr && !$orderAddr) return false;
-        if (!$quoteAddr && $orderAddr) return false;
-        if ($quoteAddr && $orderAddr) {
+        if ($quote->isVirtual() && $orderAddr) return false;
+        if (!$quote->isVirtual()) {
+            if (!$quoteAddr || !$orderAddr) return false;
             if (!$this->isQuoteAddressSameAsOrderAddress($quoteAddr, $orderAddr)) return false;
             $method1 = $quoteAddr->getShippingMethod();
             $method2 = $order->getShippingMethod();
