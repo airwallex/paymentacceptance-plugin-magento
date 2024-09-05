@@ -15,8 +15,6 @@ use Magento\Checkout\Model\Session;
 use Magento\Framework\App\ObjectManager;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\InputException;
-use Magento\Framework\Exception\LocalizedException;
-use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\UrlInterface;
 use Magento\Quote\Model\QuoteRepository;
 use Exception;

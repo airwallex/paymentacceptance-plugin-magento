@@ -18,6 +18,7 @@ use JsonException;
 use Magento\Checkout\Helper\Data as CheckoutData;
 use Magento\Framework\Event\ManagerInterface;
 use Magento\Framework\Exception\InputException;
+use Magento\Framework\Exception\LocalizedException;
 use Magento\Payment\Gateway\Command\CommandManagerInterface;
 use Magento\Payment\Gateway\Command\CommandPoolInterface;
 use Magento\Payment\Gateway\Config\ValueHandlerPoolInterface;
@@ -216,7 +217,9 @@ abstract class AbstractMethod extends Adapter
      * @param InfoInterface $payment
      *
      * @return $this
-     * @throws Exception
+     * @throws GuzzleException
+     * @throws InputException
+     * @throws LocalizedException
      */
     public function cancel(InfoInterface $payment): self
     {
@@ -224,7 +227,8 @@ abstract class AbstractMethod extends Adapter
             return $this;
         }
 
-        $intentId = $this->getIntentId();
+        $intentId = $this->getIntentId($payment);
+        if (!$intentId) return $this;
         $this->cache->save(true, $this->cancelCacheName($intentId), [], 3600);
         try {
             $this->cancel->setPaymentIntentId($intentId)->send();
@@ -252,7 +256,7 @@ abstract class AbstractMethod extends Adapter
         /** @var Payment $payment */
         $credit = $payment->getCreditmemo();
 
-        $intentId = $this->getIntentId();
+        $intentId = $this->getIntentId($payment);
 
         $this->cache->save(true, $this->refundCacheName($intentId), [], 3600);
         try {
@@ -278,7 +282,9 @@ abstract class AbstractMethod extends Adapter
      * @param InfoInterface $payment
      *
      * @return $this
-     * @throws Exception
+     * @throws GuzzleException
+     * @throws InputException
+     * @throws LocalizedException
      */
     public function void(InfoInterface $payment): self
     {
@@ -298,11 +304,20 @@ abstract class AbstractMethod extends Adapter
     }
 
     /**
+     * @param $payment
      * @return string
+     * @throws InputException
+     * @throws LocalizedException
      */
-    protected function getIntentId(): string
+    protected function getIntentId($payment): string
     {
-        return $this->getInfoInstance()->getAdditionalInformation('intent_id');
+        $order = $payment->getOrder();
+        $paymentIntent = $this->paymentIntentRepository->getByOrderId($order->getId());
+        # Compatible with older versions where payment is made before order placement
+        if (!$paymentIntent->getIntentId()) {
+            return $this->getInfoInstance()->getAdditionalInformation('intent_id') ?: '';
+        }
+        return $paymentIntent->getIntentId();
     }
 
     public function getConfigPaymentAction(): string

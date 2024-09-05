@@ -3,7 +3,6 @@
 namespace Airwallex\Payments\Model\Methods;
 
 use Airwallex\Payments\Api\Data\PaymentIntentInterface;
-use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Framework\Exception\InputException;
@@ -33,7 +32,7 @@ class CardMethod extends AbstractMethod
 
         /** @var Payment $payment */
         $order = $payment->getOrder();
-        $intentId = $this->getIntentId();
+        $intentId = $this->getIntentId($payment);
 
         $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
         $respArr = json_decode($resp, true);
