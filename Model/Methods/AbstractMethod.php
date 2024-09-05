@@ -314,6 +314,9 @@ abstract class AbstractMethod extends Adapter
         /** @var Order $order */
         $order = $payment->getOrder();
         $paymentIntent = $this->paymentIntentRepository->getByOrderIncrementIdAndStoreId($order->getIncrementId(), $order->getStoreId());
+        if (!$paymentIntent || !$paymentIntent->getIntentId()) {
+            return $this->getInfoInstance()->getAdditionalInformation('intent_id') ?: '';
+        }
         return $paymentIntent->getIntentId();
     }
 

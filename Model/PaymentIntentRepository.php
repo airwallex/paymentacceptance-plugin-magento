@@ -156,12 +156,11 @@ class PaymentIntentRepository
      * @param string $orderIncrementId
      * @param int $storeId
      *
-     * @return PaymentIntentInterface
+     * @return ?PaymentIntentInterface
      * @throws InputException
-     * @throws NoSuchEntityException
      * @throws LocalizedException
      */
-    public function getByOrderIncrementIdAndStoreId(string $orderIncrementId, int $storeId): PaymentIntentInterface
+    public function getByOrderIncrementIdAndStoreId(string $orderIncrementId, int $storeId): ?PaymentIntentInterface
     {
         if (!$orderIncrementId) {
             throw new InputException(__('Order increment id is required.'));
@@ -184,8 +183,7 @@ class PaymentIntentRepository
         $data = $connection->fetchRow($select, $bind);
 
         if (!$data) {
-            throw new NoSuchEntityException(__('The payment intent for ' . $orderIncrementIdName . ' "%1" and '
-                . $storeIdName . ' "%2" does not exist.', $orderIncrementId, $storeId));
+            return null;
         }
 
         $paymentIntent->setData($data);
