@@ -224,7 +224,7 @@ abstract class AbstractMethod extends Adapter
             return $this;
         }
 
-        $intentId = $this->getIntentId($payment);
+        $intentId = $this->getIntentId();
         $this->cache->save(true, $this->cancelCacheName($intentId), [], 3600);
         try {
             $this->cancel->setPaymentIntentId($intentId)->send();
@@ -252,9 +252,7 @@ abstract class AbstractMethod extends Adapter
         /** @var Payment $payment */
         $credit = $payment->getCreditmemo();
 
-        $order = $payment->getOrder();
-        $paymentIntent = $this->paymentIntentRepository->getByOrderId($order->getId());
-        $intentId = $paymentIntent->getIntentId();
+        $intentId = $this->getIntentId();
 
         $this->cache->save(true, $this->refundCacheName($intentId), [], 3600);
         try {
@@ -300,15 +298,11 @@ abstract class AbstractMethod extends Adapter
     }
 
     /**
-     * @param $payment
      * @return string
-     * @throws InputException
      */
-    protected function getIntentId($payment): string
+    protected function getIntentId(): string
     {
-        $order = $payment->getOrder();
-        $paymentIntent = $this->paymentIntentRepository->getByOrderId($order->getId());
-        return $paymentIntent->getIntentId();
+        return $this->getInfoInstance()->getAdditionalInformation('intent_id');
     }
 
     public function getConfigPaymentAction(): string

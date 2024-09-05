@@ -32,6 +32,11 @@ class PaymentIntentRepository
     private PaymentIntentResource $paymentIntentResource;
 
     /**
+     * @var Order
+     */
+    private Order $order;
+
+    /**
      * @var OrderFactory
      */
     private OrderFactory $orderFactory;
@@ -48,6 +53,7 @@ class PaymentIntentRepository
      * @param PaymentIntentCollectionFactory $paymentIntentCollectionFactory
      * @param PaymentIntentFactory $paymentIntentFactory
      * @param PaymentIntentResource $paymentIntentResource
+     * @param Order $order
      * @param OrderFactory $orderFactory
      * @param OrderResourceInterface $orderResource
      */
@@ -55,6 +61,7 @@ class PaymentIntentRepository
         PaymentIntentCollectionFactory $paymentIntentCollectionFactory,
         PaymentIntentFactory           $paymentIntentFactory,
         PaymentIntentResource          $paymentIntentResource,
+        Order                          $order,
         OrderFactory                   $orderFactory,
         OrderResourceInterface         $orderResource
     )
@@ -62,6 +69,7 @@ class PaymentIntentRepository
         $this->paymentIntentCollectionFactory = $paymentIntentCollectionFactory;
         $this->paymentIntentFactory = $paymentIntentFactory;
         $this->paymentIntentResource = $paymentIntentResource;
+        $this->order = $order;
         $this->orderFactory = $orderFactory;
         $this->orderResource = $orderResource;
     }
@@ -195,9 +203,7 @@ class PaymentIntentRepository
     public function getOrder(string $paymentIntentId): ?Order
     {
         $record = $this->getByIntentId($paymentIntentId);
-        $order = $this->orderFactory->create();
-        $this->orderResource->load($order, $record->getOrderId());
-        return $order;
+        return $this->order->loadByIncrementIdAndStoreId($record->getOrderIncrementId(), $record->getStoreId());
     }
 
     /**
