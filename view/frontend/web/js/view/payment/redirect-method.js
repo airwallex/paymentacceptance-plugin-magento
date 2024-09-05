@@ -103,11 +103,11 @@ define([
                     $(qrcodeSelector).html('').hide();
                     $("._active .qrcode-payment").css('display', 'flex');
                     let nextAction = JSON.parse(intentResponse.next_action);
-                    
                     // url qrcode_url qrcode
                     if (['airwallex_payments_pay_now'].indexOf(this.code) === -1) {
                         $(qrcodeSelector).show();
                         new QRCode(document.querySelector(qrcodeSelector), nextAction.qrcode);
+                        $('body').trigger('processStop');
                     } else {
                         $(iframeSelector).show();
                         $(iframeSelector).html(`<iframe src="${nextAction.url}"></iframe>`);
@@ -120,9 +120,6 @@ define([
                                 height = window.innerWidth * 2
                             } else if (window.innerWidth <= 550) {
                                 height = 1100;
-                            }
-                            if (window.checkoutConfig.payment.airwallex_payments.mode === 'demo') {
-                                height = 700;
                             }
                             $(iframeElement).height(height);
                         };
