@@ -5,6 +5,7 @@ namespace Airwallex\Payments\Model\Methods;
 use Airwallex\Payments\Api\Data\PaymentIntentInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
+use Exception;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
@@ -48,7 +49,7 @@ class CardMethod extends AbstractMethod
         $this->cache->save(true, $this->captureCacheName($intentId), [], 3600);
         try {
             $this->capture->setPaymentIntentId($intentId)->setInformation($order->getGrandTotal())->send();
-        } catch (GuzzleException $exception) {
+        } catch (Exception $exception) {
             $this->logger->orderError($order, 'capture', $exception->getMessage());
             throw $exception;
         }

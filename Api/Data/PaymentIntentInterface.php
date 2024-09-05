@@ -58,9 +58,9 @@ interface PaymentIntentInterface
     public function getOrderId(): int;
 
     /**
-     * @return string
+     * @return ?string
      */
-    public function getDetail(): string;
+    public function getDetail(): ?string;
 
     /**
      * @param string $orderIncrementId

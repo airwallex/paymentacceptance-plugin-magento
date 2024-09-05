@@ -201,7 +201,12 @@ class PaymentIntentRepository
     public function getOrder(string $paymentIntentId): ?Order
     {
         $record = $this->getByIntentId($paymentIntentId);
-        return $this->order->loadByIncrementIdAndStoreId($record->getOrderIncrementId(), $record->getStoreId());
+        $order = $this->order->loadByIncrementIdAndStoreId($record->getOrderIncrementId(), $record->getStoreId());
+        if (!$order || !$order->getId()) {
+            $order = $this->orderFactory->create();
+            $order = $order->loadByIncrementId($record->getOrderIncrementId());
+        }
+        return $order;
     }
 
     /**

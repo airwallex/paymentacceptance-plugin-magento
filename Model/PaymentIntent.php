@@ -82,9 +82,9 @@ class PaymentIntent extends AbstractModel implements IdentityInterface, PaymentI
     }
 
     /**
-     * @return string
+     * @return ?string
      */
-    public function getDetail(): string
+    public function getDetail(): ?string
     {
         return $this->getData(PaymentIntentInterface::DETAIL_COLUMN);
     }
