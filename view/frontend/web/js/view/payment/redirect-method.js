@@ -121,13 +121,16 @@ define([
                             } else if (window.innerWidth <= 550) {
                                 height = 1100;
                             }
+                            if (window.checkoutConfig.payment.airwallex_payments.mode === 'demo') {
+                                height = 700;
+                            }
                             $(iframeElement).height(height);
                         };
                         setHeight();
                         iframeElement.on('load', function() {
                             window.addEventListener('resize', setHeight)
+                            $('body').trigger('processStop');
                         });
-
                     }
                     if (this.timer) clearInterval(this.timer);
                     this.timer = setInterval(async () => {
@@ -144,11 +147,10 @@ define([
                     } else {
                         this.validationError($t('Something went wrong while processing your request. Please try again.'));
                     }
-                    console.log(e.responseJSON.message);
+                    $('body').trigger('processStop');
                     return;
                 } finally {
                     self.isPlaceOrderActionAllowed(true);
-                    $('body').trigger('processStop');
                 }
                 return true;
             }
