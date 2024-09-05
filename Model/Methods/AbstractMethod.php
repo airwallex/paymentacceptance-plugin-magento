@@ -36,6 +36,7 @@ use Airwallex\Payments\Model\Traits\HelperTrait;
 use Airwallex\Payments\Logger\Logger;
 use Magento\Framework\App\CacheInterface;
 use Airwallex\Payments\Helper\IntentHelper;
+use Magento\Sales\Model\Order;
 
 /**
  * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
@@ -228,7 +229,6 @@ abstract class AbstractMethod extends Adapter
         }
 
         $intentId = $this->getIntentId($payment);
-        if (!$intentId) return $this;
         $this->cache->save(true, $this->cancelCacheName($intentId), [], 3600);
         try {
             $this->cancel->setPaymentIntentId($intentId)->send();
@@ -311,12 +311,9 @@ abstract class AbstractMethod extends Adapter
      */
     protected function getIntentId($payment): string
     {
+        /** @var Order $order */
         $order = $payment->getOrder();
-        $paymentIntent = $this->paymentIntentRepository->getByOrderId($order->getId());
-        # Compatible with older versions where payment is made before order placement
-        if (!$paymentIntent || !$paymentIntent->getIntentId()) {
-            return $this->getInfoInstance()->getAdditionalInformation('intent_id') ?: '';
-        }
+        $paymentIntent = $this->paymentIntentRepository->getByOrderIncrementIdAndStoreId($order->getIncrementId(), $order->getStoreId());
         return $paymentIntent->getIntentId();
     }
 
