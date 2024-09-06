@@ -114,7 +114,7 @@ class Capture extends AbstractWebhook
 
         /** @var Order $order */
         $order = $this->paymentIntentRepository->getOrder($intentId);
-        if ($this->isAmountEqual($order->getGrandTotal(), $data->captured_amount) && $order->getStatus() !== Order::STATE_PROCESSING) {
+        if ($order->getOrderCurrencyCode() === $data->currency && $this->isAmountEqual($order->getGrandTotal(), $data->captured_amount) && $order->getStatus() !== Order::STATE_PROCESSING) {
             $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
             $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
             $intentResponse = json_decode($resp, true);
@@ -131,12 +131,20 @@ class Capture extends AbstractWebhook
         $amount = $data->captured_amount;
         $baseAmount = $this->getBaseAmount($amount, $order->getBaseToOrderRate(), $order->getGrandTotal(), $order->getBaseGrandTotal());
         $amountFormat = $this->priceForComment($amount, $baseAmount, $order);
+        if ($data->currency === $order->getBaseCurrencyCode()) {
+            $amountFormat = $order->formatBasePrice($amount);
+            $baseAmount = $amount;
+        }
         $comment = "Captured amount of $amountFormat through Airwallex. Transaction id: \"$intentId\".";
         $this->addComment($order, $comment);
         $invoice = $this->invoiceService->prepareInvoice($order);
-        if (!$this->isAmountEqual($amount, $order->getGrandTotal())) {
+        if ($data->currency === $order->getOrderCurrencyCode() && !$this->isAmountEqual($amount, $order->getGrandTotal())) {
             $invoice->setGrandTotal($amount);
             $invoice->setBaseGrandTotal($baseAmount);
+        }
+        if ($data->currency !== $order->getOrderCurrencyCode() && !$this->isAmountEqual($amount, $order->getBaseGrandTotal())) {
+            $invoice->setGrandTotal($this->convertToDisplayCurrency($amount, $order->getBaseToOrderRate(), false));
+            $invoice->setBaseGrandTotal($amount);
         }
         $invoice->setTransactionId($data->id);
         $invoice->setRequestedCaptureCase(Invoice::CAPTURE_OFFLINE);

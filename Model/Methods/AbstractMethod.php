@@ -260,8 +260,11 @@ abstract class AbstractMethod extends Adapter
 
         $this->cache->save(true, $this->refundCacheName($intentId), [], 3600);
         try {
+            $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
+            $respArr = json_decode($resp, true);
+            $refundAmount = $credit->getBaseCurrencyCode() === $respArr['currency'] ?  $credit->getBaseGrandTotal() : $credit->getGrandTotal();
             /** @var Creditmemo $credit */
-            $res = $this->refund->setInformation($intentId, $credit->getGrandTotal())->send();
+            $res = $this->refund->setInformation($intentId, $refundAmount)->send();
 
             $record = $this->paymentIntentRepository->getByIntentId($intentId);
             $detail = $record->getDetail();

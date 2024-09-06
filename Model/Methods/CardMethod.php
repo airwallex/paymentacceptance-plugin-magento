@@ -48,7 +48,7 @@ class CardMethod extends AbstractMethod
 
         $this->cache->save(true, $this->captureCacheName($intentId), [], 3600);
         try {
-            $this->capture->setPaymentIntentId($intentId)->setInformation($order->getGrandTotal())->send();
+            $this->capture->setPaymentIntentId($intentId)->setInformation($respArr['amount'])->send();
         } catch (Exception $exception) {
             $this->logger->orderError($order, 'capture', $exception->getMessage());
             throw $exception;

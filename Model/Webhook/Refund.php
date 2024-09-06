@@ -115,7 +115,7 @@ class Refund extends AbstractWebhook
             return;
         }
 
-        $this->createCreditMemo($order, $data->amount, $data->reason ?? '');
+        $this->createCreditMemo($order, $data->amount, $data->currency, $data->reason ?? '');
     }
 
     /**
@@ -126,7 +126,7 @@ class Refund extends AbstractWebhook
      * @return void
      * @throws LocalizedException
      */
-    private function createCreditMemo(Order $order, float $refundAmount, string $reason): void
+    private function createCreditMemo(Order $order, float $refundAmount, string $refundCurrency, string $reason): void
     {
         /** @var Order\Invoice $invoice */
         $invoice = $order->getInvoiceCollection()->getFirstItem();
@@ -154,6 +154,10 @@ class Refund extends AbstractWebhook
 
         $creditMemo->setBaseGrandTotal($baseAmount);
         $creditMemo->setGrandTotal($refundAmount);
+        if ($refundCurrency === $order->getBaseCurrencyCode()) {
+            $creditMemo->setBaseGrandTotal($refundAmount);
+            $creditMemo->setGrandTotal($this->convertToDisplayCurrency($refundAmount, $order->getBaseToOrderRate(), false));
+        }
 
         $this->creditmemoService->refund($creditMemo, true);
         $this->orderRepository->save($order);
