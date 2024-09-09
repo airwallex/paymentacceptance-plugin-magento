@@ -242,7 +242,7 @@ class OrderService implements OrderServiceInterface
      * @throws CouldNotSaveException
      * @throws GuzzleException
      * @throws InputException
-     * @throwsJsonException
+     * @throws JsonException
      * @throws AlreadyExistsException|JsonException
      * @throws LocalizedException
      */
@@ -327,7 +327,7 @@ class OrderService implements OrderServiceInterface
         $quoteAddr = $billingAddress;
         $orderAddr = $order->getBillingAddress();
         if ($quoteAddr && !$orderAddr) return false;
-        if (!$quoteAddr && $orderAddr) return false;       
+        if (!$quoteAddr && $orderAddr) return false;
         if ($quoteAddr && $orderAddr) {
             if (!$this->isQuoteAddressSameAsOrderAddress($quoteAddr, $orderAddr)) return false;
         }

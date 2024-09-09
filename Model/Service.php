@@ -17,12 +17,12 @@ use Magento\Directory\Model\RegionFactory;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\DataObject;
 use Magento\Framework\Exception\CouldNotSaveException;
-use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Quote\Api\Data\ShippingMethodInterface;
 use Magento\Quote\Model\QuoteIdToMaskedQuoteIdInterface;
 use Magento\Quote\Model\ResourceModel\Quote\QuoteIdMask as QuoteIdMaskResourceModel;
+use Magento\Sales\Model\Order;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Framework\Serialize\SerializerInterface;
 use Magento\Framework\Filter\LocalizedToNormalized;
@@ -40,9 +40,9 @@ use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\CheckoutAgreements\Model\AgreementsConfigProvider;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Confirm;
-use Airwallex\Payments\Model\Methods\AbstractMethod;
 use Mobile_Detect;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
+use Magento\Sales\Model\OrderFactory;
 
 class Service implements ServiceInterface
 {
@@ -72,7 +72,9 @@ class Service implements ServiceInterface
     protected ErrorLog $errorLog;
     protected AgreementsConfigProvider $agreementsConfigProvider;
     protected Confirm $confirm;
+    protected PaymentIntentRepository $paymentIntentRepository;
     protected OrderResourceInterface $orderResource;
+    protected OrderFactory $orderFactory;
 
     /**
      * Index constructor.
@@ -101,7 +103,9 @@ class Service implements ServiceInterface
      * @param ErrorLog $errorLog
      * @param AgreementsConfigProvider $agreementsConfigProvider
      * @param Confirm $confirm
+     * @param PaymentIntentRepository $paymentIntentRepository
      * @param OrderResourceInterface $orderResource
+     * @param OrderFactory $orderFactory
      */
     public function __construct(
         Configuration                          $configuration,
@@ -128,7 +132,9 @@ class Service implements ServiceInterface
         ErrorLog                               $errorLog,
         AgreementsConfigProvider               $agreementsConfigProvider,
         Confirm                                $confirm,
-        OrderResourceInterface                 $orderResource
+        PaymentIntentRepository                $paymentIntentRepository,
+        OrderResourceInterface                 $orderResource,
+        OrderFactory                           $orderFactory
     )
     {
         $this->configuration = $configuration;
@@ -155,7 +161,9 @@ class Service implements ServiceInterface
         $this->errorLog = $errorLog;
         $this->agreementsConfigProvider = $agreementsConfigProvider;
         $this->confirm = $confirm;
+        $this->paymentIntentRepository = $paymentIntentRepository;
         $this->orderResource = $orderResource;
+        $this->orderFactory = $orderFactory;
     }
 
     /**
@@ -198,6 +206,8 @@ class Service implements ServiceInterface
      * @param string $intentId
      * @return string
      * @throws GuzzleException
+     * @throws InputException
+     * @throws NoSuchEntityException
      */
     public function intent(string $intentId): string
     {
@@ -212,7 +222,13 @@ class Service implements ServiceInterface
             $paid = in_array($respArr['status'], $paidStatus, true);
         } catch (Exception $e) {
         }
-        return json_encode(compact('paid'));
+        $intentRecord = $this->paymentIntentRepository->getByIntentId($intentId);
+        $order = $this->orderFactory->create();
+        $this->orderResource->load($order, $intentRecord->getOrderId());
+        return json_encode([
+            'paid' => $paid,
+            'is_order_status_changed' => $order->getStatus() !== Order::STATE_PENDING_PAYMENT,
+        ]);
     }
 
     /**

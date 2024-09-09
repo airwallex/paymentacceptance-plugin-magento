@@ -1,5 +1,5 @@
 define([
-    'Airwallex_Payments/js/view/payment/abstract-method',
+    'Magento_Checkout/js/view/payment/default',
     'ko',
     'jquery',
     'mage/url',
@@ -96,7 +96,6 @@ define([
                     }, utils.isLoggedIn(), quote.getQuoteId());
 
                     let intentResponse = await utils.getIntent(payload, {});
-                    this.intentId(intentResponse.intent_id);
                     const iframeSelector = "._active .qrcode-payment .iframe";
                     const qrcodeSelector = "._active .qrcode-payment .qrcode";
                     $(iframeSelector).html('').hide();
@@ -133,12 +132,13 @@ define([
                     this.timer = setInterval(async () => {
                         let res = await this.getIntent(intentResponse.intent_id);
                         let response = JSON.parse(res);
-                        if (response.paid) {
+                        if (response.paid && response.is_order_status_changed) {
                             utils.clearDataAfterPay(response, customerData);
                             redirectOnSuccessAction.execute();
                         }
                     }, 2500);
                 } catch (e) {
+                    console.error(e);
                     if (e.responseJSON && e.responseJSON.message) {
                         this.validationError($t(e.responseJSON.message));
                     } else {

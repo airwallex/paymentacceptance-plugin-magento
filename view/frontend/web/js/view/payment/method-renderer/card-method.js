@@ -3,7 +3,7 @@ define(
     [
         'jquery',
         'ko',
-        'Airwallex_Payments/js/view/payment/abstract-method',
+        'Magento_Checkout/js/view/payment/default',
         'Magento_Checkout/js/model/quote',
         'Magento_Checkout/js/model/payment/additional-validators',
         'Magento_Checkout/js/model/error-processor',
@@ -38,6 +38,12 @@ define(
             isRecaptchaEnabled: !!window.checkoutConfig.payment.airwallex_payments.recaptcha_enabled,
             autoCapture: !!window.checkoutConfig.payment.airwallex_payments.cc_auto_capture,
             maxWidth: window.checkoutConfig.payment.airwallex_payments.card_max_width,
+            fonts: [{
+                src: 'https://checkout.airwallex.com/fonts/CircularXXWeb/CircularXXWeb-Regular.woff2',
+                family: 'AxLLCircular',
+                weight: 400,
+            }],
+
             defaults: {
                 template: 'Airwallex_Payments/payment/card-method'
             },
@@ -46,12 +52,17 @@ define(
                 if (!customer.isLoggedIn()) {
                     return null;
                 }
-    
+
                 return window.checkoutConfig.payment.airwallex_payments.airwallex_customer_id;
             },
 
-            isAirwallexCustomer() {
-                return !!this.getCustomerId();
+            loadPayment() {
+                Airwallex.init({
+                    env: window.checkoutConfig.payment.airwallex_payments.mode,
+                    origin: window.location.origin,
+                    fonts: this.fonts
+                });
+                this.initPayment()
             },
 
             getBillingInformation: function () {
@@ -76,7 +87,7 @@ define(
                         base: {
                             fontSize: fontSize + 'px',
                         }
-                    }                       
+                    }
                 });
                 this.cardElement.mount(this.mountElement);
                 this.cardElement.on('change', (event) => {
