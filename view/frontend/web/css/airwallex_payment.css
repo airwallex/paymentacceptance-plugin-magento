@@ -228,3 +228,7 @@
 .airwallex-card {
     width: 100%;
 }
+
+.awx-card-actions-toolbar {
+    margin-top: 15px;
+}

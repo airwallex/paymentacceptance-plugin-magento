@@ -140,7 +140,7 @@ class Configuration extends AbstractHelper
     {
         $size = (int)$this->scopeConfig->getValue('payment/airwallex_payments_card/max_width');
         if ($size < 320) $size = 320;
-        if ($size > 1000) $size = 1000;
+        if ($size > 500) $size = 500;
         return $size;
     }
 
