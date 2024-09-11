@@ -34,7 +34,7 @@ class Fieldset extends AdminhtmlFieldset
             ' class="button action-configure' .
             '" id="' .
             $htmlId .
-            '-head" onclick="toggleSolution.call(this, \'' .
+            '-head" onclick="awxToggleSolution.call(this, \'' .
             $htmlId .
             "', '" .
             $this->getUrl(
@@ -54,6 +54,32 @@ class Fieldset extends AdminhtmlFieldset
 
         $html .= '<div class="config-alt"></div>';
         $html .= '</div></div>';
+        $html .= "
+<script>
+require(['jquery', 'prototype'], function ($) {
+    'use strict';
+    window.awxToggleSolution = function (id, url) {
+        var doScroll = false;
+        var pos = false;
+
+        Fieldset.toggleCollapse(id, url);
+        if (document.querySelector('#{$htmlId}').hasClassName('open')) {
+            $$('.with-button button.button').each(function (anotherButton) {
+                if (anotherButton !== this && $(anotherButton).hasClassName('open')) {
+                    $(anotherButton).click();
+                    doScroll = true;
+                }
+            }.bind(this));
+        }
+
+        if (doScroll) {
+            pos = Element.cumulativeOffset($(this));
+            window.scrollTo(pos[0], pos[1] - 45);
+        }
+    };
+});
+</script>
+        ";
 
         return $html;
     }
