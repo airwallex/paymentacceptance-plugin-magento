@@ -52,6 +52,11 @@ interface PaymentConsentsInterface
     public function generateClientSecret(int $customerId): ClientSecretResponseInterface;
 
     /**
+     * @return ClientSecretResponseInterface
+     */
+    public function guestGenerateClientSecret(): ClientSecretResponseInterface;
+
+    /**
      * @param ?int $customerId
      * @return string
      */

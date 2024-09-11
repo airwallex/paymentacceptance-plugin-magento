@@ -155,7 +155,6 @@
 
 .airwallex-payment-frame {
     width: 100%;
-    max-width: 380px;
 }
 
 .save-card-input {
@@ -168,7 +167,7 @@
     width: auto;
 }
 
-#airwallex-payments-card-form {
+#airwallex-card-element {
     margin-bottom: 12px;
 }
 
@@ -211,4 +210,21 @@
 .qrcode-payment iframe {
     width: 100%;
     border: none;
+}
+
+.awx-split-card-container {
+    color: #00112c;
+    font-size: .81em;
+    font-weight: 400;
+    line-height: 13px;
+    max-width: 380px;
+}
+
+.awx-txt {
+    height: 15px;
+    padding-bottom: 5px;
+}
+
+.airwallex-card {
+    width: 100%;
 }

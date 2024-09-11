@@ -14,6 +14,7 @@ interface OrderServiceInterface
      * @param PaymentInterface $paymentMethod
      * @param AddressInterface|null $billingAddress
      * @param string|null $intentId
+     * @param string|null $paymentMethodId
      * @param string|null $from
      * @return PlaceOrderResponseInterface
      */
@@ -23,6 +24,7 @@ interface OrderServiceInterface
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
         ?string          $intentId = '',
+        ?string          $paymentMethodId = '',
         ?string          $from = ''
     ): PlaceOrderResponseInterface;
 
@@ -31,6 +33,7 @@ interface OrderServiceInterface
      * @param PaymentInterface $paymentMethod
      * @param AddressInterface|null $billingAddress
      * @param string|null $intentId
+     * @param string|null $paymentMethodId
      * @param string|null $from
      * @return PlaceOrderResponseInterface
      */
@@ -39,6 +42,7 @@ interface OrderServiceInterface
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
         ?string          $intentId = '',
+        ?string          $paymentMethodId = '',
         ?string          $from = ''
     ): PlaceOrderResponseInterface;
 }

@@ -139,10 +139,11 @@ class OrderService implements OrderServiceInterface
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
         ?string          $intentId = '',
+        ?string          $paymentMethodId = '',
         ?string          $from = ''
     ): PlaceOrderResponseInterface
     {
-        return $this->savePaymentOrPlaceOrder($cartId, $paymentMethod, $billingAddress, $intentId, $email, $from);
+        return $this->savePaymentOrPlaceOrder($cartId, $paymentMethod, $billingAddress, $intentId, $email, $paymentMethodId, $from);
     }
 
     /**
@@ -167,10 +168,11 @@ class OrderService implements OrderServiceInterface
         PaymentInterface $paymentMethod,
         AddressInterface $billingAddress = null,
         ?string          $intentId = '',
+        ?string          $paymentMethodId = '',
         ?string          $from = ''
     ): PlaceOrderResponseInterface
     {
-        return $this->savePaymentOrPlaceOrder($cartId, $paymentMethod, $billingAddress, $intentId, '', $from);
+        return $this->savePaymentOrPlaceOrder($cartId, $paymentMethod, $billingAddress, $intentId, '', $paymentMethodId, $from);
     }
 
     /**
@@ -187,6 +189,7 @@ class OrderService implements OrderServiceInterface
         AddressInterface $billingAddress = null,
         ?string          $intentId = '',
         ?string          $email = '',
+        ?string          $paymentMethodId = '',
         ?string          $from = ''
     ): PlaceOrderResponseInterface
     {
@@ -197,7 +200,7 @@ class OrderService implements OrderServiceInterface
 
         if (!$intentId) {
             $this->isOrderCreatedHelper->setIsCreated(false);
-            return $this->orderThenIntent($quote, $uid, $cartId, $paymentMethod, $billingAddress, $email, $from, $response);
+            return $this->orderThenIntent($quote, $uid, $cartId, $paymentMethod, $billingAddress, $email, $paymentMethodId, $from, $response);
         }
 
         $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
@@ -236,6 +239,7 @@ class OrderService implements OrderServiceInterface
      * @param PaymentInterface $paymentMethod
      * @param AddressInterface|null $billingAddress
      * @param string|null $email
+     * @param string|null $paymentMethodId
      * @param string|null $from
      * @param PlaceOrderResponse $response
      * @return PlaceOrderResponse
@@ -246,7 +250,7 @@ class OrderService implements OrderServiceInterface
      * @throws AlreadyExistsException|JsonException
      * @throws LocalizedException
      */
-    public function orderThenIntent(Quote $quote, $uid, string $cartId, PaymentInterface $paymentMethod, ?AddressInterface $billingAddress, ?string $email, ?string $from, PlaceOrderResponse $response): PlaceOrderResponse
+    public function orderThenIntent(Quote $quote, $uid, string $cartId, PaymentInterface $paymentMethod, ?AddressInterface $billingAddress, ?string $email, ?string $paymentMethodId, ?string $from, PlaceOrderResponse $response): PlaceOrderResponse
     {
         $order = $this->getOrderByQuote($quote);
         if ($order->getStatus() !== Order::STATE_PENDING_PAYMENT || !$this->isOrderEqualToQuote($order, $quote, $billingAddress)) {
@@ -287,6 +291,7 @@ class OrderService implements OrderServiceInterface
         $intentResponse = json_decode($resp, true);
         $intentResponse['status'] = PaymentIntentInterface::INTENT_STATUS_SUCCEEDED;
         $this->checkIntentWithOrder($intentResponse, $order);
+        $this->appendPaymentMethodId($paymentMethodId, $intent['id']);
 
         $data = [
             'response_type' => 'confirmation_required',
@@ -299,6 +304,18 @@ class OrderService implements OrderServiceInterface
 
         $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
         return $response->setData($data);
+    }
+
+    private function appendPaymentMethodId(?string $paymentMethodId, string $intentId): void
+    {
+        if ($paymentMethodId) {
+            $record = $this->paymentIntentRepository->getByIntentId($intentId);
+            $detail = $record->getDetail();
+            $detailArray = $detail ? json_decode($detail, true) : [];
+            if (empty($detailArray['payment_method_ids'])) $detailArray['payment_method_ids'] = [];
+            $detailArray['payment_method_ids'][] = $paymentMethodId;
+            $this->paymentIntentRepository->updateDetail($record, json_encode($detailArray));
+        }
     }
 
 

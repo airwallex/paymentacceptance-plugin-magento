@@ -40,4 +40,12 @@ class ClientSecretResponse extends DataObject implements ClientSecretResponseInt
     {
         return $this->setData(self::DATA_KEY_EXPIRED_TIME, $time);
     }
+
+    /**
+     * @return string|null
+     */
+    public function getCustomerId(): ?string
+    {
+        return $this->getData(self::DATA_KEY_CUSTOMER_ID);
+    }
 }

@@ -132,7 +132,7 @@ define([
 
         validateAgreements: function (selector) {
             var checkoutConfig = window.checkoutConfig,
-            agreementsConfig = checkoutConfig ? checkoutConfig.checkoutAgreements : {};
+                agreementsConfig = checkoutConfig ? checkoutConfig.checkoutAgreements : {};
 
             var isValid = true;
 
@@ -162,7 +162,7 @@ define([
 
         allAgreementsCheck() {
             let status = true;
-            $(this.agreementSelector).each(function() {
+            $(this.agreementSelector).each(function () {
                 if (!this.checked) {
                     status = false;
                     return false;
@@ -185,7 +185,7 @@ define([
                 $(this.buttonMaskAgreementSelector).off('click.awx').on('click.awx', (e) => {
                     e.stopPropagation();
                     this.checkAgreements();
-                    this.validateAgreements(this.agreementSelector)
+                    this.validateAgreements(this.agreementSelector);
                 });
             }
         },
@@ -345,7 +345,7 @@ define([
 
         error(response) {
             let modalSelector = $('#awx-modal');
-            modal({ title: 'Error' }, modalSelector);
+            modal({title: 'Error'}, modalSelector);
 
             $('body').trigger('processStop');
             let errorMessage = $.mage.__(response.message);
@@ -415,7 +415,7 @@ define([
                 );
             } catch (e) {
                 if (e.status === 404) {
-                    this.clearDataAfterPay({}, customerData)
+                    this.clearDataAfterPay({}, customerData);
                     // this.redirectToSuccess();
                     // return;
                 }
@@ -438,7 +438,7 @@ define([
                 );
             } catch (e) {
                 if (e.status === 404) {
-                    this.clearDataAfterPay({}, customerData)
+                    this.clearDataAfterPay({}, customerData);
                     this.redirectToSuccess();
                     return;
                 }
@@ -488,7 +488,7 @@ define([
             );
         },
 
-        pay(self, from, quote) {
+        async pay(self, from, quote) {
             let that = this;
             $('body').trigger('processStart');
 
@@ -537,6 +537,42 @@ define([
                         // payload.xReCaptchaValue = await that.getRecaptchaToken(that.getRecaptchaId());
                     }
 
+                    let paymentMethodId = '';
+                    if (from === 'card') {
+                        if (!quote.guestEmail) {
+                            throw new Error('Email address is required.')
+                        }
+                        if (!quote.billingAddress()) {
+                            throw new Error('Billing address is required.')
+                        }
+                        let clientSecret, customerId;
+                        if (self.getCustomerId()) {
+                            let requestUrl = urlBuilder.build('rest/V1/airwallex/generate_client_secret');
+                            let res = await storage.get(requestUrl, undefined, 'application/json', {});
+                            clientSecret = res.client_secret;
+                            customerId = self.getCustomerId();
+                        } else {
+                            let requestUrl = urlBuilder.build('rest/V1/airwallex/guest/generate_client_secret');
+                            let res = await storage.get(requestUrl, undefined, 'application/json', {});
+                            clientSecret = res.client_secret;
+                            customerId = res.customer_id;
+                        }
+                        try {
+                            let res = await Airwallex.createPaymentMethod(clientSecret, {
+                                element: self.cardNumberElement,
+                                customer_id: customerId,
+                            });
+                            paymentMethodId = res.id;
+                        } catch (err) {
+                            console.log(err)
+                            throw new Error($.mage.__('Invalid input. Please verify your payment details and try again.'));
+                        }
+                    } else if (from === 'vault') {
+                        paymentMethodId = self.paymentMethodId();
+                    }
+
+                    payload.paymentMethodId = paymentMethodId;
+
                     let intentResponse = await that.getIntent(payload, headers);
                     if (!intentResponse) return;
 
@@ -567,7 +603,7 @@ define([
                                     client_secret: intentResponse.client_secret,
                                     currency: quote.totals().quote_currency_code,
                                     billing: self.getBillingInformation(),
-                                    element: self.cardElement,
+                                    element: self.cardNumberElement,
                                     next_triggered_by: 'customer',
                                 });
                             } else {
@@ -577,7 +613,7 @@ define([
                                     payment_method: {
                                         billing: self.getBillingInformation()
                                     },
-                                    element: self.cardElement
+                                    element: self.cardNumberElement
                                 });
                             }
                         }
@@ -601,7 +637,7 @@ define([
                     reject(e);
                 }
             })).then(function (response) {
-                that.clearDataAfterPay(response, customerData)
+                that.clearDataAfterPay(response, customerData);
                 that.redirectToSuccess();
                 return;
             }).catch(

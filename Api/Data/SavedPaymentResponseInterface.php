@@ -11,6 +11,7 @@ interface SavedPaymentResponseInterface
     public const DATA_KEY_CARD_LAST_FOUR = 'card_last_four';
     public const DATA_KEY_CARD_HOLDER_NAME = 'card_holder_name';
     public const DATA_KEY_CARD_ICON = 'card_icon';
+    public const DATA_KEY_PAYMENT_METHOD_ID = 'payment_method_id';
     public const DATA_KEY_NEXT_TRIGGERED_BY = 'next_triggered_by';
     public const DATA_KEY_NUMBER_TYPE = 'number_type';
     public const DATA_STATUS = 'status';
@@ -92,6 +93,11 @@ interface SavedPaymentResponseInterface
      * @return string|null
      */
     public function getCardIcon(): ?string;
+
+    /**
+     * @return string|null
+     */
+    public function getPaymentMethodId(): ?string;
 
     /**
      * @return string|null

@@ -118,6 +118,14 @@ class SavedPaymentResponse extends DataObject implements SavedPaymentResponseInt
     }
 
     /**
+     * @return string|null
+     */
+    public function getPaymentMethodId(): ?string
+    {
+        return $this->getData(self::DATA_KEY_PAYMENT_METHOD_ID);
+    }
+
+    /**
      * @param string|null $icon
      * @return SavedPaymentResponse
      */

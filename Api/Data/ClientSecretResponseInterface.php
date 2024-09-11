@@ -6,6 +6,7 @@ interface ClientSecretResponseInterface
 {
     public const DATA_KEY_CLIENT_SECRET = 'client_secret';
     public const DATA_KEY_EXPIRED_TIME = 'expired_time';
+    public const DATA_KEY_CUSTOMER_ID = 'customer_id';
 
     /**
      * @return string|null
@@ -28,4 +29,9 @@ interface ClientSecretResponseInterface
      * @return $this
      */
     public function setExpiredTime(string $time = null): ClientSecretResponseInterface;
+
+    /**
+     * @return string|null
+     */
+    public function getCustomerId(): ?string;
 }

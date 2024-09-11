@@ -3,11 +3,14 @@
 namespace Airwallex\Payments\Model\Traits;
 
 use Airwallex\Payments\Api\Data\PaymentIntentInterface;
+use Airwallex\Payments\Model\Client\Request\PaymentMethod\Get;
 use Airwallex\Payments\Model\Methods\AbstractMethod;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Framework\App\ObjectManager;
+use Magento\Framework\Exception\InputException;
+use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Quote\Model\Quote;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Payment;
@@ -244,6 +247,46 @@ trait HelperTrait
         );
     }
 
+    /**
+     * @param $intentResponse
+     * @param Order $order
+     * @return void
+     * @throws GuzzleException
+     * @throws JsonException
+     * @throws InputException
+     * @throws NoSuchEntityException
+     */
+    public function checkCardDetail($intentResponse, Order $order): void
+    {
+        $lastPaymentType = $intentResponse['latest_payment_attempt']['payment_method']['type'] ?? '';
+        if ($lastPaymentType === 'card') {
+            $record = $this->paymentIntentRepository->getByIntentId($intentResponse['id']);
+            $detail = $record->getDetail();
+
+            $isSame = true;
+            $detailArray = $detail ? json_decode($detail, true) : [];
+            if (!empty($detailArray['payment_method_ids'])) {
+                $paymentMethodGet = ObjectManager::getInstance()->get(Get::class);
+                $response = $paymentMethodGet->setPaymentMethodId(end($detailArray['payment_method_ids']))->send();
+                $paymentMethodResponse = json_decode($response, true);
+
+                $intentCard = $intentResponse['latest_payment_attempt']['payment_method']['card'] ?? null;
+                $card = $paymentMethodResponse['card'] ?? null;
+
+                if (!$intentCard || !$card || $intentCard['bin'] !== $card['bin']
+                    || $intentCard['expiry_month'] !== $card['expiry_month']
+                    || $intentCard['expiry_year'] !== $card['expiry_year']) {
+                    $isSame = false;
+                }
+            } else {
+                $isSame = false;
+            }
+            if (!$isSame) {
+                $this->addComment($order, 'The card information used for the final payment does not match the card information filled in prior to the final payment.');
+            }
+        }
+    }
+
     protected function error($message)
     {
         return json_encode([
@@ -326,6 +369,7 @@ trait HelperTrait
         try {
             $order = $this->orderFactory->create();
             $this->orderResource->load($order, $orderId);
+            /** @var Payment $payment */
             $payment = $order->getPayment();
             if ($payment && $payment->getAmountAuthorized() > 0 && $intentResponse['status'] === PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE) {
                 return;
@@ -344,8 +388,13 @@ trait HelperTrait
             }
             $this->orderManagement->place($order);
             $this->addAVSResultToOrder($order, $intentResponse);
+
             $quote->setIsActive(false);
             $this->quoteRepository->save($quote);
+
+            try {
+                $this->checkCardDetail($intentResponse, $order);
+            } catch (Exception $e) {}
         } finally {
             $this->cache->remove($lockKey);
         }

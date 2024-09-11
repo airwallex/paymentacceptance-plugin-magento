@@ -173,6 +173,7 @@ class GetList extends AbstractClient implements BearerAuthenticationInterface
                 SavedPaymentResponseInterface::DATA_KEY_NEXT_TRIGGERED_BY => $item->next_triggered_by ?? '',
                 SavedPaymentResponseInterface::DATA_KEY_NUMBER_TYPE => $item->payment_method->card->number_type ?? '',
                 SavedPaymentResponseInterface::DATA_KEY_CARD_ICON => $cards[$iconIndex]['resources']['logos']['png'] ?? '',
+                SavedPaymentResponseInterface::DATA_KEY_PAYMENT_METHOD_ID => $item->payment_method->id ?? '',
                 SavedPaymentResponseInterface::DATA_STATUS => $item->status,
                 SavedPaymentResponseInterface::DATA_BILLING => $billing
             ]);

@@ -18,6 +18,7 @@ define([
 
     return VaultComponent.extend({
         validationError: ko.observable(),
+        paymentMethodId: ko.observable(),
         isRecaptchaEnabled: !!window.checkoutConfig.payment.airwallex_payments.recaptcha_enabled,
         autoCapture: !!window.checkoutConfig.payment.airwallex_payments.cc_auto_capture,
         cvcElement: undefined,
@@ -147,6 +148,7 @@ define([
             }
             for (let card of window.airwallexSavedCards) {
                 if (card.id === $('#v-' + id).val()) {
+                    this.paymentMethodId(card.payment_method_id);
                     if (!card.billing) { continue; }
                     let cardBilling = JSON.parse(card.billing)
                     let billing = {

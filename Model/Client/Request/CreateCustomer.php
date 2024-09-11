@@ -34,8 +34,6 @@ class CreateCustomer extends AbstractClient implements BearerAuthenticationInter
      */
     protected function parseResponse(ResponseInterface $response): string
     {
-        $response = $this->parseJson($response);
-
-        return $response->id;
+        return $response->getBody();
     }
 }

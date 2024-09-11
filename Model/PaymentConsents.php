@@ -129,7 +129,9 @@ class PaymentConsents implements PaymentConsentsInterface
         }
 
         try {
-            $airwallexCustomerId = $this->createCustomer->setMagentoCustomerId($this->generateAirwallexCustomerId($customer))->send();
+            $airwallexCustomer = $this->createCustomer->setMagentoCustomerId($this->generateAirwallexCustomerId($customer))->send();
+            $arrAirwallexCustomer = json_decode($airwallexCustomer, true);
+            $airwallexCustomerId = $arrAirwallexCustomer['id'];
         } catch (Exception $e) {
             return '';
         }
@@ -449,6 +451,28 @@ class PaymentConsents implements PaymentConsentsInterface
         return $response;
     }
 
+    /**
+     * @return ClientSecretResponseInterface
+     * @throws GuzzleException
+     * @throws JsonException
+     */
+    public function guestGenerateClientSecret(): ClientSecretResponseInterface
+    {
+        $response = $this->clientSecretResponseFactory->create();
+
+        $timestamp = time();
+        $rand = rand(100000, 999999);
+        $str = $timestamp . '-' . $rand;
+        $randId = substr($str, 0, 64);
+        $airwallexCustomer = $this->createCustomer->setMagentoCustomerId($randId)->send();
+        $arrAirwallexCustomer = json_decode($airwallexCustomer, true);
+
+        $response->setData([
+            ClientSecretResponseInterface::DATA_KEY_CLIENT_SECRET => $arrAirwallexCustomer['client_secret'],
+            ClientSecretResponseInterface::DATA_KEY_CUSTOMER_ID => $arrAirwallexCustomer['id'],
+        ]);
+        return $response;
+    }
 
     /**
      * getTokens

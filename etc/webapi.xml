@@ -136,4 +136,11 @@
             <parameter name="customerId" force="true">%customer_id%</parameter>
         </data>
     </route>
+
+    <route url="/V1/airwallex/guest/generate_client_secret" method="GET">
+        <service class="Airwallex\Payments\Api\PaymentConsentsInterface" method="guestGenerateClientSecret"/>
+        <resources>
+            <resource ref="anonymous"/>
+        </resources>
+    </route>
 </routes>

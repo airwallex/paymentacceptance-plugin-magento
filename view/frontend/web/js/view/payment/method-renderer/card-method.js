@@ -3,6 +3,8 @@ define(
     [
         'jquery',
         'ko',
+        'mage/url',
+        'mage/storage',
         'Magento_Checkout/js/view/payment/default',
         'Magento_Checkout/js/model/quote',
         'Magento_Checkout/js/model/payment/additional-validators',
@@ -14,6 +16,8 @@ define(
     function (
         $,
         ko,
+        url,
+        storage,
         Component,
         quote,
         additionalValidators,
@@ -27,14 +31,19 @@ define(
         return Component.extend({
             code: 'airwallex_payments_card',
             type: 'card',
-            mountElement: 'airwallex-payments-card-form',
-            cvcMountElement: 'airwallex-payments-cvc-form',
-            cardElement: undefined,
-            cvcElement: undefined,
-            cardDetail: {},
+            cardNumberSelector: 'airwallex-card-element',
+            cardExpirySelector: 'airwallex-expiry-element',
+            cardCvcSelector: 'airwallex-cvc-element',
+            cardNumberElement: null,
+            cardExpiryElement: null,
+            cardCvcElement: null,
+            isNumberComplete: ko.observable(false),
+            isExpiryComplete: ko.observable(false),
+            isCvcComplete: ko.observable(false),
+            cardNumberDetail: {},
+            cardExpiryDetail: {},
+            cardCvcDetail: {},
             validationError: ko.observable(),
-            showNewCardForm: ko.observable(true),
-            showCvcForm: ko.observable(false),
             isRecaptchaEnabled: !!window.checkoutConfig.payment.airwallex_payments.recaptcha_enabled,
             autoCapture: !!window.checkoutConfig.payment.airwallex_payments.cc_auto_capture,
             maxWidth: window.checkoutConfig.payment.airwallex_payments.card_max_width,
@@ -52,7 +61,6 @@ define(
                 if (!customer.isLoggedIn()) {
                     return null;
                 }
-
                 return window.checkoutConfig.payment.airwallex_payments.airwallex_customer_id;
             },
 
@@ -62,18 +70,33 @@ define(
                     origin: window.location.origin,
                     fonts: this.fonts
                 });
-                this.initPayment()
+                this.initPayment();
             },
 
             getBillingInformation: function () {
                 const billingAddress = quote.billingAddress();
+                if (!billingAddress) {
+                    throw new Error('Billing address is required.')
+                }
                 billingAddress.email = quote.guestEmail;
                 addressHandler.setIntentConfirmBillingAddressFromOfficial(billingAddress);
                 return addressHandler.intentConfirmBillingAddressFromOfficial;
             },
 
-            initPayment: async function() {
-                let fontSize =  window.checkoutConfig.payment.airwallex_payments.card_fontsize;
+            showNumberError() {
+                return this.validationError() && !this.isNumberComplete();
+            },
+
+            showExpiryError() {
+                return this.validationError() && !this.isExpiryComplete();
+            },
+
+            showCvcError() {
+                return this.validationError() && !this.isCvcComplete();
+            },
+
+            initPayment: async function () {
+                let fontSize = window.checkoutConfig.payment.airwallex_payments.card_fontsize;
                 if (window.airwallex_card_fontsize) {
                     fontSize = parseInt(window.airwallex_card_fontsize);
                     let min = 12;
@@ -81,7 +104,7 @@ define(
                     fontSize = fontSize < min ? min : fontSize;
                     fontSize = fontSize > max ? max : fontSize;
                 }
-                this.cardElement = Airwallex.createElement('card', {
+                this.cardNumberElement = Airwallex.createElement('cardNumber', {
                     autoCapture: this.autoCapture,
                     style: {
                         base: {
@@ -89,20 +112,31 @@ define(
                         }
                     }
                 });
-                this.cardElement.mount(this.mountElement);
-                this.cardElement.on('change', (event) => {
-                    this.cardDetail = event.detail;
-                    if (this.cardDetail.complete) {
-                        this.validationError('');
+                this.cardExpiryElement = Airwallex.createElement('expiry', {
+                    style: {
+                        base: {
+                            fontSize: fontSize + 'px',
+                        }
                     }
-                })
+                });
+                this.cardCvcElement = Airwallex.createElement('cvc', {
+                    style: {
+                        base: {
+                            fontSize: fontSize + 'px',
+                        }
+                    }
+                });
 
-                $('body').trigger('processStop');
-                if (!this.isCardVaultActive()) {
-                    return;
+                for (let type of ['Number', 'Expiry', 'Cvc']) {
+                    this['card' + type + 'Element'].mount(this['card' + type + 'Selector']);
+                    this['card' + type + 'Element'].on('change', (event) => {
+                        this['card' + type + 'Detail'] = event.detail;
+                        this['is' + type + 'Complete'](this['card' + type + 'Detail'].complete);
+                        if (this.isNumberComplete() && this.isExpiryComplete() && this.isCvcComplete()) {
+                            this.validationError('');
+                        }
+                    });
                 }
-
-                $("input[value=__new_card__]").prop('checked', true);
             },
 
             initiateOrderPlacement: async function () {
@@ -128,25 +162,18 @@ define(
                 return $('#airwallex-payments-card-save').is(':checked');
             },
 
-            placeOrder: function (data, event) {
+            async placeOrder () {
                 let self = this;
                 this.validationError('');
-
-                if (event) {
-                    event.preventDefault();
-                }
-
-                if (this.validate() &&
-                    additionalValidators.validate() &&
-                    this.isPlaceOrderActionAllowed() === true
-                ) {
-                    this.isPlaceOrderActionAllowed(false);
-                    if (!this.cardDetail || !this.cardDetail.complete) {
-                        this.isPlaceOrderActionAllowed(true);
+                if (this.validate() && additionalValidators.validate()) {
+                    if (!this.cardNumberDetail || !this.cardNumberDetail.complete
+                        || !this.cardExpiryDetail || !this.cardExpiryDetail.complete
+                        || !this.cardCvcDetail || !this.cardCvcDetail.complete) {
                         this.validationError($.mage.__('Please complete your payment details.'));
-                        return
+                        return;
                     }
-                    utils.pay(self, 'card', quote);
+
+                    await utils.pay(self, 'card', quote);
                     return true;
                 }
                 return false;
