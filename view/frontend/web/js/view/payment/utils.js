@@ -539,7 +539,7 @@ define([
 
                     let paymentMethodId = '';
                     if (from === 'card') {
-                        if (!quote.guestEmail) {
+                        if (!self.getCustomerId() && !quote.guestEmail) {
                             throw new Error('Email address is required.')
                         }
                         if (!quote.billingAddress()) {
