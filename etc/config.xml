@@ -46,8 +46,8 @@
                 <can_authorize_vault>1</can_authorize_vault>
                 <can_capture_vault>1</can_capture_vault>
                 <model>AirwallexPaymentsCardsGatewayFacade</model>
-                <max_width>380</max_width>
-                <fontsize>14</fontsize>
+                <max_width>260</max_width>
+                <fontsize>16</fontsize>
                 <allowspecific>0</allowspecific>
                 <title>Pay by Card (Airwallex)</title>
                 <payment_action>authorize</payment_action>
