@@ -232,3 +232,7 @@
 .awx-card-actions-toolbar {
     margin-top: 15px;
 }
+
+.payment-method.airwallex-payments .g-recaptcha {
+    margin-bottom: 20px;
+}

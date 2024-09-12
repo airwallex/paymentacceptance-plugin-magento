@@ -2,7 +2,7 @@
 
 namespace Airwallex\Payments\Model\Config;
 
-use Airwallex\Payments\Api\ServiceInterface;
+use Airwallex\Payments\Api\OrderServiceInterface;
 use Airwallex\Payments\Model\Ui\ConfigProvider;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Webapi\Rest\Request as RestRequest;
@@ -44,7 +44,7 @@ class WebapiConfigProvider implements WebapiValidationConfigProviderInterface
      */
     public function getConfigFor(EndpointInterface $endpoint): ?ValidationConfigInterface
     {
-        if ($endpoint->getServiceClass() === ServiceInterface::class
+        if ($endpoint->getServiceClass() === OrderServiceInterface::class
             && array_key_exists($endpoint->getServiceMethod(), self::PROTECTED_METHODS)) {
             if ($this->isEnabled->isCaptchaEnabledFor(ConfigProvider::AIRWALLEX_RECAPTCHA_FOR)) {
                 return $this->configResolver->get(ConfigProvider::AIRWALLEX_RECAPTCHA_FOR);

@@ -3,6 +3,7 @@
 namespace Airwallex\Payments\Model\Traits;
 
 use Airwallex\Payments\Api\Data\PaymentIntentInterface;
+use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Model\Client\Request\PaymentMethod\Get;
 use Airwallex\Payments\Model\Methods\AbstractMethod;
 use Exception;
@@ -258,6 +259,7 @@ trait HelperTrait
      */
     public function checkCardDetail($intentResponse, Order $order): void
     {
+        if (!ObjectManager::getInstance()->get(Configuration::class)->isPreVerificationEnabled()) return;
         $lastPaymentType = $intentResponse['latest_payment_attempt']['payment_method']['type'] ?? '';
         if ($lastPaymentType === 'card') {
             $record = $this->paymentIntentRepository->getByIntentId($intentResponse['id']);

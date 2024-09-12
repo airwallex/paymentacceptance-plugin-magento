@@ -77,6 +77,7 @@ class ConfigProvider implements ConfigProviderInterface
                     'recaptcha_enabled' => !!$recaptchaEnabled,
                     'cvc_required' => $this->configuration->isCvcRequired(),
                     'is_card_vault_active' => $this->configuration->isCardVaultActive(),
+                    'is_pre_verification_enabled' => $this->configuration->isPreVerificationEnabled(),
                     'card_max_width' => $this->configuration->getCardMaxWidth(),
                     'card_fontsize' => $this->configuration->getCardFontSize(),
                 ]

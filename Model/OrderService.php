@@ -318,7 +318,6 @@ class OrderService implements OrderServiceInterface
         }
     }
 
-
     /**
      * @param Order $order
      * @param Quote $quote

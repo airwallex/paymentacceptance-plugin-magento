@@ -98,6 +98,16 @@ class Configuration extends AbstractHelper
     }
 
     /**
+     * Pre Verification enabled
+     *
+     * @return bool
+     */
+    public function isPreVerificationEnabled(): bool
+    {
+        return $this->scopeConfig->getValue('payment/airwallex_payments_card/preverification');
+    }
+
+    /**
      * Card enabled
      *
      * @return bool
