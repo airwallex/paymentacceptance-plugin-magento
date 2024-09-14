@@ -163,7 +163,7 @@ define([
                 return;
             }
 
-            utils.pay(self, 'vault', quote);
+            await utils.pay(self, 'vault', quote);
         }
     });
 });
