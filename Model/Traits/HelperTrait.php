@@ -204,7 +204,7 @@ trait HelperTrait
             || $intentOrderId !== $orderIncrementId
             || !$this->isAmountEqual($intentAmount, $amount)) {
             $this->errorLog->setMessage('check intent failed'
-                , "Intent Order ID: $intentOrderId - Quote Order ID: $orderIncrementId - "
+                , "Intent Status: $status. Intent Order ID: $intentOrderId - Quote Order ID: $orderIncrementId - "
                 . "Intent Currency: $intentCurrency - Quote Currency: $currency - "
                 . "Intent Amount: $intentAmount - Quote Amount: $amount", $intentOrderId)->send();
             $msg = 'Something went wrong while processing your request.';
