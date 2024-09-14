@@ -231,3 +231,11 @@
 .payment-method.airwallex-payments .g-recaptcha {
     margin-bottom: 20px;
 }
+
+.airwallex-payments .field-error, div.mage-error {
+    margin-top: 0;
+}
+
+.airwallex .field-error, div.mage-error {
+    margin-top: 0;
+}

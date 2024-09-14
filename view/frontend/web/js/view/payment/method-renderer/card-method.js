@@ -76,7 +76,7 @@ define(
             getBillingInformation: function () {
                 const billingAddress = quote.billingAddress();
                 if (!billingAddress) {
-                    throw new Error('Billing address is required.')
+                    throw new Error('Billing address is required.');
                 }
                 billingAddress.email = quote.guestEmail;
                 addressHandler.setIntentConfirmBillingAddressFromOfficial(billingAddress);
@@ -139,14 +139,18 @@ define(
 
                     this['card' + type + 'Element'].on('focus', () => {
                         this.validationError('');
-                        $("#awx-card-" + type.toLowerCase()).css("border", "1px solid #612fff")
+                        $("#awx-card-" + type.toLowerCase()).css("border", "1px solid #612fff");
                     });
                     this['card' + type + 'Element'].on('blur', () => {
-                        $("#awx-card-" + type.toLowerCase()).css("border", "none")
+                        $("#awx-card-" + type.toLowerCase()).css("border", "none");
                     });
                 }
 
                 this.cardNumberElement.on('ready', () => {
+                    this.cardNumberElement.focus();
+                });
+
+                $('.airwallex-card-container .payment-method-title').click(() => {
                     this.cardNumberElement.focus();
                 });
             },
@@ -174,7 +178,7 @@ define(
                 return $('#airwallex-payments-card-save').is(':checked');
             },
 
-            async placeOrder () {
+            async placeOrder() {
                 let self = this;
                 this.validationError('');
                 if (this.validate() && additionalValidators.validate()) {

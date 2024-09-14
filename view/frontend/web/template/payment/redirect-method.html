@@ -35,10 +35,11 @@
                         type="submit"
                         data-bind="
                         click: placeOrder,
-                        enable: (getCode() == isChecked())
+                        enable: (getCode() == isChecked()),
+                        attr: {'id': getCode() + '-button'}
                         "
                         disabled>
-                    <span data-bind="text: $t('Refresh QR code')"></span>
+                    <span data-bind="text: $t('Confirm')"></span>
                 </button>
             </div>
         </div>

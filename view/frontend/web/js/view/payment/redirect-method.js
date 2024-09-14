@@ -148,6 +148,7 @@ define([
                     return;
                 } finally {
                     self.isPlaceOrderActionAllowed(true);
+                    $("#" + this.getCode() + '-button span').text($t('Refresh QR code'));
                 }
                 return true;
             }
