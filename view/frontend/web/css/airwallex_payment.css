@@ -1,5 +1,4 @@
 .airwallex-card {
-    border: 1px solid #612fff;
     border-radius: 5px;
     padding: 5px 10px;
     box-shadow: #612fff 0 0 0 1px;
@@ -125,7 +124,7 @@
     border-radius: 3px;
 }
 
-.airwallex-payment-frame.airwallex-cvc {
+.awx-vault.airwallex-cvc {
     border: 1px solid #c2c2c2;
     width: 30px;
     height: 29px;
@@ -153,10 +152,6 @@
     vertical-align: middle;
 }
 
-.airwallex-payment-frame {
-    width: 100%;
-}
-
 .save-card-input {
     margin-top: 13px;
     margin-bottom: 15px;
@@ -167,7 +162,7 @@
     width: auto;
 }
 
-#airwallex-card-element {
+#awx-card-number {
     margin-bottom: 12px;
 }
 

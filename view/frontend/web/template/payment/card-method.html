@@ -26,19 +26,19 @@
         <div class="awx-split-card-container" data-bind="style: {'max-width': maxWidth + 'px'}">
             <div class="awx-card-number">
                 <div data-bind="text: $t('Card number')" class="awx-txt"></div>
-                <div id="airwallex-card-element" class="airwallex-payment-frame airwallex-card"
+                <div id="awx-card-number" class="airwallex-card"
                      data-bind="css: {'error': showNumberError()}"></div>
             </div>
             <div class="awx-card-expiry-cvc">
                 <div style="display: flex; justify-content: center;">
                     <div class="awx-card-expiry">
                         <div data-bind="text: $t('Expiry date')" class="awx-txt"></div>
-                        <div class="airwallex-card" id="airwallex-expiry-element" data-bind="css: {'error': showExpiryError()}"></div>
+                        <div class="airwallex-card" id="awx-card-expiry" data-bind="css: {'error': showExpiryError()}"></div>
                     </div>
                     <div style="width: 30px;"></div>
                     <div class="awx-card-cvc">
-                        <div data-bind="text: $t('Verification code')" class="awx-txt"></div>
-                        <div class="airwallex-card" id="airwallex-cvc-element" data-bind="css: {'error': showCvcError()}, afterRender: loadPayment"></div>
+                        <div data-bind="text: $t('Security code')" class="awx-txt"></div>
+                        <div class="airwallex-card" id="awx-card-cvc" data-bind="css: {'error': showCvcError()}, afterRender: loadPayment"></div>
                     </div>
                 </div>
             </div>
