@@ -254,19 +254,25 @@ class OrderService implements OrderServiceInterface
     {
         $order = $this->getOrderByQuote($quote);
         if ($order->getStatus() !== Order::STATE_PENDING_PAYMENT || !$this->isOrderEqualToQuote($order, $quote, $billingAddress)) {
-            if ($uid) {
-                $orderId = $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
-                    $cartId,
-                    $paymentMethod,
-                    $billingAddress
-                );
-            } else {
-                $orderId = $this->guestPaymentInformationManagement->savePaymentInformationAndPlaceOrder(
-                    $cartId,
-                    $email,
-                    $paymentMethod,
-                    $billingAddress
-                );
+            try {
+                if ($uid) {
+                    $orderId = $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
+                        $cartId,
+                        $paymentMethod,
+                        $billingAddress
+                    );
+                } else {
+                    $orderId = $this->guestPaymentInformationManagement->savePaymentInformationAndPlaceOrder(
+                        $cartId,
+                        $email,
+                        $paymentMethod,
+                        $billingAddress
+                    );
+                }
+            } catch (Exception $e) {
+                $message = 'Order failed: ' . trim($e->getMessage());
+                $this->errorLog->setMessage($message, $e->getTraceAsString(), $paymentMethod->getMethod())->send();
+                throw $e;
             }
             $order = $this->orderFactory->create();
             $this->orderResource->load($order, $orderId);
