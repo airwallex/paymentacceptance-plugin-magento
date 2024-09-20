@@ -123,6 +123,7 @@ class OrderService implements OrderServiceInterface
      * @param PaymentInterface $paymentMethod
      * @param AddressInterface|null $billingAddress
      * @param string|null $intentId
+     * @param string|null $paymentMethodId
      * @param string|null $from
      * @return PlaceOrderResponseInterface
      * @throws CouldNotSaveException
@@ -131,7 +132,6 @@ class OrderService implements OrderServiceInterface
      * @throws JsonException
      * @throws LocalizedException
      * @throws NoSuchEntityException
-     * @throws \Magento\Framework\Validator\Exception
      */
     public function airwallexGuestPlaceOrder(
         string           $cartId,
@@ -153,6 +153,7 @@ class OrderService implements OrderServiceInterface
      * @param PaymentInterface $paymentMethod
      * @param AddressInterface|null $billingAddress
      * @param string|null $intentId
+     * @param string|null $paymentMethodId
      * @param string|null $from
      * @return PlaceOrderResponseInterface
      * @throws CouldNotSaveException
@@ -161,7 +162,6 @@ class OrderService implements OrderServiceInterface
      * @throws JsonException
      * @throws LocalizedException
      * @throws NoSuchEntityException
-     * @throws \Magento\Framework\Validator\Exception
      */
     public function airwallexPlaceOrder(
         string           $cartId,
@@ -193,37 +193,42 @@ class OrderService implements OrderServiceInterface
         ?string          $from = ''
     ): PlaceOrderResponseInterface
     {
-        /** @var PlaceOrderResponse $response */
-        $response = $this->placeOrderResponseFactory->create();
-        $quote = $this->checkoutHelper->getQuote();
-        $uid = $quote->getCustomer()->getId();
-
-        if (!$intentId) {
-            $this->isOrderCreatedHelper->setIsCreated(false);
-            return $this->orderThenIntent($quote, $uid, $cartId, $paymentMethod, $billingAddress, $email, $paymentMethodId, $from, $response);
-        }
-
-        $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
-        $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
-        $intentResponse = json_decode($resp, true);
-
         try {
-            $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote, 'OrderService');
-        } catch (Exception $e) {
-            $message = trim($e->getMessage(), ' .') . '. Order status change failed. Please try again.';
-            $this->errorLog->setMessage($message, $e->getTraceAsString(), $intentId)->send();
-            return $response->setData([
-                'response_type' => 'error',
-                'message' => __($message),
-            ]);
-        }
+            /** @var PlaceOrderResponse $response */
+            $response = $this->placeOrderResponseFactory->create();
+            $quote = $this->checkoutHelper->getQuote();
+            $uid = $quote->getCustomer()->getId();
 
-        if ($this->configuration->isCardVaultActive() && $from === 'card_with_saved') {
-            try {
-                $this->paymentConsents->syncVault($uid);
-            } catch (Exception $e) {
-                $this->errorLog->setMessage($e->getMessage(), $e->getTraceAsString(), $intentId)->send();
+            if (!$intentId) {
+                $this->isOrderCreatedHelper->setIsCreated(false);
+                return $this->orderThenIntent($quote, $uid, $cartId, $paymentMethod, $billingAddress, $email, $paymentMethodId, $from, $response);
             }
+
+            $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
+            $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
+            $intentResponse = json_decode($resp, true);
+
+            try {
+                $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote, 'OrderService');
+            } catch (Exception $e) {
+                $message = trim($e->getMessage(), ' .') . '. Order status change failed. Please try again.';
+                $this->errorLog->setMessage($message, $e->getTraceAsString(), $intentId)->send();
+                return $response->setData([
+                    'response_type' => 'error',
+                    'message' => __($message),
+                ]);
+            }
+
+            if ($this->configuration->isCardVaultActive() && $from === 'card_with_saved') {
+                try {
+                    $this->paymentConsents->syncVault($uid);
+                } catch (Exception $e) {
+                    $this->errorLog->setMessage($e->getMessage(), $e->getTraceAsString(), $intentId)->send();
+                }
+            }
+        } catch (Exception $e) {
+            $this->errorLog->setMessage('OrderService exception: ' . $e->getMessage(), $e->getTraceAsString(), $intentId)->send();
+            throw $e;
         }
 
         return $response->setData([
@@ -312,6 +317,11 @@ class OrderService implements OrderServiceInterface
         return $response->setData($data);
     }
 
+    /**
+     * @throws NoSuchEntityException
+     * @throws AlreadyExistsException
+     * @throws InputException
+     */
     private function appendPaymentMethodId(?string $paymentMethodId, string $intentId): void
     {
         if ($paymentMethodId) {
