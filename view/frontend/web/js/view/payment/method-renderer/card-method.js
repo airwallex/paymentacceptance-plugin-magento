@@ -139,10 +139,10 @@ define(
 
                     this['card' + type + 'Element'].on('focus', () => {
                         this.validationError('');
-                        $("#awx-card-" + type.toLowerCase()).css("border", "1px solid #612fff");
+                        $("#awx-card-" + type.toLowerCase()).addClass("awx-focus-input");
                     });
                     this['card' + type + 'Element'].on('blur', () => {
-                        $("#awx-card-" + type.toLowerCase()).css("border", "none");
+                        $("#awx-card-" + type.toLowerCase()).removeClass("awx-focus-input");
                     });
                 }
 

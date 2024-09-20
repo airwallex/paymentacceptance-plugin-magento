@@ -10,8 +10,8 @@
 }
 
 .airwallex-card.error {
-    border: 1px solid red;
-    box-shadow: red 0 0 0 1px;
+    /* border: 1px solid red; */
+    box-shadow: red 0 0 0 2px;
 }
 
 .airwallex-error {
@@ -238,4 +238,8 @@
 
 .airwallex .field-error, div.mage-error {
     margin-top: 0;
+}
+
+.awx-focus-input {
+    box-shadow: #612fff 0 0 0 2px;
 }
