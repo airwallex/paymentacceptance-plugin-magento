@@ -6,6 +6,7 @@ use Airwallex\Payments\Exception\WebhookException;
 use Airwallex\Payments\Helper\CancelHelper;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Airwallex\Payments\Model\Traits\HelperTrait;
+use Magento\Framework\App\CacheInterface;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
@@ -16,7 +17,23 @@ use Magento\Sales\Model\OrderRepository;
 class Expire extends AbstractWebhook
 {
     use HelperTrait;
+
     public const WEBHOOK_NAMES = ['payment_attempt.expired'];
+
+    /**
+     * @var OrderRepository
+     */
+    private OrderRepository $orderRepository;
+
+    /**
+     * @var PaymentIntentRepository
+     */
+    private PaymentIntentRepository $paymentIntentRepository;
+
+    /**
+     * @var CacheInterface
+     */
+    private CacheInterface $cache;
 
     /**
      * @var CancelHelper
@@ -28,14 +45,19 @@ class Expire extends AbstractWebhook
      *
      * @param OrderRepository $orderRepository
      * @param PaymentIntentRepository $paymentIntentRepository
+     * @param CacheInterface $cache
      * @param CancelHelper $cancelHelper
      */
     public function __construct(
-        OrderRepository $orderRepository,
+        OrderRepository         $orderRepository,
         PaymentIntentRepository $paymentIntentRepository,
-        CancelHelper $cancelHelper
-    ) {
-        parent::__construct($orderRepository, $paymentIntentRepository);
+        CacheInterface          $cache,
+        CancelHelper            $cancelHelper
+    )
+    {
+        $this->orderRepository = $orderRepository;
+        $this->paymentIntentRepository = $paymentIntentRepository;
+        $this->cache = $cache;
         $this->cancelHelper = $cancelHelper;
     }
 
@@ -51,25 +73,5 @@ class Expire extends AbstractWebhook
      */
     public function execute(object $data): void
     {
-        $paymentIntentId = $data->payment_intent_id ?? $data->id;
-        /** @var Order $order */
-        $order = $this->paymentIntentRepository->getOrder($paymentIntentId);
-        if (!$order) {
-            throw new WebhookException(__("Can't find order $paymentIntentId"));
-        }
-
-        if (!$this->isRedirectMethodConstant($order->getPayment()->getMethod())) {
-            return;
-        }
-
-        if (!$order->canCancel()) {
-            if ($order->isCanceled()) return;
-            throw new WebhookException(__("Can't cancel order $paymentIntentId"));
-        }
-
-        $this->cancelHelper->setWebhookCanceling(true);
-        $order->cancel();
-        $order->addCommentToStatusHistory(__('Payment expired.'));
-        $this->orderRepository->save($order);
     }
 }

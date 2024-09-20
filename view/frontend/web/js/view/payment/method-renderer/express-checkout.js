@@ -74,7 +74,7 @@ define(
                 if (obj.type && obj.type === 'error') {
                     throw new Error(obj.message);
                 }
-                
+
                 this.updateExpressData(obj.quote_data);
                 this.updateMethods(obj.methods, obj.selected_method);
                 addressHandler.regionId = obj.region_id || 0;
@@ -152,7 +152,7 @@ define(
                     env: this.paymentConfig.mode,
                     origin: window.location.origin,
                 });
-                
+
                 this.isShow(true);
             },
 
@@ -207,7 +207,7 @@ define(
 
             async validateAddresses() {
                 let url = urlBuilder.build('rest/V1/airwallex/payments/validate-addresses');
-                return await storage.get(url, undefined, 'application/json', {});
+                return storage.get(url, undefined, 'application/json', {});
             },
 
             placeOrder(pay) {
@@ -228,7 +228,7 @@ define(
                         if (obj.type && obj.type === 'error') {
                             throw new Error(obj.message);
                         }
-                        
+
                         if (this.paymentConfig.is_recaptcha_enabled) {
                             payload.xReCaptchaValue = await utils.getRecaptchaToken(utils.expressRecaptchaId);
                         }
@@ -240,35 +240,36 @@ define(
                             }
                         }
 
-                        if (!utils.isCheckoutPage()) {
-                            if (!payload.paymentMethod.extension_attributes) {
-                                payload.paymentMethod.extension_attributes = {};
-                            }
-                            payload.paymentMethod.extension_attributes.agreement_ids = [];
-                            let agreements = this.expressData.settings.agreements;
-                            if (agreements && agreements.checkoutAgreements && agreements.checkoutAgreements.agreements && agreements.checkoutAgreements.agreements.length) {
-                                for (let item of agreements.checkoutAgreements.agreements) {
-                                    payload.paymentMethod.extension_attributes.agreement_ids.push(item.agreementId);
-                                }
+                        // if (!utils.isCheckoutPage()) {
+                        if (!payload.paymentMethod.extension_attributes) {
+                            payload.paymentMethod.extension_attributes = {};
+                        }
+                        payload.paymentMethod.extension_attributes.agreement_ids = [];
+                        let agreements = this.expressData.settings.agreements;
+                        if (agreements && agreements.checkoutAgreements && agreements.checkoutAgreements.agreements && agreements.checkoutAgreements.agreements.length) {
+                            for (let item of agreements.checkoutAgreements.agreements) {
+                                payload.paymentMethod.extension_attributes.agreement_ids.push(item.agreementId);
                             }
                         }
+                        // }
 
                         await utils.postPaymentInformation(payload, utils.isLoggedIn(), utils.getCartId());
-                        
+
                         let intentResponse = await utils.getIntent(payload, {});
                         if (!intentResponse) return;
 
                         const params = {};
                         params.id = intentResponse.intent_id;
                         params.client_secret = intentResponse.client_secret;
-                        // params.payment_method = {};
-                        // let confirmBilling = pay === 'apple' ? addressHandler.intentConfirmBillingAddressFromApple : addressHandler.intentConfirmBillingAddressFromGoogle;
+
                         try {
                             await eval(pay).confirmIntent(params);
                         } catch (error) {
-                            utils.dealConfirmException(error)
+                            if (error.code !== 'invalid_status_for_operation') {
+                                throw error;
+                            }
                         }
-    
+
                         let endResult = await utils.placeOrder(payload, intentResponse, {});
 
                         resolve(endResult);
@@ -278,7 +279,7 @@ define(
                         reject(e);
                     }
                 })).then(response => {
-                    utils.clearDataAfterPay(response, customerData)
+                    utils.clearDataAfterPay(response, customerData);
 
                     window.location.replace(urlBuilder.build('checkout/onepage/success/'));
                 }).catch(

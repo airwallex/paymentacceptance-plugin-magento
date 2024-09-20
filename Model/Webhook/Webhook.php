@@ -8,7 +8,6 @@ use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Framework\App\Request\Http;
 use Magento\Framework\Exception\AlreadyExistsException;
-use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
@@ -17,10 +16,7 @@ use stdClass;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\Quote\Api\CartRepositoryInterface;
-use Magento\Quote\Model\Quote;
-use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
-use Magento\Sales\Model\Order;
 use Magento\Quote\Api\CartManagementInterface;
 use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
 use Magento\Framework\App\CacheInterface;
@@ -32,8 +28,6 @@ class Webhook
 
     private const HASH_ALGORITHM = 'sha256';
 
-    public const AUTHORIZED_WEBHOOK_NAMES = ['payment_intent.requires_capture'];
-
     /**
      * @var Refund
      */
@@ -43,6 +37,11 @@ class Webhook
      * @var Configuration
      */
     private Configuration $configuration;
+
+    /**
+     * @var Authorize
+     */
+    private Authorize $authorize;
 
     /**
      * @var Capture
@@ -75,11 +74,6 @@ class Webhook
     public OrderRepositoryInterface $orderRepository;
 
     /**
-     * @var Order
-     */
-    public OrderInterface $order;
-
-    /**
      * @var CartRepositoryInterface
      */
     public CartRepositoryInterface $quoteRepository;
@@ -105,31 +99,31 @@ class Webhook
     public LockManagerInterface $lockManager;
 
     public function __construct(
-        Refund $refund,
-        Configuration $configuration,
-        Capture $capture,
-        Expire $expire,
-        Cancel $cancel,
-        PaymentIntentRepository $paymentIntentRepository,
-        Get $intentGet,
+        Refund                   $refund,
+        Configuration            $configuration,
+        Capture                  $capture,
+        Authorize                $authorize,
+        Expire                   $expire,
+        Cancel                   $cancel,
+        PaymentIntentRepository  $paymentIntentRepository,
+        Get                      $intentGet,
         OrderRepositoryInterface $orderRepository,
-        OrderInterface $order,
-        CartRepositoryInterface $quoteRepository,
-        CartManagementInterface $cartManagement,
-        ErrorLog $errorLog,
-        CacheInterface $cache,
-        LockManagerInterface $lockManager
+        CartRepositoryInterface  $quoteRepository,
+        CartManagementInterface  $cartManagement,
+        ErrorLog                 $errorLog,
+        CacheInterface           $cache,
+        LockManagerInterface     $lockManager
     )
     {
         $this->refund = $refund;
         $this->configuration = $configuration;
         $this->capture = $capture;
         $this->expire = $expire;
+        $this->authorize = $authorize;
         $this->cancel = $cancel;
         $this->paymentIntentRepository = $paymentIntentRepository;
         $this->intentGet = $intentGet;
         $this->orderRepository = $orderRepository;
-        $this->order = $order;
         $this->quoteRepository = $quoteRepository;
         $this->cartManagement = $cartManagement;
         $this->errorLog = $errorLog;
@@ -159,13 +153,12 @@ class Webhook
      *
      * @return void
      * @throws AlreadyExistsException
-     * @throws CouldNotSaveException
      * @throws GuzzleException
      * @throws InputException
+     * @throws JsonException
      * @throws LocalizedException
      * @throws NoSuchEntityException
      * @throws WebhookException
-     * @throws JsonException
      */
     public function dispatch(string $type, stdClass $data): void
     {
@@ -184,51 +177,16 @@ class Webhook
             $this->expire->execute($data);
         }
 
-        if (in_array($type, self::AUTHORIZED_WEBHOOK_NAMES)) {
-            $this->placeOrder($data);
+        if (in_array($type, Authorize::WEBHOOK_NAMES)) {
+            $this->authorize->execute($data);
         }
 
         if (in_array($type, Capture::WEBHOOK_NAMES)) {
-            $this->placeOrder($data);
             $this->capture->execute($data);
         }
 
         if ($type === Cancel::WEBHOOK_NAME) {
             $this->cancel->execute($data);
-        }
-    }
-
-    /**
-     * @throws NoSuchEntityException
-     * @throws CouldNotSaveException
-     * @throws GuzzleException
-     * @throws InputException
-     * @throws JsonException
-     */
-    public function placeOrder($data)
-    {
-        $paymentIntentId = $data->payment_intent_id ?? $data->id;
-        $paymentIntent = $this->paymentIntentRepository->getByIntentId($paymentIntentId);
-
-        $order = $this->order->loadByIncrementIdAndStoreId($paymentIntent->getOrderIncrementId(), $paymentIntent->getStoreId());
-        if (!$order || !$order->getEntityId()) {
-            sleep(7);
-            $order = $this->order->loadByIncrementIdAndStoreId($paymentIntent->getOrderIncrementId(), $paymentIntent->getStoreId());
-            if (!$order || !$order->getEntityId()) {
-                /** @var Quote $quote */
-                $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
-                $this->checkIntentWithQuote(
-                    $data->status,
-                    $data->currency,
-                    $quote->getQuoteCurrencyCode(),
-                    $data->merchant_order_id,
-                    $quote->getReservedOrderId(),
-                    floatval($data->amount),
-                    $quote->getGrandTotal(),
-                );
-
-                $this->placeOrderByQuoteId($quote->getId(), 'webhook');
-            }
         }
     }
 }

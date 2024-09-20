@@ -11,7 +11,8 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Model\Order;
-
+use Magento\Sales\Model\OrderFactory;
+use Magento\Sales\Model\Spi\OrderResourceInterface;
 
 class PaymentIntentRepository
 {
@@ -33,7 +34,18 @@ class PaymentIntentRepository
     /**
      * @var Order
      */
-    private OrderInterface $order;
+    private Order $order;
+
+    /**
+     * @var OrderFactory
+     */
+    private OrderFactory $orderFactory;
+
+    /**
+     * @var OrderResourceInterface
+     */
+    private OrderResourceInterface $orderResource;
+
 
     /**
      * PaymentIntentRepository constructor.
@@ -41,19 +53,25 @@ class PaymentIntentRepository
      * @param PaymentIntentCollectionFactory $paymentIntentCollectionFactory
      * @param PaymentIntentFactory $paymentIntentFactory
      * @param PaymentIntentResource $paymentIntentResource
-     * @param OrderInterface $order
+     * @param Order $order
+     * @param OrderFactory $orderFactory
+     * @param OrderResourceInterface $orderResource
      */
     public function __construct(
         PaymentIntentCollectionFactory $paymentIntentCollectionFactory,
         PaymentIntentFactory           $paymentIntentFactory,
         PaymentIntentResource          $paymentIntentResource,
-        OrderInterface                 $order
+        Order                          $order,
+        OrderFactory                   $orderFactory,
+        OrderResourceInterface         $orderResource
     )
     {
         $this->paymentIntentCollectionFactory = $paymentIntentCollectionFactory;
         $this->paymentIntentFactory = $paymentIntentFactory;
         $this->paymentIntentResource = $paymentIntentResource;
         $this->order = $order;
+        $this->orderFactory = $orderFactory;
+        $this->orderResource = $orderResource;
     }
 
 
@@ -110,15 +128,39 @@ class PaymentIntentRepository
     }
 
     /**
+     * @param int $orderId
+     *
+     * @return ?PaymentIntentInterface
+     * @throws InputException
+     */
+    public function getByOrderId(int $orderId): ?PaymentIntentInterface
+    {
+        if ($orderId <= 0) {
+            throw new InputException(__('Invalid order id.'));
+        }
+
+        $collection = $this->paymentIntentCollectionFactory->create();
+        $collection->addFieldToFilter(PaymentIntentInterface::ORDER_ID_COLUMN, $orderId);
+        $collection->setOrder('id', 'DESC');
+
+        $paymentIntent = $collection->getFirstItem();
+
+        if (!$paymentIntent->getId()) {
+            return null;
+        }
+
+        return $paymentIntent;
+    }
+
+    /**
      * @param string $orderIncrementId
      * @param int $storeId
      *
-     * @return PaymentIntentInterface
+     * @return ?PaymentIntentInterface
      * @throws InputException
-     * @throws NoSuchEntityException
      * @throws LocalizedException
      */
-    public function getByOrderIncrementIdAndStoreId(string $orderIncrementId, int $storeId): PaymentIntentInterface
+    public function getByOrderIncrementIdAndStoreId(string $orderIncrementId, int $storeId): ?PaymentIntentInterface
     {
         if (!$orderIncrementId) {
             throw new InputException(__('Order increment id is required.'));
@@ -141,22 +183,12 @@ class PaymentIntentRepository
         $data = $connection->fetchRow($select, $bind);
 
         if (!$data) {
-            throw new NoSuchEntityException(__('The payment intent for ' . $orderIncrementIdName . ' "%1" and '
-                . $storeIdName . ' "%2" does not exist.', $orderIncrementId, $storeId));
+            return null;
         }
 
         $paymentIntent->setData($data);
 
         return $paymentIntent;
-    }
-
-    /**
-     * @throws AlreadyExistsException
-     */
-    public function updateDetail($paymentIntent, $detail)
-    {
-        $paymentIntent->setDetail($detail);
-        $this->paymentIntentResource->save($paymentIntent);
     }
 
     /**
@@ -166,10 +198,24 @@ class PaymentIntentRepository
      * @throws InputException
      * @throws NoSuchEntityException
      */
-    public function getOrder(string $paymentIntentId): ?OrderInterface
+    public function getOrder(string $paymentIntentId): ?Order
     {
         $record = $this->getByIntentId($paymentIntentId);
-        return $this->order->loadByIncrementIdAndStoreId($record->getOrderIncrementId(), $record->getStoreId());
+        $order = $this->order->loadByIncrementIdAndStoreId($record->getOrderIncrementId(), $record->getStoreId());
+        if (!$order || !$order->getId()) {
+            $order = $this->orderFactory->create();
+            $order = $order->loadByIncrementId($record->getOrderIncrementId());
+        }
+        return $order;
+    }
+
+    /**
+     * @throws AlreadyExistsException
+     */
+    public function updateDetail($paymentIntent, $detail): void
+    {
+        $paymentIntent->setDetail($detail);
+        $this->paymentIntentResource->save($paymentIntent);
     }
 
     /**
@@ -177,6 +223,7 @@ class PaymentIntentRepository
      * @param string $paymentIntentId
      * @param string $currencyCode
      * @param float $grandTotal
+     * @param int $orderId
      * @param int $quoteId
      * @param int $storeId
      * @param string $detail
@@ -188,9 +235,10 @@ class PaymentIntentRepository
         string $orderIncrement,
         string $paymentIntentId,
         string $currencyCode,
-        float $grandTotal,
-        int $quoteId,
-        int $storeId,
+        float  $grandTotal,
+        int    $orderId,
+        int    $quoteId,
+        int    $storeId,
         string $detail
     ): void
     {
@@ -199,6 +247,7 @@ class PaymentIntentRepository
             ->setOrderIncrementId($orderIncrement)
             ->setCurrencyCode($currencyCode)
             ->setGrandTotal($grandTotal)
+            ->setOrderId($orderId)
             ->setQuoteId($quoteId)
             ->setStoreId($storeId)
             ->setDetail($detail);

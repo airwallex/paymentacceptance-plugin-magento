@@ -36,7 +36,7 @@
         <label data-bind="attr: {for: getId() + '_cvc'}" class="label cvc-airwallex">
             <!-- ko i18n: 'Card Verification Code'--><!-- /ko -->
         </label>
-        <div data-bind="attr: {'id': getId() + '-cvc'}, afterRender: initCvcForm(getId())" class="airwallex-payment-frame airwallex-cvc"></div>
+        <div data-bind="attr: {'id': getId() + '-cvc'}, afterRender: initCvcForm(getId())" class="awx-vault airwallex-cvc"></div>
         <p class="airwallex-error" data-bind="visible: validationError, text: validationError"></p>
         <!-- /ko -->
         <div class="checkout-agreements-block">

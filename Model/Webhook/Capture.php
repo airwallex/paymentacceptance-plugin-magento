@@ -2,63 +2,93 @@
 
 namespace Airwallex\Payments\Model\Webhook;
 
+use Airwallex\Payments\Helper\IntentHelper;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Exception;
+use GuzzleHttp\Exception\GuzzleException;
+use JsonException;
 use Magento\Framework\DB\TransactionFactory;
+use Magento\Framework\Exception\AlreadyExistsException;
+use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
+use Magento\Framework\Exception\NoSuchEntityException;
+use Magento\Quote\Api\CartRepositoryInterface;
+use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order\Invoice;
-use Magento\Sales\Model\OrderRepository;
 use Magento\Sales\Model\Service\InvoiceService;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\Sales\Model\Order;
 use Magento\Framework\App\CacheInterface;
+use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
+use Magento\Sales\Api\OrderManagementInterface;
+use Magento\Sales\Model\OrderFactory;
+use Magento\Sales\Model\Spi\OrderResourceInterface;
+use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
 
 class Capture extends AbstractWebhook
 {
     use HelperTrait;
 
-    /**
-     * Array of webhooks that trigger capture process.
-     */
     public const WEBHOOK_NAMES = [
         'payment_intent.succeeded'
     ];
 
-    /**
-     * @var InvoiceService
-     */
     private InvoiceService $invoiceService;
-
-    /**
-     * @var TransactionFactory
-     */
     private TransactionFactory $transactionFactory;
-
-    /**
-     * @var CacheInterface
-     */
+    private CartRepositoryInterface $quoteRepository;
     public CacheInterface $cache;
+    private Get $intentGet;
+    private OrderManagementInterface $orderManagement;
+    private OrderFactory $orderFactory;
+    private PaymentIntentRepository $paymentIntentRepository;
+    private OrderRepositoryInterface $orderRepository;
+    private OrderResourceInterface $orderResource;
+    public ErrorLog $errorLog;
+    public IntentHelper $intentHelper;
 
     /**
      * Capture constructor.
      *
-     * @param OrderRepository $orderRepository
-     * @param PaymentIntentRepository $paymentIntentRepository
      * @param InvoiceService $invoiceService
      * @param TransactionFactory $transactionFactory
+     * @param CartRepositoryInterface $quoteRepository
      * @param CacheInterface $cache
+     * @param Get $intentGet
+     * @param OrderManagementInterface $orderManagement
+     * @param OrderFactory $orderFactory
+     * @param PaymentIntentRepository $paymentIntentRepository
+     * @param OrderRepositoryInterface $orderRepository
+     * @param OrderResourceInterface $orderResource
+     * @param ErrorLog $errorLog
+     * @param IntentHelper $intentHelper
      */
     public function __construct(
-        OrderRepository $orderRepository,
-        PaymentIntentRepository $paymentIntentRepository,
-        InvoiceService $invoiceService,
-        TransactionFactory $transactionFactory,
-        CacheInterface $cache
-    ) {
-        parent::__construct($orderRepository, $paymentIntentRepository);
+        InvoiceService           $invoiceService,
+        TransactionFactory       $transactionFactory,
+        CartRepositoryInterface  $quoteRepository,
+        CacheInterface           $cache,
+        Get                      $intentGet,
+        OrderManagementInterface $orderManagement,
+        OrderFactory             $orderFactory,
+        PaymentIntentRepository  $paymentIntentRepository,
+        OrderRepositoryInterface $orderRepository,
+        OrderResourceInterface   $orderResource,
+        ErrorLog                 $errorLog,
+        IntentHelper             $intentHelper
+    )
+    {
         $this->invoiceService = $invoiceService;
         $this->transactionFactory = $transactionFactory;
+        $this->quoteRepository = $quoteRepository;
         $this->cache = $cache;
+        $this->intentGet = $intentGet;
+        $this->orderManagement = $orderManagement;
+        $this->orderFactory = $orderFactory;
+        $this->paymentIntentRepository = $paymentIntentRepository;
+        $this->orderRepository = $orderRepository;
+        $this->orderResource = $orderResource;
+        $this->errorLog = $errorLog;
+        $this->intentHelper = $intentHelper;
     }
 
     /**
@@ -66,43 +96,59 @@ class Capture extends AbstractWebhook
      *
      * @return void
      * @throws LocalizedException
+     * @throws GuzzleException
+     * @throws JsonException
+     * @throws AlreadyExistsException
+     * @throws InputException
+     * @throws NoSuchEntityException
      * @throws Exception
      */
     public function execute(object $data): void
     {
-        $paymentIntentId = $data->payment_intent_id ?? $data->id;
+        $intentId = $data->payment_intent_id ?? $data->id;
 
-        if ($this->cache->load($this->captureCacheName($paymentIntentId))) {
-            $this->cache->remove($this->captureCacheName($paymentIntentId));
+        if ($this->cache->load($this->captureCacheName($intentId))) {
+            $this->cache->remove($this->captureCacheName($intentId));
             return;
         }
 
         /** @var Order $order */
-        $order = $this->paymentIntentRepository->getOrder($paymentIntentId);
-
-        if (!$order->getPayment() || $order->getTotalPaid()) {
+        $order = $this->paymentIntentRepository->getOrder($intentId);
+        if ($order->getOrderCurrencyCode() === $data->currency && $this->isAmountEqual($order->getGrandTotal(), $data->captured_amount) && $order->getStatus() !== Order::STATE_PROCESSING) {
+            $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
+            $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
+            $intentResponse = json_decode($resp, true);
+            $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
+            $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote, 'webhook capture');
             return;
         }
 
+        if (!$order->getPayment() || $order->getTotalPaid()) return;
+
+        $order->setIsInProcess(true);
+        $this->orderRepository->save($order);
+
         $amount = $data->captured_amount;
         $baseAmount = $this->getBaseAmount($amount, $order->getBaseToOrderRate(), $order->getGrandTotal(), $order->getBaseGrandTotal());
-        $grandTotalFormat = $order->formatPrice($amount);
-        $baseGrandTotalFormat = $order->formatBasePrice($baseAmount);
-        $amountFormat = $grandTotalFormat === $baseGrandTotalFormat ? $baseGrandTotalFormat : "$baseGrandTotalFormat ($grandTotalFormat)";
-        $comment = "Captured amount of $amountFormat through Airwallex. Transaction ID: \"$paymentIntentId\".";
-        $order->addCommentToStatusHistory(__($comment));
-        $order->setState(Order::STATE_PROCESSING)->setStatus(Order::STATE_PROCESSING);
-        $this->orderRepository->save($order);
+        $amountFormat = $this->priceForComment($amount, $baseAmount, $order);
+        if ($data->currency === $order->getBaseCurrencyCode()) {
+            $amountFormat = $order->formatBasePrice($amount);
+            $baseAmount = $amount;
+        }
+        $comment = "Captured amount of $amountFormat through Airwallex. Transaction id: \"$intentId\".";
+        $this->addComment($order, $comment);
         $invoice = $this->invoiceService->prepareInvoice($order);
-        if (!$this->isAmountEqual($amount, $order->getGrandTotal())) {
+        if ($data->currency === $order->getOrderCurrencyCode() && !$this->isAmountEqual($amount, $order->getGrandTotal())) {
             $invoice->setGrandTotal($amount);
             $invoice->setBaseGrandTotal($baseAmount);
         }
-        $invoice->setTransactionId($paymentIntentId);
+        if ($data->currency !== $order->getOrderCurrencyCode() && !$this->isAmountEqual($amount, $order->getBaseGrandTotal())) {
+            $invoice->setGrandTotal($this->convertToDisplayCurrency($amount, $order->getBaseToOrderRate(), false));
+            $invoice->setBaseGrandTotal($amount);
+        }
+        $invoice->setTransactionId($data->id);
         $invoice->setRequestedCaptureCase(Invoice::CAPTURE_OFFLINE);
         $invoice->register();
-        $invoice->getOrder()->setCustomerNoteNotify(false);
-        $invoice->getOrder()->setIsInProcess(true);
         $transactionSave = $this->transactionFactory->create()
             ->addObject($invoice)
             ->addObject($invoice->getOrder());

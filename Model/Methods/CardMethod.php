@@ -5,6 +5,7 @@ namespace Airwallex\Payments\Model\Methods;
 use Airwallex\Payments\Api\Data\PaymentIntentInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
+use Exception;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
@@ -28,13 +29,11 @@ class CardMethod extends AbstractMethod
      */
     public function capture(InfoInterface $payment, $amount): self
     {
-        if ($amount <= 0) {
-            return $this;
-        }
+        if ($amount <= 0) return $this;
 
-        if (!$intentId = $this->getIntentId()) {
-            throw new LocalizedException(__('Something went wrong while trying to capture the payment.'));
-        }
+        /** @var Payment $payment */
+        $order = $payment->getOrder();
+        $intentId = $this->getIntentId($payment);
 
         $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
         $respArr = json_decode($resp, true);
@@ -42,32 +41,18 @@ class CardMethod extends AbstractMethod
             throw new LocalizedException(__('Something went wrong while trying to capture the payment.'));
         }
 
-        /** @var Payment $payment */
-        $this->setTransactionId($payment);
-
         // capture in frontend element will run here too, but can not go inside
-        $order = $this->paymentIntentRepository->getOrder($intentId);
         if ($respArr['status'] !== PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE) {
             return $this;
         }
 
         $this->cache->save(true, $this->captureCacheName($intentId), [], 3600);
         try {
-            $result = $this->capture->setPaymentIntentId($intentId)->setInformation($order->getGrandTotal())->send();
-            $this->getInfoInstance()->setAdditionalInformation('intent_status', $result->status);
-        } catch (GuzzleException $exception) {
+            $this->capture->setPaymentIntentId($intentId)->setInformation($respArr['amount'])->send();
+        } catch (Exception $exception) {
             $this->logger->orderError($order, 'capture', $exception->getMessage());
             throw $exception;
         }
-
         return $this;
-    }
-
-    /**
-     * @return string
-     */
-    public function getConfigPaymentAction(): string
-    {
-        return $this->getConfigData('airwallex_payment_action');
     }
 }

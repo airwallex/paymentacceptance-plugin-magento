@@ -67,7 +67,7 @@ class ExpressDisabled implements MessageInterface
     {
         if (!$this->configuration->isCardActive()) {
             $this->displayedText = __('Airwallex Express Checkout is also disabled.'
-            . ' To use Express Checkout, you must first enable Credit Card payments.');
+                . ' To use Express Checkout, you must first enable Credit Card payments.');
         }
     }
 }

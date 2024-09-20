@@ -20,7 +20,7 @@ $currentCustomerId = $block->currentCustomerId();
         <?= $block->getExpDate() ?>
     </td>
     <td data-th="<?= __('Type') ?>" class="col card-type">
-        <img src="<?= /* @noEscape */ $block->getIconUrl() ?>"
+        <img alt="icon" src="<?= /* @noEscape */ $block->getIconUrl() ?>"
              width="<?= /* @noEscape */ $block->getIconWidth() ?>"
              height="<?= /* @noEscape */ $block->getIconHeight() ?>"
         >
@@ -68,7 +68,7 @@ $currentCustomerId = $block->currentCustomerId();
                                 success: (function() {
                                     $('#form-' + id).trigger('submit');
                                 }).bind(this),
-                                error: function(xhr, status, error) {
+                                error: function() {
                                     $('body').trigger('processStop');
                                     $('.modal-content div').html('');
                                 }

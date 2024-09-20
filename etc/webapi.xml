@@ -2,27 +2,20 @@
 
 <routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Webapi:etc/webapi.xsd">
     <route url="/V1/airwallex/payments/guest-place-order" method="POST">
-        <service class="Airwallex\Payments\Api\ServiceInterface" method="airwallexGuestPlaceOrder"/>
+        <service class="Airwallex\Payments\Api\OrderServiceInterface" method="airwallexGuestPlaceOrder"/>
         <resources>
             <resource ref="anonymous"/>
         </resources>
     </route>
 
     <route url="/V1/airwallex/payments/place-order" method="POST">
-        <service class="Airwallex\Payments\Api\ServiceInterface" method="airwallexPlaceOrder"/>
+        <service class="Airwallex\Payments\Api\OrderServiceInterface" method="airwallexPlaceOrder"/>
         <resources>
             <resource ref="self"/>
         </resources>
         <data>
             <parameter name="cartId" force="true">%cart_id%</parameter>
         </data>
-    </route>
-
-    <route url="/V1/airwallex/payments/redirect_url" method="POST">
-        <service class="Airwallex\Payments\Api\ServiceInterface" method="redirectUrl"/>
-        <resources>
-            <resource ref="anonymous"/>
-        </resources>
     </route>
 
     <route url="/V1/airwallex/payments/express-data" method="GET">
@@ -142,5 +135,12 @@
         <data>
             <parameter name="customerId" force="true">%customer_id%</parameter>
         </data>
+    </route>
+
+    <route url="/V1/airwallex/guest/generate_client_secret" method="GET">
+        <service class="Airwallex\Payments\Api\PaymentConsentsInterface" method="guestGenerateClientSecret"/>
+        <resources>
+            <resource ref="anonymous"/>
+        </resources>
     </route>
 </routes>

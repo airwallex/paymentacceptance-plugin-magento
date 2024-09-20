@@ -1,34 +1,17 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
+
 namespace Airwallex\Payments\Model\Client\Request;
 
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
+use JsonException;
 use Psr\Http\Message\ResponseInterface;
 
 class AvailablePaymentMethods extends AbstractClient implements BearerAuthenticationInterface
 {
-    private const TRANSACTION_MODE = 'oneoff';
+    public const TRANSACTION_MODE = 'oneoff';
 
-    public $cacheName = 'available_payment_method_types';
-
-    /**
-     * @var string
-     */
-    private string $currency;
+    public string $cacheName = 'available_payment_method_types';
 
     /**
      * @param string $currency
@@ -37,6 +20,7 @@ class AvailablePaymentMethods extends AbstractClient implements BearerAuthentica
      */
     public function setCurrency(string $currency): self
     {
+        if (empty($currency)) return $this;
         return $this->setParam('transaction_currency', $currency);
     }
 
@@ -48,6 +32,11 @@ class AvailablePaymentMethods extends AbstractClient implements BearerAuthentica
     public function setActive(): self
     {
         return $this->setParam('active', 'true');
+    }
+
+    public function setTransactionMode(string $mode): self
+    {
+        return $this->setParam('transaction_mode', $mode);
     }
 
     /**
@@ -67,24 +56,15 @@ class AvailablePaymentMethods extends AbstractClient implements BearerAuthentica
     }
 
     /**
-     * @param ResponseInterface $request
+     * @param ResponseInterface $response
      *
      * @return array
-     * @throws \JsonException
      */
-    protected function parseResponse(ResponseInterface $request): array
+    protected function parseResponse(ResponseInterface $response): array
     {
-        $this->cache->save(
-            $request->getBody(),
-            $this->cacheName,
-            [],
-            60
-        );
-
-        $response = $this->parseJson($request);
-
-        return array_map(static function (object $item) {
-            return $item->name;
-        }, $response->items);
+        $content = $response->getBody()->getContents();
+        if (empty($content)) return [];
+        $content = json_decode($content, true);
+        return $content['items'] ?? [];
     }
 }

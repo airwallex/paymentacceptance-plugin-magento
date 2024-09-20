@@ -5,6 +5,7 @@
     <head>
         <script src="https://checkout.airwallex.com/assets/elements.bundle.min.js" src_type="url" />
         <css src="Airwallex_Payments::css/airwallex_payment.css" />
+        <css src="Airwallex_Payments::js/qrcode.min.js" />
     </head>
     <body>
         <referenceBlock name="checkout.root">

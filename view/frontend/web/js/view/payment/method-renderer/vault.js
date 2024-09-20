@@ -18,10 +18,12 @@ define([
 
     return VaultComponent.extend({
         validationError: ko.observable(),
+        paymentMethodId: ko.observable(),
         isRecaptchaEnabled: !!window.checkoutConfig.payment.airwallex_payments.recaptcha_enabled,
         autoCapture: !!window.checkoutConfig.payment.airwallex_payments.cc_auto_capture,
         cvcElement: undefined,
         cvcDetail: undefined,
+        id: '',
         defaults: {
             active: false,
             template: 'Airwallex_Payments/payment/vault',
@@ -122,6 +124,7 @@ define([
         },
 
         initCvcForm: async function (id) {
+            this.id = id;
             $('body').trigger('processStart');
             if (this.cvcElement) this.cvcElement.destroy();
             Airwallex.init({
@@ -141,38 +144,9 @@ define([
                     this.validationError('');
                 }
             })
-
-            if (!window.airwallexSavedCards) {
-                window.airwallexSavedCards = await utils.getSavedCards();
-            }
-            for (let card of window.airwallexSavedCards) {
-                if (card.id === $('#v-' + id).val()) {
-                    if (!card.billing) { continue; }
-                    let cardBilling = JSON.parse(card.billing)
-                    let billing = {
-                        firstname: cardBilling.first_name,
-                        lastname: cardBilling.last_name,
-                        telephone: cardBilling.phone_number || '000-00000000',
-                        countryId: cardBilling.address.country_code,
-                        regionId: 0,
-                        region: cardBilling.address.state,
-                        city: cardBilling.address.city, // taking "city1" from "city1-2"
-                        street: cardBilling.address.street.split(', '),
-                        postcode: cardBilling.address.postcode
-                    }
-
-                    let regionId = await utils.getRegionId(cardBilling.address.country_code, cardBilling.address.state);
-                    billing.regionId = regionId;
-                    await addressHandler.postBillingAddress({
-                        'cartId': quote.getQuoteId(),
-                        'address': billing
-                    }, utils.isLoggedIn(), quote.getQuoteId());
-                    break;
-                }
-            }
         },
 
-        placeOrder: function (data, event) {
+        async placeOrder(data, event) {
             const self = this;
             this.validationError('');
 
@@ -189,7 +163,7 @@ define([
                 return;
             }
 
-            utils.pay(self, 'vault', quote);
+            await utils.pay(self, 'vault', quote);
         }
     });
 });

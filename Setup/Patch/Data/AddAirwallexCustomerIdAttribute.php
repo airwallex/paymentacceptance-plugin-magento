@@ -18,7 +18,6 @@ namespace Airwallex\Payments\Setup\Patch\Data;
 
 use Airwallex\Payments\Model\PaymentConsents;
 use Magento\Customer\Model\Customer;
-use Magento\Eav\Setup\EavSetup;
 use Magento\Eav\Setup\EavSetupFactory;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Setup\ModuleDataSetupInterface;
@@ -32,8 +31,9 @@ class AddAirwallexCustomerIdAttribute implements DataPatchInterface
 
     public function __construct(
         ModuleDataSetupInterface $moduleDataSetup,
-        EavSetupFactory $eavSetupFactory
-    ) {
+        EavSetupFactory          $eavSetupFactory
+    )
+    {
         $this->moduleDataSetup = $moduleDataSetup;
         $this->eavSetupFactory = $eavSetupFactory;
     }
@@ -44,7 +44,6 @@ class AddAirwallexCustomerIdAttribute implements DataPatchInterface
      */
     public function apply()
     {
-        /** @var EavSetup $eavSetup */
         $eavSetup = $this->eavSetupFactory->create(['setup' => $this->moduleDataSetup]);
 
         $eavSetup->addAttribute(Customer::ENTITY, PaymentConsents::KEY_AIRWALLEX_CUSTOMER_ID, [

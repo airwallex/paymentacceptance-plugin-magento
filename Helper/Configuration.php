@@ -1,18 +1,4 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
 
 namespace Airwallex\Payments\Helper;
 
@@ -112,6 +98,16 @@ class Configuration extends AbstractHelper
     }
 
     /**
+     * Pre Verification enabled
+     *
+     * @return bool
+     */
+    public function isPreVerificationEnabled(): bool
+    {
+        return $this->scopeConfig->getValue('payment/airwallex_payments_card/preverification');
+    }
+
+    /**
      * Card enabled
      *
      * @return bool
@@ -154,7 +150,7 @@ class Configuration extends AbstractHelper
     {
         $size = (int)$this->scopeConfig->getValue('payment/airwallex_payments_card/max_width');
         if ($size < 320) $size = 320;
-        if ($size > 1000) $size = 1000;
+        if ($size > 500) $size = 500;
         return $size;
     }
 

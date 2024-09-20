@@ -1,23 +1,13 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
+
 namespace Airwallex\Payments\Controller\Webhooks;
 
+use Airwallex\Payments\Exception\WebhookException;
 use Airwallex\Payments\Logger\Logger;
 use Airwallex\Payments\Model\Webhook\Webhook;
 use Exception;
+use GuzzleHttp\Exception\GuzzleException;
+use JsonException;
 use Magento\Framework\App\Action\HttpPostActionInterface;
 use Magento\Framework\App\CsrfAwareActionInterface;
 use Magento\Framework\App\Request\Http as RequestHttp;
@@ -25,6 +15,11 @@ use Magento\Framework\App\Request\InvalidRequestException;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\App\Response\Http as ResponseHttp;
 use Airwallex\Payments\Model\Client\Request\Log as RequestLog;
+use Magento\Framework\Exception\AlreadyExistsException;
+use Magento\Framework\Exception\CouldNotSaveException;
+use Magento\Framework\Exception\InputException;
+use Magento\Framework\Exception\LocalizedException;
+use Magento\Framework\Exception\NoSuchEntityException;
 
 class Index implements HttpPostActionInterface, CsrfAwareActionInterface
 {
@@ -62,6 +57,7 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
      * @param RequestHttp $request
      * @param ResponseHttp $response
      * @param Logger $logger
+     * @param RequestLog $requestLog
      */
     public function __construct(
         Webhook $webhook,
@@ -81,9 +77,16 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
      * Get request from airwallex. Check request checksum for security. Each request parse and run webhook action
      *
      * @return ResponseHttp
-     * @throws \JsonException
+     * @throws WebhookException
+     * @throws GuzzleException
+     * @throws JsonException
+     * @throws AlreadyExistsException
+     * @throws CouldNotSaveException
+     * @throws InputException
+     * @throws LocalizedException
+     * @throws NoSuchEntityException
      */
-    public function execute()
+    public function execute(): ResponseHttp
     {
         $data = json_decode($this->request->getContent(), false, self::JSON_DECODE_DEPTH, JSON_THROW_ON_ERROR);
 

@@ -6,8 +6,11 @@ use Airwallex\Payments\Helper\AuthenticationHelper;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Logger\Guzzle\RequestLogger;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
+use Airwallex\Payments\Model\Client\Request\Authentication;
+use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use JsonException;
 use Magento\Framework\App\CacheInterface;
 use Magento\Framework\App\ProductMetadataInterface;
 use Magento\Framework\DataObject\IdentityService;
@@ -54,7 +57,7 @@ abstract class AbstractClient
     /**
      * @var ProductMetadataInterface
      */
-    protected ProductMetadataInterface $productMetada;
+    protected ProductMetadataInterface $productMetadata;
 
     /**
      * @var ModuleListInterface
@@ -78,26 +81,27 @@ abstract class AbstractClient
      * @param IdentityService $identityService
      * @param RequestLogger $requestLogger
      * @param Configuration $configuration
-     * @param ProductMetadataInterface $productMetada
+     * @param ProductMetadataInterface $productMetadata
      * @param ModuleListInterface $moduleList
      * @param CheckoutData $checkoutData
      * @param CacheInterface $cache
      */
     public function __construct(
-        AuthenticationHelper $authenticationHelper,
-        IdentityService $identityService,
-        RequestLogger $requestLogger,
-        Configuration $configuration,
-        ProductMetadataInterface $productMetada,
-        ModuleListInterface $moduleList,
-        CheckoutData $checkoutData,
-        CacheInterface $cache
-    ) {
+        AuthenticationHelper     $authenticationHelper,
+        IdentityService          $identityService,
+        RequestLogger            $requestLogger,
+        Configuration            $configuration,
+        ProductMetadataInterface $productMetadata,
+        ModuleListInterface      $moduleList,
+        CheckoutData             $checkoutData,
+        CacheInterface           $cache
+    )
+    {
         $this->authenticationHelper = $authenticationHelper;
         $this->identityService = $identityService;
         $this->requestLogger = $requestLogger;
         $this->configuration = $configuration;
-        $this->productMetada = $productMetada;
+        $this->productMetadata = $productMetadata;
         $this->moduleList = $moduleList;
         $this->checkoutData = $checkoutData;
         $this->cache = $cache;
@@ -106,16 +110,20 @@ abstract class AbstractClient
     /**
      * @return mixed
      * @throws GuzzleException
-     * @throws \JsonException
+     * @throws JsonException
      * @throws RequestException
+     * @throws Exception
      */
     public function send()
     {
-        $client = new Client([
+        $data = [
             'base_uri' => $this->configuration->getApiUrl(),
             'timeout' => self::TIME_OUT,
-            'handler' => $this->requestLogger->getStack()
-        ]);
+        ];
+        if ($this->getMethod() !== 'GET') {
+            $data['handler'] = $this->requestLogger->getStack();
+        }
+        $client = new Client($data);
 
         $request = $this->createRequest($client);
         $statusCode = $request->getStatusCode();
@@ -176,17 +184,18 @@ abstract class AbstractClient
      * @param ResponseInterface $request
      *
      * @return object
-     * @throws \JsonException
+     * @throws JsonException
      */
     protected function parseJson(ResponseInterface $request): object
     {
-        return json_decode((string) $request->getBody(), false, self::JSON_DECODE_DEPTH, JSON_THROW_ON_ERROR);
+        return json_decode((string)$request->getBody(), false, self::JSON_DECODE_DEPTH, JSON_THROW_ON_ERROR);
     }
 
     /**
      * Get options to create request.
      *
      * @return array
+     * @throws GuzzleException
      */
     protected function getRequestOptions(): array
     {
@@ -198,6 +207,7 @@ abstract class AbstractClient
 
     /**
      * @return array
+     * @throws GuzzleException
      */
     protected function getHeaders(): array
     {
@@ -205,7 +215,7 @@ abstract class AbstractClient
 
         if ($this instanceof BearerAuthenticationInterface) {
             $header['Authorization'] = 'Bearer ' . $this->authenticationHelper->getBearerToken();
-            $header['x-api-version'] = '2022-11-11';
+            $header['x-api-version'] = Authentication::X_API_VERSION;
         }
 
         return $header;
@@ -233,7 +243,7 @@ abstract class AbstractClient
     {
         $metadata = [
             'php_version' => phpversion(),
-            'magento_version' => $this->productMetada->getVersion(),
+            'magento_version' => $this->productMetadata->getVersion(),
             'plugin_version' => $this->moduleList->getOne(Configuration::MODULE_NAME)['setup_version'],
             'is_card_active' => $this->configuration->isCardActive() ?? false,
             'is_card_capture_enabled' => $this->configuration->isCardCaptureEnabled() ?? false,
@@ -245,7 +255,7 @@ abstract class AbstractClient
             'express_checkout' => $this->configuration->getCheckout() ?? '',
             'host' => $_SERVER['HTTP_HOST'] ?? '',
         ];
-        if ($methodName = $this->cache->load(self::METADATA_PAYMENT_METHOD_PREFIX .  (string)$this->checkoutData->getQuote()->getEntityId())) {
+        if ($methodName = $this->cache->load(self::METADATA_PAYMENT_METHOD_PREFIX . $this->checkoutData->getQuote()->getEntityId())) {
             $metadata['payment_method'] = $methodName;
         }
         return $metadata;
@@ -283,9 +293,8 @@ abstract class AbstractClient
     abstract protected function getUri(): string;
 
     /**
-     * @param ResponseInterface $request
-     *
+     * @param ResponseInterface $response
      * @return mixed
      */
-    abstract protected function parseResponse(ResponseInterface $request);
+    abstract protected function parseResponse(ResponseInterface $response);
 }

@@ -5,6 +5,7 @@ namespace Airwallex\Payments\Model\Client\Request;
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
 use Psr\Http\Message\ResponseInterface;
 
 class Log extends AbstractClient implements BearerAuthenticationInterface
@@ -29,26 +30,29 @@ class Log extends AbstractClient implements BearerAuthenticationInterface
         return $arr['account_id'] ?? 'decode failed';
     }
 
+    /**
+     * @throws GuzzleException
+     */
     public function setMessage($message, $trace, $intentId = 'unknown')
     {
         return $this->setParams(
             array(
                 'commonData' => array(
-                    'accountId'  => $this->decodeJWT($this->authenticationHelper->getBearerToken()),
-                    'appName'    => 'pa_plugin',
-                    'source'     => 'magento',
-                    'deviceId'   => 'unknown',
-                    'sessionId'  => $intentId,
-                    'appVersion' => $this->productMetada->getVersion(),
-                    'platform'   => 'macos',
-                    'env'        => $this->configuration->isDemoMode() ? 'demo' : 'prod',
+                    'accountId' => $this->decodeJWT($this->authenticationHelper->getBearerToken()),
+                    'appName' => 'pa_plugin',
+                    'source' => 'magento',
+                    'deviceId' => 'unknown',
+                    'sessionId' => $intentId,
+                    'appVersion' => $this->productMetadata->getVersion(),
+                    'platform' => 'macos',
+                    'env' => $this->configuration->isDemoMode() ? 'demo' : 'prod',
                 ),
                 'data' => array(
                     array(
-                        'severity'  => 'error',
+                        'severity' => 'error',
                         'eventName' => 'magento',
-                        'message'   => $message,
-                        'trace'   => $trace,
+                        'message' => $message,
+                        'trace' => $trace,
                         'metadata' => $this->getMetadata()
                     ),
                 ),
@@ -64,6 +68,7 @@ class Log extends AbstractClient implements BearerAuthenticationInterface
 
         return $header;
     }
+
     /**
      * @return string
      */

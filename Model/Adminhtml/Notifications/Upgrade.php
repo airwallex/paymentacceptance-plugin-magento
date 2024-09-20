@@ -2,8 +2,8 @@
 
 namespace Airwallex\Payments\Model\Adminhtml\Notifications;
 
-use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
 use Airwallex\Payments\Helper\Configuration;
+use Exception;
 use Magento\Framework\Module\ModuleListInterface;
 use Magento\Framework\Notification\MessageInterface;
 
@@ -27,7 +27,8 @@ class Upgrade implements MessageInterface
     /**
      * Dependencies constructor.
      *
-     * @param AvailablePaymentMethodsHelper $availablePaymentMethodsHelper
+     * @param Configuration $configuration
+     * @param ModuleListInterface $moduleList
      */
     public function __construct(Configuration $configuration, ModuleListInterface $moduleList)
     {
@@ -75,8 +76,10 @@ class Upgrade implements MessageInterface
     {
         $packageName = 'airwallex/payments-plugin-magento';
         try {
-            $content = file_get_contents('https://packagist.org/p2/'.$packageName.'.json');
-        } catch (\Exception $e) { return; }
+            $content = file_get_contents('https://packagist.org/p2/' . $packageName . '.json');
+        } catch (Exception $e) {
+            return;
+        }
         if (empty($content)) return;
         $data = json_decode($content, true);
         if (isset($data['packages'][$packageName])) {

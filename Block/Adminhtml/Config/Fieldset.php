@@ -1,18 +1,5 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
+
 namespace Airwallex\Payments\Block\Adminhtml\Config;
 
 use Magento\Config\Block\System\Config\Form\Fieldset as AdminhtmlFieldset;
@@ -47,7 +34,7 @@ class Fieldset extends AdminhtmlFieldset
             ' class="button action-configure' .
             '" id="' .
             $htmlId .
-            '-head" onclick="toggleSolution.call(this, \'' .
+            '-head" onclick="awxToggleSolution.call(this, \'' .
             $htmlId .
             "', '" .
             $this->getUrl(
@@ -67,6 +54,32 @@ class Fieldset extends AdminhtmlFieldset
 
         $html .= '<div class="config-alt"></div>';
         $html .= '</div></div>';
+        $html .= "
+<script>
+require(['jquery', 'prototype'], function ($) {
+    'use strict';
+    window.awxToggleSolution = function (id, url) {
+        var doScroll = false;
+        var pos = false;
+
+        Fieldset.toggleCollapse(id, url);
+        if (document.querySelector('#{$htmlId}').hasClassName('open')) {
+            $$('.with-button button.button').each(function (anotherButton) {
+                if (anotherButton !== this && $(anotherButton).hasClassName('open')) {
+                    $(anotherButton).click();
+                    doScroll = true;
+                }
+            }.bind(this));
+        }
+
+        if (doScroll) {
+            pos = Element.cumulativeOffset($(this));
+            window.scrollTo(pos[0], pos[1] - 45);
+        }
+    };
+});
+</script>
+        ";
 
         return $html;
     }

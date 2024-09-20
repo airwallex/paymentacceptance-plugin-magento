@@ -2,6 +2,7 @@
 
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="Airwallex\Payments\Api\ServiceInterface" type="Airwallex\Payments\Model\Service" />
+    <preference for="Airwallex\Payments\Api\OrderServiceInterface" type="Airwallex\Payments\Model\OrderService" />
     <preference for="Airwallex\Payments\Api\Data\PlaceOrderResponseInterface" type="Airwallex\Payments\Model\PlaceOrderResponse" />
     <preference for="Airwallex\Payments\Api\PaymentConsentsInterface" type="Airwallex\Payments\Model\PaymentConsents" />
     <preference for="Airwallex\Payments\Api\Data\SavedPaymentResponseInterface" type="Airwallex\Payments\Model\SavedPaymentResponse" />

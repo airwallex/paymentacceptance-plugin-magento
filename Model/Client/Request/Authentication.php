@@ -1,18 +1,5 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
+
 namespace Airwallex\Payments\Model\Client\Request;
 
 use Airwallex\Payments\Model\Client\AbstractClient;
@@ -21,7 +8,7 @@ use Psr\Http\Message\ResponseInterface;
 
 class Authentication extends AbstractClient
 {
-    private const X_API_VERSION = '2020-04-30';
+    public const X_API_VERSION = '2024-06-30';
 
     /**
      * @return string[]
@@ -44,13 +31,13 @@ class Authentication extends AbstractClient
     }
 
     /**
-     * @param ResponseInterface $request
+     * @param ResponseInterface $response
      *
      * @return object
      * @throws JsonException
      */
-    protected function parseResponse(ResponseInterface $request): object
+    protected function parseResponse(ResponseInterface $response): object
     {
-        return $this->parseJson($request);
+        return $this->parseJson($response);
     }
 }

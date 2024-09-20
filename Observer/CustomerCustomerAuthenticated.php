@@ -3,6 +3,7 @@
 namespace Airwallex\Payments\Observer;
 
 use Airwallex\Payments\Api\PaymentConsentsInterface;
+use Exception;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 
@@ -29,7 +30,6 @@ class CustomerCustomerAuthenticated implements ObserverInterface
             $customer = $observer->getModel();
             $this->paymentConsents->syncVault($customer->getId());
         } catch (Exception $e) {
-
         }
     }
 }

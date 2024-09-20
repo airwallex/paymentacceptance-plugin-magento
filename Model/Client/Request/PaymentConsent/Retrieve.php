@@ -1,18 +1,5 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
+
 namespace Airwallex\Payments\Model\Client\Request\PaymentConsent;
 
 use Airwallex\Payments\Model\Client\AbstractClient;
@@ -30,7 +17,7 @@ class Retrieve extends AbstractClient implements BearerAuthenticationInterface
      * @param string $paymentConsentId
      * @return $this
      */
-    public function setPaymentConsentId(string $paymentConsentId)
+    public function setPaymentConsentId(string $paymentConsentId): Retrieve
     {
         $this->paymentConsentId = $paymentConsentId;
 
@@ -54,18 +41,18 @@ class Retrieve extends AbstractClient implements BearerAuthenticationInterface
     }
 
     /**
-     * @param ResponseInterface $request
+     * @param ResponseInterface $response
      *
-     * @return stdClass
+     * @return mixed|object
      * @throws JsonException
      * @throws LocalizedException
      */
-    protected function parseResponse(ResponseInterface $request)
+    protected function parseResponse(ResponseInterface $response): stdClass
     {
         if ($this->paymentConsentId === null) {
             throw new LocalizedException(__('Payment Consent ID not set'));
         }
 
-        return $this->parseJson($request);
+        return $this->parseJson($response);
     }
 }

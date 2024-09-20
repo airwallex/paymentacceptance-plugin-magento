@@ -1,4 +1,5 @@
 <?xml version="1.0"?>
+
 <schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
     <table name="airwallex_payment_intents">
         <column xsi:type="bigint" name="id" unsigned="true" nullable="false" identity="true"/>
@@ -8,13 +9,14 @@
         <column xsi:type="decimal" name="grand_total" scale="4" precision="20" unsigned="false" default="0"/>
         <column xsi:type="bigint" name="quote_id" nullable="false" default="0"/>
         <column xsi:type="int" name="store_id" nullable="false" default="0"/>
-        <column xsi:type="timestamp" name="created_at" on_update="false" nullable="false" default="CURRENT_TIMESTAMP"/>    
+        <column xsi:type="int" name="order_id" nullable="false" default="0"/>
+        <column xsi:type="timestamp" name="created_at" on_update="false" nullable="false" default="CURRENT_TIMESTAMP"/>
         <column xsi:type="text" name="detail" nullable="true"/>
         <constraint xsi:type="primary" referenceId="PRIMARY">
             <column name="id"/>
         </constraint>
         <index referenceId="AIRWALLEX_PAYMENT_INTENTS_ORDER_INCREMENT_ID" indexType="btree">
-            <column name="order_increment_id"/>
+            <column name="order_id"/>
         </index>
         <index referenceId="AIRWALLEX_PAYMENT_INTENTS_QUOTE_ID" indexType="btree">
             <column name="quote_id"/>

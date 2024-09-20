@@ -20,7 +20,7 @@ interface PlaceOrderResponseInterface
 {
     public const DATA_KEY_INTENT_ID = 'intent_id';
     public const DATA_KEY_CLIENT_SECRET = 'client_secret';
-    public const DATA_KEY_REDIRECT_URL = 'redirect_url';
+    public const DATA_KEY_NEXT_ACTION = 'next_action';
     public const DATA_KEY_RESPONSE_TYPE = 'response_type';
     public const DATA_KEY_ORDER_ID = 'order_id';
     public const DATA_KEY_MESSAGE = 'message';
@@ -39,13 +39,13 @@ interface PlaceOrderResponseInterface
     /**
      * @return string|null
      */
-    public function getRedirectUrl(): ?string;
+    public function getNextAction(): ?string;
 
     /**
-     * @param string|null $redirectUrl
+     * @param string|null $nextAction
      * @return $this
      */
-    public function setRedirectUrl(string $redirectUrl = null): PlaceOrderResponseInterface;
+    public function setNextAction(string $nextAction = null): PlaceOrderResponseInterface;
 
     /**
      * @return string|null

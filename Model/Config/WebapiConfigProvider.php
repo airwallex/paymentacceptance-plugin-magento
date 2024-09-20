@@ -1,24 +1,8 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit,
-Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information,
-please view the LICENSE
- * file that was distributed with this source code.
- */
 
 namespace Airwallex\Payments\Model\Config;
 
-use Airwallex\Payments\Api\ServiceInterface;
+use Airwallex\Payments\Api\OrderServiceInterface;
 use Airwallex\Payments\Model\Ui\ConfigProvider;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Webapi\Rest\Request as RestRequest;
@@ -44,10 +28,11 @@ class WebapiConfigProvider implements WebapiValidationConfigProviderInterface
      * @param RestRequest $request
      */
     public function __construct(
-        IsCaptchaEnabledInterface $isEnabled,
+        IsCaptchaEnabledInterface         $isEnabled,
         ValidationConfigResolverInterface $configResolver,
-        RestRequest $request
-    ) {
+        RestRequest                       $request
+    )
+    {
         $this->isEnabled = $isEnabled;
         $this->configResolver = $configResolver;
         $this->request = $request;
@@ -59,7 +44,7 @@ class WebapiConfigProvider implements WebapiValidationConfigProviderInterface
      */
     public function getConfigFor(EndpointInterface $endpoint): ?ValidationConfigInterface
     {
-        if ($endpoint->getServiceClass() === ServiceInterface::class
+        if ($endpoint->getServiceClass() === OrderServiceInterface::class
             && array_key_exists($endpoint->getServiceMethod(), self::PROTECTED_METHODS)) {
             if ($this->isEnabled->isCaptchaEnabledFor(ConfigProvider::AIRWALLEX_RECAPTCHA_FOR)) {
                 return $this->configResolver->get(ConfigProvider::AIRWALLEX_RECAPTCHA_FOR);

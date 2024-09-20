@@ -2,8 +2,10 @@
 
 namespace Airwallex\Payments\Model\Methods;
 
+use Airwallex\Payments\Api\Data\PaymentIntentInterface;
 use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
 use Airwallex\Payments\Helper\CancelHelper;
+use Airwallex\Payments\Helper\IsOrderCreatedHelper;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Cancel;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Capture;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Confirm;
@@ -12,10 +14,10 @@ use Airwallex\Payments\Model\PaymentIntentRepository;
 use Airwallex\Payments\Model\PaymentIntents;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
+use JsonException;
 use Magento\Checkout\Helper\Data as CheckoutData;
-use Magento\Framework\DataObject;
 use Magento\Framework\Event\ManagerInterface;
-use Magento\Framework\Exception\AlreadyExistsException;
+use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Payment\Gateway\Command\CommandManagerInterface;
 use Magento\Payment\Gateway\Command\CommandPoolInterface;
@@ -24,6 +26,7 @@ use Magento\Payment\Gateway\Data\PaymentDataObjectFactory;
 use Magento\Payment\Gateway\Validator\ValidatorPoolInterface;
 use Magento\Payment\Model\InfoInterface;
 use Magento\Payment\Model\Method\Adapter;
+use Magento\Payment\Model\MethodInterface;
 use Magento\Quote\Api\Data\CartInterface;
 use Magento\Sales\Model\Order\Creditmemo;
 use Magento\Sales\Model\Order\Payment;
@@ -32,6 +35,8 @@ use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Airwallex\Payments\Logger\Logger;
 use Magento\Framework\App\CacheInterface;
+use Airwallex\Payments\Helper\IntentHelper;
+use Magento\Sales\Model\Order;
 
 /**
  * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
@@ -101,6 +106,8 @@ abstract class AbstractMethod extends Adapter
     protected CacheInterface $cache;
 
     protected Get $intentGet;
+    protected IsOrderCreatedHelper $isOrderCreatedHelper;
+    protected IntentHelper $intentHelper;
 
     /**
      * Payment constructor.
@@ -123,6 +130,8 @@ abstract class AbstractMethod extends Adapter
      * @param Get $intentGet
      * @param Logger $logger
      * @param CacheInterface $cache
+     * @param IntentHelper $intentHelper
+     * @param IsOrderCreatedHelper|null $isOrderCreatedHelper
      * @param CommandPoolInterface|null $commandPool
      * @param ValidatorPoolInterface|null $validatorPool
      * @param CommandManagerInterface|null $commandExecutor
@@ -146,6 +155,8 @@ abstract class AbstractMethod extends Adapter
         Get                           $intentGet,
         Logger                        $logger,
         CacheInterface                $cache,
+        IntentHelper                  $intentHelper,
+        IsOrderCreatedHelper          $isOrderCreatedHelper,
         CommandPoolInterface          $commandPool = null,
         ValidatorPoolInterface        $validatorPool = null,
         CommandManagerInterface       $commandExecutor = null
@@ -175,25 +186,8 @@ abstract class AbstractMethod extends Adapter
         $this->checkoutHelper = $checkoutHelper;
         $this->intentGet = $intentGet;
         $this->cache = $cache;
-    }
-
-    /**
-     * @param DataObject $data
-     *
-     * @return $this
-     * @throws LocalizedException
-     */
-    public function assignData(DataObject $data): self
-    {
-        $additionalData = $data->getData('additional_data');
-        $info = $this->getInfoInstance();
-        foreach (self::ADDITIONAL_DATA as $additionalDatum) {
-            if (isset($additionalData[$additionalDatum])) {
-                $info->setAdditionalInformation($additionalDatum, $additionalData[$additionalDatum]);
-            }
-        }
-
-        return $this;
+        $this->isOrderCreatedHelper = $isOrderCreatedHelper;
+        $this->intentHelper = $intentHelper;
     }
 
     /**
@@ -201,27 +195,11 @@ abstract class AbstractMethod extends Adapter
      * @param float $amount
      *
      * @return $this
-     * @throws AlreadyExistsException|LocalizedException
      * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function authorize(InfoInterface $payment, $amount): self
     {
-        $this->setTransactionId($payment);
         return $this;
-    }
-
-    /**
-     * @throws LocalizedException
-     */
-    protected function setTransactionId($payment)
-    {
-        $intentId = $this->getIntentId();
-        if (empty($intentId)) {
-            throw new LocalizedException(__('Something went wrong while trying to capture the payment.'));
-        }
-        /** @var Payment $payment */
-        $payment->setTransactionId($intentId);
-        $payment->setIsTransactionClosed(false);
     }
 
     /**
@@ -230,11 +208,9 @@ abstract class AbstractMethod extends Adapter
      *
      * @return $this
      * @SuppressWarnings(PHPMD.UnusedFormalParameter)
-     * @throws LocalizedException
      */
     public function capture(InfoInterface $payment, $amount): self
     {
-        $this->setTransactionId($payment);
         return $this;
     }
 
@@ -242,7 +218,9 @@ abstract class AbstractMethod extends Adapter
      * @param InfoInterface $payment
      *
      * @return $this
-     * @throws Exception
+     * @throws GuzzleException
+     * @throws InputException
+     * @throws LocalizedException
      */
     public function cancel(InfoInterface $payment): self
     {
@@ -250,12 +228,17 @@ abstract class AbstractMethod extends Adapter
             return $this;
         }
 
+        $intentId = $this->getIntentId($payment);
+        $this->cache->save(true, $this->cancelCacheName($intentId), [], 3600);
         try {
-            $this->cancel->setPaymentIntentId($this->getIntentId())->send();
-        } catch (GuzzleException $exception) {
+            $this->cancel->setPaymentIntentId($intentId)->send();
+        } catch (Exception $e) {
+            if (strstr($e->getMessage(), 'CANCELLED')) {
+                return $this;
+            }
             /** @var Payment $payment */
-            $this->logger->orderError($payment->getOrder(), 'cancel', $exception->getMessage());
-            throw new RuntimeException(__($exception->getMessage()));
+            $this->logger->orderError($payment->getOrder(), 'cancel', $e->getMessage());
+            throw new RuntimeException(__($e->getMessage()));
         }
 
         return $this;
@@ -263,21 +246,25 @@ abstract class AbstractMethod extends Adapter
 
     /**
      * @param InfoInterface $payment
-     * @param float $baseAmount
+     * @param float $amount
      *
      * @return $this
      * @throws Exception
      */
-    public function refund(InfoInterface $payment, $baseAmount): self
+    public function refund(InfoInterface $payment, $amount): self
     {
         /** @var Payment $payment */
         $credit = $payment->getCreditmemo();
 
-        $intentId = $this->getIntentId();
+        $intentId = $this->getIntentId($payment);
+
         $this->cache->save(true, $this->refundCacheName($intentId), [], 3600);
         try {
+            $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
+            $respArr = json_decode($resp, true);
+            $refundAmount = $credit->getBaseCurrencyCode() === $respArr['currency'] ?  $credit->getBaseGrandTotal() : $credit->getGrandTotal();
             /** @var Creditmemo $credit */
-            $res = $this->refund->setInformation($intentId, $credit->getGrandTotal())->send();
+            $res = $this->refund->setInformation($intentId, $refundAmount)->send();
 
             $record = $this->paymentIntentRepository->getByIntentId($intentId);
             $detail = $record->getDetail();
@@ -291,7 +278,6 @@ abstract class AbstractMethod extends Adapter
             $this->logger->orderError($payment->getOrder(), 'refund', $exception->getMessage());
             throw new RuntimeException(__($exception->getMessage()));
         }
-//        sleep(4);
         return $this;
     }
 
@@ -299,7 +285,9 @@ abstract class AbstractMethod extends Adapter
      * @param InfoInterface $payment
      *
      * @return $this
-     * @throws Exception
+     * @throws GuzzleException
+     * @throws InputException
+     * @throws LocalizedException
      */
     public function void(InfoInterface $payment): self
     {
@@ -310,27 +298,38 @@ abstract class AbstractMethod extends Adapter
      * @param CartInterface|null $quote
      *
      * @return bool
+     * @throws GuzzleException|JsonException
      */
     public function isAvailable(CartInterface $quote = null): bool
     {
         return parent::isAvailable($quote) &&
-            $this->availablePaymentMethodsHelper->isAvailable($this->getPaymentMethodCode());
+            $this->availablePaymentMethodsHelper->isAvailable($this->getPaymentMethodCode($this->getCode()));
     }
 
     /**
+     * @param $payment
      * @return string
+     * @throws InputException
      * @throws LocalizedException
      */
-    protected function getIntentId(): string
+    protected function getIntentId($payment): string
     {
-        return $this->getInfoInstance()->getAdditionalInformation('intent_id');
+        /** @var Order $order */
+        $order = $payment->getOrder();
+        $paymentIntent = $this->paymentIntentRepository->getByOrderIncrementIdAndStoreId($order->getIncrementId(), $order->getStoreId());
+        if (!$paymentIntent || !$paymentIntent->getIntentId()) {
+            return $this->getInfoInstance()->getAdditionalInformation('intent_id') ?: '';
+        }
+        return $paymentIntent->getIntentId();
     }
 
-    /**
-     * @return string
-     */
-    protected function getPaymentMethodCode(): string
+    public function getConfigPaymentAction(): string
     {
-        return str_replace(self::PAYMENT_PREFIX, '', $this->getCode());
+        if (!$this->isOrderCreatedHelper->isCreated()) return '';
+        $intent = $this->intentHelper->getIntent();
+        if ($intent['status'] ===  PaymentIntentInterface::INTENT_STATUS_SUCCEEDED) {
+            return MethodInterface::ACTION_AUTHORIZE_CAPTURE;
+        }
+        return MethodInterface::ACTION_AUTHORIZE;
     }
 }

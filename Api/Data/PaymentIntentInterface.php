@@ -11,6 +11,7 @@ interface PaymentIntentInterface
     public const CURRENCY_CODE_COLUMN = 'currency_code';
     public const GRAND_TOTAL_COLUMN = 'grand_total';
     public const QUOTE_ID_COLUMN = 'quote_id';
+    public const ORDER_ID_COLUMN = 'order_id';
     public const STORE_ID_COLUMN = 'store_id';
     public const DETAIL_COLUMN = 'detail';
     public const INTENT_STATUS_REQUIRES_CAPTURE = 'REQUIRES_CAPTURE';
@@ -29,7 +30,7 @@ interface PaymentIntentInterface
     /**
      * @return string
      */
-    public function getPaymentIntentId(): string;
+    public function getIntentId(): string;
 
     /**
      * @return string
@@ -52,9 +53,14 @@ interface PaymentIntentInterface
     public function getStoreId(): int;
 
     /**
-     * @return string
+     * @return int
      */
-    public function getDetail(): string;
+    public function getOrderId(): int;
+
+    /**
+     * @return ?string
+     */
+    public function getDetail(): ?string;
 
     /**
      * @param string $orderIncrementId
@@ -90,6 +96,13 @@ interface PaymentIntentInterface
      * @return $this
      */
     public function setQuoteId(int $quoteId): self;
+
+    /**
+     * @param int $orderId
+     *
+     * @return $this
+     */
+    public function setOrderId(int $orderId): self;
 
     /**
      * @param int $storeId

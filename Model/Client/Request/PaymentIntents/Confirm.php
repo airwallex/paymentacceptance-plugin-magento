@@ -1,22 +1,10 @@
 <?php
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
+
 namespace Airwallex\Payments\Model\Client\Request\PaymentIntents;
 
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
+use JsonException;
 use Psr\Http\Message\ResponseInterface;
 
 class Confirm extends AbstractClient implements BearerAuthenticationInterface
@@ -55,13 +43,9 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
             'type' => $method
         ];
 
-        if ($method === 'wechatpay') {
+        if ($method !== 'pay_now') {
             $data[$method] = [
-                'flow' => self::WECHAT_FLOW
-            ];
-        } else {
-            $data[$method] = [
-                'flow' => $isMobile ? self::MOBILE_FLOW : self::DESKTOP_FLOW
+                'flow' => 'qrcode'
             ];
         }
 
@@ -83,15 +67,15 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
     }
 
     /**
-     * @param ResponseInterface $request
+     * @param ResponseInterface $response
      *
-     * @return string
-     * @throws \JsonException
+     * @return array
+     * @throws JsonException
      */
-    protected function parseResponse(ResponseInterface $request): string
+    protected function parseResponse(ResponseInterface $response): array
     {
-        $request = $this->parseJson($request);
+        $response = $this->parseJson($response);
 
-        return $request->next_action->url;
+        return (array)$response->next_action ?? [];
     }
 }

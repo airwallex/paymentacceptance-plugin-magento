@@ -36,7 +36,7 @@ class PaymentIntent extends AbstractModel implements IdentityInterface, PaymentI
     /**
      * @return string
      */
-    public function getPaymentIntentId(): string
+    public function getIntentId(): string
     {
         return $this->getData(PaymentIntentInterface::PAYMENT_INTENT_ID_COLUMN);
     }
@@ -68,15 +68,23 @@ class PaymentIntent extends AbstractModel implements IdentityInterface, PaymentI
     /**
      * @return int
      */
+    public function getOrderId(): int
+    {
+        return $this->getData(PaymentIntentInterface::ORDER_ID_COLUMN);
+    }
+
+    /**
+     * @return int
+     */
     public function getStoreId(): int
     {
         return $this->getData(PaymentIntentInterface::STORE_ID_COLUMN);
     }
 
     /**
-     * @return string
+     * @return ?string
      */
-    public function getDetail(): string
+    public function getDetail(): ?string
     {
         return $this->getData(PaymentIntentInterface::DETAIL_COLUMN);
     }
@@ -129,6 +137,16 @@ class PaymentIntent extends AbstractModel implements IdentityInterface, PaymentI
     public function setQuoteId(int $quoteId): PaymentIntentInterface
     {
         return $this->setData(PaymentIntentInterface::QUOTE_ID_COLUMN, $quoteId);
+    }
+
+    /**
+     * @param int $orderId
+     *
+     * @return PaymentIntentInterface
+     */
+    public function setOrderId(int $orderId): PaymentIntentInterface
+    {
+        return $this->setData(PaymentIntentInterface::ORDER_ID_COLUMN, $orderId);
     }
 
     /**
