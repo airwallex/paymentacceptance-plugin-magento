@@ -1,4 +1,4 @@
-<div class="payment-method airwallex-payments airwallex" data-bind="css: {'_active': (getCode() == isChecked())}">
+<div data-bind="class: 'payment-method airwallex-payments airwallex ' + getCode(), css: {'_active': (getCode() == isChecked())}">
     <div class="payment-method-title field choice">
         <input type="radio"
                name="payment[method]"
@@ -12,6 +12,8 @@
         <!-- ko template: getTemplate() --><!-- /ko -->
         <!--/ko-->
         <div class="payment-method-billing-address">
+            <div class="awx-billing-confirm-tip" data-bind="text: $t('Confirm your billing address to use ' + getDisplayName())"></div>
+            <div class="awx-billing-confirm-tip-2" data-bind="text: $t('You will be shown the ' + getDisplayName() + ' QR code upon confirmation')"></div>
             <!-- ko foreach: $parent.getRegion(getBillingAddressFormName()) -->
             <!-- ko template: getTemplate() --><!-- /ko -->
             <!--/ko-->

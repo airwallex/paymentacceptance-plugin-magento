@@ -133,7 +133,9 @@ define([
             });
             if (this.cvcDetail) this.cvcDetail.complete = false;
             this.validationError('');
-            this.cvcElement = Airwallex.createElement('cvc');
+            this.cvcElement = Airwallex.createElement('cvc', {
+                placeholder: 'CVC'
+            });
             const domElement = this.cvcElement.mount(id + '-cvc', { autoCapture: this.autoCapture });
             domElement.addEventListener('onReady', (event) => {
                 $('body').trigger('processStop');

@@ -124,7 +124,8 @@ define(
                         base: {
                             fontSize: fontSize + 'px',
                         }
-                    }
+                    },
+                    placeholder: 'CVC'
                 });
 
                 for (let type of ['Number', 'Expiry', 'Cvc']) {
@@ -145,6 +146,18 @@ define(
                         $("#awx-card-" + type.toLowerCase()).removeClass("awx-focus-input");
                     });
                 }
+
+                this['cardNumberElement'].on('change', (e) => {
+                    if (e.detail.complete) {
+                        this['cardExpiryElement'].focus()
+                    }
+                });
+
+                this['cardExpiryElement'].on('change', (e) => {
+                    if (e.detail.complete) {
+                        this['cardCvcElement'].focus()
+                    }
+                });
 
                 this.cardNumberElement.on('ready', () => {
                     this.cardNumberElement.focus();

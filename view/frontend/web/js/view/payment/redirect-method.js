@@ -44,6 +44,19 @@ define([
             return this._super();
         },
 
+        getDisplayName() {
+            let name = this.getCode();
+            let arr = {
+                'airwallex_payments_alipaycn': 'Alipay CN',
+                'airwallex_payments_alipayhk': 'Alipay HK',
+                'airwallex_payments_pay_now': 'PayNow',
+                'airwallex_payments_dana': 'DANA',
+                'airwallex_payments_kakaopay': 'Kakao Pay',
+                'airwallex_payments_tng': 'Touch \'n Go',
+            }
+            return arr[name];
+        },
+
         placeOrder: async function (data, event) {
             let self = this;
             this.validationError('');
@@ -103,6 +116,7 @@ define([
                     $("._active .qrcode-payment").css('display', 'flex');
                     let nextAction = JSON.parse(intentResponse.next_action);
                     // url qrcode_url qrcode
+                    $('.' + self.getCode() + ' .payment-method-billing-address').hide();
                     if (['airwallex_payments_pay_now'].indexOf(this.code) === -1) {
                         $(qrcodeSelector).show();
                         new QRCode(document.querySelector(qrcodeSelector), nextAction.qrcode);
