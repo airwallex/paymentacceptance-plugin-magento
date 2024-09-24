@@ -43,7 +43,7 @@ define([
         agreementSelector: '.airwallex-express-checkout .checkout-agreements input[type="checkbox"]',
 
         getRecaptchaId() {
-            let id = $('.airwallex-card-container .g-recaptcha').attr('id');
+            let id = $('.payment-method._active .g-recaptcha').attr('id');
             if (id) {
                 return id;
             }
@@ -240,10 +240,12 @@ define([
                 re.reCaptchaId = this.expressRecaptchaId;
                 re.settings = this.paymentConfig.recaptcha_settings;
                 re.renderReCaptcha();
-                $(this.recaptchaSelector).css({
-                    'visibility': 'hidden',
-                    'position': 'absolute'
-                });
+                if (this.paymentConfig.recaptcha_type !== 'recaptcha') {
+                    $(this.recaptchaSelector).css({
+                        'visibility': 'hidden',
+                        'position': 'absolute'
+                    });
+                }
             }
         },
 
@@ -537,6 +539,11 @@ define([
                 let recaptchaRegistry = require('Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry');
 
                 if (recaptchaRegistry) {
+                    if (recaptchaRegistry.tokens && recaptchaRegistry.tokens[this.getRecaptchaId()]) {
+                        payload.xReCaptchaValue = recaptchaRegistry.tokens[this.getRecaptchaId()];
+                        return;
+                    }
+
                     payload.xReCaptchaValue = await new Promise((resolve, reject) => {
                         recaptchaRegistry.tokens = {};
                         recaptchaRegistry.addListener(this.getRecaptchaId(), (token) => {

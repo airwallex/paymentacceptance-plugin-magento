@@ -300,6 +300,7 @@ class Service implements ServiceInterface
             'display_area' => $this->configuration->expressDisplayArea(),
             'recaptcha_settings' => $this->configProvider->getReCaptchaConfig(),
             'is_recaptcha_enabled' => $this->configProvider->isReCaptchaEnabled(),
+            'recaptcha_type' => $this->configuration->recaptchaType(),
             'agreements' => $this->agreementsConfigProvider->getConfig(),
         ];
     }
