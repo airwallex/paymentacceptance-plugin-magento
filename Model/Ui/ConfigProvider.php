@@ -7,6 +7,7 @@ use Airwallex\Payments\Helper\Configuration;
 use GuzzleHttp\Exception\GuzzleException;
 use Magento\Checkout\Model\ConfigProviderInterface;
 use Magento\Customer\Model\Session;
+use Magento\Framework\App\ProductMetadata;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
@@ -27,6 +28,7 @@ class ConfigProvider implements ConfigProviderInterface
     protected PaymentConsentsInterface $paymentConsents;
     private CustomerRepositoryInterface $customerRepository;
     private RetrieveCustomer $retrieveCustomer;
+    private ProductMetadata $productMetadata;
 
     /**
      * ConfigProvider constructor.
@@ -38,6 +40,7 @@ class ConfigProvider implements ConfigProviderInterface
      * @param PaymentConsentsInterface $paymentConsents
      * @param CustomerRepositoryInterface $customerRepository
      * @param RetrieveCustomer $retrieveCustomer
+     * @param ProductMetadata $productMetadata
      */
     public function __construct(
         Configuration               $configuration,
@@ -46,7 +49,8 @@ class ConfigProvider implements ConfigProviderInterface
         Session                     $customerSession,
         PaymentConsentsInterface    $paymentConsents,
         CustomerRepositoryInterface $customerRepository,
-        RetrieveCustomer            $retrieveCustomer
+        RetrieveCustomer            $retrieveCustomer,
+        ProductMetadata             $productMetadata
     )
     {
         $this->configuration = $configuration;
@@ -56,6 +60,7 @@ class ConfigProvider implements ConfigProviderInterface
         $this->paymentConsents = $paymentConsents;
         $this->customerRepository = $customerRepository;
         $this->retrieveCustomer = $retrieveCustomer;
+        $this->productMetadata = $productMetadata;
     }
 
     /**
@@ -75,6 +80,8 @@ class ConfigProvider implements ConfigProviderInterface
                     'mode' => $this->configuration->getMode(),
                     'cc_auto_capture' => $this->configuration->isCardCaptureEnabled(),
                     'recaptcha_enabled' => !!$recaptchaEnabled,
+                    'recaptcha_type' => $this->configuration->recaptchaType(),
+                    'is_recaptcha_shared' => version_compare($this->productMetadata->getVersion(), '2.4.7', '<'),
                     'cvc_required' => $this->configuration->isCvcRequired(),
                     'is_card_vault_active' => $this->configuration->isCardVaultActive(),
                     'is_pre_verification_enabled' => $this->configuration->isPreVerificationEnabled(),

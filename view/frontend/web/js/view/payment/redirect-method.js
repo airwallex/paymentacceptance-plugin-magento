@@ -65,12 +65,7 @@ define([
                 event.preventDefault();
             }
 
-            if (this.validate() &&
-                additionalValidators.validate() &&
-                this.isPlaceOrderActionAllowed() === true
-            ) {
-                this.isPlaceOrderActionAllowed(false);
-
+            if (this.validate() && additionalValidators.validate()) {
                 $('body').trigger('processStart');
 
                 try {
@@ -85,19 +80,7 @@ define([
                         },
                     };
 
-                    if (window.checkoutConfig.payment.airwallex_payments.recaptcha_enabled) {
-                        let recaptchaRegistry = require('Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry');
-                        if (recaptchaRegistry) {
-                            payload.xReCaptchaValue = await new Promise((resolve, reject) => {
-                                recaptchaRegistry.tokens = {};
-                                recaptchaRegistry.addListener(utils.getRecaptchaId(), (token) => {
-                                    resolve(token);
-                                });
-                                recaptchaRegistry.triggers[utils.getRecaptchaId()]();
-                            });
-                            recaptchaRegistry.tokens = {};
-                        }
-                    }
+                    await utils.setRecaptchaToken(payload, utils.getRecaptchaId());
 
                     if (!utils.isLoggedIn()) {
                         payload.email = quote.guestEmail;
@@ -152,7 +135,6 @@ define([
                         }
                     }, 2500);
                 } catch (e) {
-                    console.error(e);
                     if (e.responseJSON && e.responseJSON.message) {
                         this.validationError($t(e.responseJSON.message));
                     } else {
@@ -161,7 +143,6 @@ define([
                     $('body').trigger('processStop');
                     return;
                 } finally {
-                    self.isPlaceOrderActionAllowed(true);
                     $("#" + this.getCode() + '-button span').text($t('Refresh QR code'));
                 }
                 return true;

@@ -44,7 +44,6 @@ define(
             cardExpiryDetail: {},
             cardCvcDetail: {},
             validationError: ko.observable(),
-            isRecaptchaEnabled: !!window.checkoutConfig.payment.airwallex_payments.recaptcha_enabled,
             autoCapture: !!window.checkoutConfig.payment.airwallex_payments.cc_auto_capture,
             maxWidth: window.checkoutConfig.payment.airwallex_payments.card_max_width,
             fonts: [{

@@ -19,7 +19,6 @@ define([
     return VaultComponent.extend({
         validationError: ko.observable(),
         paymentMethodId: ko.observable(),
-        isRecaptchaEnabled: !!window.checkoutConfig.payment.airwallex_payments.recaptcha_enabled,
         autoCapture: !!window.checkoutConfig.payment.airwallex_payments.cc_auto_capture,
         cvcElement: undefined,
         cvcDetail: undefined,

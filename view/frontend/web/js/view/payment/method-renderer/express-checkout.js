@@ -229,9 +229,8 @@ define(
                             throw new Error(obj.message);
                         }
 
-                        if (this.paymentConfig.is_recaptcha_enabled) {
-                            payload.xReCaptchaValue = await utils.getRecaptchaToken(utils.expressRecaptchaId);
-                        }
+                        let id = utils.isRecaptchaShared() ? utils.recaptchaId : utils.expressRecaptchaId;
+                        await utils.setRecaptchaToken(payload, id);
 
                         if (!utils.isLoggedIn()) {
                             payload.email = utils.isCheckoutPage() ? $(utils.guestEmailSelector).val() : this.guestEmail;
