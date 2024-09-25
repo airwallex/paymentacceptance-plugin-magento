@@ -10,12 +10,14 @@ use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Framework\App\ObjectManager;
+use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Quote\Model\Quote;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Payment;
 use Magento\Sales\Model\Order\Status\HistoryFactory;
+use Magento\Sales\Model\OrderRepository;
 use ReflectionClass;
 
 trait HelperTrait
@@ -358,7 +360,10 @@ trait HelperTrait
      * @param string $from
      * @return void
      * @throws GuzzleException
+     * @throws InputException
      * @throws JsonException
+     * @throws NoSuchEntityException
+     * @throws AlreadyExistsException
      */
     public function changeOrderStatus($intentResponse, int $orderId, Quote $quote, string $from = ''): void
     {
@@ -388,7 +393,10 @@ trait HelperTrait
                     $companyResource->delete($companyOrder);
                 }
             }
-            $this->orderManagement->place($order);
+
+            $order->place();
+            ObjectManager::getInstance()->get(OrderRepository::class)->save($order);
+
             $this->addAVSResultToOrder($order, $intentResponse);
 
             $quote->setIsActive(false);
