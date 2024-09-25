@@ -32,12 +32,10 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
 
     /**
      * @param string $method
-     * @param bool $isMobile
-     * @param string|null $osType
      *
      * @return Confirm
      */
-    public function setInformation(string $method, bool $isMobile, string $osType = null): self
+    public function setInformation(string $method): self
     {
         $data = [
             'type' => $method
@@ -47,10 +45,6 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
             $data[$method] = [
                 'flow' => 'qrcode'
             ];
-        }
-
-        if ($isMobile) {
-            $data[$method]['os_type'] = $osType;
         }
 
         return $this->setParams([

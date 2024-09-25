@@ -40,7 +40,6 @@ use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\CheckoutAgreements\Model\AgreementsConfigProvider;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Confirm;
-use Mobile_Detect;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
 use Magento\Sales\Model\OrderFactory;
 
