@@ -8,7 +8,7 @@ use Airwallex\Payments\Api\Data\PlaceOrderResponseInterfaceFactory;
 use Airwallex\Payments\Api\OrderServiceInterface;
 use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Helper\Configuration;
-use Airwallex\Payments\Helper\isOrderCreatedHelper;
+use Airwallex\Payments\Helper\IsOrderCreatedHelper;
 use Airwallex\Payments\Plugin\ReCaptchaValidationPlugin;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
