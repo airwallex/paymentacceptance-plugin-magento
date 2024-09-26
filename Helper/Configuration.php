@@ -237,6 +237,16 @@ class Configuration extends AbstractHelper
     }
 
     /**
+     * recaptcha type
+     *
+     * @return string
+     */
+    public function recaptchaType(): string
+    {
+        return $this->scopeConfig->getValue('recaptcha_frontend/type_for/place_order') ?? '';
+    }
+
+    /**
      * Country code
      *
      * @return string

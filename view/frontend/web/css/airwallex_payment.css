@@ -1,7 +1,7 @@
 .airwallex-card {
     border-radius: 5px;
     padding: 5px 10px;
-    box-shadow: #612fff 0 0 0 1px;
+    box-shadow: #E8EAED 0 0 0 1px;
     min-height: 40px;
     display: flex;
     justify-content: center;
@@ -10,8 +10,7 @@
 }
 
 .airwallex-card.error {
-    border: 1px solid red;
-    box-shadow: red 0 0 0 1px;
+    box-shadow: red 0 0 0 2px;
 }
 
 .airwallex-error {
@@ -72,8 +71,7 @@
 }
 
 @media screen and (min-width: 768px) {
-    @media (min-width: 769px),
-    print {
+    @media (min-width: 769px), print {
         .box-tocart .airwallex-express-checkout {
             margin-bottom: 15px;
             width: 49%;
@@ -238,4 +236,59 @@
 
 .airwallex .field-error, div.mage-error {
     margin-top: 0;
+}
+
+.awx-focus-input {
+    box-shadow: #612fff 0 0 0 2px;
+}
+
+.awx-billing-confirm-tip {
+    font-style: normal;
+    font-weight: 700;
+    font-size: 14px;
+    line-height: 18px;
+    color: #1A1D21;
+}
+
+.awx-billing-confirm-tip-2 {
+    font-style: normal;
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 22px;
+    color: #42474D;
+    margin-top: 5px;
+    margin-bottom: 12px;
+}
+
+.checkout-payment-method .airwallex-payments .billing-address-same-as-shipping-block {
+    display: flex;
+}
+
+.checkout-payment-method .airwallex-payments input[type="checkbox"] {
+    top: 0;
+    margin-top: 0;
+}
+
+.awx-redirect-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+@media (max-width: 768px) {
+    .awx-redirect-buttons {
+        display: block;
+    }
+
+    .awx-redirect-buttons .editing {
+        line-height: 2.2rem;
+        padding: 14px 17px;
+        font-size: 1.8rem;
+    }
+}
+
+.awx-redirect-buttons .editing {
+    background: white;
+    border: 1px solid #E8EAED;
+    color: #1979c3;
 }

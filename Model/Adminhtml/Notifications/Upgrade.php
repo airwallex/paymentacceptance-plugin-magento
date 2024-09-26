@@ -25,7 +25,7 @@ class Upgrade implements MessageInterface
     protected ModuleListInterface $moduleList;
 
     /**
-     * Dependencies constructor.
+     * Upgrade constructor.
      *
      * @param Configuration $configuration
      * @param ModuleListInterface $moduleList

@@ -18,7 +18,7 @@ class ExpressDisabled implements MessageInterface
     private Configuration $configuration;
 
     /**
-     * Dependencies constructor.
+     * ExpressDisabled constructor.
      *
      * @param Configuration $configuration
      */

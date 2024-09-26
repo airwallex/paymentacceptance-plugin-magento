@@ -58,7 +58,7 @@ define([
                 if (utils.isProductPage()) {
                     $('#btn-minicart-close').click();
                 }
-            });            
+            });
 
             this.googlepay.on('shippingAddressChange', updateQuoteByShipment);
 

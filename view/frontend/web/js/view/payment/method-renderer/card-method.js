@@ -44,7 +44,6 @@ define(
             cardExpiryDetail: {},
             cardCvcDetail: {},
             validationError: ko.observable(),
-            isRecaptchaEnabled: !!window.checkoutConfig.payment.airwallex_payments.recaptcha_enabled,
             autoCapture: !!window.checkoutConfig.payment.airwallex_payments.cc_auto_capture,
             maxWidth: window.checkoutConfig.payment.airwallex_payments.card_max_width,
             fonts: [{
@@ -124,7 +123,8 @@ define(
                         base: {
                             fontSize: fontSize + 'px',
                         }
-                    }
+                    },
+                    placeholder: 'CVC'
                 });
 
                 for (let type of ['Number', 'Expiry', 'Cvc']) {
@@ -139,12 +139,24 @@ define(
 
                     this['card' + type + 'Element'].on('focus', () => {
                         this.validationError('');
-                        $("#awx-card-" + type.toLowerCase()).css("border", "1px solid #612fff");
+                        $("#awx-card-" + type.toLowerCase()).addClass("awx-focus-input");
                     });
                     this['card' + type + 'Element'].on('blur', () => {
-                        $("#awx-card-" + type.toLowerCase()).css("border", "none");
+                        $("#awx-card-" + type.toLowerCase()).removeClass("awx-focus-input");
                     });
                 }
+
+                this['cardNumberElement'].on('change', (e) => {
+                    if (e.detail.complete) {
+                        this['cardExpiryElement'].focus()
+                    }
+                });
+
+                this['cardExpiryElement'].on('change', (e) => {
+                    if (e.detail.complete) {
+                        this['cardCvcElement'].focus()
+                    }
+                });
 
                 this.cardNumberElement.on('ready', () => {
                     this.cardNumberElement.focus();

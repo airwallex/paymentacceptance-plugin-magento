@@ -73,7 +73,7 @@
             <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
             <config_path>payment/airwallex_payments_card/preverification</config_path>
             <comment>
-                <!-- <![CDATA[This determines how large or small the text will appear within the input field. Set a font size between 12 to 20px.]]> -->
+<!--                 <![CDATA[If you enable this option, we will provide the necessary card information before payment, allowing you to integrate with third-party risk control systems. For more details, please refer to this <a href='https://baidu.com'>document</a>.]]>-->
             </comment>
         </field>
         <field id="sort_order" translate="label" type="text" sortOrder="210" showInDefault="1" showInWebsite="1" showInStore="1">

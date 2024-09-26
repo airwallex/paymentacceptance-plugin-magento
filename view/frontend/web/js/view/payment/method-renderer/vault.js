@@ -19,7 +19,6 @@ define([
     return VaultComponent.extend({
         validationError: ko.observable(),
         paymentMethodId: ko.observable(),
-        isRecaptchaEnabled: !!window.checkoutConfig.payment.airwallex_payments.recaptcha_enabled,
         autoCapture: !!window.checkoutConfig.payment.airwallex_payments.cc_auto_capture,
         cvcElement: undefined,
         cvcDetail: undefined,
@@ -133,7 +132,9 @@ define([
             });
             if (this.cvcDetail) this.cvcDetail.complete = false;
             this.validationError('');
-            this.cvcElement = Airwallex.createElement('cvc');
+            this.cvcElement = Airwallex.createElement('cvc', {
+                placeholder: 'CVC'
+            });
             const domElement = this.cvcElement.mount(id + '-cvc', { autoCapture: this.autoCapture });
             domElement.addEventListener('onReady', (event) => {
                 $('body').trigger('processStop');

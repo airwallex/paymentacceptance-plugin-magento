@@ -92,11 +92,12 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
 
         $this->webhook->checkChecksum($this->request);
         try {
-            if ($data->data) {
+            if (isset($data->name) && isset($data->data->object)) {
                 $this->webhook->dispatch($data->name, $data->data->object);
             }
         } catch (Exception $e) {
-            $this->requestLog->setMessage($e->getMessage(), $e->getTraceAsString())->send();
+            $id = $data->sourceId ?? '';
+            $this->requestLog->setMessage($data->name . " $id webhook: " . $e->getMessage(), $e->getTraceAsString())->send();
             $this->logger->error($e->getMessage());
             throw $e;
         }

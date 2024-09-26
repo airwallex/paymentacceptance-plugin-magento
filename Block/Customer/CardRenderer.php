@@ -151,10 +151,16 @@ class CardRenderer extends AbstractTokenRenderer implements CardRendererInterfac
      */
     private function getIconForType(string $type): array
     {
-        return $this->configProvider->getIcons()[strtoupper($this->convertCcType($type))] ?? [
+        $arr = $this->configProvider->getIcons()[strtoupper($this->convertCcType($type))] ?? [
             'url' => '',
             'width' => 0,
             'height' => 0
         ];
+        if (empty($arr['url']) && strtoupper($this->convertCcType($type)) === "UN") {
+            $arr['url'] = 'https://checkout.airwallex.com/static/media/unionpay.9421a757c6289e8c65ec.svg';
+            $arr['width'] = 46;
+            $arr['height'] = 30;
+        }
+        return $arr;
     }
 }

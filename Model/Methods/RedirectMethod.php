@@ -5,7 +5,6 @@ namespace Airwallex\Payments\Model\Methods;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Quote\Api\Data\CartInterface;
-use Mobile_Detect;
 
 class RedirectMethod extends AbstractMethod
 {

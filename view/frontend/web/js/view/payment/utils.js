@@ -10,7 +10,8 @@ define([
     'Magento_Ui/js/modal/alert',
     'Magento_Customer/js/model/customer',
     'Magento_Checkout/js/model/payment/place-order-hooks',
-    'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler'
+    'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
+    'Magento_ReCaptchaFrontendUi/js/registry'
 ], function (
     urlBuilder,
     $,
@@ -23,7 +24,8 @@ define([
     alert,
     customer,
     placeOrderHooks,
-    addressHandler
+    addressHandler,
+    recaptchaRegistry
 ) {
     'use strict';
 
@@ -43,14 +45,8 @@ define([
         agreementSelector: '.airwallex-express-checkout .checkout-agreements input[type="checkbox"]',
 
         getRecaptchaId() {
-            let id = $('.airwallex-card-container .g-recaptcha').attr('id');
-            if (id) {
-                return id;
-            }
-            if ($('#' + this.recaptchaId).length) {
-                return this.recaptchaId;
-            }
-            return '';
+            if (this.isRecaptchaShared()) return this.recaptchaId;
+            return $('.payment-method._active .g-recaptcha').attr('id') || '';
         },
 
         clearDataAfterPay(response, customerData) {
@@ -229,7 +225,7 @@ define([
         },
 
         loadRecaptcha(isShowRecaptcha) {
-            if (!$(this.recaptchaSelector).length) {
+            if (this.isRecaptchaShared()) {
                 return;
             }
 
@@ -240,11 +236,22 @@ define([
                 re.reCaptchaId = this.expressRecaptchaId;
                 re.settings = this.paymentConfig.recaptcha_settings;
                 re.renderReCaptcha();
-                $(this.recaptchaSelector).css({
-                    'visibility': 'hidden',
-                    'position': 'absolute'
-                });
+                if (this.isRecaptchaShared() || this.isRecaptchaInvisible()) {
+                    $(this.recaptchaSelector).css({
+                        'visibility': 'hidden',
+                        'position': 'absolute',
+                    });
+                }
             }
+        },
+
+        isRecaptchaShared() {
+            if (!window.checkoutConfig) return false;
+            return window.checkoutConfig.payment.airwallex_payments.is_recaptcha_shared;
+        },
+
+        isRecaptchaInvisible() {
+            return !!(this.paymentConfig && this.paymentConfig.recaptcha_type && this.paymentConfig.recaptcha_type !== 'recaptcha');
         },
 
         isSetActiveInProductPage() {
@@ -430,16 +437,6 @@ define([
             return endResult;
         },
 
-        async getRecaptchaToken(id) {
-            return await new Promise((resolve, reject) => {
-                webapiRecaptchaRegistry.tokens = {};
-                webapiRecaptchaRegistry.addListener(id, (token) => {
-                    resolve(token);
-                });
-                webapiRecaptchaRegistry.triggers[id]();
-            });
-        },
-
         getAgreementIds() {
             let agreementForm = $('.payment-method._active div[data-role=checkout-agreements] input');
             let agreementData = agreementForm.serializeArray();
@@ -466,10 +463,10 @@ define([
             let paymentMethodId = '';
             if (from === 'card') {
                 if (!this.isLoggedIn() && !quote.guestEmail) {
-                    throw new Error('Email address is required.')
+                    throw new Error('Email address is required.');
                 }
                 if (!quote.billingAddress()) {
-                    throw new Error('Billing address is required.')
+                    throw new Error('Billing address is required.');
                 }
                 let clientSecret, customerId;
                 if (this.isLoggedIn()) {
@@ -490,7 +487,7 @@ define([
                     });
                     paymentMethodId = res.id;
                 } catch (err) {
-                    console.log(err)
+                    console.log(err);
                     throw new Error($.mage.__('Invalid input. Please verify your payment details and try again.'));
                 }
             } else if (from === 'vault') {
@@ -508,8 +505,10 @@ define([
             for (let card of window.airwallexSavedCards) {
                 if (card.id === $('#v-' + self.id).val()) {
                     self.paymentMethodId(card.payment_method_id);
-                    if (!card.billing) { continue; }
-                    let cardBilling = JSON.parse(card.billing)
+                    if (!card.billing) {
+                        continue;
+                    }
+                    let cardBilling = JSON.parse(card.billing);
                     let billing = {
                         firstname: cardBilling.first_name,
                         lastname: cardBilling.last_name,
@@ -520,7 +519,7 @@ define([
                         city: cardBilling.address.city, // taking "city1" from "city1-2"
                         street: cardBilling.address.street.split(', '),
                         postcode: cardBilling.address.postcode
-                    }
+                    };
 
                     billing.regionId = await this.getRegionId(cardBilling.address.country_code, cardBilling.address.state);
                     await addressHandler.postBillingAddress({
@@ -532,18 +531,44 @@ define([
             }
         },
 
-        async setRecaptchaToken(self, payload) {
-            if (self.isRecaptchaEnabled) {
-                let recaptchaRegistry = require('Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry');
+        isRecaptchaEnabled() {
+            return this.paymentConfig.is_recaptcha_enabled;
+        },
 
-                if (recaptchaRegistry) {
+        async setRecaptchaToken(payload, id) {
+            if (this.isRecaptchaEnabled()) {
+                if (id === this.expressRecaptchaId) {
                     payload.xReCaptchaValue = await new Promise((resolve, reject) => {
-                        recaptchaRegistry.tokens = {};
-                        recaptchaRegistry.addListener(this.getRecaptchaId(), (token) => {
+                        webapiRecaptchaRegistry.tokens = {};
+                        webapiRecaptchaRegistry.addListener(id, (token) => {
                             resolve(token);
                         });
-                        recaptchaRegistry.triggers[this.getRecaptchaId()]();
+                        webapiRecaptchaRegistry.triggers[id]();
                     });
+                } else {
+                    let magentoRecaptchaRegistry = require('Magento_ReCaptchaWebapiUi/js/webapiReCaptchaRegistry');
+                    if (magentoRecaptchaRegistry) {
+                        if (magentoRecaptchaRegistry.tokens && magentoRecaptchaRegistry.tokens[id]) {
+                            payload.xReCaptchaValue = magentoRecaptchaRegistry.tokens[id];
+                        } else {
+                            payload.xReCaptchaValue = await new Promise((resolve, reject) => {
+                                magentoRecaptchaRegistry.addListener(id, (token) => {
+                                    resolve(token);
+                                });
+                                magentoRecaptchaRegistry.triggers[id]();
+                            });
+                        }
+                        magentoRecaptchaRegistry.tokens = {};
+                    }
+                }
+                if (recaptchaRegistry.ids().length) {
+                    let index = recaptchaRegistry.ids().indexOf(id);
+                    if (index !== -1 && recaptchaRegistry.captchaList().length) {
+                        let widgetId = recaptchaRegistry.captchaList()[index];
+                        if (widgetId !== -1) {
+                            grecaptcha.reset(widgetId);
+                        }
+                    }
                 }
             }
         },
@@ -578,7 +603,7 @@ define([
 
             payload.intent_id = null;
 
-            await this.setRecaptchaToken(self, payload);
+            await this.setRecaptchaToken(payload, this.getRecaptchaId());
 
             try {
                 await this.sendVaultBillingAddress(self, quote, from);
