@@ -57,6 +57,22 @@ class Configuration extends AbstractHelper
     }
 
     /**
+     * Webhook
+     *
+     * @return array
+     */
+    public function getWebhook(): array
+    {
+        $str = $this->scopeConfig->getValue(
+            'airwallex/general/webhook'
+        );
+        if (!$str) return [];
+        $arr = json_decode($str, true);
+        if (json_last_error() !== JSON_ERROR_NONE) return [];
+        return $arr ?: [];
+    }
+
+    /**
      * Mode
      *
      * @return string

@@ -11,6 +11,7 @@
                 <prod_api_key backend_model="Magento\Config\Model\Config\Backend\Encrypted" />
                 <webhook_demo_secret_key backend_model="Magento\Config\Model\Config\Backend\Encrypted" />
                 <webhook_prod_secret_key backend_model="Magento\Config\Model\Config\Backend\Encrypted" />
+                <webhook>{}</webhook>
             </general>
         </airwallex>
         <payment>

@@ -4,6 +4,7 @@ namespace Airwallex\Payments\Model\Webhook;
 
 use Airwallex\Payments\Exception\WebhookException;
 use Airwallex\Payments\Helper\Configuration;
+use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Framework\App\Request\Http;
@@ -21,12 +22,17 @@ use Magento\Quote\Api\CartManagementInterface;
 use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
 use Magento\Framework\App\CacheInterface;
 use Magento\Framework\Lock\LockManagerInterface;
+use Magento\Framework\App\Config\Storage\WriterInterface;
+use Magento\Framework\App\Config\ReinitableConfigInterface;
 
 class Webhook
 {
     use HelperTrait;
 
     private const HASH_ALGORITHM = 'sha256';
+    public const WEBHOOK_VERIFIED = 'verified';
+    public const WEBHOOK_FAILED = 'failed';
+    public const WEBHOOK_STATUS_NAME = 'airwallex/general/webhook';
 
     /**
      * @var Refund
@@ -98,21 +104,33 @@ class Webhook
      */
     public LockManagerInterface $lockManager;
 
+    /**
+     * @var WriterInterface
+     */
+    public WriterInterface $configWriter;
+
+    /**
+     * @var ReinitableConfigInterface
+     */
+    public ReinitableConfigInterface $reinitableConfig;
+
     public function __construct(
-        Refund                   $refund,
-        Configuration            $configuration,
-        Capture                  $capture,
-        Authorize                $authorize,
-        Expire                   $expire,
-        Cancel                   $cancel,
-        PaymentIntentRepository  $paymentIntentRepository,
-        Get                      $intentGet,
-        OrderRepositoryInterface $orderRepository,
-        CartRepositoryInterface  $quoteRepository,
-        CartManagementInterface  $cartManagement,
-        ErrorLog                 $errorLog,
-        CacheInterface           $cache,
-        LockManagerInterface     $lockManager
+        Refund                    $refund,
+        Configuration             $configuration,
+        Capture                   $capture,
+        Authorize                 $authorize,
+        Expire                    $expire,
+        Cancel                    $cancel,
+        PaymentIntentRepository   $paymentIntentRepository,
+        Get                       $intentGet,
+        OrderRepositoryInterface  $orderRepository,
+        CartRepositoryInterface   $quoteRepository,
+        CartManagementInterface   $cartManagement,
+        ErrorLog                  $errorLog,
+        CacheInterface            $cache,
+        LockManagerInterface      $lockManager,
+        WriterInterface           $configWriter,
+        ReinitableConfigInterface $reinitableConfig
     )
     {
         $this->refund = $refund;
@@ -129,6 +147,8 @@ class Webhook
         $this->errorLog = $errorLog;
         $this->cache = $cache;
         $this->lockManager = $lockManager;
+        $this->configWriter = $configWriter;
+        $this->reinitableConfig = $reinitableConfig;
     }
 
     /**
@@ -140,9 +160,35 @@ class Webhook
     public function checkChecksum(Http $request): void
     {
         $signature = $request->getHeader('x-signature');
+        if (!$signature) {
+            throw new WebhookException(__('signature is required'));
+        }
         $data = $request->getHeader('x-timestamp') . $request->getContent();
 
-        if (hash_hmac(self::HASH_ALGORITHM, $data, $this->configuration->getWebhookSecretKey()) !== $signature) {
+        $mode = $this->configuration->getMode();
+        $key = $this->configuration->getWebhookSecretKey();
+        if (!$key) {
+            throw new WebhookException(__("airwallex webhook $mode secret key is required"));
+        }
+
+        $status = hash_hmac(self::HASH_ALGORITHM, $data, $key) !== $signature ? self::WEBHOOK_FAILED : self::WEBHOOK_VERIFIED;
+
+        try {
+            $oldWebhook = $webhook = $this->configuration->getWebhook();
+            $webhook["{$mode}_key"] = $key;
+            $webhook["{$mode}_status"] = $status;
+
+            if (empty($oldWebhook["{$mode}_key"])
+                || empty($oldWebhook["{$mode}_status"])
+                || $webhook["{$mode}_key"] !== $oldWebhook["{$mode}_key"]
+                || $webhook["{$mode}_status"] !== $oldWebhook["{$mode}_status"]) {
+                $this->configWriter->save(self::WEBHOOK_STATUS_NAME, json_encode($webhook));
+                $this->reinitableConfig->reinit();
+            }
+        } catch (Exception $e) {
+        }
+
+        if ($status === self::WEBHOOK_FAILED) {
             throw new WebhookException(__('failed to verify the signature'));
         }
     }

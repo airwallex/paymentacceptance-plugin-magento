@@ -16,6 +16,7 @@
         <arguments>
             <argument name="messages" xsi:type="array">
                 <item name="ExpressDisabledNotification" xsi:type="string">Airwallex\Payments\Model\Adminhtml\Notifications\ExpressDisabled</item>
+                <item name="WebhookNotification" xsi:type="string">Airwallex\Payments\Model\Adminhtml\Notifications\Webhook</item>
                 <item name="UpgradeNotification" xsi:type="string">Airwallex\Payments\Model\Adminhtml\Notifications\Upgrade</item>
             </argument>
         </arguments>
