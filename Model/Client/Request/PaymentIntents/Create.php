@@ -67,6 +67,17 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
     }
 
     /**
+     * @return $this
+     */
+    public function setCustomer(string $email, string $phone): self
+    {
+        $customer = [];
+        if (!empty($email)) $customer['email'] = $email;
+        if (!empty($phone)) $customer['phone_number'] = $phone;
+        return $this->setParams(compact('customer'));
+    }
+
+    /**
      * @return string
      */
     protected function getUri(): string

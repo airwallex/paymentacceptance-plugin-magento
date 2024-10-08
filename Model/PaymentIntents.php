@@ -71,7 +71,7 @@ class PaymentIntents
      * @throws GuzzleException
      * @throws JsonException
      */
-    public function createIntentByOrder(Order $order): array
+    public function createIntentByOrder(Order $order, string $phone, string $email, string $from): array
     {
         $uid = $order->getCustomerId() ?: 0;
         if ($uid && $this->isMiniPluginExists()) {
@@ -79,10 +79,9 @@ class PaymentIntents
         }
         $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($uid);
 
-        $intent = $this->paymentIntentsCreate
-            ->setOrder($order, $this->urlInterface->getUrl('checkout/onepage/success'))
-            ->setAirwallexCustomerId($airwallexCustomerId)
-            ->send();
+        $create = $this->paymentIntentsCreate->setOrder($order, $this->urlInterface->getUrl('checkout/onepage/success'));
+        $create = $from === 'card_with_saved' ? $create->setAirwallexCustomerId($airwallexCustomerId) : $create->setCustomer($email, $phone);
+        $intent = $create->send();
 
         $products = $this->getProducts($order);
         $shipping = $this->getShippingAddress($order);
@@ -108,17 +107,17 @@ class PaymentIntents
      * @throws InputException
      * @throws JsonException
      */
-    public function getIntentByOrder(Order $order): array
+    public function getIntentByOrder(Order $order, string $phone, string $email, string $from): array
     {
         $paymentIntent = $this->paymentIntentRepository->getByOrderId($order->getId());
         if (!$paymentIntent || $this->isRequiredToGenerateIntent($order, $paymentIntent)) {
-            return $this->createIntentByOrder($order);
+            return $this->createIntentByOrder($order, $phone, $email, $from);
         }
         try {
             $resp = $this->paymentIntentsGet->setPaymentIntentId($paymentIntent->getIntentId())->send();
         } catch (Exception $e) {
             if ($e->getMessage() === AbstractClient::NOT_FOUND) {
-                return $this->createIntentByOrder($order);
+                return $this->createIntentByOrder($order, $phone, $email, $from);
             }
             throw new $e;
         }
