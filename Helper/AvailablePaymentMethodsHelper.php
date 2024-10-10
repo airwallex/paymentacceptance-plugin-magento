@@ -103,14 +103,19 @@ class AvailablePaymentMethodsHelper
         $items = $this->cache->load($this->getCacheName());
         if ($items) return json_decode($items, true);
 
-        $resp = $this->availablePaymentMethod
+        $resp = $this->getLatestItems();
+        $this->cache->save(json_encode($resp), $this->getCacheName(), AbstractMethod::CACHE_TAGS, self::CACHE_TIME);
+        return $resp;
+    }
+
+    public function getLatestItems()
+    {
+        return $this->availablePaymentMethod
             ->setCurrency($this->getCurrencyCode())
             ->setResources()
             ->setActive()
             ->setTransactionMode(AvailablePaymentMethods::TRANSACTION_MODE)
             ->send();
-        $this->cache->save(json_encode($resp), $this->getCacheName(), AbstractMethod::CACHE_TAGS, self::CACHE_TIME);
-        return $resp;
     }
 
     /**

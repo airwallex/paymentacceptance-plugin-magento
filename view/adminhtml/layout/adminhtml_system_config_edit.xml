@@ -3,6 +3,5 @@
 <page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
     <head>
         <css src="Airwallex_Payments::css/admin.css"/>
-        <script src="Airwallex_Payments::js/admin.js"/>
     </head>
 </page>
