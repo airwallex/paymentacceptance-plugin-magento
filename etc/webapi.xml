@@ -143,4 +143,11 @@
             <resource ref="anonymous"/>
         </resources>
     </route>
+
+    <route url="/V1/airwallex/apple/pay/domain" method="POST">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="applePayDomain"/>
+        <resources>
+            <resource ref="anonymous"/>
+        </resources>
+    </route>
 </routes>

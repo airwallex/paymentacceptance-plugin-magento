@@ -59,4 +59,11 @@ interface ServiceInterface
      * @throws Exception
      */
     public function validateAddresses(): string;
+
+    /**
+     * Set apple pay domain
+     *
+     * @return string
+     */
+    public function applePayDomain(): string;
 }
