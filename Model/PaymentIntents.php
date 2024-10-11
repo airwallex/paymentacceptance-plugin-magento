@@ -80,8 +80,8 @@ class PaymentIntents
         $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($uid);
 
         $create = $this->paymentIntentsCreate->setOrder($order, $this->urlInterface->getUrl('checkout/onepage/success'));
-        $create = $from === 'card_with_saved' ? $create->setAirwallexCustomerId($airwallexCustomerId) : $create->setCustomer($email, $phone);
-        $intent = $create->send();
+        // $create = $from === 'card_with_saved' ? $create->setAirwallexCustomerId($airwallexCustomerId) : $create->setCustomer($email, $phone);
+        $intent = $create->setCustomer($email, $phone)->send();
 
         $products = $this->getProducts($order);
         $shipping = $this->getShippingAddress($order);

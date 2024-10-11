@@ -52,6 +52,62 @@ document.querySelector('#payment_us_airwallex_payments_basic_mode').addEventList
             <depends>
                 <field id="active">1</field>
             </depends>
+        <comment>
+<![CDATA[
+<p id="express-enable-tips" style="color: red;"></p>
+<script type="text/javascript">
+window.addEventListener('load', function() {
+    let checkoutId = 'payment_us_airwallex_payments_card_express_checkout';
+    let tipId = 'express-enable-tips';
+    jQuery('#' + checkoutId).css('height', '108px');
+    jQuery('#payment_us_airwallex_payments_card_express_locations').css('height', '160px');
+
+    let enablePayments = function() {
+        jQuery('#' + tipId).html("");
+        let selectedValue = jQuery('#' + checkoutId).val();
+        if (!selectedValue) {
+            return;
+        }
+        jQuery('body').trigger('processStart');
+        let formData = new FormData();
+        formData.append("methods", selectedValue);
+        jQuery.ajax({
+            url: location.protocol + "//" + location.host + '/rest/V1/airwallex/apple/pay/domain',
+            type: 'POST',
+            data: formData,
+            contentType: false,
+            processData: false,
+            success: function(response) {},
+            error: function(xhr, status, error) {
+                let tip;
+                if (xhr.responseJSON) {
+                    tip = xhr.responseJSON.message;
+                } else if (xhr.responseText) {
+                    tip = xhr.responseText;
+                } else {
+                    tip = xhr.statusText;
+                }
+                if (document.querySelector('#payment_us_airwallex_payments_basic_mode').value === 'prod') {
+                    tip = tip.replace('demo.airwallex', 'www.airwallex');
+                }
+                jQuery('#' + tipId).html(tip);
+            },
+            complete: function(xhr, status) {
+                jQuery('body').trigger('processStop');
+            }
+        });
+    };
+
+    jQuery('#' + checkoutId).on('change', enablePayments);
+    let activeSelector = 'payment_us_airwallex_payments_card_express_active';
+    jQuery('#' + activeSelector).on('change', () => {
+        if (jQuery('#' + activeSelector).val() === '0') return;
+        enablePayments();
+    });
+});
+</script>
+]]>
+        </comment>
         </field>
         <field id="locations" translate="label" type="multiselect" sortOrder="5" showInDefault="1" showInWebsite="1"
                showInStore="1">
