@@ -61,9 +61,10 @@ window.addEventListener('load', function() {
     let tipId = 'express-enable-tips';
     jQuery('#' + checkoutId).css('height', '108px');
     jQuery('#payment_us_airwallex_payments_card_express_locations').css('height', '160px');
-    jQuery('#' + checkoutId).on('change', function() {
+
+    let enablePayments = function() {
         jQuery('#' + tipId).html("");
-        let selectedValue = jQuery(this).val();
+        let selectedValue = jQuery('#' + checkoutId).val();
         if (!selectedValue) {
             return;
         }
@@ -95,6 +96,13 @@ window.addEventListener('load', function() {
                 jQuery('body').trigger('processStop');
             }
         });
+    };
+
+    jQuery('#' + checkoutId).on('change', enablePayments);
+    let activeSelector = 'payment_us_airwallex_payments_card_express_active';
+    jQuery('#' + activeSelector).on('change', () => {
+        if (jQuery('#' + activeSelector).val() === '0') return;
+        enablePayments();
     });
 });
 </script>
