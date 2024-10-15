@@ -170,7 +170,7 @@ class PayEnable extends Action
         $filename = 'apple-developer-merchantid-domain-association';
         $destinationDir = $this->directoryList->getPath(DirectoryList::PUB) . '/.well-known/';
 
-        if (file_exists($destinationDir . $filename)) return false;
+        if (file_exists($destinationDir . $filename)) return true;
         if (!is_dir($destinationDir)) {
             try {
                 mkdir($destinationDir, 0755, true);
