@@ -6,7 +6,7 @@
             window.addEventListener('load', function () {
                 let type = '<?= $this->type ?>';
                 let payElement = jQuery('[name="groups[airwallex_payments][groups][card][groups][express][fields][' + type + '_pay_active][value]"]');
-                let tipElement = jQuery('express-' + type + '-enable-tips');
+                let tipElement = jQuery('#express-' + type + '-enable-tips');
 
                 let enablePayments = function () {
                     tipElement.html("");
@@ -16,28 +16,22 @@
                     }
                     jQuery('body').trigger('processStart');
                     new Ajax.Request('<?= $block->escapeJs($block->getUrl('airwallex/configuration/PayEnable')) ?>', {
-                        parameters: {"methods": type + 'pay'},
+                        parameters: {"methods": type + '_pay'},
                         type: "POST",
                         loaderArea:     false,
                         asynchronous:   true,
                         onCreate() {
                         },
                         onSuccess(response) {
+                            if (response && response.responseJSON && response.responseJSON.type === 'error') {
+                                let tip = response.responseJSON.message;
+                                if (document.querySelector('[name="groups[airwallex_payments][groups][basic][fields][mode][value]"]').value === 'prod') {
+                                    tip = tip.replace('demo.airwallex', 'www.airwallex');
+                                }
+                                tipElement.html(tip);
+                            }
                         },
                         onFailure(xhr) {
-                            console.log(xhr);
-                            let tip;
-                            if (xhr.responseJSON) {
-                                tip = xhr.responseJSON.message;
-                            } else if (xhr.responseText) {
-                                tip = xhr.responseText;
-                            } else {
-                                tip = xhr.statusText;
-                            }
-                            if (document.querySelector('[name="groups[airwallex_payments][groups][basic][fields][mode][value]"]').value === 'prod') {
-                                tip = tip.replace('demo.airwallex', 'www.airwallex');
-                            }
-                            tipElement.html(tip);
                         },
                         onComplete() {
                             jQuery('body').trigger('processStop');
@@ -53,4 +47,4 @@
             });
         });
 </script>
-<p id="express-<?= $this->type ?>-enable-tips" style="color: red;"></p>
+<p id="express-<?= $this->type ?>-enable-tips" style="color: red; margin-top: 10px;"></p>

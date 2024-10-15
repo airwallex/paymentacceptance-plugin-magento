@@ -82,6 +82,22 @@ class PayEnable extends Action
             site at the following path: &lt;&lt;DOMAIN_NAME&gt;&gt;/.well-known/apple-developer-merchantid-domain-association';
     }
 
+    public function error($message): array
+    {
+        return [
+            'type' => 'error',
+            'message' => __($message)
+        ];
+    }
+
+    public function success(): array
+    {
+        return [
+            'type' => 'success',
+            'message' => __('succeed')
+        ];
+    }
+
     /**
      * Set apple pay domain
      *
@@ -99,7 +115,10 @@ class PayEnable extends Action
         $types = $this->availablePaymentMethodsHelper->getLatestItems();
         $isApplePayActive = false;
         $isGooglePayActive = false;
-        if (empty($methods)) throw new CouldNotSaveException(__('post parameter methods is required'));
+        if (empty($methods)) {
+            $resultJson->setData($this->error('post parameter methods is required'));
+            return $resultJson;
+        }
         foreach ($types as $type) {
             if (strstr($methods, 'apple_pay') && $type['name'] === 'applepay' && $type['active'] === true) {
                 $isApplePayActive = true;
@@ -108,42 +127,55 @@ class PayEnable extends Action
                 $isGooglePayActive = true;
             }
         }
-        if (strstr($methods, 'apple_pay') && !$isApplePayActive) throw new CouldNotSaveException(__($this->methodInactiveTip('Apple Pay')));
-        if (strstr($methods, 'google_pay') && !$isGooglePayActive) throw new CouldNotSaveException(__($this->methodInactiveTip('Google Pay')));
+        if (strstr($methods, 'apple_pay') && !$isApplePayActive) {
+            $resultJson->setData($this->error($this->methodInactiveTip('Apple Pay')));
+            return $resultJson;
+        }
+
+        if (strstr($methods, 'google_pay') && !$isGooglePayActive) {
+            $resultJson->setData($this->error($this->methodInactiveTip('Google Pay')));
+            return $resultJson;
+        }
 
         if (empty(strstr($methods, 'apple_pay'))) return $resultJson;
         $list = $this->appleDomainList->send();
         if (in_array($host, $list, true)) {
+            $resultJson->setData($this->success());
             return $resultJson;
         }
-        $this->uploadAppleDomainFile();
+        if (!$this->uploadAppleDomainFile()) {
+            $resultJson->setData($this->error($this->fileUploadFailedTip()));
+            return $resultJson;
+        }
 
         $list = $this->appleDomainAdd->setDomain($host)->send();
         if (in_array($host, $list, true)) {
+            $resultJson->setData($this->success());
             return $resultJson;
         }
 
         $link = "<a href='https://demo.airwallex.com/app/acquiring/settings/apple-pay/add-domain'
                     style='color: red; font-weight: 600; text-decoration: underline;' target='_blank'>Airwallex</a>";
         $tip = "We could not register your domain. Please go to $link to specify the domain names that you’ll register with Apple before trying again.";
-        throw new CouldNotSaveException(__($tip));
+        $resultJson->setData($this->error($tip));
+        return $resultJson;
     }
 
     /**
-     * @return void
+     * @return bool
      * @throws FileSystemException
      */
-    public function uploadAppleDomainFile(): void
+    public function uploadAppleDomainFile(): bool
     {
         $filename = 'apple-developer-merchantid-domain-association';
         $destinationDir = $this->directoryList->getPath(DirectoryList::PUB) . '/.well-known/';
 
-        if (file_exists($destinationDir . $filename)) return;
+        if (file_exists($destinationDir . $filename)) return false;
         if (!is_dir($destinationDir)) {
             try {
                 mkdir($destinationDir, 0755, true);
             } catch (Exception $e) {
-                throw new FileSystemException(__($this->fileUploadFailedTip()));
+                return false;
             }
         }
         $sourceFile = $this->directoryList->getPath(DirectoryList::APP) . '/../vendor/airwallex/payments-plugin-magento/' . $filename;
@@ -151,7 +183,8 @@ class PayEnable extends Action
         try {
             copy($sourceFile, $destinationFile);
         } catch (Exception $e) {
-            throw new FileSystemException(__($this->fileUploadFailedTip()));
+            return false;
         }
+        return true;
     }
 }
