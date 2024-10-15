@@ -5,109 +5,31 @@
             <field id="active">1</field>
         </depends>
         <label>Express Checkout</label>
-        <comment>
-<![CDATA[
-Apple Pay and Google Pay express checkout
-<br />
-<br />
-<b>Apple Pay</b>
-<br />
-To use Apple Pay, you'll need to register your domain with Apple.
-<br />
-1. Add the Apple Pay domain association file to your server by following the instructions <a href='https://developer.apple.com/documentation/applepaywebmerchantregistrationapi/preparing_merchant_domains_for_verification' target="_blank">here</a>.
-<br />
-2. Go to <a class='airwallex-add-domain' href='' target="_blank">Airwallex</a> to specify the domain names that you'll register with Apple.
-<script type="text/javascript">
-function change_airwallex_url_by_env() {
-    let env = document.querySelector('#payment_us_airwallex_payments_basic_mode').value;
-    if (env === 'prod') {
-        env = 'www';
-    }
-    let elements = document.querySelectorAll('.airwallex-add-domain');
-    elements.forEach(function(element) {
-        element.setAttribute('href', `https://${env}.airwallex.com/app/acquiring/settings/apple-pay/add-domain`);
-    });
-}
-
-change_airwallex_url_by_env();
-
-document.querySelector('#payment_us_airwallex_payments_basic_mode').addEventListener('change', change_airwallex_url_by_env);
-</script>
-]]>
-        </comment>
+        <comment><![CDATA[Apple Pay and Google Pay express checkout]]></comment>
         <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1"
                canRestore="1">
             <label>Enable</label>
-            <comment>
-                <![CDATA[Enable Express Checkout]]>
-            </comment>
+            <comment><![CDATA[Enable Express Checkout]]></comment>
             <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
             <config_path>payment/airwallex_payments_express/active</config_path>
         </field>
-        <field id="checkout" translate="label" type="multiselect" sortOrder="5" showInDefault="1" showInWebsite="1"
-               showInStore="1">
-            <label>Express Checkout</label>
-            <source_model>Airwallex\Payments\Model\Config\Source\Express\Checkout</source_model>
-            <config_path>payment/airwallex_payments_express/checkout</config_path>
+        <field id="apple_pay_active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1" canRestore="1">
+            <label>Apple Pay</label>
+            <config_path>payment/airwallex_payments_express/apple_pay_active</config_path>
+            <source_model>Magento\Config\Model\Config\Source\Enabledisable</source_model>
+            <frontend_model>Airwallex\Payments\Model\Config\Adminhtml\ApplePayEnable</frontend_model>
             <depends>
                 <field id="active">1</field>
             </depends>
-        <comment>
-<![CDATA[
-<p id="express-enable-tips" style="color: red;"></p>
-<script type="text/javascript">
-window.addEventListener('load', function() {
-    let checkoutId = 'payment_us_airwallex_payments_card_express_checkout';
-    let tipId = 'express-enable-tips';
-    jQuery('#' + checkoutId).css('height', '108px');
-    jQuery('#payment_us_airwallex_payments_card_express_locations').css('height', '160px');
-
-    let enablePayments = function() {
-        jQuery('#' + tipId).html("");
-        let selectedValue = jQuery('#' + checkoutId).val();
-        if (!selectedValue) {
-            return;
-        }
-        jQuery('body').trigger('processStart');
-        let formData = new FormData();
-        formData.append("methods", selectedValue);
-        jQuery.ajax({
-            url: location.protocol + "//" + location.host + '/rest/V1/airwallex/apple/pay/domain',
-            type: 'POST',
-            data: formData,
-            contentType: false,
-            processData: false,
-            success: function(response) {},
-            error: function(xhr, status, error) {
-                let tip;
-                if (xhr.responseJSON) {
-                    tip = xhr.responseJSON.message;
-                } else if (xhr.responseText) {
-                    tip = xhr.responseText;
-                } else {
-                    tip = xhr.statusText;
-                }
-                if (document.querySelector('#payment_us_airwallex_payments_basic_mode').value === 'prod') {
-                    tip = tip.replace('demo.airwallex', 'www.airwallex');
-                }
-                jQuery('#' + tipId).html(tip);
-            },
-            complete: function(xhr, status) {
-                jQuery('body').trigger('processStop');
-            }
-        });
-    };
-
-    jQuery('#' + checkoutId).on('change', enablePayments);
-    let activeSelector = 'payment_us_airwallex_payments_card_express_active';
-    jQuery('#' + activeSelector).on('change', () => {
-        if (jQuery('#' + activeSelector).val() === '0') return;
-        enablePayments();
-    });
-});
-</script>
-]]>
-        </comment>
+        </field>
+        <field id="google_pay_active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1" canRestore="1">
+            <label>Google Pay</label>
+            <config_path>payment/airwallex_payments_express/google_pay_active</config_path>
+            <source_model>Magento\Config\Model\Config\Source\Enabledisable</source_model>
+            <frontend_model>Airwallex\Payments\Model\Config\Adminhtml\GooglePayEnable</frontend_model>
+            <depends>
+                <field id="active">1</field>
+            </depends>
         </field>
         <field id="locations" translate="label" type="multiselect" sortOrder="5" showInDefault="1" showInWebsite="1"
                showInStore="1">
@@ -154,7 +76,5 @@ window.addEventListener('load', function() {
                 <field id="active">1</field>
             </depends>
        </field>
-        <!-- <include path="Airwallex_Payments::system/express/apple_pay.xml"/> -->
-        <!-- <include path="Airwallex_Payments::system/express/google_pay.xml"/> -->
     </group>
 </include>
