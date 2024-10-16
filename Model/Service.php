@@ -5,6 +5,7 @@ namespace Airwallex\Payments\Model;
 use Airwallex\Payments\Api\Data\PaymentIntentInterface;
 use Airwallex\Payments\Api\Data\PlaceOrderResponseInterfaceFactory;
 use Airwallex\Payments\Api\ServiceInterface;
+use Airwallex\Payments\Controller\Adminhtml\Configuration\UpdateSettingsToken;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Model\Client\Request\ApplePayValidateMerchant;
 use Exception;
@@ -14,6 +15,7 @@ use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Checkout\Api\Data\ShippingInformationInterface;
 use Magento\Checkout\Helper\Data as CheckoutData;
 use Magento\Directory\Model\RegionFactory;
+use Magento\Framework\App\ObjectManager;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\DataObject;
 use Magento\Framework\Exception\CouldNotSaveException;
@@ -44,6 +46,12 @@ use Magento\Sales\Model\Spi\OrderResourceInterface;
 use Magento\Sales\Model\OrderFactory;
 use Airwallex\Payments\Model\Client\Request\ApplePayDomain\GetList;
 use Airwallex\Payments\Model\Client\Request\ApplePayDomain\Add;
+use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
+use Magento\Framework\App\CacheInterface;
+use Magento\Framework\App\Cache\Manager;
+use Magento\Framework\App\Config\Storage\Writer;
+use Magento\Framework\App\Filesystem\DirectoryList;
+use Magento\Framework\Encryption\EncryptorInterface;
 
 class Service implements ServiceInterface
 {
@@ -78,6 +86,11 @@ class Service implements ServiceInterface
     protected OrderFactory $orderFactory;
     protected GetList $appleDomainList;
     protected Add $appleDomainAdd;
+    protected DirectoryList $directoryList;
+    protected AvailablePaymentMethodsHelper $availablePaymentMethodsHelper;
+    protected CacheInterface $cache;
+    protected Manager $cacheManager;
+    protected Writer $configWriter;
 
     /**
      * Index constructor.
@@ -111,6 +124,11 @@ class Service implements ServiceInterface
      * @param OrderFactory $orderFactory
      * @param GetList $appleDomainList
      * @param Add $appleDomainAdd
+     * @param DirectoryList $directoryList
+     * @param AvailablePaymentMethodsHelper $availablePaymentMethodsHelper
+     * @param CacheInterface $cache
+     * @param Manager $cacheManager
+     * @param Writer $configWriter
      */
     public function __construct(
         Configuration                          $configuration,
@@ -141,9 +159,13 @@ class Service implements ServiceInterface
         OrderResourceInterface                 $orderResource,
         OrderFactory                           $orderFactory,
         GetList                                $appleDomainList,
-        Add                                    $appleDomainAdd
-    )
-    {
+        Add                                    $appleDomainAdd,
+        DirectoryList                          $directoryList,
+        AvailablePaymentMethodsHelper          $availablePaymentMethodsHelper,
+        CacheInterface                         $cache,
+        Manager                                $cacheManager,
+        Writer                                 $configWriter
+    ) {
         $this->configuration = $configuration;
         $this->checkoutHelper = $checkoutHelper;
         $this->quoteIdToMaskedQuoteId = $quoteIdToMaskedQuoteId;
@@ -173,6 +195,11 @@ class Service implements ServiceInterface
         $this->orderFactory = $orderFactory;
         $this->appleDomainList = $appleDomainList;
         $this->appleDomainAdd = $appleDomainAdd;
+        $this->directoryList = $directoryList;
+        $this->availablePaymentMethodsHelper = $availablePaymentMethodsHelper;
+        $this->cache = $cache;
+        $this->cacheManager = $cacheManager;
+        $this->configWriter = $configWriter;
     }
 
     /**
@@ -556,5 +583,45 @@ class Service implements ServiceInterface
             'method_code' => $method->getMethodCode(),
             'method_title' => $method->getMethodTitle(),
         ];
+    }
+
+    /**
+     * Set settings
+     *
+     * @return string
+     */
+    public function updateSettings(): string
+    {
+        $token = $this->request->getParam('token');
+        if (empty($token)) {
+            return $this->error('Token is required.');
+        }
+        if ($token !== $this->cache->load(UpdateSettingsToken::CACHE_NAME)) {
+            return $this->error('Token is not valid.');
+        }
+        $this->cache->remove(UpdateSettingsToken::CACHE_NAME);
+        $clientId = $this->request->getParam('client_id');
+        $apiKey = $this->request->getParam('api_key');
+        $webhookKey = $this->request->getParam('webhook_key');
+        $mode = $this->request->getParam('mode');
+        if (empty($clientId)) {
+            return $this->error('Client ID is required.');
+        }
+        if (empty($apiKey)) {
+            return $this->error('API Key is required.');
+        }
+        if (empty($webhookKey)) {
+            return $this->error('Webhook Key is required.');
+        }
+        if (empty($mode)) {
+            return $this->error('Mode is required.');
+        }
+        $encryptor = ObjectManager::getInstance()->get(EncryptorInterface::class);
+        $mode = $mode === 'demo' ? 'demo' : 'prod';
+        $this->configWriter->save('airwallex/general/' . $mode . '_client_id', $clientId);
+        $this->configWriter->save('airwallex/general/' . $mode . '_api_key', $encryptor->encrypt($apiKey));
+        $this->configWriter->save('airwallex/general/webhook_' . $mode . '_secret_key', $encryptor->encrypt($webhookKey));
+        $this->cacheManager->flush(['config']);
+        return 'ok';
     }
 }
