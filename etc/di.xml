@@ -10,6 +10,9 @@
     <type name="Magento\Payment\Block\Form\Container">
         <plugin name="remove_methods_from_admin_reorder" type="Airwallex\Payments\Plugin\RemoveMethodsFromAdminReorder" sortOrder="1" />
     </type>
+    <type name="Magento\Sales\Model\Order\Payment\Operations\CaptureOperation">
+        <plugin name="airwallex_capture_plugin" type="Airwallex\Payments\Plugin\CapturePlugin"/>
+    </type>
     <type name="Magento\ReCaptchaWebapiApi\Model\CompositeWebapiValidationConfigProvider">
         <arguments>
             <argument name="providers" xsi:type="array">
