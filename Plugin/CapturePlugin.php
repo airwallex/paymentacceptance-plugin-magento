@@ -22,7 +22,7 @@ class CapturePlugin
         if (!$record) {
             return;
         }
-        if (empty($payment->getAmountAuthorized())) {
+        if (empty($payment->getAmountAuthorized()) or $payment->getAmountAuthorized() < 0) {
             throw new LocalizedException(__('Authorized amount must be greater than 0.'));
         }
     }
