@@ -2,7 +2,7 @@
 <include xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_include.xsd">
     <group id="basic" translate="label" type="text" sortOrder="1" showInDefault="1" showInWebsite="0" showInStore="0">
         <label>Basic Settings</label>
-        <field id="mode" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" canRestore="1">
+        <field id="mode" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1">
             <label>Mode</label>
             <source_model>Airwallex\Payments\Model\Config\Source\Mode</source_model>
             <config_path>airwallex/general/mode</config_path>
@@ -57,7 +57,7 @@
             <label>Webhook Url</label>
             <frontend_model>Airwallex\Payments\Model\Config\Source\WebhookUrl</frontend_model>
         </field>
-        <field id="request_logger" translate="label" type="select" sortOrder="40" showInDefault="1" showInWebsite="1" canRestore="1">
+        <field id="request_logger" translate="label" type="select" sortOrder="40" showInDefault="1" showInWebsite="1">
             <label>Request Logger</label>
             <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
             <config_path>airwallex/general/request_logger</config_path>

@@ -21,8 +21,8 @@
                 <title>Express Checkout (Airwallex)</title>
                 <allowspecific>0</allowspecific>
                 <display_area>product_page,minicart,cart_page,checkout_page</display_area>
-                <apple_pay_active>1</apple_pay_active>
-                <google_pay_active>1</google_pay_active>
+                <apple_pay_active>0</apple_pay_active>
+                <google_pay_active>0</google_pay_active>
                 <theme>black</theme>
                 <calltoaction>checkout</calltoaction>
                 <button_height>50</button_height>

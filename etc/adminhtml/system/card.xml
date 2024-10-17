@@ -1,30 +1,15 @@
 <?xml version="1.0"?>
-<!--
-/**
- * This file is part of the Airwallex Payments module.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade
- * to newer versions in the future.
- *
- * @copyright Copyright (c) 2021 Magebit, Ltd. (https://magebit.com/)
- * @license   GNU General Public License ("GPL") v3.0
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
- -->
+
 <include xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_include.xsd">
     <group id="card" translate="label" type="text" sortOrder="1" showInDefault="1" showInWebsite="1" showInStore="1">
         <label>Credit Card</label>
-        <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1" canRestore="1">
+        <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1">
             <label>Enable Credit Card</label>
             <!-- <comment>Enable Credit Card</comment> -->
             <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
             <config_path>payment/airwallex_payments_card/active</config_path>
         </field>
-        <field id="vault_active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1" canRestore="1">
+        <field id="vault_active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1">
             <label>Allow shoppers to save cards</label>
             <comment><![CDATA[This will allow shoppers to save cards for future purchases on your store.]]></comment>
             <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
@@ -68,7 +53,7 @@
                 <![CDATA[This determines how large or small the text will appear within the input field. Set a font size between 12 to 20px.]]>
             </comment>
         </field>
-        <field id="preverification" translate="label" type="select" sortOrder="63" showInDefault="1" showInWebsite="1" canRestore="1">
+        <field id="preverification" translate="label" type="select" sortOrder="63" showInDefault="1" showInWebsite="1">
             <label>Pre Verfication</label>
             <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
             <config_path>payment/airwallex_payments_card/preverification</config_path>

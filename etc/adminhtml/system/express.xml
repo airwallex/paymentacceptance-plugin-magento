@@ -6,14 +6,13 @@
         </depends>
         <label>Express Checkout</label>
         <comment><![CDATA[Apple Pay and Google Pay express checkout]]></comment>
-        <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1"
-               canRestore="1">
+        <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1">
             <label>Enable</label>
             <comment><![CDATA[Enable Express Checkout]]></comment>
             <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
             <config_path>payment/airwallex_payments_express/active</config_path>
         </field>
-        <field id="apple_pay_active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1" canRestore="1">
+        <field id="apple_pay_active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1">
             <label>Apple Pay</label>
             <config_path>payment/airwallex_payments_express/apple_pay_active</config_path>
             <source_model>Magento\Config\Model\Config\Source\Enabledisable</source_model>
@@ -22,7 +21,7 @@
                 <field id="active">1</field>
             </depends>
         </field>
-        <field id="google_pay_active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1" canRestore="1">
+        <field id="google_pay_active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1">
             <label>Google Pay</label>
             <config_path>payment/airwallex_payments_express/google_pay_active</config_path>
             <source_model>Magento\Config\Model\Config\Source\Enabledisable</source_model>
