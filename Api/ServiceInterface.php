@@ -61,9 +61,9 @@ interface ServiceInterface
     public function validateAddresses(): string;
 
     /**
-     * Set apple pay domain
+     * Set settings
      *
      * @return string
      */
-    public function applePayDomain(): string;
+    public function updateSettings(): string;
 }

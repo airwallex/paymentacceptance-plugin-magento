@@ -34,6 +34,12 @@ define([
             let el = this.applepay.mount('awx-apple-pay-' + this.from);
             el.addEventListener('onReady', (event) => {
                 utils.initCheckoutPageExpressCheckoutClick();
+                if (that.deviceSupportApplePay()) {
+                    $(".express-title").show();
+                    $(".airwallex-express-checkout .checkout-agreements").show();
+                } else {
+                    if (!that.isGooglePayActive()) $(".airwallex-recaptcha").hide();
+                }
             });
             this.attachEvents(that);
             utils.loadRecaptcha(that.isShowRecaptcha);

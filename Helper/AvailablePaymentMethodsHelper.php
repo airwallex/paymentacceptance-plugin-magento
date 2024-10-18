@@ -69,14 +69,6 @@ class AvailablePaymentMethodsHelper
     }
 
     /**
-     * @return bool
-     */
-    public function isMobileDetectInstalled(): bool
-    {
-        return class_exists('Detection\MobileDetect');
-    }
-
-    /**
      * @param string $code
      *
      * @return bool

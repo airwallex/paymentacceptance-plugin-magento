@@ -196,6 +196,13 @@ define(
                 return this.paymentConfig.checkout.indexOf('apple_pay') !== -1;
             },
 
+            deviceSupportApplePay() {
+                const APPLE_PAY_VERSION = 4;
+                return 'ApplePaySession' in window && ApplePaySession.supportsVersion && ApplePaySession.canMakePayments &&
+                    ApplePaySession.supportsVersion(APPLE_PAY_VERSION) &&
+                    ApplePaySession.canMakePayments()
+            },
+
             createPays() {
                 if (this.isGooglePayActive()) {
                     googlepay.create(this);
