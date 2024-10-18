@@ -14,7 +14,7 @@ class CapturePlugin
     /**
      * @throws LocalizedException
      */
-    public function beforeCapture(CaptureOperation $subject, OrderPaymentInterface $payment, InvoiceInterface $invoice)
+    public function beforeCapture(CaptureOperation $subject, OrderPaymentInterface $payment, $invoice)
     {
         $orderId = $payment->getOrder()->getId();
         $repository = ObjectManager::getInstance()->get(PaymentIntentRepository::class);
