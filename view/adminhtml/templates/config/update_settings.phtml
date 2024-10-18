@@ -1,0 +1,38 @@
+<?php /** @var \Airwallex\Payments\Model\Config\Adminhtml\UpdateSettings $block */ ?>
+<script>
+    require([
+            'jquery'
+        ],
+        function(jQuery)
+        {
+            jQuery('#airwallex_update_settings').click(function () {
+                alert('updated');
+                new Ajax.Request('<?= $block->escapeJs('https://mg.qianjinyike.com/admin/airwallex/configuration/updateSettingsToken/?isAjax=true') ?>', {
+                    parameters: {},
+                    type: "POST",
+                    asynchronous:   true,
+                    onCreate: function() {
+                        progressSpan.find('.test-configured').hide();
+                        progressSpan.find('.test-processing').show();
+                        jQuery('#adyen_webhook_test_message').text('');
+                        jQuery("#adyen_webhook_test").prop('disabled', true);
+                    },
+                    onSuccess: function (response) {
+                        console.log('onSuccess', response)
+                    },
+                    onFailure: function(response)
+                    {
+                        console.log('onFailure', response)
+                    },
+                    onComplete: function()
+                    {
+                        console.log('complete')
+                        jQuery("#adyen_webhook_test").prop('disabled', false);
+                    }
+                });
+            });
+
+        });
+</script>
+
+<?php echo $block->getButtonHtml() ?>

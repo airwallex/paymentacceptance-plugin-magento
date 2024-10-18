@@ -14,11 +14,9 @@ use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Checkout\Api\Data\ShippingInformationInterface;
 use Magento\Checkout\Helper\Data as CheckoutData;
 use Magento\Directory\Model\RegionFactory;
-use Magento\Framework\App\Filesystem\DirectoryList;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\DataObject;
 use Magento\Framework\Exception\CouldNotSaveException;
-use Magento\Framework\Exception\FileSystemException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Quote\Api\Data\ShippingMethodInterface;
@@ -46,7 +44,6 @@ use Magento\Sales\Model\Spi\OrderResourceInterface;
 use Magento\Sales\Model\OrderFactory;
 use Airwallex\Payments\Model\Client\Request\ApplePayDomain\GetList;
 use Airwallex\Payments\Model\Client\Request\ApplePayDomain\Add;
-use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
 
 class Service implements ServiceInterface
 {
@@ -81,8 +78,6 @@ class Service implements ServiceInterface
     protected OrderFactory $orderFactory;
     protected GetList $appleDomainList;
     protected Add $appleDomainAdd;
-    protected DirectoryList $directoryList;
-    protected AvailablePaymentMethodsHelper $availablePaymentMethodsHelper;
 
     /**
      * Index constructor.
@@ -116,8 +111,6 @@ class Service implements ServiceInterface
      * @param OrderFactory $orderFactory
      * @param GetList $appleDomainList
      * @param Add $appleDomainAdd
-     * @param DirectoryList $directoryList
-     * @param AvailablePaymentMethodsHelper $availablePaymentMethodsHelper
      */
     public function __construct(
         Configuration                          $configuration,
@@ -148,9 +141,7 @@ class Service implements ServiceInterface
         OrderResourceInterface                 $orderResource,
         OrderFactory                           $orderFactory,
         GetList                                $appleDomainList,
-        Add                                    $appleDomainAdd,
-        DirectoryList                          $directoryList,
-        AvailablePaymentMethodsHelper          $availablePaymentMethodsHelper
+        Add                                    $appleDomainAdd
     )
     {
         $this->configuration = $configuration;
@@ -182,8 +173,6 @@ class Service implements ServiceInterface
         $this->orderFactory = $orderFactory;
         $this->appleDomainList = $appleDomainList;
         $this->appleDomainAdd = $appleDomainAdd;
-        $this->directoryList = $directoryList;
-        $this->availablePaymentMethodsHelper = $availablePaymentMethodsHelper;
     }
 
     /**
@@ -567,99 +556,5 @@ class Service implements ServiceInterface
             'method_code' => $method->getMethodCode(),
             'method_title' => $method->getMethodTitle(),
         ];
-    }
-
-    protected function getHost()
-    {
-        $host = trim($this->storeManager->getStore()->getBaseUrl(), '/');
-        $host = str_replace('http://', '', $host);
-        return str_replace('https://', '', $host);
-    }
-
-    private function methodInactiveTip($type): string
-    {
-        $link = "<a href='https://demo.airwallex.com/app/acquiring/payment-methods/other-pms'
-                    style='color: red; font-weight: 600; text-decoration: underline;' target='_blank'>Airwallex</a>";
-        return 'You have not activated ' . $type . ' as a payment method.
-                 Please go to ' . $link . ' to activate ' . $type . ' before try again.';
-    }
-
-    private function fileUploadFailedTip(): string
-    {
-        $link = "<a href='https://demo.airwallex.com/app/acquiring/settings/apple-pay/add-domain'
-                    style='color: red; font-weight: 600; text-decoration: underline;' target='_blank'>download the file</a>";
-        return 'We could not add the domain file to your server. Please ' . $link . ' and host it on your
-            site at the following path: &lt;&lt;DOMAIN_NAME&gt;&gt;/.well-known/apple-developer-merchantid-domain-association';
-    }
-
-    /**
-     * Set apple pay domain
-     *
-     * @return string
-     * @throws GuzzleException
-     * @throws JsonException
-     * @throws FileSystemException
-     * @throws Exception
-     */
-    public function applePayDomain(): string
-    {
-        $methods = $this->request->getParam('methods');
-        $host = $this->getHost();
-        $types = $this->availablePaymentMethodsHelper->getLatestItems();
-        $isApplePayActive = false;
-        $isGooglePayActive = false;
-        foreach ($types as $type) {
-            if (strstr($methods, 'apple_pay') && $type['name'] === 'applepay' && $type['active'] === true) {
-                $isApplePayActive = true;
-            }
-            if (strstr($methods, 'google_pay') && $type['name'] === 'googlepay' && $type['active'] === true) {
-                $isGooglePayActive = true;
-            }
-        }
-        if (strstr($methods, 'apple_pay') && !$isApplePayActive) throw new CouldNotSaveException(__($this->methodInactiveTip('Apple Pay')));
-        if (strstr($methods, 'google_pay') && !$isGooglePayActive) throw new CouldNotSaveException(__($this->methodInactiveTip('Google Pay')));
-
-        if (empty(strstr($methods, 'apple_pay'))) return 'success';
-        $list = $this->appleDomainList->send();
-        if (in_array($host, $list, true)) {
-            return 'success';
-        }
-        $this->uploadAppleDomainFile();
-
-        $list = $this->appleDomainAdd->setDomain($host)->send();
-        if (in_array($host, $list, true)) {
-            return 'success';
-        }
-
-        $link = "<a href='https://demo.airwallex.com/app/acquiring/settings/apple-pay/add-domain'
-                    style='color: red; font-weight: 600; text-decoration: underline;' target='_blank'>Airwallex</a>";
-        $tip = "We could not register your domain. Please go to $link to specify the domain names that you’ll register with Apple before trying again.";
-        return new CouldNotSaveException(__($tip));
-    }
-
-    /**
-     * @return void
-     * @throws FileSystemException
-     */
-    public function uploadAppleDomainFile(): void
-    {
-        $filename = 'apple-developer-merchantid-domain-association';
-        $destinationDir = $this->directoryList->getPath(DirectoryList::PUB) . '/.well-known/';
-
-        if (file_exists($destinationDir . $filename)) return;
-        if (!is_dir($destinationDir)) {
-            try {
-                mkdir($destinationDir, 0755, true);
-            } catch (Exception $e) {
-                throw new FileSystemException(__($this->fileUploadFailedTip()));
-            }
-        }
-        $sourceFile = $this->directoryList->getPath(DirectoryList::APP) . '/../vendor/airwallex/payments-plugin-magento/' . $filename;
-        $destinationFile = $destinationDir . $filename;
-        try {
-            copy($sourceFile, $destinationFile);
-        } catch (Exception $e) {
-            throw new FileSystemException(__($this->fileUploadFailedTip()));
-        }
     }
 }
