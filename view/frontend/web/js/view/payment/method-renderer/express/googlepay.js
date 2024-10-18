@@ -22,6 +22,8 @@ define([
             let el = this.googlepay.mount('awx-google-pay-' + this.from);
             el.addEventListener('onReady', (event) => {
                 utils.initCheckoutPageExpressCheckoutClick();
+                $(".express-title").show();
+                $(".airwallex-express-checkout .checkout-agreements").show();
             });
             this.attachEvents(that);
             utils.loadRecaptcha(that.isShowRecaptcha);
