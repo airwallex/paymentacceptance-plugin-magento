@@ -83,6 +83,16 @@ class Configuration extends AbstractHelper
     }
 
     /**
+     * Account
+     *
+     * @return string
+     */
+    public function getAccount(): string
+    {
+        return $this->scopeConfig->getValue('airwallex/general/account') ?? '';
+    }
+
+    /**
      * Api url
      *
      * @return string
@@ -208,7 +218,14 @@ class Configuration extends AbstractHelper
      */
     public function getCheckout(): string
     {
-        return $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'checkout') ?: '';
+        $checkout = '';
+        if ($this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'google_pay_active') === '1') {
+            $checkout = 'google_pay';
+        }
+        if ($this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'apple_pay_active') === '1') {
+            $checkout .= ',apple_pay';
+        }
+        return trim($checkout, ',');
     }
 
     /**
@@ -222,10 +239,6 @@ class Configuration extends AbstractHelper
             "button_height" => $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'button_height'),
             "theme" => $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'theme'),
             "call_to_action" => $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'calltoaction'),
-            // "apple_pay_button_theme" => $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'apple_pay_button_theme'),
-            // "google_pay_button_theme" => $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'google_pay_button_theme'),
-            // "apple_pay_button_type" => $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'apple_pay_button_type'),
-            // "google_pay_button_type" => $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'google_pay_button_type'),
         ];
     }
 

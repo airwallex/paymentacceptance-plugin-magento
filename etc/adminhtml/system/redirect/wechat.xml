@@ -18,7 +18,7 @@
 <include xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_include.xsd">
     <group id="wechatpay" translate="label" type="text" sortOrder="1" showInDefault="1" showInWebsite="1" showInStore="1">
         <label>Wechat Pay</label>
-        <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1" canRestore="1">
+        <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1">
             <label>Enable</label>
             <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
             <config_path>payment/airwallex_payments_wechatpay/active</config_path>

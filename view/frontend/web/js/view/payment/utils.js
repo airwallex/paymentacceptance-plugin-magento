@@ -246,6 +246,7 @@ define([
         },
 
         isRecaptchaShared() {
+            if (this.isCartPage()) return false;
             if (!window.checkoutConfig) return false;
             return window.checkoutConfig.payment.airwallex_payments.is_recaptcha_shared;
         },
@@ -634,7 +635,7 @@ define([
                         if (self.isSaveCardSelected() && self.getCustomerId()) {
                             let requestUrl = urlBuilder.build('rest/V1/airwallex/generate_client_secret');
                             let res = await storage.get(requestUrl, undefined, 'application/json', {});
-        
+
                             await Airwallex.createPaymentConsent({
                                 intent_id: intentResponse.intent_id,
                                 customer_id: self.getCustomerId(),
