@@ -2,6 +2,7 @@
 
 namespace Airwallex\Payments\Model\Config\Adminhtml;
 
+use Airwallex\Payments\Helper\Configuration;
 use Magento\Config\Block\System\Config\Form\Field;
 use Magento\Framework\Data\Form\Element\AbstractElement;
 
@@ -20,11 +21,16 @@ class UpdateSettings extends Field
         return parent::render($element);
     }
 
+    public function getAccount()
+    {
+        return \Magento\Framework\App\ObjectManager::getInstance()->get(Configuration::class)->getAccount();
+    }
+
     public function getButtonHtml()
     {
         $data = [
             'id' => 'airwallex_update_settings',
-            'label' => __('Connecting'),
+            'label' => __('Connect account'),
         ];
 
         return $this->getLayout()->createBlock('Magento\Backend\Block\Widget\Button')->setData($data)->toHtml();

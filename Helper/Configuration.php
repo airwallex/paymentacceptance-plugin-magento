@@ -83,6 +83,16 @@ class Configuration extends AbstractHelper
     }
 
     /**
+     * Account
+     *
+     * @return string
+     */
+    public function getAccount(): string
+    {
+        return $this->scopeConfig->getValue('airwallex/general/account') ?? '';
+    }
+
+    /**
      * Api url
      *
      * @return string

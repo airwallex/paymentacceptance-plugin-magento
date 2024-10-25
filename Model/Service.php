@@ -165,7 +165,8 @@ class Service implements ServiceInterface
         CacheInterface                         $cache,
         Manager                                $cacheManager,
         Writer                                 $configWriter
-    ) {
+    )
+    {
         $this->configuration = $configuration;
         $this->checkoutHelper = $checkoutHelper;
         $this->quoteIdToMaskedQuoteId = $quoteIdToMaskedQuoteId;
@@ -600,10 +601,18 @@ class Service implements ServiceInterface
             return $this->error('Token is not valid.');
         }
         $this->cache->remove(UpdateSettingsToken::CACHE_NAME);
+
+        $redirectUrl = $this->request->getParam('redirect_url');
+        $arrayRedirectUrl = parse_url($redirectUrl);
+        parse_str($arrayRedirectUrl['query'], $queryParams);
+        json_encode($queryParams);
+        $targetUrl = json_encode($queryParams['target_url']);
+        $mode = $queryParams['env'];
         $clientId = $this->request->getParam('client_id');
         $apiKey = $this->request->getParam('api_key');
-        $webhookKey = $this->request->getParam('webhook_key');
-        $mode = $this->request->getParam('mode');
+        $webhookKey = $this->request->getParam('webhook_secret_key');
+        $accountId = $this->request->getParam('account_id');
+        $accountName = $this->request->getParam('account_name');
         if (empty($clientId)) {
             return $this->error('Client ID is required.');
         }
@@ -616,8 +625,20 @@ class Service implements ServiceInterface
         if (empty($mode)) {
             return $this->error('Mode is required.');
         }
+        if (empty($accountId)) {
+            return $this->error('Account id is required.');
+        }
+        if (empty($accountName)) {
+            return $this->error('Account name is required.');
+        }
         $encryptor = ObjectManager::getInstance()->get(EncryptorInterface::class);
         $mode = $mode === 'demo' ? 'demo' : 'prod';
+        $account = $this->configuration->getAccount();
+        $arrAccount = $account ? json_decode($account, true) : [];
+        $arrAccount[$mode . '_account_id'] = $accountId;
+        $arrAccount[$mode . '_account_name'] = $accountName;
+        $this->configWriter->save('airwallex/general/' . 'account', json_encode($arrAccount));
+        $this->configWriter->save('airwallex/general/' . $mode . '_account_name', $accountName);
         $this->configWriter->save('airwallex/general/' . $mode . '_client_id', $clientId);
         $this->configWriter->save('airwallex/general/' . $mode . '_api_key', $encryptor->encrypt($apiKey));
         $this->configWriter->save('airwallex/general/webhook_' . $mode . '_secret_key', $encryptor->encrypt($webhookKey));

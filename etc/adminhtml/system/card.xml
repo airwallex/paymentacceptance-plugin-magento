@@ -5,7 +5,6 @@
         <label>Credit Card</label>
         <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1">
             <label>Enable Credit Card</label>
-            <!-- <comment>Enable Credit Card</comment> -->
             <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
             <config_path>payment/airwallex_payments_card/active</config_path>
         </field>
