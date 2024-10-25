@@ -5,7 +5,6 @@ namespace Airwallex\Payments\Model;
 use Airwallex\Payments\Api\Data\PaymentIntentInterface;
 use Airwallex\Payments\Api\Data\PlaceOrderResponseInterfaceFactory;
 use Airwallex\Payments\Api\ServiceInterface;
-use Airwallex\Payments\Controller\Adminhtml\Configuration\UpdateSettingsToken;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Model\Client\Request\ApplePayValidateMerchant;
 use Exception;
@@ -584,65 +583,5 @@ class Service implements ServiceInterface
             'method_code' => $method->getMethodCode(),
             'method_title' => $method->getMethodTitle(),
         ];
-    }
-
-    /**
-     * Set settings
-     *
-     * @return string
-     */
-    public function updateSettings(): string
-    {
-        $token = $this->request->getParam('token');
-        if (empty($token)) {
-            return $this->error('Token is required.');
-        }
-        if ($token !== $this->cache->load(UpdateSettingsToken::CACHE_NAME)) {
-            return $this->error('Token is not valid.');
-        }
-        $this->cache->remove(UpdateSettingsToken::CACHE_NAME);
-
-        $redirectUrl = $this->request->getParam('redirect_url');
-        $arrayRedirectUrl = parse_url($redirectUrl);
-        parse_str($arrayRedirectUrl['query'], $queryParams);
-        json_encode($queryParams);
-        $targetUrl = json_encode($queryParams['target_url']);
-        $mode = $queryParams['env'];
-        $clientId = $this->request->getParam('client_id');
-        $apiKey = $this->request->getParam('api_key');
-        $webhookKey = $this->request->getParam('webhook_secret_key');
-        $accountId = $this->request->getParam('account_id');
-        $accountName = $this->request->getParam('account_name');
-        if (empty($clientId)) {
-            return $this->error('Client ID is required.');
-        }
-        if (empty($apiKey)) {
-            return $this->error('API Key is required.');
-        }
-        if (empty($webhookKey)) {
-            return $this->error('Webhook Key is required.');
-        }
-        if (empty($mode)) {
-            return $this->error('Mode is required.');
-        }
-        if (empty($accountId)) {
-            return $this->error('Account id is required.');
-        }
-        if (empty($accountName)) {
-            return $this->error('Account name is required.');
-        }
-        $encryptor = ObjectManager::getInstance()->get(EncryptorInterface::class);
-        $mode = $mode === 'demo' ? 'demo' : 'prod';
-        $account = $this->configuration->getAccount();
-        $arrAccount = $account ? json_decode($account, true) : [];
-        $arrAccount[$mode . '_account_id'] = $accountId;
-        $arrAccount[$mode . '_account_name'] = $accountName;
-        $this->configWriter->save('airwallex/general/' . 'account', json_encode($arrAccount));
-        $this->configWriter->save('airwallex/general/' . $mode . '_account_name', $accountName);
-        $this->configWriter->save('airwallex/general/' . $mode . '_client_id', $clientId);
-        $this->configWriter->save('airwallex/general/' . $mode . '_api_key', $encryptor->encrypt($apiKey));
-        $this->configWriter->save('airwallex/general/webhook_' . $mode . '_secret_key', $encryptor->encrypt($webhookKey));
-        $this->cacheManager->flush(['config']);
-        return 'ok';
     }
 }

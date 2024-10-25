@@ -59,11 +59,4 @@ interface ServiceInterface
      * @throws Exception
      */
     public function validateAddresses(): string;
-
-    /**
-     * Set settings
-     *
-     * @return string
-     */
-    public function updateSettings(): string;
 }
