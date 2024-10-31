@@ -72,7 +72,7 @@ class AvailablePaymentMethodsHelper
      * @param string $code
      *
      * @return bool
-     * @throws GuzzleException|JsonException
+     * @throws JsonException|GuzzleException
      */
     public function isAvailable(string $code): bool
     {
@@ -92,28 +92,36 @@ class AvailablePaymentMethodsHelper
      */
     private function getItems()
     {
-        $items = $this->cache->load($this->getCacheName());
+        $cacheName = $this->getCacheName();
+        $items = $this->cache->load($cacheName);
         if ($items) return json_decode($items, true);
 
         $resp = $this->getLatestItems();
-        $this->cache->save(json_encode($resp), $this->getCacheName(), AbstractMethod::CACHE_TAGS, self::CACHE_TIME);
+        $this->cache->save(json_encode($resp), $cacheName, AbstractMethod::CACHE_TAGS, self::CACHE_TIME);
         return $resp;
     }
 
-    public function getLatestItems()
+    /**
+     * @throws GuzzleException
+     * @throws JsonException
+     */
+    public function getLatestItems($useQuote = true)
     {
-        return $this->availablePaymentMethod
-            ->setCurrency($this->getCurrencyCode())
+        $request = $this->availablePaymentMethod
             ->setResources()
             ->setActive()
-            ->setTransactionMode(AvailablePaymentMethods::TRANSACTION_MODE)
-            ->send();
+            ->setTransactionMode(AvailablePaymentMethods::TRANSACTION_MODE);
+        if ($useQuote) {
+            $request = $request->setCurrency($this->getCurrencyCode());
+        } else {
+            $request = $request->removeCurrency();
+        }
+        return $request->send();
     }
 
     /**
      * @return array
-     * @throws GuzzleException
-     * @throws JsonException
+     * @throws JsonException|GuzzleException
      */
     private function getAllMethods(): array
     {
@@ -127,8 +135,7 @@ class AvailablePaymentMethodsHelper
 
     /**
      * @return array
-     * @throws GuzzleException
-     * @throws JsonException
+     * @throws JsonException|GuzzleException
      */
     public function getAllPaymentMethodTypes(): array
     {

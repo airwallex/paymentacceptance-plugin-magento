@@ -48,7 +48,7 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
             'amount' => $order->getGrandTotal(),
             'currency' => $order->getOrderCurrencyCode(),
             'merchant_order_id' => $order->getIncrementId(),
-            'return_url' => $returnUrl,
+            'return_url' => trim($returnUrl, '/'),
             'order' => [
                 'products' => $this->getProducts($order),
                 'shipping' => $this->getShippingAddress($order)

@@ -4,6 +4,7 @@ namespace Airwallex\Payments\Model\Ui;
 
 use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Helper\Configuration;
+use Airwallex\Payments\Model\Methods\KlarnaMethod;
 use GuzzleHttp\Exception\GuzzleException;
 use Magento\Checkout\Model\ConfigProviderInterface;
 use Magento\Customer\Model\Session;
@@ -87,6 +88,7 @@ class ConfigProvider implements ConfigProviderInterface
                     'is_pre_verification_enabled' => $this->configuration->isPreVerificationEnabled(),
                     'card_max_width' => $this->configuration->getCardMaxWidth(),
                     'card_fontsize' => $this->configuration->getCardFontSize(),
+                    'klarna_support_countries' => KlarnaMethod::SUPPORTED_COUNTRY_TO_CURRENCY,
                 ]
             ]
         ];

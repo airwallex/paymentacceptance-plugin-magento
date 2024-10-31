@@ -25,6 +25,7 @@ use Magento\Quote\Api\Data\AddressInterface;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Quote\Api\Data\PaymentInterface;
 use Magento\Quote\Model\Quote;
+use Magento\Sales\Api\Data\OrderAddressInterface;
 use Magento\Sales\Api\OrderManagementInterface;
 use Magento\Sales\Model\Order;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
@@ -312,7 +313,7 @@ class OrderService implements OrderServiceInterface
             'client_secret' => $intent['clientSecret']
         ];
         if ($this->isRedirectMethodConstant($paymentMethod->getMethod())) {
-            $data['next_action'] = $this->getAirwallexPaymentsNextAction($intent['id'], $paymentMethod->getMethod());
+            $data['next_action'] = $this->getAirwallexPaymentsNextAction($intent['id'], $paymentMethod->getMethod(), $order->getBillingAddress());
         }
 
         $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
@@ -363,6 +364,7 @@ class OrderService implements OrderServiceInterface
         if ($quoteAddr && !$orderAddr) return false;
         if (!$quoteAddr && $orderAddr) return false;
         if ($quoteAddr && $orderAddr) {
+            /* @var OrderAddress $orderAddr */
             if (!$this->isQuoteAddressSameAsOrderAddress($quoteAddr, $orderAddr)) return false;
         }
 
@@ -394,7 +396,7 @@ class OrderService implements OrderServiceInterface
      * @throws LocalizedException
      * @throws Exception
      */
-    public function getAirwallexPaymentsNextAction(string $intentId, $code)
+    public function getAirwallexPaymentsNextAction(string $intentId, $code, OrderAddressInterface $address)
     {
         if (!$intentId) {
             throw new Exception('Intent id is required.');
@@ -402,10 +404,8 @@ class OrderService implements OrderServiceInterface
         $cacheName = $code . '-qrcode-' . $intentId;
         if (!$returnUrl = $this->cache->load($cacheName)) {
             try {
-                $resp = $this->confirm
-                    ->setPaymentIntentId($intentId)
-                    ->setInformation($this->getPaymentMethodCode($code))
-                    ->send();
+                $request = $this->confirm->setPaymentIntentId($intentId);
+                $resp = $request->setInformation($this->getPaymentMethodCode($code), $address)->send();
             } catch (Exception $exception) {
                 throw new LocalizedException(__($exception->getMessage()));
             }

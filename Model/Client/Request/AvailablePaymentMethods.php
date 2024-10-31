@@ -4,7 +4,6 @@ namespace Airwallex\Payments\Model\Client\Request;
 
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
-use JsonException;
 use Psr\Http\Message\ResponseInterface;
 
 class AvailablePaymentMethods extends AbstractClient implements BearerAuthenticationInterface
@@ -20,8 +19,11 @@ class AvailablePaymentMethods extends AbstractClient implements BearerAuthentica
      */
     public function setCurrency(string $currency): self
     {
-        if (empty($currency)) return $this;
         return $this->setParam('transaction_currency', $currency);
+    }
+    public function removeCurrency(): self
+    {
+        return $this->unsetParam('transaction_currency');
     }
 
     public function setResources(): self

@@ -57,6 +57,7 @@ define([
                 'airwallex_payments_dana': 'DANA',
                 'airwallex_payments_kakaopay': 'Kakao Pay',
                 'airwallex_payments_tng': 'Touch \'n Go',
+                'airwallex_payments_klarna': 'Klarna',
             };
             return arr[name];
         },
@@ -110,11 +111,16 @@ define([
                     }, utils.isLoggedIn(), quote.getQuoteId());
 
                     let intentResponse = await utils.getIntent(payload, {});
+                    let nextAction = JSON.parse(intentResponse.next_action);
+                    // url qrcode_url qrcode
+                    if (['airwallex_payments_klarna'].indexOf(this.code) !== -1) {
+                        utils.clearDataAfterPay({}, customerData)
+                        location.href = nextAction.url;
+                        return;
+                    }
                     $(this.iframeSelector).html('').hide();
                     $(this.qrcodeSelector).html('').hide();
                     $("._active .qrcode-payment").css('display', 'flex');
-                    let nextAction = JSON.parse(intentResponse.next_action);
-                    // url qrcode_url qrcode
                     this.hideBillingAddress();
                     if (['airwallex_payments_pay_now'].indexOf(this.code) === -1) {
                         $(this.qrcodeSelector).show();

@@ -4,7 +4,9 @@ namespace Airwallex\Payments\Model\Client\Request\PaymentIntents;
 
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
+use Airwallex\Payments\Model\Methods\KlarnaMethod;
 use JsonException;
+use Magento\Sales\Api\Data\OrderAddressInterface;
 use Psr\Http\Message\ResponseInterface;
 
 class Confirm extends AbstractClient implements BearerAuthenticationInterface
@@ -30,25 +32,57 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
         return $this;
     }
 
+    private function getLanguageCode($countryCode): string
+    {
+        if (empty($_SERVER['HTTP_ACCEPT_LANGUAGE'])) return 'en';
+        $languages = explode(',', $_SERVER['HTTP_ACCEPT_LANGUAGE']);
+        $lang = $languages[0];
+        if ($lang === 'zh-TW') {
+            $lang = 'zh-HK';
+        }
+        if (in_array($lang, KlarnaMethod::COUNTRY_LANGUAGE[$countryCode], true)) {
+            return $lang;
+        }
+        return 'en';
+    }
+
     /**
      * @param string $method
-     *
+     * @param OrderAddressInterface|null $address
      * @return Confirm
      */
-    public function setInformation(string $method): self
+    public function setInformation(string $method, OrderAddressInterface $address = null): self
     {
         $data = [
-            'type' => $method
+            'type' => $method,
         ];
 
-        if ($method !== 'pay_now') {
+        if ($method === 'klarna') {
+            $countryCode = $address->getCountryId();
+            $data['klarna'] = [
+                'country_code' => $countryCode,
+                'billing' => [
+                    'address' => [
+                        "country_code" => $countryCode,
+                        "street" => $address->getStreet() ? implode(', ', $address->getStreet()) : '',
+                        "city" => $address->getCity(),
+                        'state' => $address->getRegionCode(),
+                        'postcode' => $address->getPostcode(),
+                    ],
+                    'email' => $address->getEmail(),
+                    'first_name' => $address->getFirstName(),
+                    'last_name' => $address->getLastname(),
+                ],
+                'language' => $this->getLanguageCode($countryCode),
+            ];
+        } else if ($method !== 'pay_now') {
             $data[$method] = [
                 'flow' => 'qrcode'
             ];
         }
 
         return $this->setParams([
-            'payment_method' => $data
+            'payment_method' => $data,
         ]);
     }
 

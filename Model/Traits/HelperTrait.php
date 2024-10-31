@@ -110,6 +110,7 @@ trait HelperTrait
             'last_name' => $shippingAddress->getLastname(),
             'phone_number' => $shippingAddress->getTelephone(),
             'shipping_method' => $method,
+            'fee_amount' => $object->getShippingAmount(),
             'address' => [
                 'city' => $shippingAddress->getCity(),
                 'country_code' => $shippingAddress->getCountryId(),
@@ -141,6 +142,13 @@ trait HelperTrait
                 'type' => $product ? $product->getTypeId() : '',
             ];
         }
+        $products[] = [
+            'code' => 0,
+            'name' => 'fake-product',
+            'quantity' => 1,
+            'sku' => 'fake-product',
+            'unit_price' => $object->getGrandTotal(),
+        ];
         return $products;
     }
 
@@ -163,7 +171,7 @@ trait HelperTrait
                 'postcode' => $billingAddress->getPostcode(),
                 'state' => $billingAddress->getRegion(),
                 'street' => implode(', ', $billingAddress->getStreet()),
-            ]
+            ],
         ];
     }
 

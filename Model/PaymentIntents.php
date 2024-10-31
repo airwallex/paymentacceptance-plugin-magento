@@ -12,7 +12,6 @@ use Airwallex\Payments\Model\Client\Request\PaymentIntents\Cancel;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use GuzzleHttp\Exception\GuzzleException;
 use Magento\Checkout\Model\Session;
-use Magento\Framework\App\ObjectManager;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\UrlInterface;
@@ -73,14 +72,13 @@ class PaymentIntents
      */
     public function createIntentByOrder(Order $order, string $phone, string $email, string $from): array
     {
-        $uid = $order->getCustomerId() ?: 0;
-        if ($uid && $this->isMiniPluginExists()) {
-            $uid = ObjectManager::getInstance()->get(CompanyConsentsInterface::class)->getSuperId($uid);
-        }
-        $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($uid);
-
-        $create = $this->paymentIntentsCreate->setOrder($order, $this->urlInterface->getUrl('checkout/onepage/success'));
-        // $create = $from === 'card_with_saved' ? $create->setAirwallexCustomerId($airwallexCustomerId) : $create->setCustomer($email, $phone);
+//        $uid = $order->getCustomerId() ?: 0;
+//        if ($uid && $this->isMiniPluginExists()) {
+//            $uid = ObjectManager::getInstance()->get(CompanyConsentsInterface::class)->getSuperId($uid);
+//        }
+//        $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($uid);
+//        $create = $from === 'card_with_saved' ? $create->setAirwallexCustomerId($airwallexCustomerId) : $create->setCustomer($email, $phone);
+        $create = $this->paymentIntentsCreate->setOrder($order, $this->urlInterface->getUrl('checkout#payment'));
         $intent = $create->setCustomer($email, $phone)->send();
 
         $products = $this->getProducts($order);

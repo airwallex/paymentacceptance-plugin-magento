@@ -49,5 +49,10 @@ define([
         component: 'Airwallex_Payments/js/view/payment/redirect-method'
     });
 
+    rendererList.push({
+        type: 'airwallex_payments_klarna',
+        component: 'Airwallex_Payments/js/view/payment/redirect-method'
+    });
+
     return Component.extend({});
 });

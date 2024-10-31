@@ -2,10 +2,6 @@
 
 namespace Airwallex\Payments\Model\Methods;
 
-use GuzzleHttp\Exception\GuzzleException;
-use JsonException;
-use Magento\Quote\Api\Data\CartInterface;
-
 class RedirectMethod extends AbstractMethod
 {
     public const DANA_CODE = 'airwallex_payments_dana';
@@ -16,4 +12,5 @@ class RedirectMethod extends AbstractMethod
     public const TOUCH_N_GO_CODE = 'airwallex_payments_tng';
     public const WECHAT_CODE = 'airwallex_payments_wechatpay';
     public const PAY_NOW_CODE = 'airwallex_payments_pay_now';
+    public const KLARNA_CODE = 'airwallex_payments_klarna';
 }

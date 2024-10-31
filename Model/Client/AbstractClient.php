@@ -172,6 +172,13 @@ abstract class AbstractClient
         return $this;
     }
 
+    protected function unsetParam(string $name): AbstractClient
+    {
+        unset($this->params[$name]);
+
+        return $this;
+    }
+
     /**
      * @return string
      */
