@@ -134,6 +134,10 @@ class Capture extends AbstractWebhook
         if ($data->currency === $order->getBaseCurrencyCode()) {
             $amountFormat = $order->formatBasePrice($amount);
             $baseAmount = $amount;
+        } else if ($data->currency !== $order->getOrderCurrencyCode()) {
+            $amount = round($data->captured_amount / $data->amount * $order->getBaseGrandTotal(), 2);
+            $amountFormat = $order->formatBasePrice($amount);
+            $baseAmount = $amount;
         }
         $comment = "Captured amount of $amountFormat through Airwallex. Transaction id: \"$intentId\".";
         $this->addComment($order, $comment);

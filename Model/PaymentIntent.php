@@ -58,6 +58,22 @@ class PaymentIntent extends AbstractModel implements IdentityInterface, PaymentI
     }
 
     /**
+     * @return string
+     */
+    public function getSwitcherCurrencyCode(): string
+    {
+        return $this->getData(PaymentIntentInterface::SWITCHER_CURRENCY_CODE_COLUMN);
+    }
+
+    /**
+     * @return float
+     */
+    public function getSwitcherGrandTotal(): float
+    {
+        return $this->getData(PaymentIntentInterface::SWITCHER_GRAND_TOTAL_COLUMN);
+    }
+
+    /**
      * @return int
      */
     public function getQuoteId(): int
@@ -130,6 +146,26 @@ class PaymentIntent extends AbstractModel implements IdentityInterface, PaymentI
     }
 
     /**
+     * @param string $currencyCode
+     *
+     * @return PaymentIntentInterface
+     */
+    public function setSwitcherCurrencyCode(string $currencyCode): PaymentIntentInterface
+    {
+        return $this->setData(PaymentIntentInterface::SWITCHER_CURRENCY_CODE_COLUMN, $currencyCode);
+    }
+
+    /**
+     * @param float $grandTotal
+     *
+     * @return PaymentIntentInterface
+     */
+    public function setSwitcherGrandTotal(float $grandTotal): PaymentIntentInterface
+    {
+        return $this->setData(PaymentIntentInterface::SWITCHER_GRAND_TOTAL_COLUMN, $grandTotal);
+    }
+
+    /**
      * @param int $quoteId
      *
      * @return PaymentIntentInterface
@@ -167,5 +203,23 @@ class PaymentIntent extends AbstractModel implements IdentityInterface, PaymentI
     public function setDetail(string $detail): PaymentIntentInterface
     {
         return $this->setData(PaymentIntentInterface::DETAIL_COLUMN, $detail);
+    }
+
+    /**
+     * @return string
+     */
+    public function getMethodCodes(): string
+    {
+        return $this->getData(PaymentIntentInterface::METHOD_CODES_COLUMN);
+    }
+
+    /**
+     * @param string $codes
+     *
+     * @return $this
+     */
+    public function setMethodCodes(string $codes): PaymentIntentInterface
+    {
+        return $this->setData(PaymentIntentInterface::METHOD_CODES_COLUMN, $codes);
     }
 }

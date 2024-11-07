@@ -13,6 +13,11 @@
             <comment><![CDATA[This is the payment method title used at the checkout page]]></comment>
             <config_path>payment/airwallex_payments_klarna/title</config_path>
         </field>
+        <field id="airwallex_payment_action" translate="label" type="select" sortOrder="45" showInDefault="1" showInWebsite="0" showInStore="0">
+            <label>Capture Preferences</label>
+            <source_model>Airwallex\Payments\Model\Config\Source\PaymentAction</source_model>
+            <config_path>payment/airwallex_payments_klarna/airwallex_payment_action</config_path>
+        </field>
         <field id="allowspecific" translate="label" type="allowspecific" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
             <label>Payment From Applicable Countries</label>
             <source_model>Magento\Payment\Model\Config\Source\Allspecificcountries</source_model>

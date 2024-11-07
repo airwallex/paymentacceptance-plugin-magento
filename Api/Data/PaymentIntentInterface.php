@@ -10,10 +10,13 @@ interface PaymentIntentInterface
     public const PAYMENT_INTENT_ID_COLUMN = 'payment_intent_id';
     public const CURRENCY_CODE_COLUMN = 'currency_code';
     public const GRAND_TOTAL_COLUMN = 'grand_total';
+    public const SWITCHER_CURRENCY_CODE_COLUMN = 'switcher_currency_code';
+    public const SWITCHER_GRAND_TOTAL_COLUMN = 'switcher_grand_total';
     public const QUOTE_ID_COLUMN = 'quote_id';
     public const ORDER_ID_COLUMN = 'order_id';
     public const STORE_ID_COLUMN = 'store_id';
     public const DETAIL_COLUMN = 'detail';
+    public const METHOD_CODES_COLUMN = 'method_codes';
     public const INTENT_STATUS_REQUIRES_CAPTURE = 'REQUIRES_CAPTURE';
     public const INTENT_STATUS_SUCCEEDED = 'SUCCEEDED';
 
@@ -43,6 +46,16 @@ interface PaymentIntentInterface
     public function getGrandTotal(): float;
 
     /**
+     * @return string
+     */
+    public function getSwitcherCurrencyCode(): string;
+
+    /**
+     * @return float
+     */
+    public function getSwitcherGrandTotal(): float;
+
+    /**
      * @return int
      */
     public function getQuoteId(): int;
@@ -61,6 +74,11 @@ interface PaymentIntentInterface
      * @return ?string
      */
     public function getDetail(): ?string;
+
+    /**
+     * @return string
+     */
+    public function getMethodCodes(): string;
 
     /**
      * @param string $orderIncrementId
@@ -91,6 +109,20 @@ interface PaymentIntentInterface
     public function setGrandTotal(float $grandTotal): self;
 
     /**
+     * @param string $currencyCode
+     *
+     * @return $this
+     */
+    public function setSwitcherCurrencyCode(string $currencyCode): self;
+
+    /**
+     * @param float $grandTotal
+     *
+     * @return $this
+     */
+    public function setSwitcherGrandTotal(float $grandTotal): self;
+
+    /**
      * @param int $quoteId
      *
      * @return $this
@@ -117,4 +149,11 @@ interface PaymentIntentInterface
      * @return $this
      */
     public function setDetail(string $detail): self;
+
+    /**
+     * @param string $codes
+     *
+     * @return $this
+     */
+    public function setMethodCodes(string $codes): self;
 }

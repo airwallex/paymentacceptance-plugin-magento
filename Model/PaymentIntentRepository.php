@@ -219,15 +219,26 @@ class PaymentIntentRepository
     }
 
     /**
+     * @throws AlreadyExistsException
+     */
+    public function updateMethodCodes($paymentIntent, $codes): void
+    {
+        $paymentIntent->setMethodCodes($codes);
+        $this->paymentIntentResource->save($paymentIntent);
+    }
+
+    /**
      * @param string $orderIncrement
      * @param string $paymentIntentId
      * @param string $currencyCode
      * @param float $grandTotal
+     * @param string $switcherCurrencyCode
+     * @param float $switcherGrandTotal
      * @param int $orderId
      * @param int $quoteId
      * @param int $storeId
      * @param string $detail
-     *
+     * @param string $codes
      * @return void
      * @throws AlreadyExistsException
      */
@@ -236,10 +247,13 @@ class PaymentIntentRepository
         string $paymentIntentId,
         string $currencyCode,
         float  $grandTotal,
+        string $switcherCurrencyCode,
+        float  $switcherGrandTotal,
         int    $orderId,
         int    $quoteId,
         int    $storeId,
-        string $detail
+        string $detail,
+        string $codes
     ): void
     {
         $paymentIntent = $this->paymentIntentFactory->create();
@@ -247,9 +261,12 @@ class PaymentIntentRepository
             ->setOrderIncrementId($orderIncrement)
             ->setCurrencyCode($currencyCode)
             ->setGrandTotal($grandTotal)
+            ->setSwitcherCurrencyCode($switcherCurrencyCode)
+            ->setSwitcherGrandTotal($switcherGrandTotal)
             ->setOrderId($orderId)
             ->setQuoteId($quoteId)
             ->setStoreId($storeId)
+            ->setMethodCodes($codes)
             ->setDetail($detail);
 
         $this->paymentIntentResource->save($paymentIntent);

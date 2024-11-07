@@ -83,6 +83,11 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
 
         return $this->setParams([
             'payment_method' => $data,
+            'payment_method_options' => [
+                'klarna' => [
+                    'auto_capture' => $this->configuration->isKlarnaCaptureEnabled(),
+                ]
+            ],
         ]);
     }
 

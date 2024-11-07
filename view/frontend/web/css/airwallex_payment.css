@@ -18,6 +18,28 @@
     color: red;
 }
 
+.awx-danger {
+    color: red;
+    font-weight: bold;
+}
+
+.switcher-tip {
+    display: flex;
+    align-items: center;
+    justify-content: right;
+}
+
+.switcher-tip div {
+    font-size: 12px;
+    margin-left: 6px;
+}
+
+.amount .awx-amount {
+    font-weight: 600;
+    font-size: 1.8rem;
+    margin-top: 3px;
+}
+
 #threeDs {
     z-index: 2147483647 !important;
 }

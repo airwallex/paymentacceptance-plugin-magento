@@ -9,6 +9,7 @@ use Airwallex\Payments\Api\OrderServiceInterface;
 use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Helper\IsOrderCreatedHelper;
+use Airwallex\Payments\Model\Methods\KlarnaMethod;
 use Airwallex\Payments\Plugin\ReCaptchaValidationPlugin;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
@@ -258,7 +259,25 @@ class OrderService implements OrderServiceInterface
     public function orderThenIntent(Quote $quote, $uid, string $cartId, PaymentInterface $paymentMethod, ?AddressInterface $billingAddress, ?string $email, ?string $paymentMethodId, ?string $from, PlaceOrderResponse $response): PlaceOrderResponse
     {
         $order = $this->getOrderByQuote($quote);
-        if ($order->getStatus() !== Order::STATE_PENDING_PAYMENT || !$this->isOrderEqualToQuote($order, $quote, $billingAddress)) {
+        $isRequiredToGenerateNewOrder = true;
+        if ($order->getId()) {
+            $paymentIntent = $this->paymentIntentRepository->getByOrderId($order->getId());
+            if ($paymentIntent) {
+                $codes = $paymentIntent->getMethodCodes();
+                $paymentCodes = json_decode($codes, true);
+                if (!empty($paymentCodes)) {
+                    if ($paymentCodes[count($paymentCodes) - 1] === KlarnaMethod::CODE || $paymentMethod->getMethod() === KlarnaMethod::CODE) {
+                        $isRequiredToGenerateNewOrder = $paymentMethod->getMethod() !== $paymentCodes[count($paymentCodes) - 1];
+                    }
+                }
+            }
+        }
+
+        if (
+            $order->getStatus() !== Order::STATE_PENDING_PAYMENT
+            || !$this->isOrderEqualToQuote($order, $quote, $billingAddress)
+            || $isRequiredToGenerateNewOrder
+        ) {
             try {
                 if ($uid) {
                     $orderId = $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
@@ -300,8 +319,9 @@ class OrderService implements OrderServiceInterface
         $getPhoneAddress = $quote->isVirtual() ? $quote->getBillingAddress() : $quote->getShippingAddress();
         $phone = $getPhoneAddress->getTelephone() ?? '';
         $argEmail = $uid ? $quote->getCustomerEmail() : $email;
-        $intent = $this->paymentIntents->getIntentByOrder($order, $phone, $argEmail, $from);
+        $intent = $this->paymentIntents->getIntentByOrder($order, $phone, $argEmail, $from, $paymentMethod);
         $resp = $this->intentGet->setPaymentIntentId($intent['id'])->send();
+
         $intentResponse = json_decode($resp, true);
         $intentResponse['status'] = PaymentIntentInterface::INTENT_STATUS_SUCCEEDED;
         $this->checkIntentWithOrder($intentResponse, $order);

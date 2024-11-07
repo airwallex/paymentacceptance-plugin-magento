@@ -14,7 +14,9 @@ use GuzzleHttp\Exception\GuzzleException;
 use Magento\Checkout\Model\Session;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\InputException;
+use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\UrlInterface;
+use Magento\Quote\Api\Data\PaymentInterface;
 use Magento\Quote\Model\QuoteRepository;
 use Exception;
 use JsonException;
@@ -69,8 +71,9 @@ class PaymentIntents
      * @throws AlreadyExistsException
      * @throws GuzzleException
      * @throws JsonException
+     * @throws LocalizedException
      */
-    public function createIntentByOrder(Order $order, string $phone, string $email, string $from): array
+    public function createIntentByOrder(Order $order, string $phone, string $email, string $from, PaymentInterface $paymentMethod): array
     {
 //        $uid = $order->getCustomerId() ?: 0;
 //        if ($uid && $this->isMiniPluginExists()) {
@@ -78,44 +81,63 @@ class PaymentIntents
 //        }
 //        $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($uid);
 //        $create = $from === 'card_with_saved' ? $create->setAirwallexCustomerId($airwallexCustomerId) : $create->setCustomer($email, $phone);
-        $create = $this->paymentIntentsCreate->setOrder($order, $this->urlInterface->getUrl('checkout#payment'));
+        $create = $this->paymentIntentsCreate->setOrder($order, $paymentMethod, $this->urlInterface->getUrl('checkout#payment'));
         $intent = $create->setCustomer($email, $phone)->send();
 
         $products = $this->getProducts($order);
         $shipping = $this->getShippingAddress($order);
         $billing = $this->getBillingAddress($order);
 
+        $currency = $this->paymentIntentsCreate->getCurrency($order, $paymentMethod);
+        $isCurrencyEqual = $currency === $order->getOrderCurrencyCode();
         $this->paymentIntentRepository->save(
             $order->getIncrementId(),
             $intent['id'],
             $order->getOrderCurrencyCode(),
             $order->getGrandTotal(),
+            $isCurrencyEqual ? '' : $currency,
+            $isCurrencyEqual ? 0 : $this->paymentIntentsCreate->getAmount($order, $paymentMethod),
             $order->getId(),
             $order->getQuoteId(),
             $order->getStore()->getId(),
-            json_encode(compact('products', 'shipping', 'billing'))
+            json_encode(compact('products', 'shipping', 'billing')),
+            $this->appendCodes('[]', $paymentMethod->getMethod())
         );
 
         return $intent;
+    }
+
+    public function appendCodes($codes, $code)
+    {
+        if (empty($code)) return $codes;
+        $target = [];
+        if (!empty($codes)) {
+            $target = json_decode($codes, true);
+        }
+        $target[] = $code;
+        return json_encode($target);
     }
 
     /**
      * @throws GuzzleException
      * @throws AlreadyExistsException
      * @throws InputException
-     * @throws JsonException
+     * @throws JsonException|LocalizedException
      */
-    public function getIntentByOrder(Order $order, string $phone, string $email, string $from): array
+    public function getIntentByOrder(Order $order, string $phone, string $email, string $from, PaymentInterface $paymentMethod): array
     {
         $paymentIntent = $this->paymentIntentRepository->getByOrderId($order->getId());
         if (!$paymentIntent || $this->isRequiredToGenerateIntent($order, $paymentIntent)) {
-            return $this->createIntentByOrder($order, $phone, $email, $from);
+            return $this->createIntentByOrder($order, $phone, $email, $from, $paymentMethod);
         }
+        $codes = $paymentIntent->getMethodCodes();
+        $this->paymentIntentRepository->updateMethodCodes($paymentIntent, $this->appendCodes($codes, $paymentMethod->getMethod()));
+
         try {
             $resp = $this->paymentIntentsGet->setPaymentIntentId($paymentIntent->getIntentId())->send();
         } catch (Exception $e) {
             if ($e->getMessage() === AbstractClient::NOT_FOUND) {
-                return $this->createIntentByOrder($order, $phone, $email, $from);
+                return $this->createIntentByOrder($order, $phone, $email, $from, $paymentMethod);
             }
             throw new $e;
         }

@@ -7,6 +7,7 @@ use Airwallex\Payments\Api\Data\PlaceOrderResponseInterfaceFactory;
 use Airwallex\Payments\Api\ServiceInterface;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Model\Client\Request\ApplePayValidateMerchant;
+use Airwallex\Payments\Model\Client\Request\CurrencySwitcher;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
@@ -14,7 +15,6 @@ use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Checkout\Api\Data\ShippingInformationInterface;
 use Magento\Checkout\Helper\Data as CheckoutData;
 use Magento\Directory\Model\RegionFactory;
-use Magento\Framework\App\ObjectManager;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\DataObject;
 use Magento\Framework\Exception\CouldNotSaveException;
@@ -50,7 +50,6 @@ use Magento\Framework\App\CacheInterface;
 use Magento\Framework\App\Cache\Manager;
 use Magento\Framework\App\Config\Storage\Writer;
 use Magento\Framework\App\Filesystem\DirectoryList;
-use Magento\Framework\Encryption\EncryptorInterface;
 
 class Service implements ServiceInterface
 {
@@ -90,6 +89,7 @@ class Service implements ServiceInterface
     protected CacheInterface $cache;
     protected Manager $cacheManager;
     protected Writer $configWriter;
+    protected CurrencySwitcher $currencySwitcher;
 
     /**
      * Index constructor.
@@ -128,6 +128,7 @@ class Service implements ServiceInterface
      * @param CacheInterface $cache
      * @param Manager $cacheManager
      * @param Writer $configWriter
+     * @param CurrencySwitcher $currencySwitcher
      */
     public function __construct(
         Configuration                          $configuration,
@@ -163,7 +164,8 @@ class Service implements ServiceInterface
         AvailablePaymentMethodsHelper          $availablePaymentMethodsHelper,
         CacheInterface                         $cache,
         Manager                                $cacheManager,
-        Writer                                 $configWriter
+        Writer                                 $configWriter,
+        CurrencySwitcher                       $currencySwitcher
     )
     {
         $this->configuration = $configuration;
@@ -200,6 +202,7 @@ class Service implements ServiceInterface
         $this->cache = $cache;
         $this->cacheManager = $cacheManager;
         $this->configWriter = $configWriter;
+        $this->currencySwitcher = $currencySwitcher;
     }
 
     /**

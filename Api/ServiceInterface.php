@@ -59,4 +59,15 @@ interface ServiceInterface
      * @throws Exception
      */
     public function validateAddresses(): string;
+
+    /**
+     * Currency switcher
+     *
+     * @param string $paymentCurrency
+     * @param string $targetCurrency
+     * @param string $amount
+     * @return string
+     * @throws Exception
+     */
+    public function currencySwitcher(string $paymentCurrency, string $targetCurrency, string $amount): string;
 }
