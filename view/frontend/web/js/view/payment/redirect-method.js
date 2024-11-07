@@ -134,7 +134,7 @@ define([
                         client_rate: (1/window.checkoutConfig.quoteData.base_to_quote_rate).toFixed(4),
                         target_amount: parseFloat(window.checkoutConfig.quoteData.base_grand_total).toFixed(2),
                     });
-                    return;
+                    return true;
                 }
                 let switcher = await storage.post(url.build('rest/V1/airwallex/currency/switcher'), JSON.stringify({
                     'payment_currency': window.checkoutConfig.quoteData.quote_currency_code,
