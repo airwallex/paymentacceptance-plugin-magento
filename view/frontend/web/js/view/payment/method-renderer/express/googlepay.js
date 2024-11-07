@@ -23,7 +23,7 @@ define([
             el.addEventListener('onReady', (event) => {
                 utils.initCheckoutPageExpressCheckoutClick();
                 $(".express-title").show();
-                $(".airwallex-express-checkout .checkout-agreements").show();
+                utils.showAgreements();
             });
             this.attachEvents(that);
             utils.loadRecaptcha(that.isShowRecaptcha);

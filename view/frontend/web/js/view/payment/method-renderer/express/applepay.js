@@ -36,7 +36,7 @@ define([
                 utils.initCheckoutPageExpressCheckoutClick();
                 if (that.deviceSupportApplePay()) {
                     $(".express-title").show();
-                    $(".airwallex-express-checkout .checkout-agreements").show();
+                    utils.showAgreements();
                 } else {
                     if (!that.isGooglePayActive()) $(".airwallex-recaptcha").hide();
                 }

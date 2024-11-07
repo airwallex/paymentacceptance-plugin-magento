@@ -163,6 +163,15 @@ define([
             return status;
         },
 
+        showAgreements() {
+            if (!this.isCheckoutPage()) return;
+            let agreementsConfig = window.checkoutConfig.checkoutAgreements || {};
+            if (agreementsConfig.isEnabled && $(this.agreementSelector).length) {
+                $(".airwallex-express-checkout .checkout-agreements").show();
+                return;
+            }
+        },
+
         initCheckoutPageExpressCheckoutAgreement() {
             if (this.isCheckoutPage()) {
                 let agreementsConfig = window.checkoutConfig.checkoutAgreements || {};
