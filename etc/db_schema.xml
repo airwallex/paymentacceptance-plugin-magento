@@ -14,7 +14,7 @@
         <column xsi:type="int" name="order_id" nullable="false" default="0"/>
         <column xsi:type="timestamp" name="created_at" on_update="false" nullable="false" default="CURRENT_TIMESTAMP"/>
         <column xsi:type="text" name="detail" nullable="true"/>
-        <column xsi:type="text" name="method_codes" nullable="false" default=""/>
+        <column xsi:type="text" name="method_codes" nullable="true"/>
         <constraint xsi:type="primary" referenceId="PRIMARY">
             <column name="id"/>
         </constraint>
