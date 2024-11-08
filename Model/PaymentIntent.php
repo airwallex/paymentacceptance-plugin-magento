@@ -210,7 +210,7 @@ class PaymentIntent extends AbstractModel implements IdentityInterface, PaymentI
      */
     public function getMethodCodes(): string
     {
-        return $this->getData(PaymentIntentInterface::METHOD_CODES_COLUMN);
+        return $this->getData(PaymentIntentInterface::METHOD_CODES_COLUMN) ?? '';
     }
 
     /**

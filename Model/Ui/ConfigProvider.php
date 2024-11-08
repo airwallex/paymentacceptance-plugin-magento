@@ -83,7 +83,8 @@ class ConfigProvider implements ConfigProviderInterface
     private function getAvailableCurrencies()
     {
         $cacheName = 'airwallex_available_currencies';
-        if (!$result = $this->cache->load($cacheName)) {
+        $result = $this->cache->load($cacheName);
+        if (empty($result) || $result === "[]") {
             $index = 0;
             $items = [];
             while (true) {
