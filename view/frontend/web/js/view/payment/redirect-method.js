@@ -50,10 +50,10 @@ define([
             this._super();
             if (!window.awxMonitorBillingAddress) {
                 quote.billingAddress.subscribe((newAddress) => {
+                    if (window.awxBillingAddress === JSON.stringify(newAddress)) return;
                     this.hideYouPay();
-                    if (newAddress) {
-                        this.testPaymentMethod();
-                    }
+                    this.testPaymentMethod();
+                    window.awxBillingAddress = JSON.stringify(newAddress);
                 });
                 window.awxMonitorBillingAddress = true;
             }
