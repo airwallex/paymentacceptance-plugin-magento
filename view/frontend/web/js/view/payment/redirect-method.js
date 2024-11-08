@@ -20,7 +20,7 @@ define([
     checkoutData,
     ko,
     $,
-    url,
+    urlBuilder,
     storage,
     globalMessageList,
     utils,
@@ -127,19 +127,24 @@ define([
                     + window.checkoutConfig.quoteData.quote_currency_code + " for your billing country. We have converted your total to "
                     + targetCurrency + " for you to complete your payment.</span>";
                 this.validationError(msg);
-                if (targetCurrency === window.checkoutConfig.quoteData.base_currency_code) {
+
+                let url = urlBuilder.build('rest/V1/airwallex/payments/express-data');
+                const resp = await storage.get(url, undefined, 'application/json', {});
+                let expressData = JSON.parse(resp);
+
+                if (targetCurrency === expressData.base_currency_code) {
                     this.showYouPay({
-                        payment_currency: window.checkoutConfig.quoteData.quote_currency_code,
+                        payment_currency: expressData.quote_currency_code,
                         target_currency: targetCurrency,
-                        client_rate: (1/window.checkoutConfig.quoteData.base_to_quote_rate).toFixed(4),
-                        target_amount: parseFloat(window.checkoutConfig.quoteData.base_grand_total).toFixed(2),
+                        client_rate: (1/expressData.base_to_quote_rate).toFixed(4),
+                        target_amount: parseFloat(expressData.base_grand_total).toFixed(2),
                     });
                     return true;
                 }
-                let switcher = await storage.post(url.build('rest/V1/airwallex/currency/switcher'), JSON.stringify({
-                    'payment_currency': window.checkoutConfig.quoteData.quote_currency_code,
+                let switcher = await storage.post(urlBuilder.build('rest/V1/airwallex/currency/switcher'), JSON.stringify({
+                    'payment_currency': expressData.quote_currency_code,
                     'target_currency': targetCurrency,
-                    'amount': window.checkoutConfig.quoteData.grand_total,
+                    'amount': expressData.grand_total,
                 }), undefined, 'application/json', {});
                 let switchers = JSON.parse(switcher);
                 this.showYouPay(switchers);
@@ -177,7 +182,7 @@ define([
             //         <tr class="totals charge awx">
             //             <th class="mark" data-bind="i18n: basicCurrencyMessage" scope="row">You will be charged for</th>
             //             <td class="amount">
-            //                 <span class="price" data-bind="text: getBaseValue(), attr: {'data-th': basicCurrencyMessage}" data-th="You will be charged for">${parseFloat(window.checkoutConfig.quoteData.base_grand_total).toFixed(2)} ${window.checkoutConfig.quoteData.base_currency_code}</span>
+            //                 <span class="price" data-bind="text: getBaseValue(), attr: {'data-th': basicCurrencyMessage}" data-th="You will be charged for">${parseFloat(window.checkoutConfig..base_grand_total).toFixed(2)} ${window.checkoutConfig.quoteData.base_currency_code}</span>
             //             </td>
             //         </tr>
             //     `);
@@ -309,7 +314,7 @@ define([
         },
 
         async getIntent(intentId) {
-            let requestUrl = url.build('rest/V1/airwallex/payments/intent?intent_id=' + intentId);
+            let requestUrl = urlBuilder.build('rest/V1/airwallex/payments/intent?intent_id=' + intentId);
             return storage.get(requestUrl, undefined, 'application/json', {});
         },
     });

@@ -293,6 +293,9 @@ class Service implements ServiceInterface
         return [
             'subtotal' => $quote->getSubtotal() ?? 0,
             'grand_total' => $quote->getGrandTotal() ?? 0,
+            'base_grand_total' => $quote->getBaseGrandTotal() ?? 0,
+            'base_currency_code' => $quote->getBaseCurrencyCode() ?? '',
+            'base_to_quote_rate' => $quote->getBaseToQuoteRate() ?? '',
             'shipping_amount' => $quote->getShippingAddress()->getShippingAmount() ?? 0,
             'tax_amount' => $taxAmount ?: 0,
             'subtotal_with_discount' => $quote->getSubtotalWithDiscount() ?? 0,
