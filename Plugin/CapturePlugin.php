@@ -8,6 +8,7 @@ use Airwallex\Payments\Helper\IsOrderCreatedHelper;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Airwallex\Payments\Model\Traits\HelperTrait;
+use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Framework\App\ObjectManager;
@@ -49,7 +50,7 @@ class CapturePlugin
 
         try {
             $this->checkIntentWithOrder($intent, $order);
-        } catch (InputException $e) {
+        } catch (Exception $e) {
             throw new LocalizedException(__($e->getMessage()));
         }
 
@@ -68,7 +69,6 @@ class CapturePlugin
         }
 
         if ($intent['status'] === PaymentIntentInterface::INTENT_STATUS_SUCCEEDED) return;
-
         if (empty($payment->getAmountAuthorized()) or $payment->getAmountAuthorized() < 0) {
             throw new LocalizedException(__('Authorized amount must be greater than 0.'));
         }

@@ -5,8 +5,10 @@ namespace Airwallex\Payments\Model\Traits;
 use Airwallex\Payments\Api\Data\PaymentIntentInterface;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Model\Client\Request\CurrencySwitcher;
+use Airwallex\Payments\Model\Client\Request\Log;
 use Airwallex\Payments\Model\Client\Request\PaymentMethod\Get;
 use Airwallex\Payments\Model\Methods\AbstractMethod;
+use Airwallex\Payments\Model\PaymentIntentRepository;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
@@ -237,7 +239,7 @@ trait HelperTrait
             || $intentCurrency !== $currency
             || $intentOrderId !== $orderIncrementId
             || !$this->isAmountEqual($intentAmount, $amount)) {
-            $this->errorLog->setMessage('check intent failed'
+            ObjectManager::getInstance()->get(Log::class)->setMessage('check intent failed'
                 , "Intent Status: $status. Intent Order ID: $intentOrderId - Order ID: $orderIncrementId - "
                 . "Intent Currency: $intentCurrency - Order Currency: $currency - "
                 . "Intent Amount: $intentAmount - Order Amount: $amount", $intentOrderId)->send();
@@ -272,7 +274,7 @@ trait HelperTrait
      */
     protected function checkIntentWithOrder(array $intentResponse, Order $order): void
     {
-        $paymentIntent = $this->paymentIntentRepository->getByOrderId($order->getId());
+        $paymentIntent = ObjectManager::getInstance()->get(PaymentIntentRepository::class)->getByOrderId($order->getId());
         $this->checkIntent(
             $intentResponse['status'],
             $intentResponse['currency'],
