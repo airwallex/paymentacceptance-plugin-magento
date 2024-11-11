@@ -55,6 +55,12 @@ define([
                     this.testPaymentMethod();
                     window.awxBillingAddress = JSON.stringify(newAddress);
                 });
+                quote.paymentMethod.subscribe((newMethod) => {
+                    console.log('new paymentMethod', newMethod);
+                    this.hideYouPay();
+                    this.validationError('');
+                    this.testPaymentMethod();
+                });
                 window.awxMonitorBillingAddress = true;
             }
         },
@@ -88,44 +94,46 @@ define([
             $("#" + this.getCode() + '-button span').text($t('Refresh QR code'));
         },
 
-        selectPaymentMethod:  function () {
-            this.hideYouPay();
-            selectPaymentMethodAction(this.getData());
-            checkoutData.setSelectedPaymentMethod(this.item.method);
-            this.validationError('');
-            this.testPaymentMethod();
-            return true;
-        },
-
         testPaymentMethod: async function () {
             let $body = $('body');
             if (this.isKlarnaChecked()) {
                 this.validationError('');
+                // this.hideYouPay();
                 let countries = window.checkoutConfig.payment.airwallex_payments.klarna_support_countries;
                 if (!quote.billingAddress()) {
-                    this.validationError($t('Billing address is required.'));
+                    // this.validationError($t('Billing address is required.'));
                     $body.trigger('processStop');
+                    $('.airwallex._active .checkout').addClass('disabled');
                     return false;
                 }
                 if (Object.keys(countries).indexOf(quote.billingAddress().countryId) === -1) {
-                    let msg = "Klarna is not available in your country. Please change your billing address to " +
-                        "<a target='_blank' class='awx-danger' href='https://help.airwallex.com/hc/en-gb/articles/9514119772047-What-countries-can-I-use-Klarna-in'>a compatible country</a> or choose a different payment method.";
-                    this.validationError(msg);
+                    let msg = "Klarna is not available in your country. Please change your billing address to a " +
+                        "<a target='_blank' style='color: rgba(66, 71, 77, 1); font-weight: 800; text-decoration: underline;' href='https://help.airwallex.com/hc/en-gb/articles/9514119772047-What-countries-can-I-use-Klarna-in'>compatible country</a> or choose a different payment method.";
+                    this.validationError(utils.awxAlert(msg));
+                    $('.airwallex._active .checkout').addClass('disabled');
                     return false;
                 }
                 let targetCurrency = countries[quote.billingAddress().countryId];
                 let currencies = JSON.parse(window.checkoutConfig.payment.airwallex_payments.available_currencies);
-                if (currencies.indexOf(targetCurrency) === -1) {
-                    let msg = "Klarna is not available in " + window.checkoutConfig.quoteData.quote_currency_code
+                let sourceCurrency = window.checkoutConfig.quoteData.quote_currency_code;
+                if (currencies.indexOf(sourceCurrency) === -1 || currencies.indexOf(targetCurrency) === -1) {
+                    let msg = "Klarna is not available in " + sourceCurrency
                         + " for your billing country. Please use a different payment method to complete your purchase.";
-                    this.validationError(msg);
+                    this.validationError(utils.awxAlert(msg));
+                    $('.airwallex._active .checkout').addClass('disabled');
                     return false;
                 }
-                if (window.checkoutConfig.quoteData.quote_currency_code === targetCurrency) return true;
-                if (targetCurrency === window.checkoutConfig.quoteData.base_currency_code && $(".totals.charge").length) return true;
-                let msg = "<span style='color: #1e1e1e;'>Klarna is not available in "
-                    + window.checkoutConfig.quoteData.quote_currency_code + " for your billing country. We have converted your total to "
-                    + targetCurrency + " for you to complete your payment.</span>";
+                if (currencies.indexOf(targetCurrency) === -1) {
+                    let msg = "Klarna is not available in " + targetCurrency
+                        + " for your billing country. Please use a different payment method to complete your purchase.";
+                    this.validationError(utils.awxAlert(msg));
+                    $('.airwallex._active .checkout').addClass('disabled');
+                    return false;
+                }
+                $('.airwallex._active .checkout').removeClass('disabled');
+                if (sourceCurrency === targetCurrency) return true;
+                // if (targetCurrency === window.checkoutConfig.quoteData.base_currency_code && $(".totals.charge").length) return true;
+                let msg = "<span style='color: rgba(26, 29, 33, 1);'>We have converted the currency to " + targetCurrency + " so you can use Klarna.</span>";
                 this.validationError(msg);
 
                 let url = urlBuilder.build('rest/V1/airwallex/payments/express-data');
@@ -153,26 +161,27 @@ define([
         },
 
         showYouPay(switchers = {}) {
-            if (!$('.awx-you-pay').length) {
+            let youPayElement = '.awx-you-pay';
+            if (!$(youPayElement).length) {
                 $(".table-totals tbody").append(`
                     <tr class="awx-you-pay"></tr>
                 `);
             }
-            $('.awx-you-pay').html(`
-                <th class="mark" scope="row">
+            $(youPayElement).html(`
+                <th class="mark" scope="row" style="padding-top: 26px;">
                     <strong style="font-size: 1.8rem">` + $t('You Pay') + `</strong>
                 </th>
                 <td class="amount">
                     <div class="switcher-tip">
+                        <div style="color: rgba(108, 116, 127, 1); margin-right: 5px;">1 ${switchers.payment_currency} = ${switchers.client_rate} ${switchers.target_currency}</div>
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
                             <path fillRule="evenodd" clipRule="evenodd" d="M10.8751 6.00603C11.2227 5.84685 11.641 5.97553 11.836 6.31338C12.0431 6.6721 11.9202 7.13079 11.5615 7.33789L9.93769 8.27539C9.57897 8.4825 9.12028 8.3596 8.91317 8.00088L7.97567 6.37708C7.76857 6.01836 7.89147 5.55967 8.25019 5.35256C8.60891 5.14545 9.0676 5.26836 9.27471 5.62708L9.36849 5.78951C9.25886 4.02452 7.79267 2.62695 6.00007 2.62695C5.0122 2.62695 4.12347 3.05137 3.50626 3.72782L2.44482 2.66638C3.33417 1.71884 4.598 1.12695 6.00007 1.12695C8.69245 1.12695 10.8751 3.30957 10.8751 6.00195C10.8751 6.00331 10.8751 6.00467 10.8751 6.00603ZM1.12576 6.08873L1.12513 6.0891C0.766406 6.2962 0.307713 6.1733 0.100606 5.81458C-0.106501 5.45586 0.0164058 4.99717 0.375125 4.79006L1.99892 3.85256C2.35764 3.64545 2.81633 3.76836 3.02344 4.12708L3.96094 5.75088C4.16805 6.1096 4.04514 6.56829 3.68642 6.77539C3.3277 6.9825 2.86901 6.8596 2.6619 6.50088L2.66152 6.50022C2.90238 8.12792 4.30533 9.37695 6 9.37695C6.85293 9.37695 7.63196 9.06056 8.22613 8.53874L9.28834 9.60095C8.42141 10.3935 7.26716 10.877 6 10.877C3.3366 10.877 1.17206 8.74108 1.12576 6.08873Z" fill="#B0B6BF" />
                         </svg>
-                        <div>1 ${switchers.payment_currency} = ${switchers.client_rate} ${switchers.target_currency}</div>
                     </div>
-                    <div class="awx-amount">${switchers.target_amount} ${switchers.target_currency}</div>
-                </td>    
+                    <div class="awx-amount">${switchers.target_currency} ${switchers.target_amount}</div>
+                </td>
             `);
-            $('.awx-you-pay').show();
+            $(youPayElement).show();
             $(".totals.charge").hide();
         },
 

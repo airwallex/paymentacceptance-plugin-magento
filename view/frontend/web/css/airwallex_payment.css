@@ -314,3 +314,27 @@
     border: 1px solid #E8EAED;
     color: #1979c3;
 }
+
+.awx-alert {
+    border: 1px solid rgba(255, 119, 109, 1);
+    border-radius: 5px;
+    background: rgba(255, 239, 239, 1);
+    display: flex;
+    padding: 12px 16px;
+}
+
+.awx-alert .icon {
+    padding: 10px 10px 10px 0;
+    display: flex;
+    align-items: center;
+}
+
+.awx-alert .body {
+    text-align: justify;
+    color: rgba(66, 71, 77, 1);
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 21px;
+    display: flex;
+    align-items: center;
+}
