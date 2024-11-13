@@ -125,7 +125,7 @@ class Capture extends AbstractWebhook
 
         if (!$order->getPayment() || $order->getTotalPaid()) return;
 
-        $order->setIsInProcess(true);
+        $order->setState(Order::STATE_PROCESSING)->setStatus(Order::STATE_PROCESSING);
         $this->orderRepository->save($order);
 
         $amount = $data->captured_amount;
