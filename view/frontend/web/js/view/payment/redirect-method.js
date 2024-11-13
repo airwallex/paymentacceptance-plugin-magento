@@ -56,7 +56,6 @@ define([
                     window.awxBillingAddress = JSON.stringify(newAddress);
                 });
                 quote.paymentMethod.subscribe((newMethod) => {
-                    console.log('new paymentMethod', newMethod);
                     this.hideYouPay();
                     this.validationError('');
                     this.testPaymentMethod();
@@ -133,7 +132,7 @@ define([
                 $('.airwallex._active .checkout').removeClass('disabled');
                 if (sourceCurrency === targetCurrency) return true;
                 // if (targetCurrency === window.checkoutConfig.quoteData.base_currency_code && $(".totals.charge").length) return true;
-                let msg = "<span style='color: rgba(26, 29, 33, 1);'>We have converted the currency to " + targetCurrency + " so you can use Klarna.</span>";
+                let msg = "<span style='color: rgba(26, 29, 33, 1); font-weight: bold;'>We have converted the currency to " + targetCurrency + " so you can use Klarna.</span>";
                 this.validationError(msg);
 
                 let url = urlBuilder.build('rest/V1/airwallex/payments/express-data');
