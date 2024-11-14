@@ -101,6 +101,7 @@ define([
         testPaymentMethod: async function () {
             let $body = $('body');
             if (this.isKlarnaChecked()) {
+                $(".totals.charge").hide();
                 this.validationError('');
                 // this.hideYouPay();
                 let countries = window.checkoutConfig.payment.airwallex_payments.klarna_support_countries;
