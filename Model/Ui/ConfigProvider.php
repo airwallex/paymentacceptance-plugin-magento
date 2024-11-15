@@ -4,9 +4,12 @@ namespace Airwallex\Payments\Model\Ui;
 
 use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Helper\Configuration;
+use Airwallex\Payments\Model\Client\Request\GetCurrencies;
+use Airwallex\Payments\Model\Methods\KlarnaMethod;
 use GuzzleHttp\Exception\GuzzleException;
 use Magento\Checkout\Model\ConfigProviderInterface;
 use Magento\Customer\Model\Session;
+use Magento\Framework\App\CacheInterface;
 use Magento\Framework\App\ProductMetadata;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
@@ -16,6 +19,7 @@ use Magento\ReCaptchaUi\Model\IsCaptchaEnabledInterface;
 use Magento\Customer\Api\CustomerRepositoryInterface;
 use Airwallex\Payments\Model\Client\Request\RetrieveCustomer;
 use Exception;
+use JsonException;
 
 class ConfigProvider implements ConfigProviderInterface
 {
@@ -29,6 +33,9 @@ class ConfigProvider implements ConfigProviderInterface
     private CustomerRepositoryInterface $customerRepository;
     private RetrieveCustomer $retrieveCustomer;
     private ProductMetadata $productMetadata;
+    private GetCurrencies $getCurrencies;
+
+    private CacheInterface $cache;
 
     /**
      * ConfigProvider constructor.
@@ -41,6 +48,8 @@ class ConfigProvider implements ConfigProviderInterface
      * @param CustomerRepositoryInterface $customerRepository
      * @param RetrieveCustomer $retrieveCustomer
      * @param ProductMetadata $productMetadata
+     * @param GetCurrencies $getCurrencies
+     * @param CacheInterface $cache
      */
     public function __construct(
         Configuration               $configuration,
@@ -50,7 +59,9 @@ class ConfigProvider implements ConfigProviderInterface
         PaymentConsentsInterface    $paymentConsents,
         CustomerRepositoryInterface $customerRepository,
         RetrieveCustomer            $retrieveCustomer,
-        ProductMetadata             $productMetadata
+        ProductMetadata             $productMetadata,
+        GetCurrencies               $getCurrencies,
+        CacheInterface              $cache
     )
     {
         $this->configuration = $configuration;
@@ -61,6 +72,38 @@ class ConfigProvider implements ConfigProviderInterface
         $this->customerRepository = $customerRepository;
         $this->retrieveCustomer = $retrieveCustomer;
         $this->productMetadata = $productMetadata;
+        $this->getCurrencies = $getCurrencies;
+        $this->cache = $cache;
+    }
+
+    /**
+     * @throws GuzzleException
+     * @throws JsonException|JsonException
+     */
+    private function getAvailableCurrencies()
+    {
+        $cacheName = 'airwallex_available_currencies';
+        $result = $this->cache->load($cacheName);
+        if (empty($result) || $result === "[]") {
+            $index = 0;
+            $items = [];
+            while (true) {
+                $res = $this->getCurrencies
+                    ->setPage($index, 200)
+                    ->send();
+
+                $index++;
+                if (!empty($res['items'])) {
+                    $items = array_merge($items, $res['items']);
+                }
+                if (!$res['has_more']) {
+                    break;
+                }
+            }
+            $result = json_encode($items);
+            $this->cache->save($result, $cacheName, [], 300);
+        }
+        return $result;
     }
 
     /**
@@ -69,7 +112,7 @@ class ConfigProvider implements ConfigProviderInterface
      * @return array
      * @throws GuzzleException
      * @throws LocalizedException
-     * @throws NoSuchEntityException
+     * @throws NoSuchEntityException|JsonException
      */
     public function getConfig(): array
     {
@@ -87,6 +130,8 @@ class ConfigProvider implements ConfigProviderInterface
                     'is_pre_verification_enabled' => $this->configuration->isPreVerificationEnabled(),
                     'card_max_width' => $this->configuration->getCardMaxWidth(),
                     'card_fontsize' => $this->configuration->getCardFontSize(),
+                    'klarna_support_countries' => KlarnaMethod::SUPPORTED_COUNTRY_TO_CURRENCY,
+                    'available_currencies' => $this->getAvailableCurrencies(),
                 ]
             ]
         ];

@@ -9,6 +9,7 @@ use Airwallex\Payments\Api\OrderServiceInterface;
 use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Helper\IsOrderCreatedHelper;
+use Airwallex\Payments\Model\Methods\KlarnaMethod;
 use Airwallex\Payments\Plugin\ReCaptchaValidationPlugin;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
@@ -25,6 +26,7 @@ use Magento\Quote\Api\Data\AddressInterface;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Quote\Api\Data\PaymentInterface;
 use Magento\Quote\Model\Quote;
+use Magento\Sales\Api\Data\OrderAddressInterface;
 use Magento\Sales\Api\OrderManagementInterface;
 use Magento\Sales\Model\Order;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
@@ -257,7 +259,25 @@ class OrderService implements OrderServiceInterface
     public function orderThenIntent(Quote $quote, $uid, string $cartId, PaymentInterface $paymentMethod, ?AddressInterface $billingAddress, ?string $email, ?string $paymentMethodId, ?string $from, PlaceOrderResponse $response): PlaceOrderResponse
     {
         $order = $this->getOrderByQuote($quote);
-        if ($order->getStatus() !== Order::STATE_PENDING_PAYMENT || !$this->isOrderEqualToQuote($order, $quote, $billingAddress)) {
+        $isRequiredToGenerateNewOrder = false;
+        if ($order->getId()) {
+            $paymentIntent = $this->paymentIntentRepository->getByOrderId($order->getId());
+            if ($paymentIntent) {
+                $codes = $paymentIntent->getMethodCodes();
+                $paymentCodes = json_decode($codes, true);
+                if (!empty($paymentCodes)) {
+                    if ($paymentCodes[count($paymentCodes) - 1] === KlarnaMethod::CODE || $paymentMethod->getMethod() === KlarnaMethod::CODE) {
+                        $isRequiredToGenerateNewOrder = $paymentMethod->getMethod() !== $paymentCodes[count($paymentCodes) - 1];
+                    }
+                }
+            }
+        }
+
+        if (
+            $order->getStatus() !== Order::STATE_PENDING_PAYMENT
+            || !$this->isOrderEqualToQuote($order, $quote, $billingAddress)
+            || $isRequiredToGenerateNewOrder
+        ) {
             try {
                 if ($uid) {
                     $orderId = $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
@@ -299,8 +319,9 @@ class OrderService implements OrderServiceInterface
         $getPhoneAddress = $quote->isVirtual() ? $quote->getBillingAddress() : $quote->getShippingAddress();
         $phone = $getPhoneAddress->getTelephone() ?? '';
         $argEmail = $uid ? $quote->getCustomerEmail() : $email;
-        $intent = $this->paymentIntents->getIntentByOrder($order, $phone, $argEmail, $from);
+        $intent = $this->paymentIntents->getIntentByOrder($order, $phone, $argEmail, $from, $paymentMethod);
         $resp = $this->intentGet->setPaymentIntentId($intent['id'])->send();
+
         $intentResponse = json_decode($resp, true);
         $intentResponse['status'] = PaymentIntentInterface::INTENT_STATUS_SUCCEEDED;
         $this->checkIntentWithOrder($intentResponse, $order);
@@ -312,7 +333,7 @@ class OrderService implements OrderServiceInterface
             'client_secret' => $intent['clientSecret']
         ];
         if ($this->isRedirectMethodConstant($paymentMethod->getMethod())) {
-            $data['next_action'] = $this->getAirwallexPaymentsNextAction($intent['id'], $paymentMethod->getMethod());
+            $data['next_action'] = $this->getAirwallexPaymentsNextAction($intent['id'], $paymentMethod->getMethod(), $order->getBillingAddress());
         }
 
         $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
@@ -363,6 +384,7 @@ class OrderService implements OrderServiceInterface
         if ($quoteAddr && !$orderAddr) return false;
         if (!$quoteAddr && $orderAddr) return false;
         if ($quoteAddr && $orderAddr) {
+            /* @var OrderAddress $orderAddr */
             if (!$this->isQuoteAddressSameAsOrderAddress($quoteAddr, $orderAddr)) return false;
         }
 
@@ -394,7 +416,7 @@ class OrderService implements OrderServiceInterface
      * @throws LocalizedException
      * @throws Exception
      */
-    public function getAirwallexPaymentsNextAction(string $intentId, $code)
+    public function getAirwallexPaymentsNextAction(string $intentId, $code, OrderAddressInterface $address)
     {
         if (!$intentId) {
             throw new Exception('Intent id is required.');
@@ -402,10 +424,8 @@ class OrderService implements OrderServiceInterface
         $cacheName = $code . '-qrcode-' . $intentId;
         if (!$returnUrl = $this->cache->load($cacheName)) {
             try {
-                $resp = $this->confirm
-                    ->setPaymentIntentId($intentId)
-                    ->setInformation($this->getPaymentMethodCode($code))
-                    ->send();
+                $request = $this->confirm->setPaymentIntentId($intentId);
+                $resp = $request->setInformation($this->getPaymentMethodCode($code), $address)->send();
             } catch (Exception $exception) {
                 throw new LocalizedException(__($exception->getMessage()));
             }

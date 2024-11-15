@@ -124,6 +124,17 @@ class Configuration extends AbstractHelper
     }
 
     /**
+     * Card capture enabled
+     *
+     * @return bool
+     */
+    public function isKlarnaCaptureEnabled(): bool
+    {
+        return $this->scopeConfig->getValue('payment/airwallex_payments_klarna/airwallex_payment_action')
+            === MethodInterface::ACTION_AUTHORIZE_CAPTURE;
+    }
+
+    /**
      * Pre Verification enabled
      *
      * @return bool

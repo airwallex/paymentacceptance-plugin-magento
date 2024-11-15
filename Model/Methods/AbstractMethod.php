@@ -262,11 +262,21 @@ abstract class AbstractMethod extends Adapter
         try {
             $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
             $respArr = json_decode($resp, true);
-            $refundAmount = $credit->getBaseCurrencyCode() === $respArr['currency'] ?  $credit->getBaseGrandTotal() : $credit->getGrandTotal();
+            $record = $this->paymentIntentRepository->getByIntentId($intentId);
+            if ($credit->getBaseCurrencyCode() === $respArr['currency']) {
+                $refundAmount = $credit->getBaseGrandTotal();
+            } else if ($credit->getOrderCurrencyCode() === $respArr['currency']) {
+                $refundAmount = $credit->getGrandTotal();
+            } else {
+                if ($this->isAmountEqual($credit->getGrandTotal(), $record->getGrandTotal())) {
+                    $refundAmount = $respArr['amount'];
+                } else {
+                    $refundAmount = round($respArr['amount'] * $credit->getGrandTotal() / $record->getGrandTotal(), 2);
+                }
+            }
             /** @var Creditmemo $credit */
             $res = $this->refund->setInformation($intentId, $refundAmount)->send();
 
-            $record = $this->paymentIntentRepository->getByIntentId($intentId);
             $detail = $record->getDetail();
             $detailArray = $detail ? json_decode($detail, true) : [];
             if (empty($detailArray['refund_ids'])) {

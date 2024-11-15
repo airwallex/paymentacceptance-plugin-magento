@@ -143,4 +143,11 @@
             <resource ref="anonymous"/>
         </resources>
     </route>
+
+    <route url="/V1/airwallex/currency/switcher" method="POST">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="currencySwitcher"/>
+        <resources>
+            <resource ref="anonymous"/>
+        </resources>
+    </route>
 </routes>

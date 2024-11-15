@@ -3,7 +3,9 @@
 namespace Airwallex\Payments\Model\Webhook;
 
 use Airwallex\Payments\Exception\WebhookException;
+use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Airwallex\Payments\Model\PaymentIntentRepository;
+use GuzzleHttp\Exception\GuzzleException;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
@@ -14,6 +16,7 @@ use Magento\Sales\Model\OrderRepository;
 use Magento\Sales\Model\Service\CreditmemoService;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\Framework\App\CacheInterface;
+use JsonException;
 
 class Refund extends AbstractWebhook
 {
@@ -47,6 +50,11 @@ class Refund extends AbstractWebhook
     private CreditmemoService $creditmemoService;
 
     /**
+     * @var Get
+     */
+    private Get $intentGet;
+
+    /**
      * Refund constructor.
      *
      * @param OrderRepository $orderRepository
@@ -54,19 +62,22 @@ class Refund extends AbstractWebhook
      * @param CreditmemoFactory $creditmemoFactory
      * @param CreditmemoService $creditmemoService
      * @param CacheInterface $cache
+     * @param Get $intentGet
      */
     public function __construct(
         OrderRepository $orderRepository,
         PaymentIntentRepository $paymentIntentRepository,
         CacheInterface $cache,
         CreditmemoFactory $creditmemoFactory,
-        CreditmemoService $creditmemoService
+        CreditmemoService $creditmemoService,
+        Get $intentGet
     ) {
         $this->orderRepository = $orderRepository;
         $this->paymentIntentRepository = $paymentIntentRepository;
         $this->cache = $cache;
         $this->creditmemoFactory = $creditmemoFactory;
         $this->creditmemoService = $creditmemoService;
+        $this->intentGet = $intentGet;
     }
 
     /**
@@ -74,10 +85,12 @@ class Refund extends AbstractWebhook
      *
      * @return void
      * @throws AlreadyExistsException
+     * @throws GuzzleException
      * @throws InputException
      * @throws LocalizedException
      * @throws NoSuchEntityException
      * @throws WebhookException
+     * @throws JsonException
      */
     public function execute(object $data): void
     {
@@ -115,18 +128,25 @@ class Refund extends AbstractWebhook
             return;
         }
 
-        $this->createCreditMemo($order, $data->amount, $data->currency, $data->reason ?? '');
+        $this->createCreditMemo($order, $data->amount, $data->currency, $intentId, $data->reason ?? '');
     }
 
     /**
      * @param Order $order
      * @param float $refundAmount
+     * @param string $refundCurrency
+     * @param string $intentId
      * @param string $reason
      *
      * @return void
+     * @throws AlreadyExistsException
+     * @throws InputException
      * @throws LocalizedException
+     * @throws NoSuchEntityException
+     * @throws GuzzleException
+     * @throws JsonException
      */
-    private function createCreditMemo(Order $order, float $refundAmount, string $refundCurrency, string $reason): void
+    private function createCreditMemo(Order $order, float $refundAmount, string $refundCurrency, string $intentId, string $reason): void
     {
         /** @var Order\Invoice $invoice */
         $invoice = $order->getInvoiceCollection()->getFirstItem();
@@ -155,6 +175,12 @@ class Refund extends AbstractWebhook
         $creditMemo->setBaseGrandTotal($baseAmount);
         $creditMemo->setGrandTotal($refundAmount);
         if ($refundCurrency === $order->getBaseCurrencyCode()) {
+            $creditMemo->setBaseGrandTotal($refundAmount);
+            $creditMemo->setGrandTotal($this->convertToDisplayCurrency($refundAmount, $order->getBaseToOrderRate(), false));
+        } else if ($refundCurrency !== $order->getOrderCurrencyCode()) {
+            $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
+            $intentResponse = json_decode($resp, true);
+            $refundAmount = round($refundAmount / $intentResponse['amount'] * $order->getBaseGrandTotal(), 2);
             $creditMemo->setBaseGrandTotal($refundAmount);
             $creditMemo->setGrandTotal($this->convertToDisplayCurrency($refundAmount, $order->getBaseToOrderRate(), false));
         }
