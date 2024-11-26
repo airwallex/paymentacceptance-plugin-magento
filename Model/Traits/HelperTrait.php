@@ -4,6 +4,7 @@ namespace Airwallex\Payments\Model\Traits;
 
 use Airwallex\Payments\Api\Data\PaymentIntentInterface;
 use Airwallex\Payments\Helper\Configuration;
+use Airwallex\Payments\Model\Client\Request\Account;
 use Airwallex\Payments\Model\Client\Request\CurrencySwitcher;
 use Airwallex\Payments\Model\Client\Request\Log;
 use Airwallex\Payments\Model\Client\Request\PaymentMethod\Get;
@@ -176,6 +177,20 @@ trait HelperTrait
             ];
         }
         return $products;
+    }
+
+    /**
+     * @throws GuzzleException
+     * @throws JsonException
+     */
+    public function account(): string
+    {
+        $content = ObjectManager::getInstance()->get(Account::class)->send();
+        $arr = json_decode($content, true);
+        return json_encode([
+            // 'entity' => $arr['account_details']['legal_entity_id'] ?? ''
+            'entity' => 'AIRWALLEX_HK'  // todo
+        ]);
     }
 
     /**

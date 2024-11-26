@@ -3,6 +3,8 @@
 namespace Airwallex\Payments\Api;
 
 use Exception;
+use JsonException;
+use GuzzleHttp\Exception\GuzzleException;
 
 interface ServiceInterface
 {
@@ -59,6 +61,15 @@ interface ServiceInterface
      * @throws Exception
      */
     public function validateAddresses(): string;
+
+    /**
+     * Account detail
+     *
+     * @return string
+     * @throws GuzzleException
+     * @throws JsonException
+     */
+    public function account(): string;
 
     /**
      * Currency switcher

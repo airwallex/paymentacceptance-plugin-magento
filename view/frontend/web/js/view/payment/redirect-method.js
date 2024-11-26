@@ -13,6 +13,7 @@ define([
     'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
     'Magento_Checkout/js/model/quote',
     'Magento_Customer/js/customer-data',
+    'Magento_Ui/js/modal/modal',
     'mage/translate'
 ], function (
     Component,
@@ -29,6 +30,7 @@ define([
     addressHandler,
     quote,
     customerData,
+    modal,
     $t
 ) {
     'use strict';
@@ -40,10 +42,15 @@ define([
         isShowBillingAddress: ko.observable(true),
         iframeSelector: "._active .qrcode-payment .iframe",
         qrcodeSelector: "._active .qrcode-payment .qrcode",
+        expressData: {},
 
         defaults: {
             timer: null,
             template: 'Airwallex_Payments/payment/redirect-method'
+        },
+
+        isAirwallexPayment(newMethod) {
+            return newMethod && newMethod.method.indexOf('airwallex_') === 0;
         },
 
         initialize: async function () {
@@ -51,19 +58,28 @@ define([
             if (!window.awxMonitorBillingAddress) {
                 quote.billingAddress.subscribe((newAddress) => {
                     if (window.awxBillingAddress === JSON.stringify(newAddress)) return;
+                    this.validationError('');
                     this.hideYouPay();
                     this.testPaymentMethod();
+                    $('body').trigger('processStop');
                     window.awxBillingAddress = JSON.stringify(newAddress);
                 });
                 quote.paymentMethod.subscribe((newMethod) => {
-                    if (newMethod && newMethod.method.indexOf('airwallex_') === 0) {
+                    if (this.isAirwallexPayment(newMethod)) {
+                        $(".awx-afterpay-countries-component").html('');
                         $(".totals.charge").hide();
+                        if (this.isMethodChecked('afterpay')) {
+                            $(".awx-billing-confirm-tip").hide();
+                        } else {
+                            $(".awx-billing-confirm-tip").show();
+                        }
                     } else {
                         $(".totals.charge").show();
                     }
                     this.hideYouPay();
                     this.validationError('');
                     this.testPaymentMethod();
+                    $('body').trigger('processStop');
                 });
                 window.awxMonitorBillingAddress = true;
             }
@@ -72,6 +88,92 @@ define([
         initObservable: function () {
             this.code = this.index;
             return this._super();
+        },
+
+        showPayafterCountries() {
+            let html = `
+                <div style="font-weight: 700;">Confirm your billing address to use Afterpay</div>
+                <div style="margin: 10px 0;">If you don’t have an account yet, choose the region that you will create your account from. </div>
+                <div class="awx-afterpay-countries">
+                <div class="input-icon">
+                    <svg
+                    width="12"
+                    height="7"
+                    viewBox="0 0 12 7"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    >
+                    <path
+                        fill-rule="evenodd"
+                        clip-rule="evenodd"
+                        d="M6 3.83294L9.5405 0.293238C9.93157 -0.0977462 10.5656 -0.0977462 10.9567 0.293238C11.3478 0.684223 11.3478 1.31813 10.9567 1.70912L6.7081 5.95676C6.31703 6.34775 5.68297 6.34775 5.2919 5.95676L1.0433 1.70912C0.652232 1.31813 0.652232 0.684223 1.0433 0.293238C1.43438 -0.0977462 2.06843 -0.0977462 2.4595 0.293238L6 3.83294Z"
+                        fill="#68707A"
+                    />
+                    </svg>
+                </div>
+                <div>
+                    <input type="text" placeholder="Afterpay account region" />
+                </div>
+                <div class="countries" style="display: none">
+                    <ul>
+                    <li data-value="US">United States</li>
+                    <li data-value="AU">Australia</li>
+                    <li data-value="NZ">New Zealand</li>
+                    <li data-value="UK">United Kingdom</li>
+                    <li data-value="CA">Canada</li>
+                    </ul>
+                </div>
+                </div>
+            `;
+
+            $(".awx-afterpay-countries-component").html(html);
+
+            let $li = $(".awx-afterpay-countries li");
+            let $input = $(".awx-afterpay-countries input");
+            $li.each(function () {
+                let country = localStorage.getItem("awx_afterpay_country");
+                if ($(this).data("value") === country) {
+                    $(".awx-afterpay-countries input").val($(this).html());
+                    this.activeCheckoutButton();
+                }
+            });
+            $input.off('focus').on('focus', function () {
+                $(".awx-afterpay-countries .countries").fadeIn(300);
+                let country = localStorage.getItem("awx_afterpay_country");
+                if (country) {
+                  $(".awx-afterpay-countries li").each(function () {
+                    $(this).removeClass("selected");
+                    if ($(this).data("value") === country) {
+                      $(this).addClass("selected");
+                    }
+                  });
+                }
+            });
+            $input.off('blur').on('blur', function () {
+                $(".awx-afterpay-countries .countries").fadeOut(300);
+            });
+            let that = this;
+            $li.off('click').on('click', async function () {
+                $(".awx-afterpay-countries input").val($(this).html());
+                localStorage.setItem("awx_afterpay_country", $(this).data("value"));
+                $(".awx-afterpay-countries li").each(function () {
+                    $(this).removeClass("selected");
+                });
+                let $body = $('body');
+                $body.trigger('processStart');
+                console.log(that.countryToCurrency, $(this).data("value"))
+                const countryToCurrency = window.checkoutConfig.payment.airwallex_payments.afterpay_support_countries;
+                let targetCurrency = countryToCurrency[$(this).data("value")];
+                let switcher = await storage.post(urlBuilder.build('rest/V1/airwallex/currency/switcher'), JSON.stringify({
+                    'payment_currency': that.expressData.quote_currency_code,
+                    'target_currency': targetCurrency,
+                    'amount': that.expressData.grand_total,
+                }), undefined, 'application/json', {});
+                let switchers = JSON.parse(switcher);
+                that.validationError(that.switcherTip(targetCurrency, 'afterpay'));
+                that.showYouPay(switchers);
+                $body.trigger('processStop');
+            });
         },
 
         getDisplayName() {
@@ -84,84 +186,180 @@ define([
                 'airwallex_payments_kakaopay': 'Kakao Pay',
                 'airwallex_payments_tng': 'Touch \'n Go',
                 'airwallex_payments_klarna': 'Klarna',
+                'airwallex_payments_afterpay': 'Afterpay',
             };
             return arr[name];
         },
 
         isShowQRTip() {
-            return ['airwallex_payments_klarna'].indexOf(this.code) === -1;
+            return ['airwallex_payments_klarna', 'airwallex_payments_afterpay', ].indexOf(this.code) === -1;
         },
 
         hideBillingAddress() {
             $('.' + this.getCode() + ' button.editing').show();
             $('.' + this.getCode() + ' .payment-method-billing-address').hide();
-            $("#" + this.getCode() + '-button span').text($t('Refresh QR code'));
+            let refreshSelector =  "#" + this.getCode() + '-button span';
+            $(refreshSelector).text($t('Refresh QR code'));
+        },
+
+        async fetchExpressData() {
+            let url = urlBuilder.build('rest/V1/airwallex/payments/express-data');
+            const resp = await storage.get(url, undefined, 'application/json', {});
+            this.expressData = JSON.parse(resp);
+        },
+
+        async processAfterpay() {
+            this.activeCheckoutButton();
+            let accountUrl = urlBuilder.build('rest/V1/airwallex/account');
+            const accountResp = await storage.get(accountUrl, undefined, 'application/json', {});
+            let accountData = JSON.parse(accountResp);
+            let entity = accountData.entity;
+            if (entity !== 'AIRWALLET_HK') {
+                $(".awx-billing-confirm-tip").hide();
+            } else {
+                $(".awx-billing-confirm-tip").show();
+            }
+            const entityToCurrency = window.checkoutConfig.payment.airwallex_payments.afterpay_support_entity_to_currency;
+            const countryToCurrency = window.checkoutConfig.payment.airwallex_payments.afterpay_support_countries;
+            if (!entityToCurrency[entity]) {
+                throw new Error("Afterpay is not available in your country.");
+            }
+            if (entityToCurrency[entity].indexOf(window.checkoutConfig.quoteData.quote_currency_code) !== -1) {
+                this.validationError('');
+                return true;
+            }
+            await this.fetchExpressData();
+            if (entityToCurrency[entity].indexOf(this.expressData.base_currency_code) !== -1) {
+                this.validationError(this.switcherTip(this.expressData.base_currency_code, 'afterpay'));
+                this.showYouPay({
+                    payment_currency: this.expressData.quote_currency_code,
+                    target_currency: this.expressData.base_currency_code,
+                    client_rate: (1/this.expressData.base_to_quote_rate).toFixed(4),
+                    target_amount: parseFloat(this.expressData.base_grand_total).toFixed(2),
+                });
+                return true;
+            }
+
+            let targetCurrency;
+            if (quote.billingAddress() && countryToCurrency[quote.billingAddress().countryId]) {
+                targetCurrency = countryToCurrency[quote.billingAddress().countryId];
+                if (entityToCurrency[entity].indexOf(targetCurrency) === -1) {
+                    targetCurrency = '';
+                }
+            }
+            if (!targetCurrency) {
+                let country = localStorage.getItem('awx_afterpay_country');
+                this.showPayafterCountries();
+                if (!country || country === 'undefined') {
+                    if (entityToCurrency[entity].length !== 1) {
+                        if (!localStorage.getItem('awx_afterpay_country')) {
+                            this.disableCheckoutButton();
+                        }
+                        return false;
+                    }
+                    targetCurrency = entityToCurrency[entity][0];
+                } else {
+                    if (country === 'UK') country = 'GB';
+                    targetCurrency = countryToCurrency[country];
+                }
+            }
+            let $body = $('body');
+            $body.trigger('processStart');
+
+            let switcher = await storage.post(urlBuilder.build('rest/V1/airwallex/currency/switcher'), JSON.stringify({
+                'payment_currency': this.expressData.quote_currency_code,
+                'target_currency': targetCurrency,
+                'amount': this.expressData.grand_total,
+            }), undefined, 'application/json', {});
+            let switchers = JSON.parse(switcher);
+            this.validationError(this.switcherTip(targetCurrency, 'afterpay'));
+            this.showYouPay(switchers);
+            $body.trigger('processStop');
+            return true;
+        },
+
+        activeCheckoutButton() {
+            $('.airwallex._active .checkout').removeClass('disabled');
+        },
+
+        disableCheckoutButton() {
+            $('.airwallex._active .checkout').addClass('disabled');
         },
 
         testPaymentMethod: async function () {
             let $body = $('body');
-            if (this.isKlarnaChecked()) {
+
+            if (this.isMethodChecked('klarna') || this.isMethodChecked('afterpay')) {
                 $(".totals.charge").hide();
-                this.validationError('');
-                // this.hideYouPay();
-                let countries = window.checkoutConfig.payment.airwallex_payments.klarna_support_countries;
                 if (!quote.billingAddress()) {
-                    // this.validationError($t('Billing address is required.'));
                     $body.trigger('processStop');
-                    $('.airwallex._active .checkout').addClass('disabled');
+                    this.activeCheckoutButton();
                     return false;
                 }
+
+                if (this.isMethodChecked('afterpay')) {
+                    return await this.processAfterpay();
+                }
+
+                let sourceCurrency = window.checkoutConfig.quoteData.quote_currency_code;
+                let countries = window.checkoutConfig.payment.airwallex_payments.klarna_support_countries;
                 if (Object.keys(countries).indexOf(quote.billingAddress().countryId) === -1) {
                     let msg = "Klarna is not available in your country. Please change your billing address to a " +
                         "<a target='_blank' style='color: rgba(66, 71, 77, 1); font-weight: 800; text-decoration: underline;' href='https://help.airwallex.com/hc/en-gb/articles/9514119772047-What-countries-can-I-use-Klarna-in'>compatible country</a> or choose a different payment method.";
                     this.validationError(utils.awxAlert(msg));
-                    $('.airwallex._active .checkout').addClass('disabled');
+                    this.disableCheckoutButton();
                     return false;
                 }
                 let targetCurrency = countries[quote.billingAddress().countryId];
                 let currencies = JSON.parse(window.checkoutConfig.payment.airwallex_payments.available_currencies);
-                let sourceCurrency = window.checkoutConfig.quoteData.quote_currency_code;
                 if (currencies.indexOf(sourceCurrency) === -1 || currencies.indexOf(targetCurrency) === -1) {
                     let msg = "Klarna is not available in " + sourceCurrency
                         + " for your billing country. Please use a different payment method to complete your purchase.";
                     this.validationError(utils.awxAlert(msg));
-                    $('.airwallex._active .checkout').addClass('disabled');
+                    this.disableCheckoutButton();
                     return false;
                 }
                 if (currencies.indexOf(targetCurrency) === -1) {
                     let msg = "Klarna is not available in " + targetCurrency
                         + " for your billing country. Please use a different payment method to complete your purchase.";
                     this.validationError(utils.awxAlert(msg));
-                    $('.airwallex._active .checkout').addClass('disabled');
+                    this.disableCheckoutButton();
                     return false;
                 }
-                $('.airwallex._active .checkout').removeClass('disabled');
-                if (sourceCurrency === targetCurrency) return true;
-                let msg = "<span style='color: rgba(26, 29, 33, 1); font-weight: bold;'>We have converted the currency to " + targetCurrency + " so you can use Klarna.</span>";
-                this.validationError(msg);
+                this.activeCheckoutButton();
+                if (sourceCurrency === targetCurrency) {
+                    this.validationError('');
+                    return true;
+                }
+                this.validationError(this.switcherTip(targetCurrency, 'klarna'));
 
-                let url = urlBuilder.build('rest/V1/airwallex/payments/express-data');
-                const resp = await storage.get(url, undefined, 'application/json', {});
-                let expressData = JSON.parse(resp);
+                await this.fetchExpressData();
 
-                if (targetCurrency === expressData.base_currency_code) {
+                if (targetCurrency === this.expressData.base_currency_code) {
                     this.showYouPay({
-                        payment_currency: expressData.quote_currency_code,
+                        payment_currency: this.expressData.quote_currency_code,
                         target_currency: targetCurrency,
-                        client_rate: (1/expressData.base_to_quote_rate).toFixed(4),
-                        target_amount: parseFloat(expressData.base_grand_total).toFixed(2),
+                        client_rate: (1/this.expressData.base_to_quote_rate).toFixed(4),
+                        target_amount: parseFloat(this.expressData.base_grand_total).toFixed(2),
                     });
                     return true;
                 }
                 let switcher = await storage.post(urlBuilder.build('rest/V1/airwallex/currency/switcher'), JSON.stringify({
-                    'payment_currency': expressData.quote_currency_code,
+                    'payment_currency': this.expressData.quote_currency_code,
                     'target_currency': targetCurrency,
-                    'amount': expressData.grand_total,
+                    'amount': this.expressData.grand_total,
                 }), undefined, 'application/json', {});
                 let switchers = JSON.parse(switcher);
                 this.showYouPay(switchers);
             }
             return true;
+        },
+
+        switcherTip(targetCurrency, method) {
+            let brand = 'Klarna';
+            if (method.toLowerCase() === 'afterpay' || method === 'airwallex_payments_afterpay') brand = 'Afterpay';
+            return "<span style='color: rgba(26, 29, 33, 1); font-weight: 500;'>We have converted the currency to "
+                + targetCurrency + " so you can use " + brand + ".</span>";
         },
 
         showYouPay(switchers = {}) {
@@ -199,17 +397,19 @@ define([
             $('.' + this.getCode() + ' .payment-method-billing-address').show();
             $(this.iframeSelector).hide();
             $(this.qrcodeSelector).hide();
-            $("#" + this.getCode() + '-button span').text($t('Confirm'));
+            let refreshSelector =  "#" + this.getCode() + '-button span';
+            $(refreshSelector).text($t('Confirm'));
         },
 
-        isKlarnaChecked() {
+        isMethodChecked(method) {
+            if (!method) {
+                return false;
+            }
             if (!quote.paymentMethod() || !quote.paymentMethod().method) return false;
-            return quote.paymentMethod().method === 'airwallex_payments_klarna';
+            return quote.paymentMethod().method === 'airwallex_payments_' + method.toLowerCase();
         },
 
         placeOrder: async function (data, event) {
-            this.validationError('');
-
             if (event) {
                 event.preventDefault();
             }
@@ -223,12 +423,14 @@ define([
                         $body.trigger('processStop');
                         return;
                     }
-
+                    // this.validationError('');
                     const payload = {
                         cartId: quote.getQuoteId(),
                         paymentMethod: {
-                            method: this.code,
-                            additional_data: {},
+                            method: quote.paymentMethod().method,
+                            additional_data: {
+                                "afterpay_country": localStorage.getItem('awx_afterpay_country')
+                            },
                             extension_attributes: {
                                 'agreement_ids': utils.getAgreementIds()
                             }
@@ -249,7 +451,7 @@ define([
                     let intentResponse = await utils.getIntent(payload, {});
                     let nextAction = JSON.parse(intentResponse.next_action);
                     // url qrcode_url qrcode
-                    if (this.isKlarnaChecked()) {
+                    if (this.isMethodChecked('klarna') || this.isMethodChecked('afterpay')) {
                         utils.clearDataAfterPay({}, customerData);
                         location.href = nextAction.url;
                         return;

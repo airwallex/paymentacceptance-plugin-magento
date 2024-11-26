@@ -13,4 +13,10 @@ class RedirectMethod extends AbstractMethod
     public const WECHAT_CODE = 'airwallex_payments_wechatpay';
     public const PAY_NOW_CODE = 'airwallex_payments_pay_now';
     public const KLARNA_CODE = 'airwallex_payments_klarna';
+    public const AFTERPAY_CODE = 'airwallex_payments_afterpay';
+
+    public const CURRENCY_SWITCHER_METHODS = [
+        KlarnaMethod::CODE,
+        AfterpayMethod::CODE,
+    ];
 }

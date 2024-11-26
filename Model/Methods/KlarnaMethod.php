@@ -2,9 +2,7 @@
 
 namespace Airwallex\Payments\Model\Methods;
 
-use Magento\Quote\Api\Data\CartInterface;
-
-class KlarnaMethod extends CardMethod
+class KlarnaMethod extends RedirectCurrencySwitcherMethod
 {
     public const CODE = 'airwallex_payments_klarna';
 
@@ -50,17 +48,4 @@ class KlarnaMethod extends CardMethod
         'SE' => ['sv'],
         'US' => ['es'],
     ];
-
-    public function isAvailable(CartInterface $quote = null): bool
-    {
-        $codes = $this->availablePaymentMethodsHelper->getLatestItems(false);
-        $code = $this->getPaymentMethodCode($this->getCode());
-        foreach ($codes as $codeItem) {
-            if (!empty($codeItem['name']) && $codeItem['name'] === $code) {
-                return true;
-            }
-        }
-
-        return false;
-    }
 }

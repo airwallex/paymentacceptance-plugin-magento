@@ -81,7 +81,7 @@ class PaymentIntents
 //        }
 //        $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($uid);
 //        $create = $from === 'card_with_saved' ? $create->setAirwallexCustomerId($airwallexCustomerId) : $create->setCustomer($email, $phone);
-        $create = $this->paymentIntentsCreate->setOrder($order, $paymentMethod, $this->urlInterface->getUrl('checkout#payment'));
+        $create = $this->paymentIntentsCreate->setOrder($order, $paymentMethod, $this->urlInterface->getUrl('airwallex/redirect'));
         $intent = $create->setCustomer($email, $phone)->send();
 
         $products = $this->getProducts($order);

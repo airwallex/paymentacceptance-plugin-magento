@@ -4,9 +4,11 @@ namespace Airwallex\Payments\Model\Client\Request\PaymentIntents;
 
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
+use Airwallex\Payments\Model\Methods\AfterpayMethod;
 use Airwallex\Payments\Model\Methods\KlarnaMethod;
+use Airwallex\Payments\Model\Methods\RedirectMethod;
 use Airwallex\Payments\Model\Traits\HelperTrait;
-use Exception;
+use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Quote\Api\Data\PaymentInterface;
@@ -46,18 +48,22 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
      * @param string $returnUrl
      *
      * @return Create
+     * @throws GuzzleException
+     * @throws JsonException
      * @throws LocalizedException
      */
     public function setOrder(Order $order, PaymentInterface $paymentMethod, string $returnUrl): self
     {
         $products = $this->getProducts($order);
-        $products[] = [
-            'code' => 0,
-            'name' => 'fake-product',
-            'quantity' => 1,
-            'sku' => 'fake-product',
-            'unit_price' => $this->getAmount($order, $paymentMethod),
-        ];
+        if ($paymentMethod->getMethod() === KlarnaMethod::CODE) {
+            $products[] = [
+                'code' => 0,
+                'name' => 'fake-product',
+                'quantity' => 1,
+                'sku' => 'fake-product',
+                'unit_price' => $this->getAmount($order, $paymentMethod),
+            ];
+        }
         $params = [
             'amount' => $this->getAmount($order, $paymentMethod),
             'currency' => $this->getCurrency($order, $paymentMethod),
@@ -72,14 +78,44 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
     }
 
     /**
+     * @param Order $order
+     * @param PaymentInterface $paymentMethod
+     * @return float|string|null
+     * @throws JsonException
      * @throws LocalizedException
+     * @throws GuzzleException
      */
     public function getCurrency(Order $order, PaymentInterface $paymentMethod)
     {
-        if ($paymentMethod->getMethod() !== KlarnaMethod::CODE) return $order->getOrderCurrencyCode();
-        $this->testPaymentMethod($order);
+        if (!in_array($paymentMethod->getMethod(), RedirectMethod::CURRENCY_SWITCHER_METHODS, true)) return $order->getOrderCurrencyCode();
         $country = $order->getBillingAddress()->getCountryId();
-        return KlarnaMethod::SUPPORTED_COUNTRY_TO_CURRENCY[$country];
+        if ($paymentMethod->getMethod() === KlarnaMethod::CODE) {
+            $this->testPaymentMethod($order);
+            return KlarnaMethod::SUPPORTED_COUNTRY_TO_CURRENCY[$country];
+        }
+        $account = $this->account();
+        $arr = json_decode($account, true);
+        $entity = $arr['entity'];
+        if (!isset(AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY[$entity])) {
+            throw new LocalizedException(__('The selected payment method is not supported.'));
+        }
+        if (in_array($order->getOrderCurrencyCode(), AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY[$entity], true)) {
+            return $order->getOrderCurrencyCode();
+        }
+        if (in_array($order->getBaseCurrencyCode(), AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY[$entity], true)) {
+            return $order->getBaseCurrencyCode();
+        }
+        if (count(AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY[$entity]) === 1) return AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY[$entity][0];
+        $currency = AfterpayMethod::SUPPORTED_COUNTRY_TO_CURRENCY[$country] ?? '';
+        if (empty($currency)) {
+            $afterpayCountry = $paymentMethod->getAdditionalData()['afterpay_country'] ?? '';
+            if ($afterpayCountry === 'GB') $afterpayCountry = 'UK';
+            $currency = AfterpayMethod::SUPPORTED_COUNTRY_TO_CURRENCY[$afterpayCountry] ?? '';
+        }
+        if (empty($currency)) {
+            throw new LocalizedException(__('The selected afterpay country is not supported.'));
+        }
+        return $currency;
     }
 
     /**
@@ -94,13 +130,16 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
     }
 
     /**
+     * @param Order $order
+     * @param PaymentInterface $paymentMethod
+     * @return float|mixed|null
+     * @throws GuzzleException
+     * @throws JsonException
      * @throws LocalizedException
-     * @throws Exception
      */
     public function getAmount(Order $order, PaymentInterface $paymentMethod)
     {
-        if ($paymentMethod->getMethod() !== KlarnaMethod::CODE) return $order->getGrandTotal();
-        $this->testPaymentMethod($order);
+        if (!in_array($paymentMethod->getMethod(), RedirectMethod::CURRENCY_SWITCHER_METHODS, true)) return $order->getGrandTotal();
         if ($order->getOrderCurrencyCode() === $this->getCurrency($order, $paymentMethod)) {
             return $order->getGrandTotal();
         }

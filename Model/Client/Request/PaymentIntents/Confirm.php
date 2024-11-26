@@ -11,10 +11,6 @@ use Psr\Http\Message\ResponseInterface;
 
 class Confirm extends AbstractClient implements BearerAuthenticationInterface
 {
-    private const DESKTOP_FLOW = 'webqr';
-    private const MOBILE_FLOW = 'mweb';
-    private const WECHAT_FLOW = 'jsapi';
-
     /**
      * @var string
      */
@@ -32,13 +28,17 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
         return $this;
     }
 
-    private function getLanguageCode($countryCode): string
+    private function getLanguageCode($countryCode, $method): string
     {
+        if (!in_array($method, ['klarna', 'afterpay'], true)) return 'en';
         if (empty($_SERVER['HTTP_ACCEPT_LANGUAGE'])) return 'en';
         $languages = explode(',', $_SERVER['HTTP_ACCEPT_LANGUAGE']);
         $lang = $languages[0];
         if ($lang === 'zh-TW') {
             $lang = 'zh-HK';
+        }
+        if ($method === 'afterpay') {
+            return $lang;
         }
         if (in_array($lang, KlarnaMethod::COUNTRY_LANGUAGE[$countryCode], true)) {
             return $lang;
@@ -57,10 +57,11 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
             'type' => $method,
         ];
 
-        if ($method === 'klarna') {
+        if (in_array($method, ['klarna', 'afterpay'], true)) {
             $countryCode = $address->getCountryId();
-            $data['klarna'] = [
+            $data[$method] = [
                 'country_code' => $countryCode,
+                'shopper_email' => $address->getEmail(),
                 'billing' => [
                     'address' => [
                         "country_code" => $countryCode,
@@ -72,8 +73,11 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
                     'email' => $address->getEmail(),
                     'first_name' => $address->getFirstName(),
                     'last_name' => $address->getLastname(),
+                    "phone_number" => $address->getTelephone(),
                 ],
-                'language' => $this->getLanguageCode($countryCode),
+                "shopper_phone" => $address->getTelephone(),
+                'language' => $this->getLanguageCode($countryCode, $method),
+                'flow' => 'qrcode',
             ];
         } else if ($method !== 'pay_now') {
             $data[$method] = [
