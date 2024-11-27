@@ -107,7 +107,7 @@ define([
         showPayafterCountries() {
             let that = this;
             let html = `
-                <div style="font-weight: 700;">Confirm your billing address to use Afterpay</div>
+                <div style="font-weight: 700;">Choose your Afterpay account region</div>
                 <div style="margin: 10px 0;">If you don’t have an account yet, choose the region that you will create your account from. </div>
                 <div class="awx-afterpay-countries">
                 <div class="input-icon">
@@ -227,7 +227,7 @@ define([
             const accountResp = await storage.get(accountUrl, undefined, 'application/json', {});
             let accountData = JSON.parse(accountResp);
             let entity = accountData.entity;
-            if (entity !== 'AIRWALLET_HK') {
+            if (entity !== 'AIRWALLEX_HK') {
                 $(".awx-billing-confirm-tip").hide();
             } else {
                 $(".awx-billing-confirm-tip").show();
