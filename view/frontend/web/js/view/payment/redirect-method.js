@@ -43,6 +43,7 @@ define([
         iframeSelector: "._active .qrcode-payment .iframe",
         qrcodeSelector: "._active .qrcode-payment .qrcode",
         expressData: {},
+        oldBillingAddress: '',
 
         defaults: {
             timer: null,
@@ -53,18 +54,32 @@ define([
             return newMethod && newMethod.method.indexOf('airwallex_') === 0;
         },
 
+        isSwitcherMethod() {
+            return this.isMethodChecked('afterpay') || this.isMethodChecked('klarna');
+        },
+
         initialize: async function () {
             this._super();
             if (!window.awxMonitorBillingAddress) {
-                quote.billingAddress.subscribe((newAddress) => {
-                    if (window.awxBillingAddress === JSON.stringify(newAddress)) return;
+                window.awxMonitorBillingAddress = true;
+                quote.billingAddress.subscribe(async (newAddress) => {
+                    if (JSON.stringify(newAddress) === JSON.stringify(this.oldBillingAddress)) {
+                        return;
+                    }
+                    this.oldBillingAddress = newAddress;
+                    $(".awx-afterpay-countries-component").html('');
                     this.validationError('');
                     this.hideYouPay();
-                    this.testPaymentMethod();
+                    if (this.isSwitcherMethod()) await this.testPaymentMethod();
                     $('body').trigger('processStop');
                     window.awxBillingAddress = JSON.stringify(newAddress);
+                    if (this.isAirwallexPayment(quote.paymentMethod()) && !newAddress) {
+                        this.disableCheckoutButton();
+                    } else {
+                        this.activeCheckoutButton();
+                    }
                 });
-                quote.paymentMethod.subscribe((newMethod) => {
+                quote.paymentMethod.subscribe(async (newMethod) => {
                     if (this.isAirwallexPayment(newMethod)) {
                         $(".awx-afterpay-countries-component").html('');
                         $(".totals.charge").hide();
@@ -78,10 +93,9 @@ define([
                     }
                     this.hideYouPay();
                     this.validationError('');
-                    this.testPaymentMethod();
+                    await this.testPaymentMethod();
                     $('body').trigger('processStop');
                 });
-                window.awxMonitorBillingAddress = true;
             }
         },
 
@@ -91,6 +105,7 @@ define([
         },
 
         showPayafterCountries() {
+            let that = this;
             let html = `
                 <div style="font-weight: 700;">Confirm your billing address to use Afterpay</div>
                 <div style="margin: 10px 0;">If you don’t have an account yet, choose the region that you will create your account from. </div>
@@ -134,7 +149,7 @@ define([
                 let country = localStorage.getItem("awx_afterpay_country");
                 if ($(this).data("value") === country) {
                     $(".awx-afterpay-countries input").val($(this).html());
-                    this.activeCheckoutButton();
+                    that.activeCheckoutButton();
                 }
             });
             $input.off('focus').on('focus', function () {
@@ -152,7 +167,6 @@ define([
             $input.off('blur').on('blur', function () {
                 $(".awx-afterpay-countries .countries").fadeOut(300);
             });
-            let that = this;
             $li.off('click').on('click', async function () {
                 $(".awx-afterpay-countries input").val($(this).html());
                 localStorage.setItem("awx_afterpay_country", $(this).data("value"));
@@ -160,10 +174,9 @@ define([
                     $(this).removeClass("selected");
                 });
                 let $body = $('body');
-                $body.trigger('processStart');
-                console.log(that.countryToCurrency, $(this).data("value"))
                 const countryToCurrency = window.checkoutConfig.payment.airwallex_payments.afterpay_support_countries;
-                let targetCurrency = countryToCurrency[$(this).data("value")];
+                let country = $(this).data("value");
+                let targetCurrency = countryToCurrency[country];
                 let switcher = await storage.post(urlBuilder.build('rest/V1/airwallex/currency/switcher'), JSON.stringify({
                     'payment_currency': that.expressData.quote_currency_code,
                     'target_currency': targetCurrency,
@@ -259,12 +272,10 @@ define([
                     }
                     targetCurrency = entityToCurrency[entity][0];
                 } else {
-                    if (country === 'UK') country = 'GB';
                     targetCurrency = countryToCurrency[country];
                 }
             }
             let $body = $('body');
-            $body.trigger('processStart');
 
             let switcher = await storage.post(urlBuilder.build('rest/V1/airwallex/currency/switcher'), JSON.stringify({
                 'payment_currency': this.expressData.quote_currency_code,
@@ -298,6 +309,7 @@ define([
                 }
 
                 if (this.isMethodChecked('afterpay')) {
+                    $body.trigger('processStart');
                     return await this.processAfterpay();
                 }
 
@@ -358,7 +370,7 @@ define([
         switcherTip(targetCurrency, method) {
             let brand = 'Klarna';
             if (method.toLowerCase() === 'afterpay' || method === 'airwallex_payments_afterpay') brand = 'Afterpay';
-            return "<span style='color: rgba(26, 29, 33, 1); font-weight: 500;'>We have converted the currency to "
+            return "<span style='color: rgba(26, 29, 33, 1); font-weight: 600;'>We have converted the currency to "
                 + targetCurrency + " so you can use " + brand + ".</span>";
         },
 

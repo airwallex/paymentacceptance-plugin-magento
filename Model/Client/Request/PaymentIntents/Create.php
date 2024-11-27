@@ -89,6 +89,7 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
     {
         if (!in_array($paymentMethod->getMethod(), RedirectMethod::CURRENCY_SWITCHER_METHODS, true)) return $order->getOrderCurrencyCode();
         $country = $order->getBillingAddress()->getCountryId();
+        if ($country === "GB") $country = "UK";
         if ($paymentMethod->getMethod() === KlarnaMethod::CODE) {
             $this->testPaymentMethod($order);
             return KlarnaMethod::SUPPORTED_COUNTRY_TO_CURRENCY[$country];
@@ -124,6 +125,7 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
     private function testPaymentMethod(Order $order)
     {
         $country = $order->getBillingAddress()->getCountryId();
+        if ($country === "GB") $country = "UK";
         if (!in_array($country, array_keys(KlarnaMethod::SUPPORTED_COUNTRY_TO_CURRENCY), true)) {
             throw new LocalizedException(__('Klarna is not available in your country. Please change your billing address to a compatible country or choose a different payment method.'));
         }

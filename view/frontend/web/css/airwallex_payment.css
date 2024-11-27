@@ -389,9 +389,7 @@
 .awx-afterpay-countries input {
     height: 40px;
     padding: 8px 16px 8px 16px;
-    gap: 8px;
     border-radius: 5px;
-    opacity: 0;
     box-sizing: border-box;
     background: rgba(250, 250, 251, 1);
     border: 1px solid rgba(232, 234, 237, 1);
