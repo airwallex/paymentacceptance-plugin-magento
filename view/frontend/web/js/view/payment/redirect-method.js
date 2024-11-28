@@ -254,8 +254,10 @@ define([
             }
 
             let targetCurrency;
-            if (quote.billingAddress() && countryToCurrency[quote.billingAddress().countryId]) {
-                targetCurrency = countryToCurrency[quote.billingAddress().countryId];
+            let cId = quote.billingAddress() ? quote.billingAddress().countryId : '';
+            if (cId === 'GB') cId = 'UK';
+            if (countryToCurrency[cId]) {
+                targetCurrency = countryToCurrency[cId];
                 if (entityToCurrency[entity].indexOf(targetCurrency) === -1) {
                     targetCurrency = '';
                 }
