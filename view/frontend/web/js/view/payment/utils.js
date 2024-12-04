@@ -378,7 +378,7 @@ define([
         },
 
         isLoggedIn() {
-            if (window.checkoutConfig) {
+            if (customer && customer.isLoggedIn) {
                 return customer.isLoggedIn();
             }
             return !!this.expressData.customer_id;

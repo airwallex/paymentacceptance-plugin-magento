@@ -112,7 +112,7 @@ class PayEnable extends Action
         $resultJson = $this->resultJsonFactory->create();
         $methods = $this->request->getParam('methods');
         $host = $this->getHost();
-        $types = $this->availablePaymentMethodsHelper->getLatestItems();
+        $types = $this->availablePaymentMethodsHelper->getLatestItems(false);
         $isApplePayActive = false;
         $isGooglePayActive = false;
         if (empty($methods)) {
