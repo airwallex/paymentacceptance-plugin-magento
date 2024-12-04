@@ -70,10 +70,13 @@ define([
                     $(".awx-afterpay-countries-component").html('');
                     this.validationError('');
                     this.hideYouPay();
-                    if (this.isSwitcherMethod()) await this.testPaymentMethod();
+                    let passed = true;
+                    if (this.isSwitcherMethod()) {
+                        passed = await this.testPaymentMethod();
+                    }
                     $('body').trigger('processStop');
                     window.awxBillingAddress = JSON.stringify(newAddress);
-                    if (this.isAirwallexPayment(quote.paymentMethod()) && !newAddress) {
+                    if (!passed || (this.isAirwallexPayment(quote.paymentMethod()) && !newAddress)) {
                         this.disableCheckoutButton();
                     } else {
                         this.activeCheckoutButton();
@@ -317,7 +320,7 @@ define([
                 $(".totals.charge").hide();
                 if (!quote.billingAddress()) {
                     $body.trigger('processStop');
-                    this.activeCheckoutButton();
+                    this.disableCheckoutButton();
                     return false;
                 }
 
