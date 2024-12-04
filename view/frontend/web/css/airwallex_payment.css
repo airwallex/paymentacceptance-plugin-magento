@@ -373,8 +373,10 @@
     justify-content: end;
     position: absolute;
     right: 0;
-
-    top: 17px;
+    width: 50px;
+    padding-top: 17px;
+    padding-bottom: 17px;
+    cursor: pointer;
 }
 
 .input-icon svg {
