@@ -180,7 +180,7 @@ define([
                 const countryToCurrency = window.checkoutConfig.payment.airwallex_payments.afterpay_support_countries;
                 let country = $(this).data("value");
                 let targetCurrency = countryToCurrency[country];
-                let switchers = await this.switcher(that.expressData.quote_currency_code, targetCurrency, that.expressData.grand_total);
+                let switchers = await that.switcher(that.expressData.quote_currency_code, targetCurrency, that.expressData.grand_total);
                 that.validationError(that.switcherTip(targetCurrency, 'afterpay'));
                 that.showYouPay(switchers);
                 that.activeCheckoutButton();
