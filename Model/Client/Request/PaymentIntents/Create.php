@@ -96,7 +96,7 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
         }
         $account = $this->account();
         $arr = json_decode($account, true);
-        $entity = $arr['entity'];
+        $entity = $arr['owningEntity'];
         if (!isset(AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY[$entity])) {
             throw new LocalizedException(__('The selected payment method is not supported.'));
         }
