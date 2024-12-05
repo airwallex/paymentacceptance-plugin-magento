@@ -378,7 +378,7 @@ define([
         },
 
         isLoggedIn() {
-            if (this.isCheckoutPage()) {
+            if (!this.isCheckoutPage()) {
                 return !!this.expressData.customer_id;
             }
             return customer.isLoggedIn();
