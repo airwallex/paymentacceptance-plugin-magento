@@ -63,6 +63,12 @@ define([
             this._super();
             if (!window.awxMonitorBillingAddress) {
                 window.awxMonitorBillingAddress = true;
+
+                quote.totals.subscribe(async (newValue) => {
+                    await this.testPaymentMethod();
+                    $('body').trigger('processStop');
+                });
+
                 quote.billingAddress.subscribe(async (newAddress) => {
                     if (JSON.stringify(newAddress) === JSON.stringify(this.oldBillingAddress)) {
                         return;
