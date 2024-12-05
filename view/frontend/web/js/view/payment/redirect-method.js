@@ -277,19 +277,18 @@ define([
             }
             let $body = $('body');
             if (!targetCurrency) {
-                this.showPayafterCountries();
-                let country = localStorage.getItem(this.afterpayCountryKey);
-                if (!country || country === 'undefined') {
-                    if (entityToCurrency[entity].length !== 1) {
-                        if (!localStorage.getItem(this.afterpayCountryKey)) {
-                            this.disableCheckoutButton();
-                        }
+                if (entityToCurrency[entity].length !== 1) {
+                    this.showPayafterCountries();
+                    let country = localStorage.getItem(this.afterpayCountryKey);
+                    if (!country || country === 'undefined') {
                         $body.trigger('processStop');
+                        this.disableCheckoutButton();
                         return false;
+                    } else {
+                        targetCurrency = countryToCurrency[country];
                     }
-                    targetCurrency = entityToCurrency[entity][0];
                 } else {
-                    targetCurrency = countryToCurrency[country];
+                    targetCurrency = entityToCurrency[entity][0];
                 }
             }
 
