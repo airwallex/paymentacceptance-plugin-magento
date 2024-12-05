@@ -44,6 +44,7 @@ define([
         qrcodeSelector: "._active .qrcode-payment .qrcode",
         expressData: {},
         oldBillingAddress: '',
+        afterpayCountryKey: 'awx_afterpay_country',
 
         defaults: {
             timer: null,
@@ -70,21 +71,11 @@ define([
                     $(".awx-afterpay-countries-component").html('');
                     this.validationError('');
                     this.hideYouPay();
-                    let passed = true;
-                    if (this.isSwitcherMethod()) {
-                        passed = await this.testPaymentMethod();
-                    }
+                    await this.testPaymentMethod();
                     $('body').trigger('processStop');
-                    window.awxBillingAddress = JSON.stringify(newAddress);
-                    if (!passed || (this.isAirwallexPayment(quote.paymentMethod()) && !newAddress)) {
-                        this.disableCheckoutButton();
-                    } else {
-                        this.activeCheckoutButton();
-                    }
                 });
                 quote.paymentMethod.subscribe(async (newMethod) => {
                     if (this.isAirwallexPayment(newMethod)) {
-                        $(".awx-afterpay-countries-component").html('');
                         $(".totals.charge").hide();
                         if (this.isMethodChecked('afterpay')) {
                             $(".awx-billing-confirm-tip").hide();
@@ -94,12 +85,14 @@ define([
                     } else {
                         $(".totals.charge").show();
                     }
+                    $(".awx-afterpay-countries-component").html('');
                     this.hideYouPay();
                     this.validationError('');
                     await this.testPaymentMethod();
                     $('body').trigger('processStop');
                 });
-                await this.testPaymentMethod();
+                // await this.testPaymentMethod();
+                // $('body').trigger('processStop');
             }
         },
 
@@ -150,7 +143,7 @@ define([
             let $li = $(".awx-afterpay-countries li");
             let $input = $(".awx-afterpay-countries input");
             $li.each(function () {
-                let country = localStorage.getItem("awx_afterpay_country");
+                let country = localStorage.getItem(that.afterpayCountryKey);
                 if ($(this).data("value") === country) {
                     $(".awx-afterpay-countries input").val($(this).html());
                     that.activeCheckoutButton();
@@ -158,14 +151,14 @@ define([
             });
             let showCountries = function () {
                 $(".awx-afterpay-countries .countries").fadeIn(300);
-                let country = localStorage.getItem("awx_afterpay_country");
+                let country = localStorage.getItem(that.afterpayCountryKey);
                 if (country) {
-                  $(".awx-afterpay-countries li").each(function () {
-                    $(this).removeClass("selected");
-                    if ($(this).data("value") === country) {
-                      $(this).addClass("selected");
-                    }
-                  });
+                    $(".awx-afterpay-countries li").each(function () {
+                        $(this).removeClass("selected");
+                        if ($(this).data("value") === country) {
+                            $(this).addClass("selected");
+                        }
+                    });
                 }
             };
             $input.off('focus').on('focus', showCountries);
@@ -179,7 +172,7 @@ define([
                 $('.awx-you-pay').hide();
                 $body.trigger('processStart');
                 $(".awx-afterpay-countries input").val($(this).html());
-                localStorage.setItem("awx_afterpay_country", $(this).data("value"));
+                localStorage.setItem(that.afterpayCountryKey, $(this).data("value"));
                 $(".awx-afterpay-countries li").each(function () {
                     $(this).removeClass("selected");
                 });
@@ -187,44 +180,46 @@ define([
                 const countryToCurrency = window.checkoutConfig.payment.airwallex_payments.afterpay_support_countries;
                 let country = $(this).data("value");
                 let targetCurrency = countryToCurrency[country];
-                let switcher = await storage.post(urlBuilder.build('rest/V1/airwallex/currency/switcher'), JSON.stringify({
-                    'payment_currency': that.expressData.quote_currency_code,
-                    'target_currency': targetCurrency,
-                    'amount': that.expressData.grand_total,
-                }), undefined, 'application/json', {});
-                let switchers = JSON.parse(switcher);
+                let switchers = await this.switcher(that.expressData.quote_currency_code, targetCurrency, that.expressData.grand_total);
                 that.validationError(that.switcherTip(targetCurrency, 'afterpay'));
                 that.showYouPay(switchers);
-                if (localStorage.getItem('awx_afterpay_country')) {
-                    that.activeCheckoutButton();
-                }
+                that.activeCheckoutButton();
                 $body.trigger('processStop');
             });
+        },
+
+        async switcher(payment_currency, target_currency, amount) {
+            let res = await storage.post(urlBuilder.build('rest/V1/airwallex/currency/switcher'), JSON.stringify({
+                'payment_currency': payment_currency,
+                'target_currency': target_currency,
+                'amount': amount,
+            }), undefined, 'application/json', {});
+            return JSON.parse(res);
         },
 
         getDisplayName() {
             let name = this.getCode();
             let arr = {
-                'airwallex_payments_alipaycn': 'Alipay CN',
-                'airwallex_payments_alipayhk': 'Alipay HK',
-                'airwallex_payments_pay_now': 'PayNow',
-                'airwallex_payments_dana': 'DANA',
-                'airwallex_payments_kakaopay': 'Kakao Pay',
-                'airwallex_payments_tng': 'Touch \'n Go',
-                'airwallex_payments_klarna': 'Klarna',
-                'airwallex_payments_afterpay': 'Afterpay',
+                "airwallex_payments_alipaycn": "Alipay CN",
+                "airwallex_payments_alipayhk": "Alipay HK",
+                "airwallex_payments_pay_now": "PayNow",
+                "airwallex_payments_dana": "DANA",
+                "airwallex_payments_kakaopay": "Kakao Pay",
+                "airwallex_payments_tng": "Touch 'n Go",
+                "airwallex_payments_klarna": "Klarna",
+                "airwallex_payments_afterpay": "Afterpay",
             };
             return arr[name];
         },
 
         isShowQRTip() {
-            return ['airwallex_payments_klarna', 'airwallex_payments_afterpay', ].indexOf(this.code) === -1;
+            return ['airwallex_payments_klarna', 'airwallex_payments_afterpay',].indexOf(this.code) === -1;
         },
 
         hideBillingAddress() {
             $('.' + this.getCode() + ' button.editing').show();
             $('.' + this.getCode() + ' .payment-method-billing-address').hide();
-            let refreshSelector =  "#" + this.getCode() + '-button span';
+            let refreshSelector = "#" + this.getCode() + '-button span';
             $(refreshSelector).text($t('Refresh QR code'));
         },
 
@@ -234,12 +229,17 @@ define([
             this.expressData = JSON.parse(resp);
         },
 
-        async processAfterpay() {
-            this.activeCheckoutButton();
+        async fetchEntity() {
             let accountUrl = urlBuilder.build('rest/V1/airwallex/account');
             const accountResp = await storage.get(accountUrl, undefined, 'application/json', {});
             let accountData = JSON.parse(accountResp);
-            let entity = accountData.entity;
+            return accountData.owningEntity;
+        },
+
+        async processAfterpay() {
+            let that = this;
+            this.activeCheckoutButton();
+            let entity = await this.fetchEntity();
             if (entity !== 'AIRWALLEX_HK') {
                 $(".awx-billing-confirm-tip").hide();
             } else {
@@ -260,7 +260,7 @@ define([
                 this.showYouPay({
                     payment_currency: this.expressData.quote_currency_code,
                     target_currency: this.expressData.base_currency_code,
-                    client_rate: (1/this.expressData.base_to_quote_rate).toFixed(4),
+                    client_rate: (1 / this.expressData.base_to_quote_rate).toFixed(4),
                     target_amount: parseFloat(this.expressData.base_grand_total).toFixed(2),
                 });
                 return true;
@@ -277,11 +277,11 @@ define([
             }
             let $body = $('body');
             if (!targetCurrency) {
-                let country = localStorage.getItem('awx_afterpay_country');
                 this.showPayafterCountries();
+                let country = localStorage.getItem(this.afterpayCountryKey);
                 if (!country || country === 'undefined') {
                     if (entityToCurrency[entity].length !== 1) {
-                        if (!localStorage.getItem('awx_afterpay_country')) {
+                        if (!localStorage.getItem(this.afterpayCountryKey)) {
                             this.disableCheckoutButton();
                         }
                         $body.trigger('processStop');
@@ -293,12 +293,7 @@ define([
                 }
             }
 
-            let switcher = await storage.post(urlBuilder.build('rest/V1/airwallex/currency/switcher'), JSON.stringify({
-                'payment_currency': this.expressData.quote_currency_code,
-                'target_currency': targetCurrency,
-                'amount': this.expressData.grand_total,
-            }), undefined, 'application/json', {});
-            let switchers = JSON.parse(switcher);
+            let switchers = await this.switcher(that.expressData.quote_currency_code, targetCurrency, that.expressData.grand_total);
             this.validationError(this.switcherTip(targetCurrency, 'afterpay'));
             this.showYouPay(switchers);
             $body.trigger('processStop');
@@ -315,8 +310,9 @@ define([
 
         testPaymentMethod: async function () {
             let $body = $('body');
+            $body.trigger('processStart');
 
-            if (this.isMethodChecked('klarna') || this.isMethodChecked('afterpay')) {
+            if (this.isSwitcherMethod()) {
                 $(".totals.charge").hide();
                 if (!quote.billingAddress()) {
                     $body.trigger('processStop');
@@ -325,7 +321,6 @@ define([
                 }
 
                 if (this.isMethodChecked('afterpay')) {
-                    $body.trigger('processStart');
                     return await this.processAfterpay();
                 }
 
@@ -367,17 +362,13 @@ define([
                     this.showYouPay({
                         payment_currency: this.expressData.quote_currency_code,
                         target_currency: targetCurrency,
-                        client_rate: (1/this.expressData.base_to_quote_rate).toFixed(4),
+                        client_rate: (1 / this.expressData.base_to_quote_rate).toFixed(4),
                         target_amount: parseFloat(this.expressData.base_grand_total).toFixed(2),
                     });
                     return true;
                 }
-                let switcher = await storage.post(urlBuilder.build('rest/V1/airwallex/currency/switcher'), JSON.stringify({
-                    'payment_currency': this.expressData.quote_currency_code,
-                    'target_currency': targetCurrency,
-                    'amount': this.expressData.grand_total,
-                }), undefined, 'application/json', {});
-                let switchers = JSON.parse(switcher);
+                let that = this;
+                let switchers = await this.switcher(that.expressData.quote_currency_code, targetCurrency, that.expressData.grand_total);
                 this.showYouPay(switchers);
             }
             return true;
@@ -425,7 +416,7 @@ define([
             $('.' + this.getCode() + ' .payment-method-billing-address').show();
             $(this.iframeSelector).hide();
             $(this.qrcodeSelector).hide();
-            let refreshSelector =  "#" + this.getCode() + '-button span';
+            let refreshSelector = "#" + this.getCode() + '-button span';
             $(refreshSelector).text($t('Confirm'));
         },
 
@@ -457,7 +448,7 @@ define([
                         paymentMethod: {
                             method: quote.paymentMethod().method,
                             additional_data: {
-                                "afterpay_country": localStorage.getItem('awx_afterpay_country')
+                                "afterpay_country": localStorage.getItem(this.afterpayCountryKey)
                             },
                             extension_attributes: {
                                 'agreement_ids': utils.getAgreementIds()
@@ -479,7 +470,7 @@ define([
                     let intentResponse = await utils.getIntent(payload, {});
                     let nextAction = JSON.parse(intentResponse.next_action);
                     // url qrcode_url qrcode
-                    if (this.isMethodChecked('klarna') || this.isMethodChecked('afterpay')) {
+                    if (this.isSwitcherMethod()) {
                         utils.clearDataAfterPay({}, customerData);
                         location.href = nextAction.url;
                         return;
