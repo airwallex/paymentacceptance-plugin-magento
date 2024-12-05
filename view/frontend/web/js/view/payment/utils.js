@@ -378,10 +378,10 @@ define([
         },
 
         isLoggedIn() {
-            if (customer && customer.isLoggedIn) {
-                return customer.isLoggedIn();
+            if (this.isCheckoutPage()) {
+                return !!this.expressData.customer_id;
             }
-            return !!this.expressData.customer_id;
+            return customer.isLoggedIn();
         },
 
         placeOrderUrl() {
