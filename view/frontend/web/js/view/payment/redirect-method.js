@@ -531,9 +531,14 @@ define([
                     }
                     $body.trigger('processStop');
                     return;
+                } finally {
+                    if (!this.isSwitcherMethod()) {
+                        $body.trigger('processStop');
+                    }
                 }
                 return true;
             }
+
             return false;
         },
 
