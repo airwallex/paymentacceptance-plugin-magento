@@ -20,7 +20,11 @@ class Account extends AbstractClient implements BearerAuthenticationInterface
 
     protected function getBaseUrl(): string
     {
-        return str_replace('pci-', '', $this->configuration->getApiUrl());
+        $url = 'https://www.airwallex.com/payment_app/plugin/api/v1/';
+        if ($this->configuration->isDemoMode()) {
+            $url = 'https://demo.airwallex.com/payment_app/plugin/api/v1/';
+        }
+        return $url;
     }
 
     protected function parseResponse(ResponseInterface $response): string

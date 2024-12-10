@@ -185,12 +185,7 @@ trait HelperTrait
      */
     public function account(): string
     {
-//        $content = ObjectManager::getInstance()->get(Account::class)->send();
-//        $arr = json_decode($content, true);
-        return json_encode([
-            // 'entity' => $arr['account_details']['legal_entity_id'] ?? ''
-            'owningEntity' => 'AIRWALLEX_HK'  // todo
-        ]);
+        return ObjectManager::getInstance()->get(Account::class)->send();
     }
 
     /**
