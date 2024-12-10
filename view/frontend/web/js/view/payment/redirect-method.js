@@ -244,8 +244,18 @@ define([
 
         async processAfterpay() {
             let that = this;
+            let $body = $('body');
             this.activeCheckoutButton();
-            let entity = await this.fetchEntity();
+            let entity;
+            try {
+                entity = await this.fetchEntity();
+            } catch (e) {
+                console.log(e);
+                if (e && e.responseJSON && e.responseJSON.message) this.validationError(e.responseJSON.message);
+                this.disableCheckoutButton();
+                $body.trigger('processStop');
+                return false;
+            }
             if (entity !== 'AIRWALLEX_HK') {
                 $(".awx-billing-confirm-tip").hide();
             } else {
@@ -281,7 +291,6 @@ define([
                     targetCurrency = '';
                 }
             }
-            let $body = $('body');
             if (!targetCurrency) {
                 if (entityToCurrency[entity].length !== 1) {
                     this.showPayafterCountries();
