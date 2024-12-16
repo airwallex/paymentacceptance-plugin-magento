@@ -36,6 +36,7 @@ define(
                 buttonSort: ko.observableArray([]),
                 isShowRecaptcha: ko.observable(false),
                 guestEmail: "",
+                amount: 0
             },
 
             setGuestEmail(email) {
@@ -48,7 +49,6 @@ define(
 
             methodsObjects() {
                 return [addressHandler, applepay, googlepay];
-
             },
 
             async fetchExpressData() {
@@ -166,6 +166,25 @@ define(
                     return;
                 }
                 this.createPays();
+
+                if (utils.isCheckoutPage()) {
+                    let quote = require('Magento_Checkout/js/model/quote');
+                    quote.totals.subscribe(async (newValue) => {
+                        let old = this.amount;
+                        this.amount = newValue.grand_total;
+                        if (!old) {
+                            return;
+                        }
+
+                        if (Math.abs(old - this.amount) >= 0.01) {
+                            $('body').trigger('processStart');
+                            this.destroyElement();
+                            await this.fetchExpressData();
+                            this.createPays();
+                            $('body').trigger('processStop');
+                        }
+                    });
+                }
             },
 
             initHashPaymentEvent() {

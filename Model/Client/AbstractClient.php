@@ -117,7 +117,7 @@ abstract class AbstractClient
     public function send()
     {
         $data = [
-            'base_uri' => $this->configuration->getApiUrl(),
+            'base_uri' => $this->getBaseUrl(),
             'timeout' => self::TIME_OUT,
         ];
         if ($this->getMethod() !== 'GET') {
@@ -145,6 +145,11 @@ abstract class AbstractClient
         }
 
         return $this->parseResponse($request);
+    }
+
+    protected function getBaseUrl(): string
+    {
+        return $this->configuration->getApiUrl();
     }
 
     /**

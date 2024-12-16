@@ -18,6 +18,7 @@ use Magento\ReCaptchaUi\Block\ReCaptcha;
 use Magento\ReCaptchaUi\Model\IsCaptchaEnabledInterface;
 use Magento\Customer\Api\CustomerRepositoryInterface;
 use Airwallex\Payments\Model\Client\Request\RetrieveCustomer;
+use Airwallex\Payments\Model\Methods\AfterpayMethod;
 use Exception;
 use JsonException;
 
@@ -131,6 +132,8 @@ class ConfigProvider implements ConfigProviderInterface
                     'card_max_width' => $this->configuration->getCardMaxWidth(),
                     'card_fontsize' => $this->configuration->getCardFontSize(),
                     'klarna_support_countries' => KlarnaMethod::SUPPORTED_COUNTRY_TO_CURRENCY,
+                    'afterpay_support_countries' => AfterpayMethod::SUPPORTED_COUNTRY_TO_CURRENCY,
+                    'afterpay_support_entity_to_currency' => AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY,
                     'available_currencies' => $this->getAvailableCurrencies(),
                 ]
             ]

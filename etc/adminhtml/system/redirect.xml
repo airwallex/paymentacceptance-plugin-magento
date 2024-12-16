@@ -11,5 +11,6 @@
 <!--        <include path="Airwallex_Payments::system/redirect/wechat.xml"/>-->
         <include path="Airwallex_Payments::system/redirect/paynow.xml"/>
         <include path="Airwallex_Payments::system/redirect/klarna.xml"/>
+        <include path="Airwallex_Payments::system/redirect/afterpay.xml"/>
     </group>
 </include>

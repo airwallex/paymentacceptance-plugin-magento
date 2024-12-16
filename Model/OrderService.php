@@ -9,7 +9,7 @@ use Airwallex\Payments\Api\OrderServiceInterface;
 use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Helper\IsOrderCreatedHelper;
-use Airwallex\Payments\Model\Methods\KlarnaMethod;
+use Airwallex\Payments\Model\Methods\RedirectMethod;
 use Airwallex\Payments\Plugin\ReCaptchaValidationPlugin;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
@@ -266,7 +266,8 @@ class OrderService implements OrderServiceInterface
                 $codes = $paymentIntent->getMethodCodes();
                 $paymentCodes = json_decode($codes, true);
                 if (!empty($paymentCodes)) {
-                    if ($paymentCodes[count($paymentCodes) - 1] === KlarnaMethod::CODE || $paymentMethod->getMethod() === KlarnaMethod::CODE) {
+                    if (in_array($paymentCodes[count($paymentCodes) - 1], RedirectMethod::CURRENCY_SWITCHER_METHODS)
+                        || in_array($paymentMethod->getMethod(), RedirectMethod::CURRENCY_SWITCHER_METHODS)) {
                         $isRequiredToGenerateNewOrder = $paymentMethod->getMethod() !== $paymentCodes[count($paymentCodes) - 1];
                     }
                 }
