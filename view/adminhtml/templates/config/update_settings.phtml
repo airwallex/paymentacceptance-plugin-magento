@@ -9,20 +9,21 @@
             let typeSelector = '[name="groups[airwallex_payments][groups][basic][fields][mode][value]"]';
             let env = document.querySelector(typeSelector).value;
 
-            // jQuery(document).ready(function () {
-            //     if (account[env + "_account_id"]) {
-            //         jQuery("#awx-connected").hide();
-            //     }
-            // });
-            //
-            // jQuery(typeSelector).on('change', () => {
-            //     let env = document.querySelector(typeSelector).value;
-            //     if (account[env + "_account_id"]) {
-            //         jQuery("#awx-connected").hide();
-            //     } else {
-            //         jQuery("#awx-connected").show();
-            //     }
-            // });
+            let setting = function () {
+                let env = document.querySelector(typeSelector).value;
+                let connectedSelector = "#awx-connected";
+                if (!account[env + "_account_id"]) {
+                    jQuery(connectedSelector).hide();
+                    jQuery("#airwallex_update_settings").html('Connect account');
+                } else {
+                    jQuery(connectedSelector).show();
+                    jQuery(connectedSelector).html(account[env + "_account_name"]);
+                    jQuery("#airwallex_update_settings").html('Manage');
+                }
+            };
+
+            jQuery(document).ready(setting);
+            jQuery(typeSelector).on('change', setting);
 
             function uuid() {
                 let S4 = function () {
@@ -53,16 +54,16 @@
         });
 </script>
 
-<?php echo $block->getButtonHtml() ?>
 
-<!--<div id="awx-connected" class="awx-connect-tip">-->
-<!--    <div class="title">Your Airwallex plug-in is activated</div>-->
-<!--    <div class="content">You can also manage which account is connected to your Magento store.</div>-->
-<!--</div>-->
+<div style="display: flex">
+    <div id="awx-connected" class="awx-connect-tip">
+    </div>
+    <?php echo $block->getButtonHtml() ?>
+</div>
 
 <style>
     .awx-connect-tip {
-        margin: 10px 0;
+        margin: 10px 10px 10px 0;
     }
 
     .awx-connect-tip .title {

@@ -58,9 +58,8 @@ class SetUpdateSettingsMessage extends Action
     public function execute(): Json
     {
         $resultJson = $this->resultJsonFactory->create();
-
         $environment = 'demo';
-        if (!$this->configuration->isDemoMode()) {
+        if ($this->request->getParam('env') !== 'demo') {
             $environment = 'www';
         }
         $platform = 'magento';
@@ -110,6 +109,7 @@ class SetUpdateSettingsMessage extends Action
             return $this->success('Your Airwallex plug-in is activated.
             You can also manage which account is connected to your Magento store.', $resultJson);
         }
+
         return $this->error($responseData['error'], $resultJson);
     }
 
