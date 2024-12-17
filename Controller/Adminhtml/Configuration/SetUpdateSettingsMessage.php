@@ -51,6 +51,16 @@ class SetUpdateSettingsMessage extends Action
         $this->identityService = $identityService;
     }
 
+    public function getOriginFromUrl($url): string
+    {
+        $parsedUrl = parse_url($url);
+        $origin = $parsedUrl['scheme'] . '://' . $parsedUrl['host'];
+        if (isset($parsedUrl['port'])) {
+            $origin .= ':' . $parsedUrl['port'];
+        }
+        return $origin;
+    }
+
     /**
      * @return Json
      * @throws NoSuchEntityException|LocalizedException
@@ -64,8 +74,8 @@ class SetUpdateSettingsMessage extends Action
         }
         $platform = 'magento';
         $storeUrl = $this->storeManager->getStore()->getBaseUrl(UrlInterface::URL_TYPE_WEB);
-        $origin = trim($storeUrl, '/');
-        $webhookNotificationUrl = $origin . '/airwallex/webhooks';
+        $baseUrl = trim($storeUrl, '/');
+        $webhookNotificationUrl = $baseUrl . '/airwallex/webhooks';
         if (!function_exists('gzdecode')) {
             return $this->error('Error: The gzdecode function is not available. Please make sure the zlib extension is enabled.', $resultJson);
         }
@@ -76,7 +86,8 @@ class SetUpdateSettingsMessage extends Action
         $url = "https://$environment.airwallex.com/payment_app/plugin/api/v1/connection/finalize";
         $data = [
             'platform' => $platform,
-            'origin' => $origin,
+            'origin' => $this->getOriginFromUrl($baseUrl),
+            'baseUrl' => $baseUrl,
             'webhookNotificationUrl' => $webhookNotificationUrl,
             'token' => $this->token($environment),
             'requestId' => $requestId
