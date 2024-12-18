@@ -50,16 +50,18 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
     public function execute(): ResponseHttp
     {
         $data = json_decode($this->request->getContent(), true);
-
-        $token = $data['token'];
-        if (empty($token)) {
-            return $this->error('Token is required.');
-        }
-
-        if ($token !== $this->cache->load(SetUpdateSettingsMessage::CACHE_NAME)) {
-            return $this->error('Token is not valid.');
-        }
+        $tokenFromCache =  $this->cache->load(SetUpdateSettingsMessage::CACHE_NAME);
         $this->cache->remove(SetUpdateSettingsMessage::CACHE_NAME);
+
+        $signature = $this->request->getHeader('x-signature');
+        if (!$signature) {
+            return $this->error('Signature id is required.');
+        }
+        $ts = $this->request->getHeader('x-timestamp') . $this->request->getContent();
+        if (hash_hmac('sha256', $ts, $tokenFromCache) !== $signature) {
+            return $this->error('Signature id is invalid.');
+        }
+
         $clientId = $data['client_id'];
         $apiKey = $data['api_key'];
         $webhookKey = $data['webhook_secret'];
@@ -81,7 +83,7 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
             return $this->error('Account name is required.');
         }
         $encryptor = ObjectManager::getInstance()->get(EncryptorInterface::class);
-        $mode =  substr($token, 0, 4) === 'demo' ? 'demo' : 'prod';
+        $mode =  substr($tokenFromCache, 0, 4) === 'demo' ? 'demo' : 'prod';
         $account = $this->configuration->getAccount();
         $arrAccount = $account ? json_decode($account, true) : [];
         $arrAccount[$mode . '_account_id'] = $accountId;
