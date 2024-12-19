@@ -36,6 +36,7 @@ define(
                 buttonSort: ko.observableArray([]),
                 isShowRecaptcha: ko.observable(false),
                 guestEmail: "",
+                amount: 0
             },
 
             setGuestEmail(email) {
@@ -74,7 +75,7 @@ define(
                 if (obj.type && obj.type === 'error') {
                     throw new Error(obj.message);
                 }
-                
+
                 this.updateExpressData(obj.quote_data);
                 this.updateMethods(obj.methods, obj.selected_method);
                 addressHandler.regionId = obj.region_id || 0;
@@ -152,7 +153,7 @@ define(
                     env: this.paymentConfig.mode,
                     origin: window.location.origin,
                 });
-                
+
                 this.isShow(true);
             },
 
@@ -166,6 +167,24 @@ define(
                     return;
                 }
                 this.createPays();
+
+                if (utils.isCheckoutPage()) {
+                    let quote = require('Magento_Checkout/js/model/quote');
+                    quote.totals.subscribe(async (newValue) => {
+                        let old = this.amount;
+                        this.amount = newValue.grand_total;
+                        if (!old) {
+                            return;
+                        }
+                        if (Math.abs(old - this.amount) >= 0.01) {
+                            $('body').trigger('processStart');
+                            this.destroyElement();
+                            await this.fetchExpressData();
+                            this.createPays();
+                            $('body').trigger('processStop');
+                        }
+                    });
+                }
             },
 
             initHashPaymentEvent() {
@@ -228,7 +247,7 @@ define(
                         if (obj.type && obj.type === 'error') {
                             throw new Error(obj.message);
                         }
-                        
+
                         if (this.paymentConfig.is_recaptcha_enabled) {
                             payload.xReCaptchaValue = await utils.getRecaptchaToken(utils.expressRecaptchaId);
                         }
@@ -240,7 +259,7 @@ define(
                             }
                         }
 
-                        if (!utils.isCheckoutPage()) {
+                        // if (!utils.isCheckoutPage()) {
                             if (!payload.paymentMethod.extension_attributes) {
                                 payload.paymentMethod.extension_attributes = {};
                             }
@@ -251,10 +270,10 @@ define(
                                     payload.paymentMethod.extension_attributes.agreement_ids.push(item.agreementId);
                                 }
                             }
-                        }
+                        // }
 
                         await utils.postPaymentInformation(payload, utils.isLoggedIn(), utils.getCartId());
-                        
+
                         let intentResponse = await utils.getIntent(payload, {});
                         if (!intentResponse) return;
 
@@ -268,7 +287,7 @@ define(
                         } catch (error) {
                             utils.dealConfirmException(error)
                         }
-    
+
                         let endResult = await utils.placeOrder(payload, intentResponse, {});
 
                         resolve(endResult);

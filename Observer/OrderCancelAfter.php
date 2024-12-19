@@ -55,21 +55,21 @@ class OrderCancelAfter implements ObserverInterface
      */
     public function execute(Observer $observer): void
     {
-        /** @var Order $order */
-        $order = $observer->getOrder();
-        if ($this->isRedirectMethodConstant($order->getPayment()->getMethod())) {
-            $record = $this->paymentIntentRepository->getByOrderIncrementIdAndStoreId($order->getIncrementId(), $order->getStoreId());
-            try {
-                $this->cancel->setPaymentIntentId($record->getPaymentIntentId())->send();
-                $this->historyFactory->create()
-                    ->setParentId($order->getEntityId())
-                    ->setComment(__('Order cancelled through Airwallex.'))
-                    ->setEntityName('order')
-                    ->setStatus($order->getStatus())
-                    ->save();
-            } catch (Exception $e) {
-                $this->errorLog->setMessage($e->getMessage(), $e->getTraceAsString(), $order->getIncrementId())->send();
-            }
-        }
+//        /** @var Order $order */
+//        $order = $observer->getOrder();
+//        if ($this->isRedirectMethodConstant($order->getPayment()->getMethod())) {
+//            $record = $this->paymentIntentRepository->getByOrderIncrementIdAndStoreId($order->getIncrementId(), $order->getStoreId());
+//            try {
+//                $this->cancel->setPaymentIntentId($record->getPaymentIntentId())->send();
+//                $this->historyFactory->create()
+//                    ->setParentId($order->getEntityId())
+//                    ->setComment(__('Order cancelled through Airwallex.'))
+//                    ->setEntityName('order')
+//                    ->setStatus($order->getStatus())
+//                    ->save();
+//            } catch (Exception $e) {
+//                $this->errorLog->setMessage($e->getMessage(), $e->getTraceAsString(), $order->getIncrementId())->send();
+//            }
+//        }
     }
 }

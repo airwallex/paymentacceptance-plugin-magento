@@ -119,7 +119,7 @@ define([
                 }
             };
         },
-        
+
         city(addr, type) {
             if (addr.locality) return addr.locality;
             if (['sg', 'singapore'].indexOf(addr.countryCode.toLowerCase()) !== -1) {

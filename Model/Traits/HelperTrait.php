@@ -3,9 +3,11 @@
 namespace Airwallex\Payments\Model\Traits;
 
 use Airwallex\Payments\Api\Data\PaymentIntentInterface;
+use Airwallex\Payments\Model\Client\Request\Log;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
+use Magento\Framework\App\ObjectManager;
 use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Quote\Api\CartManagementInterface;
@@ -96,7 +98,7 @@ trait HelperTrait
             || $intentCurrency !== $quoteCurrency
             || $intentOrderId !== $quoteOrderId
             || !$this->isAmountEqual($intentAmount, $quoteAmount)) {
-            $this->errorLog->setMessage('check intent failed', "Intent Order ID: $intentOrderId - Quote Order ID: $quoteOrderId - "
+            ObjectManager::getInstance()->get(Log::class)->setMessage('check intent failed', "Intent Order ID: $intentOrderId - Quote Order ID: $quoteOrderId - "
                 . "Intent Currency: $intentCurrency - Quote Currency: $quoteCurrency - "
                 . "Intent Amount: $intentAmount - Quote Amount: $quoteAmount", $intentOrderId)->send();
             $msg = 'Something went wrong while processing your request.';

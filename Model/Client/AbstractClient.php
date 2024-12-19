@@ -133,7 +133,7 @@ abstract class AbstractClient
             if ($statusCode === 404) {
                 throw new RequestException(self::NOT_FOUND);
             }
-            throw new RequestException($response->message);
+//            throw new RequestException($response->message);
         }
 
         return $this->parseResponse($request);

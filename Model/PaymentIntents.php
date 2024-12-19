@@ -66,7 +66,7 @@ class PaymentIntents
      * @throws LocalizedException
      * @throws JsonException
      */
-    public function createIntent(): array
+    public function createIntent($email): array
     {
         $quote = $this->checkoutSession->getQuote();
 
@@ -76,15 +76,9 @@ class PaymentIntents
             $orderId = $quote->getReservedOrderId();
         }
 
-        $uid = $quote->getCustomer()->getId() ?: 0;
-        if (interface_exists(CompanyConsentsInterface::class)) {
-            $uid = ObjectManager::getInstance()->get(CompanyConsentsInterface::class)->getSuperId($uid);
-        }
-        $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($uid);
-
         $intent = $this->paymentIntentsCreate
             ->setQuote($quote, $this->urlInterface->getUrl('checkout/onepage/success'))
-            ->setAirwallexCustomerId($airwallexCustomerId)
+            ->setCustomer($email)
             ->send();
 
         $products = $this->paymentIntentsCreate->getQuoteProducts($quote);
@@ -111,7 +105,7 @@ class PaymentIntents
      * @throws GuzzleException
      * @throws InputException
      */
-    public function getIntent(): array
+    public function getIntent($email): array
     {
         $quote = $this->checkoutSession->getQuote();
         if (!$quote->getId()) {
@@ -126,7 +120,7 @@ class PaymentIntents
                 'id' => $respArr['id'],
             ];
         }
-        return $this->createIntent();
+        return $this->createIntent($email);
     }
 
     public function isQuoteEqual(Quote $quote, PaymentIntentInterface $paymentIntent): string

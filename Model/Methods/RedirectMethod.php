@@ -38,7 +38,7 @@ class RedirectMethod extends AbstractMethod
         $cacheName = AbstractClient::METADATA_PAYMENT_METHOD_PREFIX . $this->checkoutHelper->getQuote()->getEntityId();
         /** @var Payment $payment */
         $this->cache->save($payment->getMethod(), $cacheName, [], 60);
-        $intendResponse = $this->paymentIntents->getIntent();
+        $intendResponse = $this->paymentIntents->getIntent('');
         $returnUrl = $this->getAirwallexPaymentsRedirectUrl($intendResponse['id']);
         $this->checkoutHelper->getCheckout()->setAirwallexPaymentsRedirectUrl($returnUrl);
         return $this;

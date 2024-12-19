@@ -133,7 +133,7 @@ define([
         validateAgreements: function (selector) {
             var checkoutConfig = window.checkoutConfig,
             agreementsConfig = checkoutConfig ? checkoutConfig.checkoutAgreements : {};
-    
+
             var isValid = true;
 
             if (!agreementsConfig.isEnabled || $(selector).length === 0) {
@@ -165,7 +165,7 @@ define([
             $(this.agreementSelector).each(function() {
                 if (!this.checked) {
                     status = false;
-                    return false; 
+                    return false;
                 }
             });
             return status;
@@ -287,7 +287,7 @@ define([
         async getRegionId(country, region) {
             let url = urlBuilder.build('rest/V1/airwallex/region_id?country=' + country + '&region=' + region);
             return await storage.get(url, undefined, 'application/json', {});
-        },        
+        },
 
         isRequireShippingAddress() {
             if (this.isProductPage()) {
@@ -382,10 +382,10 @@ define([
         },
 
         isLoggedIn() {
-            if (window.checkoutConfig) {
-                return customer.isLoggedIn();
+            if (!this.isCheckoutPage()) {
+                return !!this.expressData.customer_id;
             }
-            return !!this.expressData.customer_id;
+            return customer.isLoggedIn();
         },
 
         placeOrderUrl() {
@@ -471,7 +471,7 @@ define([
             let agreementForm = $('.payment-method._active div[data-role=checkout-agreements] input');
             let agreementData = agreementForm.serializeArray();
             let agreementIds = [];
-    
+
             agreementData.forEach(function (item) {
                 agreementIds.push(item.value);
             });
@@ -560,11 +560,14 @@ define([
                             });
                         } else {
                             if (self.isSaveCardSelected() && self.getCustomerId()) {
+                                let requestUrl = urlBuilder.build('rest/V1/airwallex/generate_client_secret');
+                                let res = await storage.get(requestUrl, undefined, 'application/json', {});
+
                                 payload.from = 'card_with_saved';
                                 response = await Airwallex.createPaymentConsent({
                                     intent_id: intentResponse.intent_id,
                                     customer_id: self.getCustomerId(),
-                                    client_secret: intentResponse.client_secret,
+                                    client_secret: res.client_secret,
                                     currency: quote.totals().quote_currency_code,
                                     billing: self.getBillingInformation(),
                                     element: self.cardElement,

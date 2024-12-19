@@ -6,13 +6,16 @@ use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
+use Magento\Framework\App\ObjectManager;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\OrderRepository;
-use Magento\Sales\Model\ResourceModel\Order\CollectionFactory as OrderFactory;
+use Magento\Sales\Model\ResourceModel\Order\CollectionFactory as OrderCollectionFactory;
+use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Model\ResourceModel\Order\Grid\CollectionFactory as OrderGridFactory;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Airwallex\Payments\Model\Client\Request\Log;
 use Magento\Sales\Model\Order\Status\HistoryFactory;
+use Magento\Sales\Model\Spi\OrderResourceInterface;
 
 class CheckoutSubmitAllAfter implements ObserverInterface
 {
@@ -29,6 +32,7 @@ class CheckoutSubmitAllAfter implements ObserverInterface
     public Get $intentGet;
 
     public OrderFactory $orderFactory;
+    public OrderCollectionFactory $orderCollectionFactory;
     public OrderGridFactory $orderGridFactory;
     public Log $errorLog;
     public HistoryFactory $historyFactory;
@@ -38,6 +42,7 @@ class CheckoutSubmitAllAfter implements ObserverInterface
         OrderRepository $orderRepository,
         Get $intentGet,
         OrderFactory $orderFactory,
+        OrderCollectionFactory $orderCollectionFactory,
         OrderGridFactory $orderGridFactory,
         Log $errorLog,
         HistoryFactory $historyFactory,
@@ -46,6 +51,7 @@ class CheckoutSubmitAllAfter implements ObserverInterface
         $this->orderRepository = $orderRepository;
         $this->intentGet = $intentGet;
         $this->orderFactory = $orderFactory;
+        $this->orderCollectionFactory = $orderCollectionFactory;
         $this->orderGridFactory = $orderGridFactory;
         $this->errorLog = $errorLog;
         $this->historyFactory = $historyFactory;
@@ -83,7 +89,7 @@ class CheckoutSubmitAllAfter implements ObserverInterface
         $quoteId = $order->getQuoteId();
         if (empty($quoteId)) return;
 
-        $orderCollection = $this->orderFactory->create()->addFieldToFilter('quote_id', $quoteId);
+        $orderCollection = $this->orderCollectionFactory->create()->addFieldToFilter('quote_id', $quoteId);
         if (count($orderCollection) > 1) {
             $record = $this->paymentIntentRepository->getByQuoteId($quoteId);
             if (!$record || !$record->getPaymentIntentId()) return;
@@ -142,7 +148,8 @@ class CheckoutSubmitAllAfter implements ObserverInterface
             if ($cvc_check) $cvc_check = ' CVC Result: ' . $cvc_check . '.';
             $log .= $brand . $last4 . $avs_check . $cvc_check;
             if ($log === $src) return;
-            $latestOrder = $this->orderRepository->get($order->getEntityId());
+            $latestOrder = $this->orderFactory->create();
+            ObjectManager::getInstance()->get(OrderResourceInterface::class)->load($latestOrder, $order->getEntityId());
             $history = $this->historyFactory->create()
                 ->setParentId($order->getEntityId())
                 ->setComment(__($log))

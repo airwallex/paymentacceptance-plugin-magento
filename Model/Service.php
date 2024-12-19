@@ -397,7 +397,7 @@ class Service implements ServiceInterface
             $cacheName = AbstractClient::METADATA_PAYMENT_METHOD_PREFIX . $quote->getEntityId();
             $this->cache->save($from ?: $code, $cacheName, [], 60);
 
-            $intent = $this->paymentIntents->getIntent();
+            $intent = $this->paymentIntents->getIntent($uid ? $quote->getCustomerEmail() : $email);
 
             /** @var Payment $paymentMethod */
             $paymentMethod->setData(PaymentInterface::KEY_ADDITIONAL_DATA, ['intent_id' => $intent['id']]);
