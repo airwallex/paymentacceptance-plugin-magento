@@ -68,6 +68,10 @@ class SetUpdateSettingsMessage extends Action
     public function execute(): Json
     {
         $resultJson = $this->resultJsonFactory->create();
+        if (empty($this->request->getParam('code'))) {
+            header('Location: ' . base64_decode($this->request->getParam('target_url')));
+            return $resultJson;
+        }
         $environment = 'demo';
         if ($this->request->getParam('env') !== 'demo') {
             $environment = 'www';
