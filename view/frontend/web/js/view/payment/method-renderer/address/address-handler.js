@@ -119,12 +119,15 @@ define([
                 }
             };
         },
-
+        
         city(addr, type) {
-            if (type === 'google') {
-                return addr.locality || addr.administrativeArea || addr.countryCode;
+            if (addr.locality) return addr.locality;
+            if (['sg', 'singapore'].indexOf(addr.countryCode.toLowerCase()) !== -1) {
+                return 'Singapore';
             }
-            return addr.locality;
+            if (addr.administrativeArea) return addr.administrativeArea;
+            if (addr.country) return addr.country;
+            return addr.countryCode;
         },
 
         postcode(addr, type) {
