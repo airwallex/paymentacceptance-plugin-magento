@@ -176,7 +176,7 @@ define(
                             return;
                         }
 
-                        if (Math.abs(old - this.amount) >= 0.01) {
+                        if (Math.abs(old - this.amount) >= 0.0001) {
                             $('body').trigger('processStart');
                             this.destroyElement();
                             await this.fetchExpressData();
