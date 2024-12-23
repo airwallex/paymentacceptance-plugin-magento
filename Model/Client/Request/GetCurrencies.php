@@ -47,6 +47,10 @@ class GetCurrencies extends AbstractClient implements BearerAuthenticationInterf
         $response = $this->parseJson($response);
 
         $result = [];
+        if (empty($response->items)) return [
+            'has_more' => false,
+            'items' => $result,
+        ];
         foreach ($response->items as $item) {
             if ($item->type !== 'currency_switcher') continue;
             if (empty($item->currencies)) continue;
