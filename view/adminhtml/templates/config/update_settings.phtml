@@ -1,0 +1,73 @@
+<?php /** @var \Airwallex\Payments\Model\Config\Adminhtml\UpdateSettings $block */ ?>
+<script>
+    require([
+            'jquery'
+        ],
+        function (jQuery) {
+            let accountStr = '<?= $this->getAccount() ?>';
+            let account = accountStr ? JSON.parse(accountStr) : {};
+            let typeSelector = '[name="groups[airwallex_payments][groups][basic][fields][mode][value]"]';
+            let env = document.querySelector(typeSelector).value;
+
+            let setting = function () {
+                let env = document.querySelector(typeSelector).value;
+                let connectedSelector = "#awx-connected";
+                if (!account[env + "_account_id"]) {
+                    jQuery(connectedSelector).hide();
+                    jQuery("#airwallex_update_settings").html('Connect account');
+                } else {
+                    jQuery(connectedSelector).show();
+                    jQuery(connectedSelector).html(account[env + "_account_name"]);
+                    jQuery("#airwallex_update_settings").html('Manage');
+                }
+            };
+
+            jQuery(document).ready(setting);
+            jQuery(typeSelector).on('change', setting);
+
+            function uuid() {
+                let S4 = function () {
+                    return ((1 + Math.random()) * 0X10000 | 0).toString(16).substring(1);
+                };
+                return (S4() + S4() + "-" + S4() + "-" + S4() + "-" + S4() + "-" + S4() + S4() + S4());
+            }
+
+            jQuery('#airwallex_update_settings').click(function () {
+                let env = document.querySelector(typeSelector).value;
+                let redirectUrl = '<?= $block->escapeJs($block->getUrl('airwallex/configuration/setUpdateSettingsMessage')) ?>';
+                redirectUrl += "?target_url=" + btoa(location.href) + '&env=' + env;
+                let awxUrl = 'https://demo.airwallex.com/';
+                if (env === 'prod') {
+                    awxUrl = awxUrl.replace('demo.airwallex', 'www.airwallex');
+                }
+                const connectedAccountId = account[`${env}_account_id`] || '';
+                const params = new URLSearchParams({
+                    platform: 'magento',
+                    origin: location.href,
+                    returnUrl: redirectUrl,
+                    requestId: uuid(),
+                    connectedAccountId: connectedAccountId,
+                });
+
+                location.href = `${awxUrl.trim()}payment_app/plugin/api/v1/connection/start?${params.toString()}`;
+            });
+        });
+</script>
+
+
+<div style="display: flex">
+    <div id="awx-connected" class="awx-connect-tip">
+    </div>
+    <?php echo $block->getButtonHtml() ?>
+</div>
+
+<style>
+    .awx-connect-tip {
+        margin: 10px 10px 10px 0;
+    }
+
+    .awx-connect-tip .title {
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+</style>

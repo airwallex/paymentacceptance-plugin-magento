@@ -7,6 +7,9 @@
             <source_model>Airwallex\Payments\Model\Config\Source\Mode</source_model>
             <config_path>airwallex/general/mode</config_path>
         </field>
+        <!-- <field id="update_settings" translate="label" type="button" sortOrder="15" showInDefault="1" showInWebsite="1" showInStore="1">
+            <frontend_model>Airwallex\Payments\Model\Config\Adminhtml\UpdateSettings</frontend_model>
+        </field> -->
         <field id="demo_client_id" translate="label" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
             <label>Demo Client ID</label>
             <config_path>airwallex/general/demo_client_id</config_path>
