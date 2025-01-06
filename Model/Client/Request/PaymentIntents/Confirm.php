@@ -113,6 +113,7 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
     {
         $response = $this->parseJson($response);
 
-        return (array)$response->next_action ?? [];
+        if (empty($response->next_action)) return [];
+        return (array)$response->next_action;
     }
 }
