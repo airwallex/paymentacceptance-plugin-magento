@@ -6,6 +6,7 @@ use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
 use Airwallex\Payments\Model\Methods\KlarnaMethod;
 use JsonException;
+use Magento\Framework\Exception\LocalizedException;
 use Magento\Sales\Api\Data\OrderAddressInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -112,6 +113,9 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
     protected function parseResponse(ResponseInterface $response): array
     {
         $response = $this->parseJson($response);
+        if (!empty($response->code) && $response->code === 'validation_error') {
+            throw new LocalizedException(__($response->message));
+        }
 
         if (empty($response->next_action)) return [];
         return (array)$response->next_action;
