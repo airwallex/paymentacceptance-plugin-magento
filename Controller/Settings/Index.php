@@ -51,6 +51,9 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
     {
         $data = json_decode($this->request->getContent(), true);
         $tokenFromCache =  $this->cache->load(SetUpdateSettingsMessage::CACHE_NAME);
+        if (empty($tokenFromCache)) {
+            return $this->error('Can not find token in cache.');
+        }
         $this->cache->remove(SetUpdateSettingsMessage::CACHE_NAME);
 
         $signature = $this->request->getHeader('x-signature');
