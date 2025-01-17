@@ -2,7 +2,7 @@
     "name": "airwallex/payments-plugin-magento",
     "type": "magento2-module",
     "description": "",
-    "version": "1.10.1",
+    "version": "1.10.2",
     "require": {
         "ext-json": "*",
         "php": "^7.4|^8.0",
@@ -14,5 +14,8 @@
         "psr-4": {
             "Airwallex\\Payments\\": ""
         }
+    },
+    "archive": {
+        "exclude": ["release/*", "tests/*", "magento-plugin.zip", "release.sh", ".git/*", ".github/*", ".gitlab/*", ".gitignore", ".gitlab-ci.yml", ".releaserc.js", "yarn.lock", "package.json"]
     }
 }

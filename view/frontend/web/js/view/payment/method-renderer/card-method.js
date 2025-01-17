@@ -109,7 +109,8 @@ define(
                         base: {
                             fontSize: fontSize + 'px',
                         },
-                    }
+                    },
+                    allowedCardNetworks: ['discover', 'visa', 'mastercard', 'maestro', 'unionpay', 'amex', 'jcb', 'diners']
                 });
                 this.cardExpiryElement = Airwallex.createElement('expiry', {
                     style: {
