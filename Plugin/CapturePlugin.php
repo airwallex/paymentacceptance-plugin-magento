@@ -36,6 +36,9 @@ class CapturePlugin
     public function beforeCapture(CaptureOperation $subject, OrderPaymentInterface $payment, $invoice)
     {
         $order = $payment->getOrder();
+        if (!$order || !$order->getId()) {
+            return;
+        }
         $record = ObjectManager::getInstance()->get(PaymentIntentRepository::class)->getByOrderId($order->getId());
         if (!$record) {
             return;

@@ -2,8 +2,10 @@
 
 namespace Airwallex\Payments\Model\Config\Adminhtml;
 
+use Airwallex\Payments\Controller\Adminhtml\Configuration\ConnectionFlowRedirectUrl;
 use Airwallex\Payments\Helper\Configuration;
 use Magento\Config\Block\System\Config\Form\Field;
+use Magento\Framework\App\CacheInterface;
 use Magento\Framework\App\ObjectManager;
 use Magento\Framework\Data\Form\Element\AbstractElement;
 use Magento\Framework\Exception\LocalizedException;
@@ -26,6 +28,19 @@ class UpdateSettings extends Field
     public function getAccount()
     {
         return ObjectManager::getInstance()->get(Configuration::class)->getAccount();
+    }
+
+    public function getConnectionFlowField(string $env)
+    {
+        return ObjectManager::getInstance()->get(Configuration::class)->getConnectionFlowField($env);
+    }
+
+    public function getConnectionFlowMessage()
+    {
+        $cache = ObjectManager::getInstance()->get(CacheInterface::class);
+        $res = $cache->load(ConnectionFlowRedirectUrl::CONNECTION_FLOW_MESSAGE_CACHE_NAME);
+        $cache->remove(ConnectionFlowRedirectUrl::CONNECTION_FLOW_MESSAGE_CACHE_NAME);
+        return $res;
     }
 
     /**

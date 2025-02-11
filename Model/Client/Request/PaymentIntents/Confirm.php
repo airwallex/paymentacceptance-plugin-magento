@@ -96,6 +96,12 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
         ]);
     }
 
+    public function setBrowserInformation(string $info)
+    {
+        if (!$info) return $this;
+        return $this->setParams(json_decode($info, true));
+    }
+
     /**
      * @return string
      */

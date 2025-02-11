@@ -116,7 +116,11 @@ class AvailablePaymentMethodsHelper
         } else {
             $request = $request->removeCurrency();
         }
-        return $request->send();
+        try {
+            return $request->send();
+        } catch (\Exception $e) {
+            return [];
+        }
     }
 
     /**

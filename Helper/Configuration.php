@@ -318,4 +318,12 @@ class Configuration extends AbstractHelper
     {
         return !!$this->scopeConfig->getValue('payment/airwallex_payments_card/cvc_required');
     }
+
+    /**
+     * @return string
+     */
+    public function getConnectionFlowField(string $env): string
+    {
+        return $this->scopeConfig->getValue('airwallex/general/' . $env . '_connection_flow') ?: '';
+    }
 }

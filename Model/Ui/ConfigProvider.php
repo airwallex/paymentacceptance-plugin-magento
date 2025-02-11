@@ -89,9 +89,13 @@ class ConfigProvider implements ConfigProviderInterface
             $index = 0;
             $items = [];
             while (true) {
-                $res = $this->getCurrencies
-                    ->setPage($index, 200)
-                    ->send();
+                try {
+                    $res = $this->getCurrencies
+                        ->setPage($index, 200)
+                        ->send();
+                } catch (Exception $exception) {
+                    return json_encode($items);
+                }
 
                 $index++;
                 if (!empty($res['items'])) {

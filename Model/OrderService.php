@@ -334,7 +334,8 @@ class OrderService implements OrderServiceInterface
             'client_secret' => $intent['clientSecret']
         ];
         if ($this->isRedirectMethodConstant($paymentMethod->getMethod())) {
-            $data['next_action'] = $this->getAirwallexPaymentsNextAction($intent['id'], $paymentMethod->getMethod(), $order->getBillingAddress());
+            $info = $paymentMethod->getAdditionalData()['browser_information'] ?? "";
+            $data['next_action'] = $this->getAirwallexPaymentsNextAction($intent['id'], $paymentMethod->getMethod(), $info, $order->getBillingAddress());
         }
 
         $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
@@ -417,7 +418,7 @@ class OrderService implements OrderServiceInterface
      * @throws LocalizedException
      * @throws Exception
      */
-    public function getAirwallexPaymentsNextAction(string $intentId, $code, OrderAddressInterface $address)
+    public function getAirwallexPaymentsNextAction(string $intentId, $code, string $browserInformation, OrderAddressInterface $address)
     {
         if (!$intentId) {
             throw new Exception('Intent id is required.');
@@ -425,7 +426,7 @@ class OrderService implements OrderServiceInterface
         $cacheName = $code . '-qrcode-' . $intentId;
         if (!$returnUrl = $this->cache->load($cacheName)) {
             try {
-                $request = $this->confirm->setPaymentIntentId($intentId);
+                $request = $this->confirm->setPaymentIntentId($intentId)->setBrowserInformation($browserInformation);
                 $resp = $request->setInformation($this->getPaymentMethodCode($code), $address)->send();
             } catch (Exception $exception) {
                 throw new LocalizedException(__($exception->getMessage()));

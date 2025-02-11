@@ -60,6 +60,10 @@ define([
         },
 
         initialize: async function () {
+            if (! window.awxCardElement) {
+                window.awxCardElement = Airwallex.createElement('card');
+            }
+
             this._super();
             if (!window.awxMonitorBillingAddress) {
                 window.awxMonitorBillingAddress = true;
@@ -462,7 +466,22 @@ define([
                         paymentMethod: {
                             method: quote.paymentMethod().method,
                             additional_data: {
-                                "afterpay_country": localStorage.getItem(this.afterpayCountryKey)
+                                "afterpay_country": localStorage.getItem(this.afterpayCountryKey),
+                                "browser_information": JSON.stringify({
+                                    "device_data": {
+                                        "browser": {
+                                            "java_enabled": false,
+                                            "javascript_enabled": true,
+                                            "user_agent": navigator.userAgent
+                                        },
+                                        "device_id": document.getElementById('airwallex-fraud-api')?.getAttribute('data-order-session-id'),
+                                        "language": navigator.language,
+                                        "screen_color_depth": screen.colorDepth,
+                                        "screen_height": screen.height,
+                                        "screen_width": screen.width,
+                                        "timezone": new Date().getTimezoneOffset()
+                                    }
+                                })
                             },
                             extension_attributes: {
                                 'agreement_ids': utils.getAgreementIds()

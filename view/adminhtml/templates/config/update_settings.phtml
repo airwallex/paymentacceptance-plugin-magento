@@ -1,16 +1,59 @@
 <?php /** @var \Airwallex\Payments\Model\Config\Adminhtml\UpdateSettings $block */ ?>
+
 <script>
     require([
             'jquery'
         ],
         function (jQuery) {
+            const MANAGE = 'Manage';
+
+            let returnObjectStr = '<?=$this->getConnectionFlowMessage()?>';
+            let returnObject;
+            if (returnObjectStr) {
+                returnObject = JSON.parse(returnObjectStr);
+            }
+            console.log(returnObject);
+
+            let toggleInputs = function (env, show = true) {
+                let selectors = [
+                    "input[name='groups[airwallex_payments][groups][basic][fields][" + env + "_client_id][value]']",
+                    "input[name='groups[airwallex_payments][groups][basic][fields][" + env + "_api_key][value]']",
+                    "input[name='groups[airwallex_payments][groups][basic][fields][webhook_" + env + "_secret_key][value]']",
+                    "input[name='groups[airwallex_payments][groups][basic][fields][webhook_url][value]']"
+                ];
+                selectors.forEach(selector => {
+                    const element = jQuery(selector);
+                    if (element.length) {
+                        element.closest('tr').find('td').toggle(show);
+                    }
+                });
+
+                jQuery("#awx-connection-options").toggle(show);
+                jQuery('.manage-container').toggle(!show);
+            };
+
+            let connectionFlowStatus = {
+                "demo": '<?= $this->getConnectionFlowField('demo') ?>',
+                "prod": '<?= $this->getConnectionFlowField('prod') ?>'
+            };
+
             let accountStr = '<?= $this->getAccount() ?>';
             let account = accountStr ? JSON.parse(accountStr) : {};
-            let typeSelector = '[name="groups[airwallex_payments][groups][basic][fields][mode][value]"]';
-            let env = document.querySelector(typeSelector).value;
+            let envSelector = '[name="groups[airwallex_payments][groups][basic][fields][mode][value]"]';
 
-            let setting = function () {
-                let env = document.querySelector(typeSelector).value;
+            let renderSetting = function () {
+                let env = document.querySelector(envSelector).value;
+
+                if (returnObject && env === returnObject.env) {
+                    let $table = jQuery('.airwallex-admin-config .section-config table');
+                    if (!jQuery(".awx-return-message").length) {
+                        let messageHtml = '<tr class="awx-return-message"><td colspan="3"><div>' + returnObject.message + '</div></td></tr>';
+                        $table.find('tr').first().before(messageHtml);
+                    }
+                } else {
+                    jQuery(".awx-return-message").remove();
+                }
+
                 let connectedSelector = "#awx-connected";
                 if (!account[env + "_account_id"]) {
                     jQuery(connectedSelector).hide();
@@ -18,12 +61,37 @@
                 } else {
                     jQuery(connectedSelector).show();
                     jQuery(connectedSelector).html(account[env + "_account_name"]);
-                    jQuery("#airwallex_update_settings").html('Manage');
+                    jQuery("#airwallex_update_settings").html(MANAGE);
+                }
+
+                let hasApiKey = !!jQuery("input[name='groups[airwallex_payments][groups][basic][fields][" + env + "_api_key][value]']").val().trim();
+
+                if (hasApiKey && connectionFlowStatus[env] === 'success') {
+                    jQuery('#awx-connection-options .cancel').show();
+                } else {
+                    jQuery('#awx-connection-options .cancel').hide();
+                }
+
+                if (connectionFlowStatus[env] && connectionFlowStatus[env] !== 'success') {
+                    toggleInputs(env, true);
+                    return;
+                }
+
+                if (!hasApiKey) {
+                    toggleInputs(env, false);
+                    return;
+                }
+
+                if (connectionFlowStatus[env] === 'success') {
+                    toggleInputs(env, false);
+                } else {
+                    toggleInputs(env, true);
                 }
             };
 
-            jQuery(document).ready(setting);
-            jQuery(typeSelector).on('change', setting);
+            jQuery(document).ready(renderSetting);
+            jQuery(envSelector).on('change', renderSetting);
+            jQuery('.airwallex-admin-config tbody').find('.entry-edit-head').first().on('click', renderSetting);
 
             function uuid() {
                 let S4 = function () {
@@ -32,14 +100,16 @@
                 return (S4() + S4() + "-" + S4() + "-" + S4() + "-" + S4() + "-" + S4() + S4() + S4());
             }
 
-            jQuery('#airwallex_update_settings').click(function () {
-                let env = document.querySelector(typeSelector).value;
-                let redirectUrl = '<?= $block->escapeJs($block->getUrl('airwallex/configuration/setUpdateSettingsMessage')) ?>';
-                redirectUrl += "?target_url=" + btoa(location.href) + '&env=' + env;
-                let awxUrl = 'https://demo.airwallex.com/';
-                if (env === 'prod') {
-                    awxUrl = awxUrl.replace('demo.airwallex', 'www.airwallex');
-                }
+            jQuery('#awx-connection-options .cancel').on('click', function () {
+                let env = document.querySelector(envSelector).value;
+                toggleInputs(env, false);
+            });
+
+            let redirect = function () {
+                let env = document.querySelector(envSelector).value;
+                let baseRedirectUrl = '<?= $block->escapeJs($block->getUrl('airwallex/configuration/connectionFlowRedirectUrl')) ?>';
+                let redirectUrl = `${baseRedirectUrl}?target_url=${btoa(location.href)}&env=${env}`;
+                let awxUrl = env === 'prod' ? 'https://www.airwallex.com/' : 'https://demo.airwallex.com/';
                 const connectedAccountId = account[`${env}_account_id`] || '';
                 const params = new URLSearchParams({
                     platform: 'magento',
@@ -50,15 +120,29 @@
                 });
 
                 location.href = `${awxUrl.trim()}payment_app/plugin/api/v1/connection/start?${params.toString()}`;
+            };
+
+            jQuery('#awx-connection-options .redirect').on('click', redirect);
+
+            jQuery('#airwallex_update_settings').on('click', function () {
+                let env = document.querySelector(envSelector).value;
+                if (jQuery('#airwallex_update_settings').html() === MANAGE) {
+                    toggleInputs(env, true);
+                } else {
+                    redirect();
+                }
             });
         });
 </script>
 
-
-<div style="display: flex">
-    <div id="awx-connected" class="awx-connect-tip">
-    </div>
+<div style="display: flex" class="manage-container">
+    <div id="awx-connected" class="awx-connect-tip"></div>
     <?php echo $block->getButtonHtml() ?>
+</div>
+
+<div style="display: flex" id="awx-connection-options">
+    <div class="redirect">Connect via Airwallex log-in</div>
+    <div class="cancel">Cancel</div>
 </div>
 
 <style>
@@ -69,5 +153,24 @@
     .awx-connect-tip .title {
         font-weight: bold;
         margin-bottom: 5px;
+    }
+
+    #awx-connection-options {
+        font-size: 14px;
+        color: rgba(34, 113, 177, 1);
+    }
+
+    #awx-connection-options .cancel {
+        margin-left: 20px;
+    }
+
+    #awx-connection-options div {
+        cursor: pointer;
+    }
+
+    tr.awx-return-message td div {
+        background: #ffcccc;
+        padding: 20px 40px;
+        color: #333333;
     }
 </style>

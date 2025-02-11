@@ -2,7 +2,7 @@
 
 namespace Airwallex\Payments\Controller\Settings;
 
-use Airwallex\Payments\Controller\Adminhtml\Configuration\SetUpdateSettingsMessage;
+use Airwallex\Payments\Controller\Adminhtml\Configuration\ConnectionFlowRedirectUrl;
 use Airwallex\Payments\Helper\Configuration;
 use Exception;
 use Magento\Framework\App\Action\HttpPostActionInterface;
@@ -50,11 +50,11 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
     public function execute(): ResponseHttp
     {
         $data = json_decode($this->request->getContent(), true);
-        $tokenFromCache =  $this->cache->load(SetUpdateSettingsMessage::CACHE_NAME);
+        $tokenFromCache =  $this->cache->load(ConnectionFlowRedirectUrl::CACHE_NAME);
         if (empty($tokenFromCache)) {
             return $this->error('Can not find token in cache.');
         }
-        $this->cache->remove(SetUpdateSettingsMessage::CACHE_NAME);
+        $this->cache->remove(ConnectionFlowRedirectUrl::CACHE_NAME);
 
         $signature = $this->request->getHeader('x-signature');
         if (!$signature) {
@@ -91,6 +91,7 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
         $arrAccount = $account ? json_decode($account, true) : [];
         $arrAccount[$mode . '_account_id'] = $accountId;
         $arrAccount[$mode . '_account_name'] = $accountName;
+        $this->configWriter->save('airwallex/general/' . $mode . '_connection_flow', 'success');
         $this->configWriter->save('airwallex/general/' . 'account', json_encode($arrAccount));
         $this->configWriter->save('airwallex/general/' . $mode . '_account_name', $accountName);
         $this->configWriter->save('airwallex/general/' . $mode . '_client_id', $clientId);
