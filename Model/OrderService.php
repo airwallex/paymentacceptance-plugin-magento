@@ -2,13 +2,15 @@
 
 namespace Airwallex\Payments\Model;
 
-use Airwallex\Payments\Api\Data\PaymentIntentInterface;
 use Airwallex\Payments\Api\Data\PlaceOrderResponseInterface;
 use Airwallex\Payments\Api\Data\PlaceOrderResponseInterfaceFactory;
 use Airwallex\Payments\Api\OrderServiceInterface;
 use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Helper\Configuration;
+use Airwallex\Payments\Helper\CurrentPaymentMethodHelper;
 use Airwallex\Payments\Helper\IsOrderCreatedHelper;
+use Airwallex\Payments\Model\Methods\AfterpayMethod;
+use Airwallex\Payments\Model\Methods\KlarnaMethod;
 use Airwallex\Payments\Model\Methods\RedirectMethod;
 use Airwallex\Payments\Plugin\ReCaptchaValidationPlugin;
 use Exception;
@@ -26,20 +28,17 @@ use Magento\Quote\Api\Data\AddressInterface;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Quote\Api\Data\PaymentInterface;
 use Magento\Quote\Model\Quote;
-use Magento\Sales\Api\Data\OrderAddressInterface;
 use Magento\Sales\Api\OrderManagementInterface;
 use Magento\Sales\Model\Order;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Magento\Framework\Exception\InputException;
-use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\Sales\Api\TransactionRepositoryInterface;
-use Magento\Sales\Model\ResourceModel\Order\CollectionFactory as OrderCollectionFactory;
-use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Confirm;
 use Airwallex\Payments\Helper\IntentHelper;
+use Magento\AdminNotification\Model\Inbox;
 use Magento\Quote\Model\Quote\Address;
 use Magento\Sales\Model\Order\Address as OrderAddress;
 
@@ -51,6 +50,7 @@ class OrderService implements OrderServiceInterface
     protected PaymentIntents $paymentIntents;
     protected Configuration $configuration;
     protected CheckoutData $checkoutHelper;
+    protected CurrentPaymentMethodHelper $currentPaymentMethodHelper;
     protected GuestPaymentInformationManagementInterface $guestPaymentInformationManagement;
     protected PaymentInformationManagementInterface $paymentInformationManagement;
     protected PlaceOrderResponseInterfaceFactory $placeOrderResponseFactory;
@@ -61,19 +61,19 @@ class OrderService implements OrderServiceInterface
     protected ErrorLog $errorLog;
     public PaymentIntentRepository $paymentIntentRepository;
     private TransactionRepositoryInterface $transactionRepository;
-    private OrderCollectionFactory $orderCollectionFactory;
     private OrderManagementInterface $orderManagement;
     private IsOrderCreatedHelper $isOrderCreatedHelper;
-    private OrderFactory $orderFactory;
     private OrderResourceInterface $orderResource;
     private Confirm $confirm;
     private IntentHelper $intentHelper;
+    private Inbox $inbox;
 
     public function __construct(
         PaymentConsentsInterface                   $paymentConsents,
         PaymentIntents                             $paymentIntents,
         Configuration                              $configuration,
         CheckoutData                               $checkoutHelper,
+        CurrentPaymentMethodHelper                 $currentPaymentMethodHelper,
         GuestPaymentInformationManagementInterface $guestPaymentInformationManagement,
         PaymentInformationManagementInterface      $paymentInformationManagement,
         PlaceOrderResponseInterfaceFactory         $placeOrderResponseFactory,
@@ -84,19 +84,19 @@ class OrderService implements OrderServiceInterface
         ErrorLog                                   $errorLog,
         PaymentIntentRepository                    $paymentIntentRepository,
         TransactionRepositoryInterface             $transactionRepository,
-        OrderCollectionFactory                     $orderCollectionFactory,
         OrderManagementInterface                   $orderManagement,
         IsOrderCreatedHelper                       $isOrderCreatedHelper,
-        OrderFactory                               $orderFactory,
         OrderResourceInterface                     $orderResource,
         Confirm                                    $confirm,
-        IntentHelper                               $intentHelper
+        IntentHelper                               $intentHelper,
+        Inbox                                      $inbox
     )
     {
         $this->paymentConsents = $paymentConsents;
         $this->paymentIntents = $paymentIntents;
         $this->configuration = $configuration;
         $this->checkoutHelper = $checkoutHelper;
+        $this->currentPaymentMethodHelper = $currentPaymentMethodHelper;
         $this->guestPaymentInformationManagement = $guestPaymentInformationManagement;
         $this->paymentInformationManagement = $paymentInformationManagement;
         $this->placeOrderResponseFactory = $placeOrderResponseFactory;
@@ -107,13 +107,12 @@ class OrderService implements OrderServiceInterface
         $this->errorLog = $errorLog;
         $this->paymentIntentRepository = $paymentIntentRepository;
         $this->transactionRepository = $transactionRepository;
-        $this->orderCollectionFactory = $orderCollectionFactory;
         $this->orderManagement = $orderManagement;
         $this->isOrderCreatedHelper = $isOrderCreatedHelper;
-        $this->orderFactory = $orderFactory;
         $this->orderResource = $orderResource;
         $this->confirm = $confirm;
         $this->intentHelper = $intentHelper;
+        $this->inbox = $inbox;
     }
 
     /**
@@ -198,21 +197,44 @@ class OrderService implements OrderServiceInterface
             /** @var PlaceOrderResponse $response */
             $response = $this->placeOrderResponseFactory->create();
             $quote = $this->checkoutHelper->getQuote();
-            $uid = $quote->getCustomer()->getId();
 
             if (!$intentId) {
+                if (!$this->configuration->isOrderBeforePayment()) {
+                    return $this->requestIntent($quote, $paymentMethod, $email, $paymentMethodId, $from, $response);
+                }
                 $this->isOrderCreatedHelper->setIsCreated(false);
-                return $this->orderThenIntent($quote, $uid, $cartId, $paymentMethod, $billingAddress, $email, $paymentMethodId, $from, $response);
+                return $this->orderThenIntent($quote, $cartId, $paymentMethod, $billingAddress, $email, $paymentMethodId, $from, $response);
             }
 
-            $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
-            $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
-            $intentResponse = json_decode($resp, true);
-
             try {
-                $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote, 'OrderService');
+                $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
+                $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
+
+                $intentResponse = json_decode($resp, true);
+
+                if ($this->configuration->isOrderBeforePayment()) {
+                    $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote);
+                } else {
+                    $this->checkIntent($intentResponse, $quote);
+                    $this->intentHelper->setIntent($intentResponse);
+                    $this->placeOrder($intentResponse, $quote, self::class, $billingAddress);
+                }
             } catch (Exception $e) {
-                $message = trim($e->getMessage(), ' .') . '. Order status change failed. Please try again.';
+                if (!$this->configuration->isOrderBeforePayment()) {
+                    if (!empty($paymentIntent) && $paymentIntent->getDetail()) {
+                        $detail = json_decode($paymentIntent->getDetail(), true);
+                        if (empty($detail['is_order_failure_reported'])) {
+                            $detail['is_order_failure_reported'] = true;
+                            $this->paymentIntentRepository->updateDetail($paymentIntent, json_encode($detail));
+                            $this->inbox->addCritical(
+                                __('Payment Successful, Order Placement Failed'),
+                                __("A customer has successfully completed the payment, but the order creation failed. Intent ID: $intentId."),
+                            );
+                        }
+                    }
+                }
+                $tip = $this->configuration->isOrderBeforePayment() ? 'Order status change' : 'Order place';
+                $message = trim($e->getMessage(), ' .') . '. ' . $tip . ' failed. Please try again.';
                 $this->errorLog->setMessage($message, $e->getTraceAsString(), $intentId)->send();
                 return $response->setData([
                     'response_type' => 'error',
@@ -222,7 +244,7 @@ class OrderService implements OrderServiceInterface
 
             if ($this->configuration->isCardVaultActive() && $from === 'card_with_saved') {
                 try {
-                    $this->paymentConsents->syncVault($uid);
+                    $this->paymentConsents->syncVault($quote->getCustomer()->getId());
                 } catch (Exception $e) {
                     $this->errorLog->setMessage($e->getMessage(), $e->getTraceAsString(), $intentId)->send();
                 }
@@ -232,6 +254,7 @@ class OrderService implements OrderServiceInterface
             throw $e;
         }
 
+        $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
         return $response->setData([
             'response_type' => 'success',
             'order_id' => $paymentIntent->getOrderId()
@@ -239,8 +262,27 @@ class OrderService implements OrderServiceInterface
     }
 
     /**
+     * @throws AlreadyExistsException
+     * @throws LocalizedException
+     * @throws JsonException
+     * @throws NoSuchEntityException
+     * @throws GuzzleException
+     * @throws InputException
+     */
+    public function requestIntent($model, PaymentInterface $paymentMethod, ?string $email, ?string $paymentMethodId, ?string $from, PlaceOrderResponse $response): PlaceOrderResponse
+    {
+        $this->currentPaymentMethodHelper->setPaymentMethod($paymentMethod->getMethod());
+
+        $quote = $this->checkoutHelper->getQuote();
+        $getPhoneAddress = $quote->isVirtual() ? $quote->getBillingAddress() : $quote->getShippingAddress();
+        $phone = $getPhoneAddress->getTelephone() ?? '';
+        $argEmail = $quote->getCustomer()->getId() ? $quote->getCustomerEmail() : $email;
+        $intent = $this->paymentIntents->getIntent($model, $phone, $argEmail, $from, $paymentMethod);
+        return $this->responseByRequestIntent($paymentMethodId, $intent, $paymentMethod, $model, $response, $email);
+    }
+
+    /**
      * @param Quote $quote
-     * @param $uid
      * @param string $cartId
      * @param PaymentInterface $paymentMethod
      * @param AddressInterface|null $billingAddress
@@ -255,32 +297,16 @@ class OrderService implements OrderServiceInterface
      * @throws JsonException
      * @throws AlreadyExistsException|JsonException
      * @throws LocalizedException
+     * @throws Exception
      */
-    public function orderThenIntent(Quote $quote, $uid, string $cartId, PaymentInterface $paymentMethod, ?AddressInterface $billingAddress, ?string $email, ?string $paymentMethodId, ?string $from, PlaceOrderResponse $response): PlaceOrderResponse
+    public function orderThenIntent(Quote $quote, string $cartId, PaymentInterface $paymentMethod, ?AddressInterface $billingAddress, ?string $email, ?string $paymentMethodId, ?string $from, PlaceOrderResponse $response): PlaceOrderResponse
     {
         $order = $this->getOrderByQuote($quote);
-        $isRequiredToGenerateNewOrder = false;
-        if ($order->getId()) {
-            $paymentIntent = $this->paymentIntentRepository->getByOrderId($order->getId());
-            if ($paymentIntent) {
-                $codes = $paymentIntent->getMethodCodes();
-                $paymentCodes = json_decode($codes, true);
-                if (!empty($paymentCodes)) {
-                    if (in_array($paymentCodes[count($paymentCodes) - 1], RedirectMethod::CURRENCY_SWITCHER_METHODS)
-                        || in_array($paymentMethod->getMethod(), RedirectMethod::CURRENCY_SWITCHER_METHODS)) {
-                        $isRequiredToGenerateNewOrder = $paymentMethod->getMethod() !== $paymentCodes[count($paymentCodes) - 1];
-                    }
-                }
-            }
-        }
 
-        if (
-            $order->getStatus() !== Order::STATE_PENDING_PAYMENT
-            || !$this->isOrderEqualToQuote($order, $quote, $billingAddress)
-            || $isRequiredToGenerateNewOrder
-        ) {
+        if ($order->getStatus() !== Order::STATE_PENDING_PAYMENT
+            || !$this->isOrderEqualToQuote($order, $quote, $billingAddress)) {
             try {
-                if ($uid) {
+                if ($quote->getCustomer()->getId()) {
                     $orderId = $this->paymentInformationManagement->savePaymentInformationAndPlaceOrder(
                         $cartId,
                         $paymentMethod,
@@ -299,8 +325,8 @@ class OrderService implements OrderServiceInterface
                 $this->errorLog->setMessage($message, $e->getTraceAsString(), $paymentMethod->getMethod())->send();
                 throw $e;
             }
-            $order = $this->orderFactory->create();
-            $this->orderResource->load($order, $orderId);
+
+            $order = $this->getFreshOrder($orderId);
 
             $order->setState(Order::STATE_PENDING_PAYMENT)->setStatus(Order::STATE_PENDING_PAYMENT);
             $this->orderResource->save($order);
@@ -314,32 +340,7 @@ class OrderService implements OrderServiceInterface
             }
         }
 
-        $cacheName = AbstractClient::METADATA_PAYMENT_METHOD_PREFIX . $quote->getEntityId();
-        $this->cache->save($from ?: $paymentMethod->getMethod(), $cacheName, [], 60);
-
-        $getPhoneAddress = $quote->isVirtual() ? $quote->getBillingAddress() : $quote->getShippingAddress();
-        $phone = $getPhoneAddress->getTelephone() ?? '';
-        $argEmail = $uid ? $quote->getCustomerEmail() : $email;
-        $intent = $this->paymentIntents->getIntentByOrder($order, $phone, $argEmail, $from, $paymentMethod);
-        $resp = $this->intentGet->setPaymentIntentId($intent['id'])->send();
-
-        $intentResponse = json_decode($resp, true);
-        $intentResponse['status'] = PaymentIntentInterface::INTENT_STATUS_SUCCEEDED;
-        $this->checkIntentWithOrder($intentResponse, $order);
-        $this->appendPaymentMethodId($paymentMethodId, $intent['id']);
-
-        $data = [
-            'response_type' => 'confirmation_required',
-            'intent_id' => $intent['id'],
-            'client_secret' => $intent['clientSecret']
-        ];
-        if ($this->isRedirectMethodConstant($paymentMethod->getMethod())) {
-            $info = $paymentMethod->getAdditionalData()['browser_information'] ?? "";
-            $data['next_action'] = $this->getAirwallexPaymentsNextAction($intent['id'], $paymentMethod->getMethod(), $info, $order->getBillingAddress());
-        }
-
-        $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
-        return $response->setData($data);
+        return $this->requestIntent($order, $paymentMethod, $email, $paymentMethodId, $from, $response);
     }
 
     /**
@@ -418,16 +419,23 @@ class OrderService implements OrderServiceInterface
      * @throws LocalizedException
      * @throws Exception
      */
-    public function getAirwallexPaymentsNextAction(string $intentId, $code, string $browserInformation, OrderAddressInterface $address)
+    public function getAirwallexPaymentsNextAction(array $intent, PaymentInterface $paymentMethod, string $browserInformation, $address, $email = "")
     {
-        if (!$intentId) {
+        if (!$intent['id']) {
             throw new Exception('Intent id is required.');
         }
-        $cacheName = $code . '-qrcode-' . $intentId;
+        $code = $paymentMethod->getMethod();
+        $cacheName = $code . '-qrcode-' . $intent['id'];
         if (!$returnUrl = $this->cache->load($cacheName)) {
             try {
-                $request = $this->confirm->setPaymentIntentId($intentId)->setBrowserInformation($browserInformation);
-                $resp = $request->setInformation($this->getPaymentMethodCode($code), $address)->send();
+                $request = $this->confirm->setPaymentIntentId($intent['id'])->setBrowserInformation($browserInformation);
+                if (in_array($code, RedirectMethod::CURRENCY_SWITCHER_METHODS, true)) {
+                    $res = $this->switchCurrency($intent, $paymentMethod, $address);
+                    if (!empty($res['quote_id'])) {
+                        $request = $request->setQuote($res['target_currency'], $res['quote_id']);
+                    }
+                }
+                $resp = $request->setInformation($this->getPaymentMethodCode($code), $address, $email)->send();
             } catch (Exception $exception) {
                 throw new LocalizedException(__($exception->getMessage()));
             }
@@ -436,5 +444,90 @@ class OrderService implements OrderServiceInterface
             $this->cache->save($returnUrl, $cacheName, [], 300);
         }
         return $returnUrl;
+    }
+
+    /**
+     * @throws LocalizedException
+     * @throws JsonException
+     * @throws GuzzleException
+     */
+    protected function switchCurrency(array $intent, PaymentInterface $paymentMethod, $address): array
+    {
+        $country = $address->getCountryId();
+        $code = $paymentMethod->getMethod();
+        if ($code === KlarnaMethod::CODE) {
+            if (!in_array($country, array_keys(KlarnaMethod::SUPPORTED_COUNTRY_TO_CURRENCY), true)) {
+                throw new LocalizedException(__('Klarna is not available in your country. Please change your billing address to a compatible country or choose a different payment method.'));
+            }
+            $targetCurrency = KlarnaMethod::SUPPORTED_COUNTRY_TO_CURRENCY[$country];
+            if ($targetCurrency === $intent['currency']) {
+                return [];
+            }
+            $currencies = json_decode($this->getAvailableCurrencies(), true);
+            if (!in_array($targetCurrency, $currencies, true) || !in_array($intent['currency'], $currencies, true)) {
+                throw new LocalizedException(__('Klarna is not available in your country. Please change your billing address to a compatible country or choose a different payment method.'));
+            }
+        } elseif ($code === AfterpayMethod::CODE) {
+            $account = $this->account();
+            $arr = json_decode($account, true);
+            $entity = $arr['owningEntity'];
+            if (!isset(AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY[$entity])) {
+                throw new LocalizedException(__('The selected payment method is not supported.'));
+            }
+            if (in_array($intent['currency'], AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY[$entity], true)) {
+                return [];
+            }
+            if (count(AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY[$entity]) === 1) {
+                $targetCurrency = AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY[$entity][0];
+            } else {
+                $targetCurrency = AfterpayMethod::SUPPORTED_COUNTRY_TO_CURRENCY[$country] ?? '';
+                if (empty($targetCurrency)) {
+                    $afterpayCountry = $paymentMethod->getAdditionalData()['afterpay_country'] ?? '';
+                    $targetCurrency = AfterpayMethod::SUPPORTED_COUNTRY_TO_CURRENCY[$afterpayCountry] ?? '';
+                }
+                if (empty($targetCurrency)) {
+                    throw new LocalizedException(__('The selected afterpay country is not supported.'));
+                }
+            }
+        }
+
+        $res = $this->currencySwitcher($intent['currency'], $targetCurrency, $intent['amount']);
+        $switcher = json_decode($res, true);
+        return [
+            'quote_id' => $switcher['id'],
+            'target_currency' => $targetCurrency,
+        ];
+    }
+
+    /**
+     * @param string|null $paymentMethodId
+     * @param array $intent
+     * @param PaymentInterface $paymentMethod
+     * @param $model
+     * @param PlaceOrderResponse $response
+     * @param string $email
+     * @return PlaceOrderResponse
+     * @throws AlreadyExistsException
+     * @throws GuzzleException
+     * @throws InputException
+     * @throws LocalizedException
+     * @throws NoSuchEntityException
+     */
+    public function responseByRequestIntent(?string $paymentMethodId, array $intent, PaymentInterface $paymentMethod, $model, PlaceOrderResponse $response, string $email = ""): PlaceOrderResponse
+    {
+        $this->appendPaymentMethodId($paymentMethodId, $intent['id']);
+
+        $data = [
+            'response_type' => 'confirmation_required',
+            'intent_id' => $intent['id'],
+            'client_secret' => $intent['clientSecret']
+        ];
+        if ($this->isRedirectMethodConstant($paymentMethod->getMethod())) {
+            $browserInformation = $paymentMethod->getAdditionalData()['browser_information'] ?? "";
+            $data['next_action'] = $this->getAirwallexPaymentsNextAction($intent, $paymentMethod, $browserInformation, $model->getBillingAddress(), $email);
+        }
+
+        $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent['id']), [], 3600);
+        return $response->setData($data);
     }
 }

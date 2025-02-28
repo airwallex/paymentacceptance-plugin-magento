@@ -2,6 +2,7 @@
 
 namespace Airwallex\Payments\Helper;
 
+use Airwallex\Payments\Api\OrderServiceInterface;
 use Airwallex\Payments\Model\Config\Source\Mode;
 use Magento\Framework\App\Helper\AbstractHelper;
 use Magento\Payment\Model\MethodInterface;
@@ -320,10 +321,22 @@ class Configuration extends AbstractHelper
     }
 
     /**
+     * @param string $env
      * @return string
      */
     public function getConnectionFlowField(string $env): string
     {
         return $this->scopeConfig->getValue('airwallex/general/' . $env . '_connection_flow') ?: '';
+    }
+
+    /**
+     * Express capture enabled
+     *
+     * @return bool
+     */
+    public function isOrderBeforePayment(): bool
+    {
+        $value = $this->scopeConfig->getValue('airwallex/general/order_payment_sequence');
+        return empty($value) || $value === OrderServiceInterface::ORDER_BEFORE_PAYMENT;
     }
 }

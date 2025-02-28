@@ -12,6 +12,7 @@
                 <webhook_demo_secret_key backend_model="Magento\Config\Model\Config\Backend\Encrypted" />
                 <webhook_prod_secret_key backend_model="Magento\Config\Model\Config\Backend\Encrypted" />
                 <webhook>{}</webhook>
+                <order_payment_sequence>order_before_payment</order_payment_sequence>
             </general>
         </airwallex>
         <payment>

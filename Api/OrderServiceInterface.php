@@ -8,6 +8,9 @@ use Magento\Quote\Api\Data\PaymentInterface;
 
 interface OrderServiceInterface
 {
+    const ORDER_BEFORE_PAYMENT = 'order_before_payment';
+    const PAYMENT_BEFORE_ORDER = 'payment_before_order';
+
     /**
      * @param string $cartId
      * @param string $email

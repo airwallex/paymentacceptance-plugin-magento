@@ -115,14 +115,19 @@ class Capture extends AbstractWebhook
         /** @var Order $order */
         $order = $this->paymentIntentRepository->getOrder($intentId);
         $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
-        if ((
-            ($order->getOrderCurrencyCode() === $data->currency && $this->isAmountEqual($order->getGrandTotal(), $data->captured_amount))
-            || ($paymentIntent->getSwitcherCurrencyCode() === $data->currency && $this->isAmountEqual($paymentIntent->getSwitcherGrandTotal(), $data->captured_amount))
-        ) && $order->getStatus() !== Order::STATE_PROCESSING) {
+        if (empty($order) || empty($order->getId())) {
             $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
             $intentResponse = json_decode($resp, true);
             $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
-            $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote, 'webhook capture');
+            $this->placeOrder($intentResponse, $quote, self::class);
+            return;
+        }
+        if ($order->getOrderCurrencyCode() === $data->currency && $this->isAmountEqual($order->getGrandTotal(), $data->captured_amount)
+            && $order->getStatus() === Order::STATE_PENDING_PAYMENT && $this->isOrderBeforePayment()) {
+            $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
+            $intentResponse = json_decode($resp, true);
+            $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
+            $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote);
             return;
         }
 
@@ -142,7 +147,7 @@ class Capture extends AbstractWebhook
             $amountFormat = $order->formatBasePrice($amount);
             $baseAmount = $amount;
         }
-        $comment = "Captured amount of $amountFormat through Airwallex. Transaction id: \"$intentId\".";
+        $comment = "Captured amount of $amountFormat through Airwallex. Transaction ID: \"$intentId\".";
         $this->addComment($order, $comment);
         $invoice = $this->invoiceService->prepareInvoice($order);
         if ($data->currency === $order->getOrderCurrencyCode() && !$this->isAmountEqual($amount, $order->getGrandTotal())) {

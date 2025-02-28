@@ -12,7 +12,6 @@ use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\OrderFactory;
-use Magento\Sales\Model\Spi\OrderResourceInterface;
 
 class PaymentIntentRepository
 {
@@ -42,12 +41,6 @@ class PaymentIntentRepository
     private OrderFactory $orderFactory;
 
     /**
-     * @var OrderResourceInterface
-     */
-    private OrderResourceInterface $orderResource;
-
-
-    /**
      * PaymentIntentRepository constructor.
      *
      * @param PaymentIntentCollectionFactory $paymentIntentCollectionFactory
@@ -55,15 +48,13 @@ class PaymentIntentRepository
      * @param PaymentIntentResource $paymentIntentResource
      * @param Order $order
      * @param OrderFactory $orderFactory
-     * @param OrderResourceInterface $orderResource
      */
     public function __construct(
         PaymentIntentCollectionFactory $paymentIntentCollectionFactory,
         PaymentIntentFactory           $paymentIntentFactory,
         PaymentIntentResource          $paymentIntentResource,
         Order                          $order,
-        OrderFactory                   $orderFactory,
-        OrderResourceInterface         $orderResource
+        OrderFactory                   $orderFactory
     )
     {
         $this->paymentIntentCollectionFactory = $paymentIntentCollectionFactory;
@@ -71,7 +62,6 @@ class PaymentIntentRepository
         $this->paymentIntentResource = $paymentIntentResource;
         $this->order = $order;
         $this->orderFactory = $orderFactory;
-        $this->orderResource = $orderResource;
     }
 
 
@@ -217,6 +207,14 @@ class PaymentIntentRepository
         $paymentIntent->setDetail($detail);
         $this->paymentIntentResource->save($paymentIntent);
     }
+    /**
+     * @throws AlreadyExistsException
+     */
+    public function updateOrderId($paymentIntent, $orderId): void
+    {
+        $paymentIntent->setOrderId($orderId);
+        $this->paymentIntentResource->save($paymentIntent);
+    }
 
     /**
      * @throws AlreadyExistsException
@@ -227,13 +225,43 @@ class PaymentIntentRepository
         $this->paymentIntentResource->save($paymentIntent);
     }
 
+    private function appendCodes($codes, $code)
+    {
+        if (empty($code)) return $codes;
+        $target = [];
+        if (!empty($codes)) {
+            $target = json_decode($codes, true);
+        }
+        $target[] = $code;
+        return json_encode($target);
+    }
+
+    /**
+     * @throws AlreadyExistsException
+     */
+    public function appendMethodCode($paymentIntent, $code): void
+    {
+        $codes = $paymentIntent->getMethodCodes();
+        $this->updateMethodCodes($paymentIntent, $this->appendCodes($codes, $code));
+    }
+
+    /**
+     * @throws AlreadyExistsException
+     */
+    public function lastMethodCode($paymentIntent): string
+    {
+        if (empty($paymentIntent)) return "";
+        $codes = $paymentIntent->getMethodCodes();
+        if (empty($codes)) return '';
+        $arrCodes = json_decode($codes, true);
+        return end($arrCodes);
+    }
+
     /**
      * @param string $orderIncrement
      * @param string $paymentIntentId
      * @param string $currencyCode
      * @param float $grandTotal
-     * @param string $switcherCurrencyCode
-     * @param float $switcherGrandTotal
      * @param int $orderId
      * @param int $quoteId
      * @param int $storeId
@@ -247,8 +275,6 @@ class PaymentIntentRepository
         string $paymentIntentId,
         string $currencyCode,
         float  $grandTotal,
-        string $switcherCurrencyCode,
-        float  $switcherGrandTotal,
         int    $orderId,
         int    $quoteId,
         int    $storeId,
@@ -261,8 +287,6 @@ class PaymentIntentRepository
             ->setOrderIncrementId($orderIncrement)
             ->setCurrencyCode($currencyCode)
             ->setGrandTotal($grandTotal)
-            ->setSwitcherCurrencyCode($switcherCurrencyCode)
-            ->setSwitcherGrandTotal($switcherGrandTotal)
             ->setOrderId($orderId)
             ->setQuoteId($quoteId)
             ->setStoreId($storeId)

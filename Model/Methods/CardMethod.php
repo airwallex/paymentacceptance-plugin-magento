@@ -5,10 +5,8 @@ namespace Airwallex\Payments\Model\Methods;
 use Airwallex\Payments\Api\Data\PaymentIntentInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
-use Exception;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
-use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Payment\Model\InfoInterface;
 use Magento\Sales\Model\Order\Payment;
 
@@ -20,20 +18,26 @@ class CardMethod extends AbstractMethod
      * @param InfoInterface $payment
      * @param float $amount
      *
-     * @return $this
+     * @return CardMethod $this
      * @throws GuzzleException
-     * @throws LocalizedException
-     * @throws JsonException
      * @throws InputException
-     * @throws NoSuchEntityException
+     * @throws JsonException
+     * @throws LocalizedException
      */
     public function capture(InfoInterface $payment, $amount): self
     {
         if ($amount <= 0) return $this;
 
-        /** @var Payment $payment */
         $order = $payment->getOrder();
-        $intentId = $this->getIntentId($payment);
+        if ($order && $order->getId()) {
+            /** @var Payment $payment */
+            $intentId = $this->getIntentId($payment);
+        } else {
+            $intentResponse = $this->intentHelper->getIntent();
+            /** @var Payment $payment */
+            $this->setTransactionId($payment, $intentResponse['id']);
+            $intentId = $intentResponse['id'];
+        }
 
         $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
         $respArr = json_decode($resp, true);
@@ -47,12 +51,7 @@ class CardMethod extends AbstractMethod
         }
 
         $this->cache->save(true, $this->captureCacheName($intentId), [], 3600);
-        try {
-            $this->capture->setPaymentIntentId($intentId)->setInformation($respArr['amount'])->send();
-        } catch (Exception $exception) {
-            $this->logger->orderError($order, 'capture', $exception->getMessage());
-            throw $exception;
-        }
+        $this->capture->setPaymentIntentId($intentId)->setInformation($respArr['amount'])->send();
         return $this;
     }
 }

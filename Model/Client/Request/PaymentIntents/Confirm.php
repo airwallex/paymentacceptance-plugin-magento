@@ -7,6 +7,7 @@ use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
 use Airwallex\Payments\Model\Methods\KlarnaMethod;
 use JsonException;
 use Magento\Framework\Exception\LocalizedException;
+use Magento\Quote\Api\Data\AddressInterface;
 use Magento\Sales\Api\Data\OrderAddressInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -41,6 +42,9 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
         if ($method === 'afterpay') {
             return $lang;
         }
+        if (empty(KlarnaMethod::COUNTRY_LANGUAGE[$countryCode])) {
+            return 'en';
+        }
         if (in_array($lang, KlarnaMethod::COUNTRY_LANGUAGE[$countryCode], true)) {
             return $lang;
         }
@@ -49,10 +53,11 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
 
     /**
      * @param string $method
-     * @param OrderAddressInterface|null $address
+     * @param AddressInterface|OrderAddressInterface|null $address
+     * @param string $email
      * @return Confirm
      */
-    public function setInformation(string $method, OrderAddressInterface $address = null): self
+    public function setInformation(string $method, $address = null, string $email = ""): self
     {
         $data = [
             'type' => $method,
@@ -62,7 +67,7 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
             $countryCode = $address->getCountryId();
             $data[$method] = [
                 'country_code' => $countryCode,
-                'shopper_email' => $address->getEmail(),
+                'shopper_email' => $email ?: $address->getEmail(),
                 'billing' => [
                     'address' => [
                         "country_code" => $countryCode,
@@ -96,6 +101,16 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
         ]);
     }
 
+    public function setQuote(string $targetCurrency, string $quoteId)
+    {
+        return $this->setParams([
+            'currency_switcher' => [
+                'target_currency' => $targetCurrency,
+                'quote_id' => $quoteId
+            ],
+        ]);
+    }
+
     public function setBrowserInformation(string $info)
     {
         if (!$info) return $this;
@@ -114,7 +129,7 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
      * @param ResponseInterface $response
      *
      * @return array
-     * @throws JsonException
+     * @throws JsonException|LocalizedException
      */
     protected function parseResponse(ResponseInterface $response): array
     {

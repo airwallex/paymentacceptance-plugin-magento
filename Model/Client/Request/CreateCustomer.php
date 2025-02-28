@@ -30,7 +30,6 @@ class CreateCustomer extends AbstractClient implements BearerAuthenticationInter
      * @param ResponseInterface $response
      *
      * @return string
-     * @throws JsonException
      */
     protected function parseResponse(ResponseInterface $response): string
     {

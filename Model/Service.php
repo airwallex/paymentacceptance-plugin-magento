@@ -40,7 +40,6 @@ use Magento\Quote\Model\ValidationRules\BillingAddressValidationRule;
 use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\CheckoutAgreements\Model\AgreementsConfigProvider;
-use Airwallex\Payments\Model\Client\Request\PaymentIntents\Confirm;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
 use Magento\Sales\Model\OrderFactory;
 use Airwallex\Payments\Model\Client\Request\ApplePayDomain\GetList;
@@ -78,7 +77,6 @@ class Service implements ServiceInterface
     private BillingAddressValidationRule $billingAddressValidationRule;
     protected ErrorLog $errorLog;
     protected AgreementsConfigProvider $agreementsConfigProvider;
-    protected Confirm $confirm;
     protected PaymentIntentRepository $paymentIntentRepository;
     protected OrderResourceInterface $orderResource;
     protected OrderFactory $orderFactory;
@@ -117,7 +115,6 @@ class Service implements ServiceInterface
      * @param BillingAddressValidationRule $billingAddressValidationRule
      * @param ErrorLog $errorLog
      * @param AgreementsConfigProvider $agreementsConfigProvider
-     * @param Confirm $confirm
      * @param PaymentIntentRepository $paymentIntentRepository
      * @param OrderResourceInterface $orderResource
      * @param OrderFactory $orderFactory
@@ -154,7 +151,6 @@ class Service implements ServiceInterface
         BillingAddressValidationRule           $billingAddressValidationRule,
         ErrorLog                               $errorLog,
         AgreementsConfigProvider               $agreementsConfigProvider,
-        Confirm                                $confirm,
         PaymentIntentRepository                $paymentIntentRepository,
         OrderResourceInterface                 $orderResource,
         OrderFactory                           $orderFactory,
@@ -191,7 +187,6 @@ class Service implements ServiceInterface
         $this->billingAddressValidationRule = $billingAddressValidationRule;
         $this->errorLog = $errorLog;
         $this->agreementsConfigProvider = $agreementsConfigProvider;
-        $this->confirm = $confirm;
         $this->paymentIntentRepository = $paymentIntentRepository;
         $this->orderResource = $orderResource;
         $this->orderFactory = $orderFactory;
@@ -250,7 +245,10 @@ class Service implements ServiceInterface
      */
     public function intent(string $intentId): string
     {
-        $paid = false;
+        $data = [
+            'paid' => false,
+            'is_order_status_changed' => false,
+        ];
         try {
             $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
             $respArr = json_decode($resp, true);
@@ -258,16 +256,30 @@ class Service implements ServiceInterface
                 PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE,
                 PaymentIntentInterface::INTENT_STATUS_SUCCEEDED,
             ];
-            $paid = in_array($respArr['status'], $paidStatus, true);
+            $data['paid'] = in_array($respArr['status'], $paidStatus, true);
         } catch (Exception $e) {
+        }
+        if (!$data['paid'] ) {
+            return json_encode($data);
         }
         $intentRecord = $this->paymentIntentRepository->getByIntentId($intentId);
         $order = $this->orderFactory->create();
-        $this->orderResource->load($order, $intentRecord->getOrderId());
-        return json_encode([
-            'paid' => $paid,
-            'is_order_status_changed' => $order->getStatus() !== Order::STATE_PENDING_PAYMENT,
-        ]);
+        try {
+            $this->orderResource->load($order, $intentRecord->getOrderId());
+        } catch (Exception $e) {}
+        if (empty($order) || empty($order->getId())) {
+            return json_encode($data);
+        }
+        $quoteId = $intentRecord->getQuoteId();
+        if ($order->getStatus() !== Order::STATE_PENDING_PAYMENT && !$this->configuration->isOrderBeforePayment()) {
+            $this->checkoutHelper->getCheckout()->setLastQuoteId($quoteId);
+            $this->checkoutHelper->getCheckout()->setLastSuccessQuoteId($quoteId);
+            $this->checkoutHelper->getCheckout()->setLastOrderId($order->getId());
+            $this->checkoutHelper->getCheckout()->setLastRealOrderId($order->getIncrementId());
+            $this->checkoutHelper->getCheckout()->setLastOrderStatus($order->getStatus());
+        }
+        $data['is_order_status_changed'] = $order->getStatus() !== Order::STATE_PENDING_PAYMENT;
+        return json_encode($data);
     }
 
     /**

@@ -83,7 +83,7 @@ class Cancel extends AbstractWebhook
         /** @var Order $order */
         $order = $this->paymentIntentRepository->getOrder($paymentIntentId);
         if (!$order) {
-            throw new WebhookException(__("Can't find order $paymentIntentId"));
+            return;
         }
 
         if (!$order->canCancel()) {

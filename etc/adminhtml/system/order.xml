@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<include xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_include.xsd">
+    <group id="order" translate="label" type="text" sortOrder="311" showInDefault="1" showInWebsite="1" showInStore="1">
+        <label>Advanced Configuration</label>
+        <field id="order_payment_sequence" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1">
+            <label>Payment &amp; Order Sequence</label>
+            <source_model>Airwallex\Payments\Model\Config\Source\OrderPaymentSequence</source_model>
+            <config_path>airwallex/general/order_payment_sequence</config_path>
+            <comment>
+                <![CDATA[This lets you decide if you want to create an order before or after payment confirmation. By default, you should use “<span style='font-weight: 800'>Order first, then Payment confirmation</span>”. We <span style='font-weight: 800'>do not recommend</span> switching to “Payment first, then Order creation”, as it may result in confirmed payments without corresponding orders.]]>
+            </comment>
+        </field>
+    </group>
+</include>

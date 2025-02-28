@@ -4,6 +4,7 @@ namespace Airwallex\Payments\Model\Client;
 
 use Airwallex\Payments\Helper\AuthenticationHelper;
 use Airwallex\Payments\Helper\Configuration;
+use Airwallex\Payments\Helper\CurrentPaymentMethodHelper;
 use Airwallex\Payments\Logger\Guzzle\RequestLogger;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
 use Airwallex\Payments\Model\Client\Request\Authentication;
@@ -12,6 +13,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Framework\App\CacheInterface;
+use Magento\Framework\App\ObjectManager;
 use Magento\Framework\App\ProductMetadataInterface;
 use Magento\Framework\DataObject\IdentityService;
 use Magento\Framework\Module\ModuleListInterface;
@@ -21,7 +23,6 @@ use Magento\Checkout\Helper\Data as CheckoutData;
 abstract class AbstractClient
 {
     public const NOT_FOUND = '404 not found';
-    public const METADATA_PAYMENT_METHOD_PREFIX = 'metadata_payment_method_';
     protected const JSON_DECODE_DEPTH = 512;
     protected const SUCCESS_STATUS_START = 200;
     protected const SUCCESS_STATUS_END = 299;
@@ -87,14 +88,14 @@ abstract class AbstractClient
      * @param CacheInterface $cache
      */
     public function __construct(
-        AuthenticationHelper     $authenticationHelper,
-        IdentityService          $identityService,
-        RequestLogger            $requestLogger,
-        Configuration            $configuration,
-        ProductMetadataInterface $productMetadata,
-        ModuleListInterface      $moduleList,
-        CheckoutData             $checkoutData,
-        CacheInterface           $cache
+        AuthenticationHelper       $authenticationHelper,
+        IdentityService            $identityService,
+        RequestLogger              $requestLogger,
+        Configuration              $configuration,
+        ProductMetadataInterface   $productMetadata,
+        ModuleListInterface        $moduleList,
+        CheckoutData               $checkoutData,
+        CacheInterface             $cache
     )
     {
         $this->authenticationHelper = $authenticationHelper;
@@ -265,9 +266,10 @@ abstract class AbstractClient
             'express_display_area' => $this->configuration->expressDisplayArea() ?? '',
             'is_request_logger_enable' => $this->configuration->isRequestLoggerEnable() ?? false,
             'express_checkout' => $this->configuration->getCheckout() ?? '',
+            'is_order_before_payment' => $this->configuration->isOrderBeforePayment(),
             'host' => $_SERVER['HTTP_HOST'] ?? '',
         ];
-        if ($methodName = $this->cache->load(self::METADATA_PAYMENT_METHOD_PREFIX . $this->checkoutData->getQuote()->getEntityId())) {
+        if ($methodName = ObjectManager::getInstance()->get(CurrentPaymentMethodHelper::class)->getPaymentMethod()) {
             $metadata['payment_method'] = $methodName;
         }
         return $metadata;

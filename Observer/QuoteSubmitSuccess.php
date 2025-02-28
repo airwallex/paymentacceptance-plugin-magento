@@ -5,7 +5,6 @@ namespace Airwallex\Payments\Observer;
 use Magento\Quote\Model\Quote;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
-use Magento\Sales\Model\Order;
 use Airwallex\Payments\Helper\IsOrderCreatedHelper;
 
 class QuoteSubmitSuccess implements ObserverInterface

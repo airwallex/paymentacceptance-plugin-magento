@@ -46,16 +46,6 @@ interface PaymentIntentInterface
     public function getGrandTotal(): float;
 
     /**
-     * @return string
-     */
-    public function getSwitcherCurrencyCode(): string;
-
-    /**
-     * @return float
-     */
-    public function getSwitcherGrandTotal(): float;
-
-    /**
      * @return int
      */
     public function getQuoteId(): int;

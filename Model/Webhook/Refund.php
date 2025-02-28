@@ -174,10 +174,7 @@ class Refund extends AbstractWebhook
 
         $creditMemo->setBaseGrandTotal($baseAmount);
         $creditMemo->setGrandTotal($refundAmount);
-        if ($refundCurrency === $order->getBaseCurrencyCode()) {
-            $creditMemo->setBaseGrandTotal($refundAmount);
-            $creditMemo->setGrandTotal($this->convertToDisplayCurrency($refundAmount, $order->getBaseToOrderRate(), false));
-        } else if ($refundCurrency !== $order->getOrderCurrencyCode()) {
+        if ($refundCurrency !== $order->getOrderCurrencyCode()) {
             $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
             $intentResponse = json_decode($resp, true);
             $refundAmount = round($refundAmount / $intentResponse['amount'] * $order->getBaseGrandTotal(), 2);

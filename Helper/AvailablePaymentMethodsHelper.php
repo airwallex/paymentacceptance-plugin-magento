@@ -6,7 +6,6 @@ use Airwallex\Payments\Model\Client\Request\AvailablePaymentMethods;
 use Airwallex\Payments\Model\Methods\AbstractMethod;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
-use JsonException;
 use Magento\Framework\App\CacheInterface;
 use Magento\Checkout\Helper\Data as CheckoutData;
 
@@ -72,7 +71,7 @@ class AvailablePaymentMethodsHelper
      * @param string $code
      *
      * @return bool
-     * @throws JsonException|GuzzleException
+     * @throws GuzzleException
      */
     public function isAvailable(string $code): bool
     {
@@ -88,7 +87,6 @@ class AvailablePaymentMethodsHelper
     /**
      * @return mixed
      * @throws GuzzleException
-     * @throws JsonException
      */
     private function getItems()
     {
@@ -103,7 +101,6 @@ class AvailablePaymentMethodsHelper
 
     /**
      * @throws GuzzleException
-     * @throws JsonException
      */
     public function getLatestItems($useQuote = true)
     {
@@ -118,14 +115,14 @@ class AvailablePaymentMethodsHelper
         }
         try {
             return $request->send();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return [];
         }
     }
 
     /**
      * @return array
-     * @throws JsonException|GuzzleException
+     * @throws GuzzleException
      */
     private function getAllMethods(): array
     {
@@ -139,7 +136,7 @@ class AvailablePaymentMethodsHelper
 
     /**
      * @return array
-     * @throws JsonException|GuzzleException
+     * @throws GuzzleException
      */
     public function getAllPaymentMethodTypes(): array
     {

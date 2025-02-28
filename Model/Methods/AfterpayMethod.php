@@ -10,7 +10,7 @@ class AfterpayMethod extends RedirectCurrencySwitcherMethod
         'US' => 'USD',
         'AU' => 'AUD',
         'NZ' => 'NZD',
-        'UK' => 'GBP',
+        'GB' => 'GBP',
         'CA' => 'CAD',
     ];
 

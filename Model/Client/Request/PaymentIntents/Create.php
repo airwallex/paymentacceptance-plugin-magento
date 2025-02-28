@@ -4,153 +4,56 @@ namespace Airwallex\Payments\Model\Client\Request\PaymentIntents;
 
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
-use Airwallex\Payments\Model\Methods\AfterpayMethod;
 use Airwallex\Payments\Model\Methods\KlarnaMethod;
-use Airwallex\Payments\Model\Methods\RedirectMethod;
+use Airwallex\Payments\Model\PaymentIntents;
 use Airwallex\Payments\Model\Traits\HelperTrait;
-use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
-use Magento\Framework\Exception\LocalizedException;
+use Magento\Framework\App\ObjectManager;
 use Magento\Quote\Api\Data\PaymentInterface;
-use Magento\Quote\Model\Quote;
+use Magento\Quote\Model\QuoteRepository;
 use Magento\Sales\Model\Order;
+use Magento\Setup\Console\InputValidationException;
 use Psr\Http\Message\ResponseInterface;
 
 class Create extends AbstractClient implements BearerAuthenticationInterface
 {
     use HelperTrait;
 
-    /**
-     * @param Quote $quote
-     * @param string $returnUrl
-     *
-     * @return Create
-     */
-    public function setQuote(Quote $quote, string $returnUrl): self
+    protected function getProductsForIntentCreate($model, PaymentInterface $paymentMethod, array $products): array
     {
-        $params = [
-            'amount' => $quote->getGrandTotal(),
-            'currency' => $quote->getQuoteCurrencyCode(),
-            'merchant_order_id' => $quote->getReservedOrderId(),
-            'supplementary_amount' => 1,
-            'return_url' => $returnUrl,
-            'order' => [
-                'products' => $this->getProducts($quote),
-                'shipping' => $this->getShippingAddress($quote)
-            ]
-        ];
-        return $this->setParams($params);
-    }
-
-    /**
-     * @param Order $order
-     * @param PaymentInterface $paymentMethod
-     * @param string $returnUrl
-     *
-     * @return Create
-     * @throws GuzzleException
-     * @throws JsonException
-     * @throws LocalizedException
-     */
-    public function setOrder(Order $order, PaymentInterface $paymentMethod, string $returnUrl): self
-    {
-        $products = $this->getProducts($order);
         if ($paymentMethod->getMethod() === KlarnaMethod::CODE) {
             $products[] = [
                 'code' => 0,
-                'name' => 'fake-product',
+                'name' => 'Other Fees',
                 'quantity' => 1,
-                'sku' => 'fake-product',
-                'unit_price' => $this->getAmount($order, $paymentMethod),
+                'sku' => '',
+                'unit_price' => $model->getGrandTotal(),
             ];
         }
+        return $products;
+    }
+
+    public function setIntentParams($model, PaymentInterface $paymentMethod, string $returnUrl): self
+    {
+        $isOrder = $model instanceof Order;
+
+        if (!$isOrder && !$model->getReservedOrderId()) {
+            $model->reserveOrderId();
+            ObjectManager::getInstance()->get(QuoteRepository::class)->save($model);
+        }
+
+        $products = $this->getProducts($model);
         $params = [
-            'amount' => $this->getAmount($order, $paymentMethod),
-            'currency' => $this->getCurrency($order, $paymentMethod),
-            'merchant_order_id' => $order->getIncrementId(),
+            'amount' => round($model->getGrandTotal(), PaymentIntents::CURRENCY_TO_DECIMAL[$this->getCurrencyCode($model)]),
+            'currency' => $this->getCurrencyCode($model),
+            'merchant_order_id' => $isOrder ? $model->getIncrementId() : $model->getReservedOrderId(),
             'return_url' => trim($returnUrl, '/'),
             'order' => [
-                'products' => $products,
-                'shipping' => $this->getShippingAddress($order)
+                'products' => $this->getProductsForIntentCreate($model, $paymentMethod, $products),
+                'shipping' => $this->getShippingAddress($model)
             ]
         ];
         return $this->setParams($params);
-    }
-
-    /**
-     * @param Order $order
-     * @param PaymentInterface $paymentMethod
-     * @return float|string|null
-     * @throws JsonException
-     * @throws LocalizedException
-     * @throws GuzzleException
-     */
-    public function getCurrency(Order $order, PaymentInterface $paymentMethod)
-    {
-        if (!in_array($paymentMethod->getMethod(), RedirectMethod::CURRENCY_SWITCHER_METHODS, true)) return $order->getOrderCurrencyCode();
-        $country = $order->getBillingAddress()->getCountryId();
-        if ($country === "GB") $country = "UK";
-        if ($paymentMethod->getMethod() === KlarnaMethod::CODE) {
-            $this->testPaymentMethod($order);
-            return KlarnaMethod::SUPPORTED_COUNTRY_TO_CURRENCY[$country];
-        }
-        $account = $this->account();
-        $arr = json_decode($account, true);
-        $entity = $arr['owningEntity'];
-        if (!isset(AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY[$entity])) {
-            throw new LocalizedException(__('The selected payment method is not supported.'));
-        }
-        if (in_array($order->getOrderCurrencyCode(), AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY[$entity], true)) {
-            return $order->getOrderCurrencyCode();
-        }
-        if (in_array($order->getBaseCurrencyCode(), AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY[$entity], true)) {
-            return $order->getBaseCurrencyCode();
-        }
-        if (count(AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY[$entity]) === 1) return AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY[$entity][0];
-        $currency = AfterpayMethod::SUPPORTED_COUNTRY_TO_CURRENCY[$country] ?? '';
-        if (empty($currency)) {
-            $afterpayCountry = $paymentMethod->getAdditionalData()['afterpay_country'] ?? '';
-            if ($afterpayCountry === 'GB') $afterpayCountry = 'UK';
-            $currency = AfterpayMethod::SUPPORTED_COUNTRY_TO_CURRENCY[$afterpayCountry] ?? '';
-        }
-        if (empty($currency)) {
-            throw new LocalizedException(__('The selected afterpay country is not supported.'));
-        }
-        return $currency;
-    }
-
-    /**
-     * @throws LocalizedException
-     */
-    private function testPaymentMethod(Order $order)
-    {
-        $country = $order->getBillingAddress()->getCountryId();
-        if ($country === "GB") $country = "UK";
-        if (!in_array($country, array_keys(KlarnaMethod::SUPPORTED_COUNTRY_TO_CURRENCY), true)) {
-            throw new LocalizedException(__('Klarna is not available in your country. Please change your billing address to a compatible country or choose a different payment method.'));
-        }
-    }
-
-    /**
-     * @param Order $order
-     * @param PaymentInterface $paymentMethod
-     * @return float|mixed|null
-     * @throws GuzzleException
-     * @throws JsonException
-     * @throws LocalizedException
-     */
-    public function getAmount(Order $order, PaymentInterface $paymentMethod)
-    {
-        if (!in_array($paymentMethod->getMethod(), RedirectMethod::CURRENCY_SWITCHER_METHODS, true)) return $order->getGrandTotal();
-        if ($order->getOrderCurrencyCode() === $this->getCurrency($order, $paymentMethod)) {
-            return $order->getGrandTotal();
-        }
-        if ($order->getBaseCurrencyCode() === $this->getCurrency($order, $paymentMethod)) {
-            return $order->getBaseGrandTotal();
-        }
-        $switcher = $this->currencySwitcher($order->getOrderCurrencyCode(), $this->getCurrency($order, $paymentMethod), $order->getGrandTotal());
-        $items = json_decode($switcher, true);
-        return $items['target_amount'];
     }
 
     /**
@@ -191,9 +94,15 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
     {
         $data = $this->parseJson($response);
 
+        if (!empty($data->code) && $data->code === 'validation_error') {
+            throw new InputValidationException(__($data->message));
+        }
+
         return [
-            'clientSecret' => $data->client_secret,
-            'id' => $data->id,
+            'clientSecret' => $data->client_secret ?? '',
+            'id' => $data->id ?? '',
+            'amount' => $data->amount ?? 0,
+            'currency' => $data->currency ?? '',
         ];
     }
 }

@@ -6,6 +6,7 @@ use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Model\Client\Request\GetCurrencies;
 use Airwallex\Payments\Model\Methods\KlarnaMethod;
+use Airwallex\Payments\Model\Traits\HelperTrait;
 use GuzzleHttp\Exception\GuzzleException;
 use Magento\Checkout\Model\ConfigProviderInterface;
 use Magento\Customer\Model\Session;
@@ -20,10 +21,10 @@ use Magento\Customer\Api\CustomerRepositoryInterface;
 use Airwallex\Payments\Model\Client\Request\RetrieveCustomer;
 use Airwallex\Payments\Model\Methods\AfterpayMethod;
 use Exception;
-use JsonException;
 
 class ConfigProvider implements ConfigProviderInterface
 {
+    use HelperTrait;
     public const AIRWALLEX_RECAPTCHA_FOR = 'place_order';
 
     protected Configuration $configuration;
@@ -78,46 +79,12 @@ class ConfigProvider implements ConfigProviderInterface
     }
 
     /**
-     * @throws GuzzleException
-     * @throws JsonException|JsonException
-     */
-    private function getAvailableCurrencies()
-    {
-        $cacheName = 'airwallex_available_currencies';
-        $result = $this->cache->load($cacheName);
-        if (empty($result) || $result === "[]") {
-            $index = 0;
-            $items = [];
-            while (true) {
-                try {
-                    $res = $this->getCurrencies
-                        ->setPage($index, 200)
-                        ->send();
-                } catch (Exception $exception) {
-                    return json_encode($items);
-                }
-
-                $index++;
-                if (!empty($res['items'])) {
-                    $items = array_merge($items, $res['items']);
-                }
-                if (!$res['has_more']) {
-                    break;
-                }
-            }
-            $result = json_encode($items);
-            $this->cache->save($result, $cacheName, [], 300);
-        }
-        return $result;
-    }
-
-    /**
      * Adds mode to check out config array
      *
      * @return array
      * @throws GuzzleException
      * @throws LocalizedException
-     * @throws NoSuchEntityException|JsonException
+     * @throws NoSuchEntityException
      */
     public function getConfig(): array
     {

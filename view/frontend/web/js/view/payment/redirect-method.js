@@ -141,7 +141,7 @@ define([
                     <li data-value="US">United States</li>
                     <li data-value="AU">Australia</li>
                     <li data-value="NZ">New Zealand</li>
-                    <li data-value="UK">United Kingdom</li>
+                    <li data-value="GB">United Kingdom</li>
                     <li data-value="CA">Canada</li>
                     </ul>
                 </div>
@@ -199,12 +199,16 @@ define([
         },
 
         async switcher(payment_currency, target_currency, amount) {
-            let res = await storage.post(urlBuilder.build('rest/V1/airwallex/currency/switcher'), JSON.stringify({
-                'payment_currency': payment_currency,
-                'target_currency': target_currency,
-                'amount': amount,
-            }), undefined, 'application/json', {});
-            return JSON.parse(res);
+            try {
+                let res = await storage.post(urlBuilder.build('rest/V1/airwallex/currency/switcher'), JSON.stringify({
+                    'payment_currency': payment_currency,
+                    'target_currency': target_currency,
+                    'amount': amount,
+                }), undefined, 'application/json', {});
+                return JSON.parse(res);
+            } catch (err) {
+                return {};
+            }
         },
 
         getDisplayName() {
@@ -275,20 +279,19 @@ define([
                 return true;
             }
             await this.fetchExpressData();
-            if (entityToCurrency[entity].indexOf(this.expressData.base_currency_code) !== -1) {
-                this.validationError(this.switcherTip(this.expressData.base_currency_code, 'afterpay'));
-                this.showYouPay({
-                    payment_currency: this.expressData.quote_currency_code,
-                    target_currency: this.expressData.base_currency_code,
-                    client_rate: (1 / this.expressData.base_to_quote_rate).toFixed(4),
-                    target_amount: parseFloat(this.expressData.base_grand_total).toFixed(2),
-                });
-                return true;
-            }
+            // if (entityToCurrency[entity].indexOf(this.expressData.base_currency_code) !== -1) {
+            //     this.validationError(this.switcherTip(this.expressData.base_currency_code, 'afterpay'));
+            //     this.showYouPay({
+            //         payment_currency: this.expressData.quote_currency_code,
+            //         target_currency: this.expressData.base_currency_code,
+            //         client_rate: (1 / this.expressData.base_to_quote_rate).toFixed(4),
+            //         target_amount: parseFloat(this.expressData.base_grand_total).toFixed(2),
+            //     });
+            //     return true;
+            // }
 
             let targetCurrency;
             let cId = quote.billingAddress() ? quote.billingAddress().countryId : '';
-            if (cId === 'GB') cId = 'UK';
             if (countryToCurrency[cId]) {
                 targetCurrency = countryToCurrency[cId];
                 if (entityToCurrency[entity].indexOf(targetCurrency) === -1) {
@@ -296,6 +299,7 @@ define([
                 }
             }
             if (!targetCurrency) {
+                
                 if (entityToCurrency[entity].length !== 1) {
                     this.showPayafterCountries();
                     let country = localStorage.getItem(this.afterpayCountryKey);
@@ -351,9 +355,17 @@ define([
                     this.disableCheckoutButton();
                     return false;
                 }
+
                 let targetCurrency = countries[quote.billingAddress().countryId];
+
+                if (sourceCurrency === targetCurrency) {
+                    this.activeCheckoutButton();
+                    this.validationError('');
+                    return true;
+                }
+
                 let currencies = JSON.parse(window.checkoutConfig.payment.airwallex_payments.available_currencies);
-                if (currencies.indexOf(sourceCurrency) === -1 || currencies.indexOf(targetCurrency) === -1) {
+                if (currencies.indexOf(sourceCurrency) === -1) {
                     let msg = "Klarna is not available in " + sourceCurrency
                         + " for your billing country. Please use a different payment method to complete your purchase.";
                     this.validationError(utils.awxAlert(msg));
@@ -368,23 +380,20 @@ define([
                     return false;
                 }
                 this.activeCheckoutButton();
-                if (sourceCurrency === targetCurrency) {
-                    this.validationError('');
-                    return true;
-                }
+
                 this.validationError(this.switcherTip(targetCurrency, 'klarna'));
 
                 await this.fetchExpressData();
 
-                if (targetCurrency === this.expressData.base_currency_code) {
-                    this.showYouPay({
-                        payment_currency: this.expressData.quote_currency_code,
-                        target_currency: targetCurrency,
-                        client_rate: (1 / this.expressData.base_to_quote_rate).toFixed(4),
-                        target_amount: parseFloat(this.expressData.base_grand_total).toFixed(2),
-                    });
-                    return true;
-                }
+                // if (targetCurrency === this.expressData.base_currency_code) {
+                //     this.showYouPay({
+                //         payment_currency: this.expressData.quote_currency_code,
+                //         target_currency: targetCurrency,
+                //         client_rate: (1 / this.expressData.base_to_quote_rate).toFixed(4),
+                //         target_amount: parseFloat(this.expressData.base_grand_total).toFixed(2),
+                //     });
+                //     return true;
+                // }
                 let that = this;
                 let switchers = await this.switcher(that.expressData.quote_currency_code, targetCurrency, that.expressData.grand_total);
                 this.showYouPay(switchers);

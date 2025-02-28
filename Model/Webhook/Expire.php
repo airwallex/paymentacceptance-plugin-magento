@@ -2,16 +2,10 @@
 
 namespace Airwallex\Payments\Model\Webhook;
 
-use Airwallex\Payments\Exception\WebhookException;
 use Airwallex\Payments\Helper\CancelHelper;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\Framework\App\CacheInterface;
-use Magento\Framework\Exception\AlreadyExistsException;
-use Magento\Framework\Exception\InputException;
-use Magento\Framework\Exception\LocalizedException;
-use Magento\Framework\Exception\NoSuchEntityException;
-use Magento\Sales\Model\Order;
 use Magento\Sales\Model\OrderRepository;
 
 class Expire extends AbstractWebhook
@@ -65,11 +59,6 @@ class Expire extends AbstractWebhook
      * @param object $data
      *
      * @return void
-     * @throws AlreadyExistsException
-     * @throws InputException
-     * @throws LocalizedException
-     * @throws NoSuchEntityException
-     * @throws WebhookException
      */
     public function execute(object $data): void
     {

@@ -3,6 +3,7 @@
 namespace Airwallex\Payments\Plugin;
 
 use Airwallex\Payments\Api\Data\PaymentIntentInterface;
+use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Helper\IntentHelper;
 use Airwallex\Payments\Helper\IsOrderCreatedHelper;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
@@ -35,15 +36,20 @@ class CapturePlugin
      */
     public function beforeCapture(CaptureOperation $subject, OrderPaymentInterface $payment, $invoice)
     {
+        if (empty($payment)) {
+            return;
+        }
         $order = $payment->getOrder();
-        if (!$order || !$order->getId()) {
+        if (empty($order) || empty($order->getId())) {
             return;
         }
         $record = ObjectManager::getInstance()->get(PaymentIntentRepository::class)->getByOrderId($order->getId());
-        if (!$record) {
+        if (empty($record)) {
             return;
         }
-
+        if (ObjectManager::getInstance()->get(Configuration::class)->isCardCaptureEnabled()) {
+            return;
+        }
         if ($order->getStatus() !== Order::STATE_PENDING_PAYMENT) {
             return;
         }
@@ -52,7 +58,7 @@ class CapturePlugin
         $intent = json_decode($response, true);
 
         try {
-            $this->checkIntentWithOrder($intent, $order);
+            $this->checkIntent($intent, $order);
         } catch (Exception $e) {
             throw new LocalizedException(__($e->getMessage()));
         }

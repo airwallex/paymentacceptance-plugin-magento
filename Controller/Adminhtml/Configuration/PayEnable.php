@@ -6,7 +6,6 @@ use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Framework\App\Filesystem\DirectoryList;
-use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\FileSystemException;
 use Magento\Framework\Math\Random;
 use Magento\Backend\App\Action;
@@ -99,7 +98,7 @@ class PayEnable extends Action
     }
 
     /**
-     * Set apple pay domain
+     * Set Apple Pay domain
      *
      * @return Json
      * @throws GuzzleException

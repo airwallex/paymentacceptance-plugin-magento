@@ -437,7 +437,8 @@ define([
         async placeOrder(payload, intentResponse, headers = {}) {
             payload.intent_id = intentResponse.intent_id;
             payload.paymentMethod.additional_data.intent_id = intentResponse.intent_id;
-
+            payload.paymentMethod.additional_data.transaction_id = intentResponse.intent_id;
+            console.log(payload);
             let endResult = {};
             try {
                 endResult = await storage.post(
@@ -518,8 +519,14 @@ define([
             payload.paymentMethodId = paymentMethodId;
         },
 
-        async sendVaultBillingAddress(self, quote, from = "") {
-            if (from !== 'vault') return;
+        async sendBillingAddress(self, quote, from = "") {
+            if (from !== 'vault') {
+                await addressHandler.postBillingAddress({
+                    'cartId': quote.getQuoteId(),
+                    'address': quote.billingAddress()
+                }, this.isLoggedIn(), quote.getQuoteId());
+                return;
+            }
             if (!window.airwallexSavedCards) {
                 window.airwallexSavedCards = await this.getSavedCards();
             }
@@ -609,10 +616,6 @@ define([
                 },
             };
 
-            if (from !== 'vault') {
-                payload.billingAddress = quote.billingAddress();
-            }
-
             if (!this.isLoggedIn()) {
                 payload.email = quote.guestEmail;
             }
@@ -631,7 +634,7 @@ define([
             await this.setRecaptchaToken(payload, this.getRecaptchaId());
 
             try {
-                await this.sendVaultBillingAddress(self, quote, from);
+                await this.sendBillingAddress(self, quote, from);
                 await this.preverification(from, payload, self, quote);
                 let intentResponse = await this.getIntent(payload, headers);
                 try {

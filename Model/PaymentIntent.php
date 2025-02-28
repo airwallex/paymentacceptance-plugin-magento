@@ -58,22 +58,6 @@ class PaymentIntent extends AbstractModel implements IdentityInterface, PaymentI
     }
 
     /**
-     * @return string
-     */
-    public function getSwitcherCurrencyCode(): string
-    {
-        return $this->getData(PaymentIntentInterface::SWITCHER_CURRENCY_CODE_COLUMN);
-    }
-
-    /**
-     * @return float
-     */
-    public function getSwitcherGrandTotal(): float
-    {
-        return $this->getData(PaymentIntentInterface::SWITCHER_GRAND_TOTAL_COLUMN);
-    }
-
-    /**
      * @return int
      */
     public function getQuoteId(): int

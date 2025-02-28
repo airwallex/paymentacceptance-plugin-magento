@@ -115,7 +115,6 @@ class GetList extends AbstractClient implements BearerAuthenticationInterface
     /**
      * @return array|mixed
      * @throws GuzzleException
-     * @throws JsonException
      */
     public function getCardSchemes()
     {

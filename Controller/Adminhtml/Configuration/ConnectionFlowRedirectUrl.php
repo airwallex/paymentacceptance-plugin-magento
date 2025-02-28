@@ -3,6 +3,7 @@
 namespace Airwallex\Payments\Controller\Adminhtml\Configuration;
 
 use Airwallex\Payments\Helper\Configuration;
+use Exception;
 use Magento\Framework\DataObject\IdentityService;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
@@ -135,7 +136,7 @@ class ConnectionFlowRedirectUrl extends Action
         $context = stream_context_create($options);
         try {
             $response = file_get_contents($url, false, $context);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->connection_failed();
             return $this->error('Error: ' . $e->getMessage(), $resultJson);
         }

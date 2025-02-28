@@ -86,6 +86,11 @@ class Authorize extends AbstractWebhook
         $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
         $intentResponse = json_decode($resp, true);
         $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
-        $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote, 'webhook authorize');
+        $order = $this->getFreshOrder($paymentIntent->getOrderId());
+        if (!empty($order) && !empty($order->getId())) {
+            $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote);
+        } else {
+            $this->placeOrder($intentResponse, $quote, self::class);
+        }
     }
 }

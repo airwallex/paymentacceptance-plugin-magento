@@ -94,7 +94,7 @@ class SalesOrderPaymentCancel implements ObserverInterface
         /** @var Order $order */
         $order = $payment->getOrder();
 
-        $paymentIntent = $this->paymentIntentRepository->getByOrderId($order->getEntityId());
+        $paymentIntent = $this->paymentIntentRepository->getByOrderId($order->getId());
         if (!$paymentIntent) return;
         $intentId = $paymentIntent->getIntentId();
         if ($this->cancelHelper->isWebhookCanceling()) {
@@ -111,7 +111,7 @@ class SalesOrderPaymentCancel implements ObserverInterface
 
             if (!empty($intentResponse['status']) && $intentResponse['status'] === PaymentIntentInterface::INTENT_STATUS_SUCCEEDED) {
                 $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
-                $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote, 'SalesOrderPaymentCancel');
+                $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote);
                 $updatedOrder = $this->orderFactory->create();
                 $this->orderResource->load($updatedOrder, $order->getId());
                 $order->setPayment($updatedOrder->getPayment());

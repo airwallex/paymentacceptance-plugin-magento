@@ -4,7 +4,7 @@ namespace Airwallex\Payments\Helper;
 
 class IntentHelper
 {
-    private array $intent;
+    private array $intent = [];
 
     /**
      * @return array
