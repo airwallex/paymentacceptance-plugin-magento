@@ -264,13 +264,33 @@ define([
                 $body.trigger('processStop');
                 return false;
             }
+            const entityToCurrency = window.checkoutConfig.payment.airwallex_payments.afterpay_support_entity_to_currency;
+            const countryToCurrency = window.checkoutConfig.payment.airwallex_payments.afterpay_support_countries;
+
+            let currencies = JSON.parse(window.checkoutConfig.payment.airwallex_payments.available_currencies);
+            console.log(currencies, currencies.length)
+            if (!currencies.length) {
+                let countryID = quote.billingAddress() ? quote.billingAddress().countryId : '';
+                let currency = countryToCurrency[countryID];
+                if (!currency) {
+                    this.validationError(utils.awxAlert('Afterpay is not available in your country.'));
+                    this.disableCheckoutButton();
+                    $body.trigger('processStop');
+                    return false;
+                }
+                if (currency !== window.checkoutConfig.quoteData.quote_currency_code) {
+                    this.validationError(utils.awxAlert("Afterpay is not available in " + window.checkoutConfig.quoteData.quote_currency_code
+                        + " for your billing country. Please use a different payment method to complete your purchase."));
+                    this.disableCheckoutButton();
+                    $body.trigger('processStop');
+                    return false;
+                }
+            }
             if (entity !== 'AIRWALLEX_HK') {
                 $(".awx-billing-confirm-tip").hide();
             } else {
                 $(".awx-billing-confirm-tip").show();
             }
-            const entityToCurrency = window.checkoutConfig.payment.airwallex_payments.afterpay_support_entity_to_currency;
-            const countryToCurrency = window.checkoutConfig.payment.airwallex_payments.afterpay_support_countries;
             if (!entityToCurrency[entity]) {
                 throw new Error("Afterpay is not available in your country.");
             }
