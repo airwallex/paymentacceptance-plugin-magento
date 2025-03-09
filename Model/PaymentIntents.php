@@ -114,6 +114,9 @@ class PaymentIntents
         $products = $this->getProducts($model);
         $shipping = $this->getShippingAddress($model);
         $billing = $this->getBillingAddress($model);
+        $uid = $isOrder ? $model->getCustomerId() : $model->getCustomer()->getId();
+        $agreementIds = $paymentMethod->getExtensionAttributes()->getAgreementIds();
+        $agreement = $agreementIds ? json_encode($agreementIds) : "[]";
 
         $this->paymentIntentRepository->save(
             $isOrder ? $model->getIncrementId() : $model->getReservedOrderId(),
@@ -123,7 +126,7 @@ class PaymentIntents
             $isOrder ? $model->getId() : 0,
             $isOrder ? $model->getQuoteId() : $model->getId(),
             $isOrder ? $model->getStore()->getId() : $model->getStoreId(),
-            json_encode(compact('products', 'shipping', 'billing')),
+            json_encode(compact('products', 'shipping', 'billing', 'email', 'uid', 'from', 'agreement')),
             json_encode([$paymentMethod->getMethod()]),
         );
 

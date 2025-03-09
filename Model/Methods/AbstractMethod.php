@@ -261,6 +261,8 @@ abstract class AbstractMethod extends Adapter
         /** @var Payment $payment */
         $credit = $payment->getCreditmemo();
 
+        $order = $payment->getOrder();
+
         $intentId = $this->getIntentId($payment);
 
         $this->cache->save(true, $this->refundCacheName($intentId), [], 3600);
@@ -271,10 +273,12 @@ abstract class AbstractMethod extends Adapter
             if ($credit->getOrderCurrencyCode() === $respArr['currency']) {
                 $refundAmount = $credit->getGrandTotal();
             } else {
-                if ($this->isAmountEqual($credit->getGrandTotal(), $record->getGrandTotal())) {
+                $orderGrandTotal = $order->getGrandTotal();
+                if ($credit->getGrandTotal() === $order->getGrandTotal() && $credit->getOrderCurrencyCode === $order->getOrderCurrencyCode()) {
                     $refundAmount = $respArr['amount'];
                 } else {
-                    $refundAmount = round($respArr['amount'] * $credit->getGrandTotal() / $record->getGrandTotal(), 2);
+                    $decimal = PaymentIntents::CURRENCY_TO_DECIMAL[$respArr['currency']] ?? 2;
+                    $refundAmount = round($credit->getGrandTotal() / $orderGrandTotal * $respArr['amount'], $decimal);
                 }
             }
             /** @var Creditmemo $credit */

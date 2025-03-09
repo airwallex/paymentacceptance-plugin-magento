@@ -2,6 +2,8 @@
 
 namespace Airwallex\Payments\Model\Client\Request\PaymentIntents;
 
+use Airwallex\Payments\Helper\Configuration;
+use Airwallex\Payments\Helper\CurrentPaymentMethodHelper;
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
 use Airwallex\Payments\Model\Methods\KlarnaMethod;
@@ -43,10 +45,14 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
         }
 
         $products = $this->getProducts($model);
+        $merchantOrderId = $isOrder ? $model->getIncrementId() : $model->getReservedOrderId();
         $params = [
             'amount' => round($model->getGrandTotal(), PaymentIntents::CURRENCY_TO_DECIMAL[$this->getCurrencyCode($model)]),
             'currency' => $this->getCurrencyCode($model),
-            'merchant_order_id' => $isOrder ? $model->getIncrementId() : $model->getReservedOrderId(),
+            'merchant_order_id' => $merchantOrderId,
+            'platform_payment_id' => "",
+            'platform_order_id' => $merchantOrderId,
+            'platform_order_name' => $merchantOrderId,
             'return_url' => trim($returnUrl, '/'),
             'order' => [
                 'products' => $this->getProductsForIntentCreate($model, $paymentMethod, $products),
@@ -54,6 +60,17 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
             ]
         ];
         return $this->setParams($params);
+    }
+
+    protected function getReferrerData(): array
+    {
+        $method = ObjectManager::getInstance()->get(CurrentPaymentMethodHelper::class)->getPaymentMethod();
+        $method = $this->trimPaymentMethodCode($method);
+        $method = ($method === 'card' || $method === 'vault') ? 'credit_card' : $method;
+        return [
+            'type' => 'magento_' . $method,
+            'version' => $this->moduleList->getOne(Configuration::MODULE_NAME)['setup_version']
+        ];
     }
 
     /**

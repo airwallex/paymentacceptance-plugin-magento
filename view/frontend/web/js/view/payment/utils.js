@@ -438,7 +438,6 @@ define([
             payload.intent_id = intentResponse.intent_id;
             payload.paymentMethod.additional_data.intent_id = intentResponse.intent_id;
             payload.paymentMethod.additional_data.transaction_id = intentResponse.intent_id;
-            console.log(payload);
             let endResult = {};
             try {
                 endResult = await storage.post(
@@ -686,7 +685,7 @@ define([
                 }
                 await this.placeOrder(payload, intentResponse, headers);
                 this.clearDataAfterPay({}, customerData);
-                this.redirectToSuccess();
+                window.location.replace(urlBuilder.build('airwallex/redirect?from=card&quote_id=' + quote.getQuoteId()));
             } catch (e) {
                 if (e.message) {
                     self.validationError(e.message);

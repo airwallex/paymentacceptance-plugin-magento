@@ -90,7 +90,7 @@ class Authorize extends AbstractWebhook
         if (!empty($order) && !empty($order->getId())) {
             $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote);
         } else {
-            $this->placeOrder($intentResponse, $quote, self::class);
+            $this->placeOrder($quote->getPayment(), $intentResponse, $quote, self::class);
         }
     }
 }

@@ -229,6 +229,7 @@ abstract class AbstractClient
         if ($this instanceof BearerAuthenticationInterface) {
             $header['Authorization'] = 'Bearer ' . $this->authenticationHelper->getBearerToken();
             $header['x-api-version'] = Authentication::X_API_VERSION;
+            $header['x-awx-internal-domain'] = 'payapps';
         }
 
         return $header;
@@ -269,9 +270,7 @@ abstract class AbstractClient
             'is_order_before_payment' => $this->configuration->isOrderBeforePayment(),
             'host' => $_SERVER['HTTP_HOST'] ?? '',
         ];
-        if ($methodName = ObjectManager::getInstance()->get(CurrentPaymentMethodHelper::class)->getPaymentMethod()) {
-            $metadata['payment_method'] = $methodName;
-        }
+
         return $metadata;
     }
 

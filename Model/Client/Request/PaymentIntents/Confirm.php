@@ -76,7 +76,7 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
                         'state' => $address->getRegionCode(),
                         'postcode' => $address->getPostcode(),
                     ],
-                    'email' => $address->getEmail(),
+                    'email' => $email ?: $address->getEmail(),
                     'first_name' => $address->getFirstName(),
                     'last_name' => $address->getLastname(),
                     "phone_number" => $address->getTelephone(),
@@ -134,11 +134,9 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
     protected function parseResponse(ResponseInterface $response): array
     {
         $response = $this->parseJson($response);
-        if (!empty($response->code) && $response->code === 'validation_error') {
+        if (empty($response->next_action) && !empty($response->message)) {
             throw new LocalizedException(__($response->message));
         }
-
-        if (empty($response->next_action)) return [];
         return (array)$response->next_action;
     }
 }

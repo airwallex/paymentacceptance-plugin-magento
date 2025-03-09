@@ -4,6 +4,7 @@ namespace Airwallex\Payments\Helper;
 
 use Airwallex\Payments\Model\Client\Request\AvailablePaymentMethods;
 use Airwallex\Payments\Model\Methods\AbstractMethod;
+use Airwallex\Payments\Model\Traits\HelperTrait;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use Magento\Framework\App\CacheInterface;
@@ -11,6 +12,8 @@ use Magento\Checkout\Helper\Data as CheckoutData;
 
 class AvailablePaymentMethodsHelper
 {
+    use HelperTrait;
+
     private const CACHE_NAME = 'airwallex_payment_methods';
     private const CACHE_TIME = 60;
     /**
@@ -75,7 +78,8 @@ class AvailablePaymentMethodsHelper
      */
     public function isAvailable(string $code): bool
     {
-        if ($code === 'airwallex_cc_vault') {
+        $code = $this->trimPaymentMethodCode($code);
+        if ($code === 'vault') {
             $code = 'card';
         }
         if ($code === 'express') {
@@ -88,13 +92,13 @@ class AvailablePaymentMethodsHelper
      * @return mixed
      * @throws GuzzleException
      */
-    private function getItems()
+    private function getItems($useQuote = true)
     {
         $cacheName = $this->getCacheName();
         $items = $this->cache->load($cacheName);
         if ($items) return json_decode($items, true);
 
-        $resp = $this->getLatestItems();
+        $resp = $this->getLatestItems($useQuote);
         $this->cache->save(json_encode($resp), $cacheName, AbstractMethod::CACHE_TAGS, self::CACHE_TIME);
         return $resp;
     }
@@ -126,7 +130,7 @@ class AvailablePaymentMethodsHelper
      */
     private function getAllMethods(): array
     {
-        $items = $this->getItems();
+        $items = $this->getItems(false);
         $methods = [];
         foreach ($items as $item) {
             if (!empty($item['name'])) $methods[] = $item['name'];
@@ -140,7 +144,7 @@ class AvailablePaymentMethodsHelper
      */
     public function getAllPaymentMethodTypes(): array
     {
-        return $this->getItems();
+        return $this->getItems(false);
     }
 
     /**

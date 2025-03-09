@@ -268,7 +268,6 @@ define([
             const countryToCurrency = window.checkoutConfig.payment.airwallex_payments.afterpay_support_countries;
 
             let currencies = JSON.parse(window.checkoutConfig.payment.airwallex_payments.available_currencies);
-            console.log(currencies, currencies.length)
             if (!currencies.length) {
                 let countryID = quote.billingAddress() ? quote.billingAddress().countryId : '';
                 let currency = countryToCurrency[countryID];
@@ -299,16 +298,6 @@ define([
                 return true;
             }
             await this.fetchExpressData();
-            // if (entityToCurrency[entity].indexOf(this.expressData.base_currency_code) !== -1) {
-            //     this.validationError(this.switcherTip(this.expressData.base_currency_code, 'afterpay'));
-            //     this.showYouPay({
-            //         payment_currency: this.expressData.quote_currency_code,
-            //         target_currency: this.expressData.base_currency_code,
-            //         client_rate: (1 / this.expressData.base_to_quote_rate).toFixed(4),
-            //         target_amount: parseFloat(this.expressData.base_grand_total).toFixed(2),
-            //     });
-            //     return true;
-            // }
 
             let targetCurrency;
             let cId = quote.billingAddress() ? quote.billingAddress().countryId : '';
@@ -405,15 +394,6 @@ define([
 
                 await this.fetchExpressData();
 
-                // if (targetCurrency === this.expressData.base_currency_code) {
-                //     this.showYouPay({
-                //         payment_currency: this.expressData.quote_currency_code,
-                //         target_currency: targetCurrency,
-                //         client_rate: (1 / this.expressData.base_to_quote_rate).toFixed(4),
-                //         target_amount: parseFloat(this.expressData.base_grand_total).toFixed(2),
-                //     });
-                //     return true;
-                // }
                 let that = this;
                 let switchers = await this.switcher(that.expressData.quote_currency_code, targetCurrency, that.expressData.grand_total);
                 this.showYouPay(switchers);

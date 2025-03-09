@@ -3,7 +3,6 @@
 namespace Airwallex\Payments\Model\Traits;
 
 use Airwallex\Payments\Api\Data\PaymentIntentInterface;
-use Airwallex\Payments\Controller\Redirect\Index;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Model\Client\Request\Account;
 use Airwallex\Payments\Model\Client\Request\CurrencySwitcher;
@@ -13,7 +12,6 @@ use Airwallex\Payments\Model\Client\Request\PaymentMethod\Get;
 use Airwallex\Payments\Model\Methods\AbstractMethod;
 use Airwallex\Payments\Model\Methods\CardMethod;
 use Airwallex\Payments\Model\Methods\Vault;
-use Airwallex\Payments\Model\OrderService;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
@@ -26,7 +24,7 @@ use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\NoSuchEntityException;
-use Magento\Quote\Api\CartManagementInterface;
+use Magento\Quote\Api\Data\PaymentExtension;
 use Magento\Quote\Model\Quote;
 use Magento\Quote\Model\QuoteIdToMaskedQuoteIdInterface;
 use Magento\Sales\Api\Data\OrderInterface;
@@ -340,6 +338,21 @@ trait HelperTrait
         }
     }
 
+    /**
+     * @param $payment
+     * @param $agreement
+     * @return void
+     */
+    public function setAgreementIds($payment, $agreement): void
+    {
+        $agreementIds = json_decode($agreement, true);
+        if (empty($payment->getExtensionAttributes()->getAgreementIds()) && !empty($agreementIds)) {
+            $paymentExtension = ObjectManager::getInstance()->get(PaymentExtension::class);
+            $paymentExtension->setAgreementIds($agreementIds);
+            $payment->setExtensionAttributes($paymentExtension);
+        }
+    }
+
     protected function error($message)
     {
         return json_encode([
@@ -429,6 +442,7 @@ trait HelperTrait
             /** @var Payment $payment */
             $payment = $order->getPayment();
             if ($payment && $payment->getAmountAuthorized() > 0 && $intentResponse['status'] === PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE) {
+                $this->deactivateQuote($quote);
                 return;
             }
             if ($order->getTotalPaid() > 0) return;
@@ -449,8 +463,7 @@ trait HelperTrait
 
             $this->addAVSResultToOrder($order, $intentResponse);
 
-            $quote->setIsActive(false);
-            $this->quoteRepository->save($quote);
+            $this->deactivateQuote($quote);
 
             try {
                 $this->checkCardDetail($intentResponse, $order);
@@ -461,12 +474,21 @@ trait HelperTrait
         }
     }
 
+    public function deactivateQuote(Quote $quote)
+    {
+        if (!empty($quote) && $quote->getIsActive()) {
+            $quote->setIsActive(false);
+            $this->quoteRepository->save($quote);
+        }
+    }
+
     public function getFreshOrder(int $orderId)
     {
         $order = ObjectManager::getInstance()->get(OrderFactory::class)->create();
         ObjectManager::getInstance()->get(OrderResourceInterface::class)->load($order, $orderId);
         return $order;
     }
+
 
     /**
      * @throws CouldNotSaveException
@@ -476,7 +498,7 @@ trait HelperTrait
      * @throws GuzzleException
      * @throws InputException
      */
-    public function placeOrder($intentResponse, Quote $quote, string $from = '', $billingAddress = null)
+    public function placeOrder($paymentMethod, $intentResponse, Quote $quote, string $from = '', $billingAddress = null)
     {
         $quoteId = $quote->getId();
         $seconds = 5;
@@ -486,46 +508,43 @@ trait HelperTrait
         }
         $this->cache->save('locked', $lockKey, [], 10);
         try {
-            if (!$quote->getCustomerId()) {
-                $quote->setCheckoutMethod(CartManagementInterface::METHOD_GUEST);
-            }
             try {
                 $order = ObjectManager::getInstance()->get(OrderInterface::class)->loadByAttribute('increment_id', $intentResponse['merchant_order_id']);
             } catch (Exception $e) {
             }
+
+            $paymentIntentRecord = ObjectManager::getInstance()->get(PaymentIntentRepository::class)->getByIntentId($intentResponse['id']);
+            $detail = json_decode($paymentIntentRecord->getDetail(), true);
+            $payment = $paymentMethod ?: $quote->getPayment();
+            if ($payment->getMethod() === Vault::CODE) {
+                $payment->setMethod(CardMethod::CODE);
+            }
+
+            $this->setAgreementIds($payment, $detail['agreement']);
             if (empty($order) || empty($order->getId())) {
                 $this->checkIntent($intentResponse, $quote);
                 $resp = $this->intentGet->setPaymentIntentId($intentResponse['id'])->send();
                 $intentResponse = json_decode($resp, true);
                 $this->intentHelper->setIntent($intentResponse);
-                if ($from !== OrderService::class && $from !== Index::class) {
-                    $quote->setTotalsCollectedFlag(true);
-                    $orderId = ObjectManager::getInstance()->get(CartManagementInterface::class)->placeOrder($quote->getId());
+                if ($detail['uid']) {
+                    $orderId = ObjectManager::getInstance()->get(PaymentInformationManagementInterface::class)->savePaymentInformationAndPlaceOrder(
+                        $quoteId,
+                        $payment,
+                        $billingAddress
+                    );
                 } else {
-                    if ($quote->getCustomerId()) {
-                        if ($quote->getPayment()->getMethod() === Vault::CODE) {
-                            $quote->getPayment()->setMethod(CardMethod::CODE);
-                        }
-                        $orderId = ObjectManager::getInstance()->get(PaymentInformationManagementInterface::class)->savePaymentInformationAndPlaceOrder(
-                            $quoteId,
-                            $quote->getPayment(),
-                            $billingAddress
-                        );
-                    } else {
-                        $cartId = ObjectManager::getInstance()->get(QuoteIdToMaskedQuoteIdInterface::class)->execute($quoteId);
-                        $orderId = ObjectManager::getInstance()->get(GuestPaymentInformationManagementInterface::class)->savePaymentInformationAndPlaceOrder(
-                            $cartId,
-                            $intentResponse['customer']['email'],
-                            $quote->getPayment(),
-                            $billingAddress
-                        );
-                    }
+                    $cartId = ObjectManager::getInstance()->get(QuoteIdToMaskedQuoteIdInterface::class)->execute($quoteId);
+                    $orderId = ObjectManager::getInstance()->get(GuestPaymentInformationManagementInterface::class)->savePaymentInformationAndPlaceOrder(
+                        $cartId,
+                        $intentResponse['customer']['email'],
+                        $payment,
+                        $billingAddress
+                    );
                 }
 
-                $paymentIntentRecord = ObjectManager::getInstance()->get(PaymentIntentRepository::class)->getByIntentId($intentResponse['id']);
                 ObjectManager::getInstance()->get(PaymentIntentRepository::class)->updateOrderId($paymentIntentRecord, $orderId);
                 $order = $this->getFreshOrder($orderId);
-                if ($order->getStatus() !== Order::STATE_PENDING_PAYMENT && !ObjectManager::getInstance()->get(Configuration::class)->isOrderBeforePayment()) {
+                if ($order->getStatus() !== Order::STATE_PENDING_PAYMENT) {
                     $this->setCheckoutSuccess($quoteId, $order);
                 }
 
@@ -534,12 +553,10 @@ trait HelperTrait
                     $this->checkCardDetail($intentResponse, $order);
                 } catch (Exception $e) {
                 }
-            } else {
-                if ($quote->getIsActive()) {
-                    $quote->setIsActive(false);
-                    $this->quoteRepository->save($quote);
-                }
             }
+
+            $this->deactivateQuote($quote);
+            $this->setCheckoutSuccess($quoteId, $order);
         } finally {
             $this->cache->remove($lockKey);
         }
@@ -614,5 +631,11 @@ trait HelperTrait
     public function isOrderBeforePayment(): bool
     {
         return ObjectManager::getInstance()->get(Configuration::class)->isOrderBeforePayment();
+    }
+
+    public function trimPaymentMethodCode(string $code): string
+    {
+        $code = str_replace(AbstractMethod::PAYMENT_PREFIX, '', $code);
+        return str_replace('airwallex_cc_', '', $code);
     }
 }

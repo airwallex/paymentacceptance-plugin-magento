@@ -10,6 +10,7 @@ use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Helper\CurrentPaymentMethodHelper;
 use Airwallex\Payments\Helper\IsOrderCreatedHelper;
 use Airwallex\Payments\Model\Methods\AfterpayMethod;
+use Airwallex\Payments\Model\Methods\ExpressCheckout;
 use Airwallex\Payments\Model\Methods\KlarnaMethod;
 use Airwallex\Payments\Model\Methods\RedirectMethod;
 use Airwallex\Payments\Plugin\ReCaptchaValidationPlugin;
@@ -38,6 +39,8 @@ use Magento\Sales\Api\TransactionRepositoryInterface;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Confirm;
 use Airwallex\Payments\Helper\IntentHelper;
+use Magento\CheckoutAgreements\Model\Checkout\Plugin\GuestValidation;
+use Magento\CheckoutAgreements\Model\Checkout\Plugin\Validation;
 use Magento\AdminNotification\Model\Inbox;
 use Magento\Quote\Model\Quote\Address;
 use Magento\Sales\Model\Order\Address as OrderAddress;
@@ -66,6 +69,8 @@ class OrderService implements OrderServiceInterface
     private OrderResourceInterface $orderResource;
     private Confirm $confirm;
     private IntentHelper $intentHelper;
+    protected Validation $agreementValidation;
+    protected GuestValidation $agreementGuestValidation;
     private Inbox $inbox;
 
     public function __construct(
@@ -89,6 +94,8 @@ class OrderService implements OrderServiceInterface
         OrderResourceInterface                     $orderResource,
         Confirm                                    $confirm,
         IntentHelper                               $intentHelper,
+        Validation                                 $agreementValidation,
+        GuestValidation                            $agreementGuestValidation,
         Inbox                                      $inbox
     )
     {
@@ -112,6 +119,8 @@ class OrderService implements OrderServiceInterface
         $this->orderResource = $orderResource;
         $this->confirm = $confirm;
         $this->intentHelper = $intentHelper;
+        $this->agreementValidation = $agreementValidation;
+        $this->agreementGuestValidation = $agreementGuestValidation;
         $this->inbox = $inbox;
     }
 
@@ -175,6 +184,27 @@ class OrderService implements OrderServiceInterface
         return $this->savePaymentOrPlaceOrder($cartId, $paymentMethod, $billingAddress, $intentId, '', $paymentMethodId, $from);
     }
 
+    protected function checkAgreements($quote, PaymentInterface $paymentMethod, $cartId, $email)
+    {
+        if ($paymentMethod->getMethod() === ExpressCheckout::CODE) {
+            return;
+        }
+        if ($quote->getCustomer()->getId()) {
+            $this->agreementValidation->beforeSavePaymentInformationAndPlaceOrder(
+                $this->paymentInformationManagement,
+                $cartId,
+                $paymentMethod
+            );
+        } else {
+            $this->agreementGuestValidation->beforeSavePaymentInformationAndPlaceOrder(
+                $this->guestPaymentInformationManagement,
+                $cartId,
+                $email,
+                $paymentMethod
+            );
+        }
+    }
+
     /**
      * @throws CouldNotSaveException
      * @throws LocalizedException
@@ -198,6 +228,8 @@ class OrderService implements OrderServiceInterface
             $response = $this->placeOrderResponseFactory->create();
             $quote = $this->checkoutHelper->getQuote();
 
+            $this->checkAgreements($quote, $paymentMethod, $cartId, $email);
+
             if (!$intentId) {
                 if (!$this->configuration->isOrderBeforePayment()) {
                     return $this->requestIntent($quote, $paymentMethod, $email, $paymentMethodId, $from, $response);
@@ -217,7 +249,7 @@ class OrderService implements OrderServiceInterface
                 } else {
                     $this->checkIntent($intentResponse, $quote);
                     $this->intentHelper->setIntent($intentResponse);
-                    $this->placeOrder($intentResponse, $quote, self::class, $billingAddress);
+                    $this->placeOrder($paymentMethod, $intentResponse, $quote, self::class, $billingAddress);
                 }
             } catch (Exception $e) {
                 if (!$this->configuration->isOrderBeforePayment()) {
@@ -271,7 +303,7 @@ class OrderService implements OrderServiceInterface
      */
     public function requestIntent($model, PaymentInterface $paymentMethod, ?string $email, ?string $paymentMethodId, ?string $from, PlaceOrderResponse $response): PlaceOrderResponse
     {
-        $this->currentPaymentMethodHelper->setPaymentMethod($paymentMethod->getMethod());
+        $this->setCurrentPaymentMethod($paymentMethod, $from);
 
         $quote = $this->checkoutHelper->getQuote();
         $getPhoneAddress = $quote->isVirtual() ? $quote->getBillingAddress() : $quote->getShippingAddress();
@@ -279,6 +311,15 @@ class OrderService implements OrderServiceInterface
         $argEmail = $quote->getCustomer()->getId() ? $quote->getCustomerEmail() : $email;
         $intent = $this->paymentIntents->getIntent($model, $phone, $argEmail, $from, $paymentMethod);
         return $this->responseByRequestIntent($paymentMethodId, $intent, $paymentMethod, $model, $response, $email);
+    }
+
+    public function setCurrentPaymentMethod(PaymentInterface $paymentMethod, $from)
+    {
+        $method = $paymentMethod->getMethod();
+        $method = $this->trimPaymentMethodCode($method);
+        $method = $method === 'card' ? 'credit_card' : $method;
+        $method = $method === 'express' ? $from : $method;
+        $this->currentPaymentMethodHelper->setPaymentMethod($method);
     }
 
     /**

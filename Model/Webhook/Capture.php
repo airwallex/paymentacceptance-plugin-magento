@@ -115,18 +115,22 @@ class Capture extends AbstractWebhook
         /** @var Order $order */
         $order = $this->paymentIntentRepository->getOrder($intentId);
         $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
+        $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
         if (empty($order) || empty($order->getId())) {
             $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
             $intentResponse = json_decode($resp, true);
-            $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
-            $this->placeOrder($intentResponse, $quote, self::class);
+            $this->placeOrder($quote->getPayment(), $intentResponse, $quote, self::class);
             return;
         }
-        if ($order->getOrderCurrencyCode() === $data->currency && $this->isAmountEqual($order->getGrandTotal(), $data->captured_amount)
-            && $order->getStatus() === Order::STATE_PENDING_PAYMENT && $this->isOrderBeforePayment()) {
+
+        if (!$this->isOrderBeforePayment()) {
+            $this->deactivateQuote($quote);
+            return;
+        }
+
+        if ($data->captured_amount === $data->amount && $this->isOrderBeforePayment()) {
             $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
             $intentResponse = json_decode($resp, true);
-            $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
             $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote);
             return;
         }

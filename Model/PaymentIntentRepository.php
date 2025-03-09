@@ -81,7 +81,7 @@ class PaymentIntentRepository
         $collection = $this->paymentIntentCollectionFactory->create();
         $collection->addFieldToFilter(PaymentIntentInterface::PAYMENT_INTENT_ID_COLUMN, $intentId);
         $collection->setOrder('id', 'DESC');
-        $collection->setPageSize(1); // Limit to 1 result
+        $collection->setPageSize(1);
 
         $paymentIntent = $collection->getFirstItem();
 

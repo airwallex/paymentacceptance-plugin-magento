@@ -20,6 +20,8 @@ use Magento\Framework\UrlInterface;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Magento\Framework\App\CacheInterface;
 use Airwallex\Payments\Helper\IntentHelper;
+use Magento\Framework\App\ObjectManager;
+use Magento\Quote\Model\MaskedQuoteIdToQuoteIdInterface;
 use Magento\Quote\Model\Quote;
 
 class Index implements HttpGetActionInterface
@@ -70,12 +72,27 @@ class Index implements HttpGetActionInterface
     {
         $result = $this->request->getParam('awx_return_result');
         $quoteId = $this->request->getParam('quote_id');
+        $from = $this->request->getParam('from');
+        if ($from === 'card') {
+            if (!is_numeric($quoteId)) {
+                $quoteId = ObjectManager::getInstance()->get(MaskedQuoteIdToQuoteIdInterface::class)->execute($quoteId);
+            }
+            $paymentIntent = $this->paymentIntentRepository->getByQuoteId($quoteId);
+            $order = $this->paymentIntentRepository->getOrder($paymentIntent->getIntentId());
+            $this->setCheckoutSuccess($quoteId, $order);
+            return $this->redirect('checkout/onepage/success');
+        }
+
         if ($result !== 'success') {
             return $this->redirect('checkout');
         }
         $quote = $this->checkoutData->getQuote();
+        $paymentIntent = null;
+
         if ($quote && $quote->getId()) {
             $paymentIntent = $this->paymentIntentRepository->getByQuoteId($quote->getId());
+        }
+        if ($paymentIntent && $paymentIntent->getIntentId()) {
             $resp = $this->intentGet->setPaymentIntentId($paymentIntent->getIntentId())->send();
             $intentResponse = json_decode($resp, true);
             $isPaidSuccess = in_array($intentResponse['status'], [
@@ -92,8 +109,7 @@ class Index implements HttpGetActionInterface
                 if (!$isPaidSuccess) {
                     $intentResponse['status'] = PaymentIntentInterface::INTENT_STATUS_SUCCEEDED;
                 }
-                $this->placeOrder($intentResponse, $quote, self::class);
-                $this->deactivateQuote($quote);
+                $this->placeOrder($quote->getPayment(), $intentResponse, $quote, self::class);
             }
         }
 
@@ -110,13 +126,5 @@ class Index implements HttpGetActionInterface
         $redirectUrl = $this->url->getUrl($url);
         $this->response->setRedirect($redirectUrl, 302);
         return $this->response;
-    }
-
-    public function deactivateQuote(Quote $quote)
-    {
-        if (!empty($quote) && $quote->getIsActive()) {
-            $quote->setIsActive(false);
-            $this->quoteRepository->save($quote);
-        }
     }
 }

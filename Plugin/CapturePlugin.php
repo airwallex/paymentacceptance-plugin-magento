@@ -71,10 +71,7 @@ class CapturePlugin
             ObjectManager::getInstance()->get(OrderRepository::class)->save($order);
             $quoteRepository = ObjectManager::getInstance()->get(QuoteRepository::class);
             $quote = $quoteRepository->get($record->getQuoteId());
-            if ($quote->getIsActive()) {
-                $quote->setIsActive(false);
-                $quoteRepository->save($quote);
-            }
+            $this->deactivateQuote($quote);
         }
 
         if ($intent['status'] === PaymentIntentInterface::INTENT_STATUS_SUCCEEDED) return;
