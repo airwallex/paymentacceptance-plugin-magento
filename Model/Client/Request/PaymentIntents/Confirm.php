@@ -10,6 +10,7 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Quote\Api\Data\AddressInterface;
 use Magento\Sales\Api\Data\OrderAddressInterface;
 use Psr\Http\Message\ResponseInterface;
+use Detection\MobileDetect;
 
 class Confirm extends AbstractClient implements BearerAuthenticationInterface
 {
@@ -60,17 +61,18 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
     public function setInformation(string $method, $address = null, string $email = ""): self
     {
         $data = [
-            'type' => $method,
+            'payment_method' => [
+                'type' => $method,
+            ]
         ];
 
         if (in_array($method, ['klarna', 'afterpay'], true)) {
-            $countryCode = $address->getCountryId();
-            $data[$method] = [
-                'country_code' => $countryCode,
+            $data['payment_method'][$method] = [
+                'country_code' => $address->getCountryId(),
                 'shopper_email' => $email ?: $address->getEmail(),
                 'billing' => [
                     'address' => [
-                        "country_code" => $countryCode,
+                        "country_code" => $address->getCountryId(),
                         "street" => $address->getStreet() ? implode(', ', $address->getStreet()) : '',
                         "city" => $address->getCity(),
                         'state' => $address->getRegionCode(),
@@ -82,23 +84,32 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
                     "phone_number" => $address->getTelephone(),
                 ],
                 "shopper_phone" => $address->getTelephone(),
-                'language' => $this->getLanguageCode($countryCode, $method),
-                'flow' => 'qrcode',
+                'language' => $this->getLanguageCode($address->getCountryId(), $method),
             ];
-        } else if ($method !== 'pay_now') {
-            $data[$method] = [
-                'flow' => 'qrcode'
-            ];
+            $data['payment_method_options'][$method]['auto_capture'] = $this->configuration->isAutoCapture($method);
         }
 
-        return $this->setParams([
-            'payment_method' => $data,
-            'payment_method_options' => [
-                'klarna' => [
-                    'auto_capture' => $this->configuration->isKlarnaCaptureEnabled(),
-                ]
-            ],
-        ]);
+        $data = $this->setFlow($data, $method);
+        return $this->setParams($data);
+    }
+
+    public function setFlow(array $data, $paymentMethod): array
+    {
+        $flow = 'qrcode';
+        if (!empty($_SERVER['HTTP_USER_AGENT'])) {
+            $detect = new MobileDetect();
+            $detect->setUserAgent($_SERVER['HTTP_USER_AGENT']);
+            $data['device_data']['browser'] = [
+                'user_agent' => $_SERVER['HTTP_USER_AGENT'],
+                'javascript_enabled' => true,
+            ];
+            if ($detect->isMobile() && !in_array($paymentMethod, ['klarna', 'afterpay', 'pay_now'], true)) {
+                $data['payment_method'][$paymentMethod]['os_type'] = $detect->isAndroidOS() ? 'android' : 'ios';
+                $flow = 'mobile_web';
+            }
+        }
+        $data['payment_method'][$paymentMethod]['flow'] = $flow;
+        return $data;
     }
 
     public function setQuote(string $targetCurrency, string $quoteId)

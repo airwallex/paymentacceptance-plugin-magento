@@ -105,7 +105,9 @@ class PaymentIntents
         $isOrder = $model instanceof Order;
         $uri = 'airwallex/redirect';
         if (!$isOrder) {
-            $uri .= '?quote_id=' . $model->getId();
+            $uri .= '?id=' . $model->getId() . '&type=quote';
+        } else {
+            $uri .= '?id=' . $model->getId() . '&type=order';
         }
         $create = $this->paymentIntentsCreate->setIntentParams($model, $paymentMethod, $this->urlInterface->getUrl($uri));
 

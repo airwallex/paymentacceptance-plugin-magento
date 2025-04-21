@@ -180,7 +180,7 @@ define([
                 countryCode: this.paymentConfig.country_code,
                 requiredBillingContactFields: this.requiredBillingContactFields,
                 requiredShippingContactFields: this.requiredShippingContactFields,
-                autoCapture: this.paymentConfig.is_express_capture_enabled,
+                autoCapture: this.paymentConfig.is_express_auto_capture,
             };
             if (options.buttonType === 'checkout') {
                 options.buttonType = 'check-out';

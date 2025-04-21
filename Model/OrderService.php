@@ -467,6 +467,9 @@ class OrderService implements OrderServiceInterface
         }
         $code = $paymentMethod->getMethod();
         $cacheName = $code . '-qrcode-' . $intent['id'];
+        if (!empty($_SERVER['HTTP_USER_AGENT'])) {
+            $cacheName .= '-' . $_SERVER['HTTP_USER_AGENT'];
+        }
         if (!$returnUrl = $this->cache->load($cacheName)) {
             try {
                 $request = $this->confirm->setPaymentIntentId($intent['id'])->setBrowserInformation($browserInformation);
@@ -534,6 +537,9 @@ class OrderService implements OrderServiceInterface
 
         $res = $this->currencySwitcher($intent['currency'], $targetCurrency, $intent['amount']);
         $switcher = json_decode($res, true);
+        if (empty($switcher['id'])) {
+            throw new LocalizedException(__('Klarna is not available in your country. Please change your billing address to a compatible country or choose a different payment method.'));
+        }
         return [
             'quote_id' => $switcher['id'],
             'target_currency' => $targetCurrency,

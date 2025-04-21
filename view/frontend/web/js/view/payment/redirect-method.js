@@ -308,7 +308,6 @@ define([
                 }
             }
             if (!targetCurrency) {
-                
                 if (entityToCurrency[entity].length !== 1) {
                     this.showPayafterCountries();
                     let country = localStorage.getItem(this.afterpayCountryKey);
@@ -511,8 +510,7 @@ define([
 
                     let intentResponse = await utils.getIntent(payload, {});
                     let nextAction = JSON.parse(intentResponse.next_action);
-                    // url qrcode_url qrcode
-                    if (this.isSwitcherMethod()) {
+                    if (nextAction.type === 'redirect' && this.getCode() !== 'airwallex_payments_pay_now') {
                         utils.clearDataAfterPay({}, customerData);
                         location.href = nextAction.url;
                         return;

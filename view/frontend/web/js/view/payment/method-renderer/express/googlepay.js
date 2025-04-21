@@ -130,7 +130,7 @@ define([
                 merchantInfo: {
                     merchantName: this.paymentConfig.express_seller_name || '',
                 },
-                autoCapture: this.paymentConfig.is_express_capture_enabled,
+                autoCapture: this.paymentConfig.is_express_auto_capture,
             };
         },
 

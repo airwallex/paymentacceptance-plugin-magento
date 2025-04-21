@@ -12,6 +12,8 @@ use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Customer\Api\CustomerRepositoryInterface;
 use Magento\Customer\Api\Data\CustomerInterface;
+use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Framework\App\ObjectManager;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
@@ -120,6 +122,13 @@ class PaymentConsents implements PaymentConsentsInterface
         $attr = $eavSetup->getAttribute(Customer::ENTITY, self::KEY_AIRWALLEX_CUSTOMER_ID);
         if (!$attr) {
             return '';
+        }
+
+        $lines = ObjectManager::getInstance()->get(ScopeConfigInterface::class)->getValue('customer/address/street_lines');
+        foreach ($customer->getAddresses() as $address) {
+            if (count($address->getStreet()) > $lines) {
+                $address->setStreet([implode(', ', $address->getStreet())]);
+            }
         }
 
         $airwallexCustomerId = $this->tryFindCustomerInVault($customer);

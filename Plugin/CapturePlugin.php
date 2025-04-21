@@ -47,7 +47,7 @@ class CapturePlugin
         if (empty($record)) {
             return;
         }
-        if (ObjectManager::getInstance()->get(Configuration::class)->isCardCaptureEnabled()) {
+        if (ObjectManager::getInstance()->get(Configuration::class)->isAutoCapture('card')) {
             return;
         }
         if ($order->getStatus() !== Order::STATE_PENDING_PAYMENT) {

@@ -1,15 +1,20 @@
 <?xml version="1.0"?>
 <page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <head>
+        <script src="https://checkout.airwallex.com/assets/elements.bundle.min.js" src_type="url" />
+        <css src="Airwallex_Payments::css/airwallex_payment.css" />
+        <css src="Airwallex_Payments::js/qrcode.min.js" />
+    </head>
     <body>
         <referenceBlock name="product.info.addtocart.additional">
-            <block name="product.info.addtocart.airwallex.additional" template="Airwallex_Payments::express.phtml" before="-">
+            <block name="product.info.addtocart.airwallex.additional" template="Airwallex_Payments::express.phtml" cacheable="false" before="-">
                 <arguments>
                     <argument name="from" xsi:type="string">product_page</argument>
                 </arguments>
             </block>
         </referenceBlock>
         <referenceBlock name="product.info.addtocart">
-            <block name="product.info.addtocart.airwallex" template="Airwallex_Payments::express.phtml" before="-">
+            <block name="product.info.addtocart.airwallex" template="Airwallex_Payments::express.phtml" cacheable="false" before="-">
                 <arguments>
                     <argument name="from" xsi:type="string">product_page</argument>
                 </arguments>

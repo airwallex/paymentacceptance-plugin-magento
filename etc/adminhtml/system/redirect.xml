@@ -8,7 +8,7 @@
         <include path="Airwallex_Payments::system/redirect/gcash.xml"/>
         <include path="Airwallex_Payments::system/redirect/kakao.xml"/>
         <include path="Airwallex_Payments::system/redirect/touch_n_go.xml"/>
-<!--        <include path="Airwallex_Payments::system/redirect/wechat.xml"/>-->
+        <include path="Airwallex_Payments::system/redirect/wechat.xml"/>
         <include path="Airwallex_Payments::system/redirect/paynow.xml"/>
         <include path="Airwallex_Payments::system/redirect/klarna.xml"/>
         <include path="Airwallex_Payments::system/redirect/afterpay.xml"/>

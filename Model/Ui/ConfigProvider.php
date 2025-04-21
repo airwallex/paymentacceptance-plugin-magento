@@ -93,7 +93,7 @@ class ConfigProvider implements ConfigProviderInterface
             'payment' => [
                 'airwallex_payments' => [
                     'mode' => $this->configuration->getMode(),
-                    'cc_auto_capture' => $this->configuration->isCardCaptureEnabled(),
+                    'cc_auto_capture' => $this->configuration->isAutoCapture('card'),
                     'recaptcha_enabled' => !!$recaptchaEnabled,
                     'recaptcha_type' => $this->configuration->recaptchaType(),
                     'is_recaptcha_shared' => version_compare($this->productMetadata->getVersion(), '2.4.7', '<'),

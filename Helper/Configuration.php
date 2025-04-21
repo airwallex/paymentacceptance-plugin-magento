@@ -114,24 +114,14 @@ class Configuration extends AbstractHelper
     }
 
     /**
-     * Card capture enabled
+     * is auto capture
      *
+     * @param string $method
      * @return bool
      */
-    public function isCardCaptureEnabled(): bool
+    public function isAutoCapture(string $method): bool
     {
-        return $this->scopeConfig->getValue('payment/airwallex_payments_card/airwallex_payment_action')
-            === MethodInterface::ACTION_AUTHORIZE_CAPTURE;
-    }
-
-    /**
-     * Card capture enabled
-     *
-     * @return bool
-     */
-    public function isKlarnaCaptureEnabled(): bool
-    {
-        return $this->scopeConfig->getValue('payment/airwallex_payments_klarna/airwallex_payment_action')
+        return $this->scopeConfig->getValue('payment/airwallex_payments_' . $method . '/airwallex_payment_action')
             === MethodInterface::ACTION_AUTHORIZE_CAPTURE;
     }
 
@@ -190,17 +180,6 @@ class Configuration extends AbstractHelper
         if ($size < 320) $size = 320;
         if ($size > 500) $size = 500;
         return $size;
-    }
-
-    /**
-     * Express capture enabled
-     *
-     * @return bool
-     */
-    public function isExpressCaptureEnabled(): bool
-    {
-        return $this->scopeConfig->getValue('payment/airwallex_payments_express/airwallex_payment_action')
-            === MethodInterface::ACTION_AUTHORIZE_CAPTURE;
     }
 
     /**
@@ -330,7 +309,7 @@ class Configuration extends AbstractHelper
     }
 
     /**
-     * Express capture enabled
+     * Is order before payment
      *
      * @return bool
      */

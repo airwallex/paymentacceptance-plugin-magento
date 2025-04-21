@@ -685,7 +685,7 @@ define([
                 }
                 await this.placeOrder(payload, intentResponse, headers);
                 this.clearDataAfterPay({}, customerData);
-                window.location.replace(urlBuilder.build('airwallex/redirect?from=card&quote_id=' + quote.getQuoteId()));
+                window.location.replace(urlBuilder.build('airwallex/redirect?from=card&type=quote&id=' + quote.getQuoteId()));
             } catch (e) {
                 if (e.message) {
                     self.validationError(e.message);

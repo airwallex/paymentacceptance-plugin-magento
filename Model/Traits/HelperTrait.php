@@ -13,6 +13,7 @@ use Airwallex\Payments\Model\Methods\AbstractMethod;
 use Airwallex\Payments\Model\Methods\CardMethod;
 use Airwallex\Payments\Model\Methods\Vault;
 use Airwallex\Payments\Model\PaymentIntentRepository;
+use Airwallex\Payments\Model\ResourceModel\PaymentIntent;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
@@ -20,6 +21,7 @@ use Magento\Checkout\Api\GuestPaymentInformationManagementInterface;
 use Magento\Checkout\Api\PaymentInformationManagementInterface;
 use Magento\Checkout\Helper\Data;
 use Magento\Framework\App\ObjectManager;
+use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\InputException;
@@ -27,6 +29,7 @@ use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Quote\Api\Data\PaymentExtension;
 use Magento\Quote\Model\Quote;
 use Magento\Quote\Model\QuoteIdToMaskedQuoteIdInterface;
+use Magento\Quote\Model\QuoteRepository;
 use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Payment;
@@ -431,21 +434,24 @@ trait HelperTrait
      */
     public function changeOrderStatus($intentResponse, int $orderId, Quote $quote): void
     {
-        $seconds = 5;
-        $lockKey = 'airwallex_change_order_status_' . $orderId;
-        if ($this->cache->load($lockKey)) {
-            sleep($seconds);
-        }
-        $this->cache->save('locked', $lockKey, [], $seconds);
+        $resource = ObjectManager::getInstance()->get(PaymentIntent::class);
+        $connection = $resource->getConnection();
+        $connection->beginTransaction();
         try {
+            $query = $connection->select()
+                ->from($resource->getMainTable())
+                ->where('payment_intent_id = ?', $intentResponse['id'])
+                ->forUpdate(true);
+            $connection->query($query);
+
             $order = $this->getFreshOrder($orderId);
             /** @var Payment $payment */
             $payment = $order->getPayment();
-            if ($payment && $payment->getAmountAuthorized() > 0 && $intentResponse['status'] === PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE) {
+            if (($payment && $payment->getAmountAuthorized() > 0 && $intentResponse['status'] === PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE) || $order->getTotalPaid() > 0) {
                 $this->deactivateQuote($quote);
+                $connection->commit();
                 return;
             }
-            if ($order->getTotalPaid() > 0) return;
             $this->checkIntent($intentResponse, $order);
             $this->setTransactionId($order->getPayment(), $intentResponse['id']);
             $this->intentHelper->setIntent($intentResponse);
@@ -469,8 +475,10 @@ trait HelperTrait
                 $this->checkCardDetail($intentResponse, $order);
             } catch (Exception $e) {
             }
-        } finally {
-            $this->cache->remove($lockKey);
+            $connection->commit();
+        }   catch (\Exception $e) {
+            $connection->rollBack();
+            throw $e;
         }
     }
 
@@ -478,7 +486,7 @@ trait HelperTrait
     {
         if (!empty($quote) && $quote->getIsActive()) {
             $quote->setIsActive(false);
-            $this->quoteRepository->save($quote);
+            ObjectManager::getInstance()->get(QuoteRepository::class)->save($quote);
         }
     }
 
@@ -491,23 +499,27 @@ trait HelperTrait
 
 
     /**
-     * @throws CouldNotSaveException
-     * @throws AlreadyExistsException
-     * @throws JsonException
-     * @throws NoSuchEntityException
+     * @param $paymentMethod
+     * @param $intentResponse
+     * @param Quote $quote
+     * @param string $from
+     * @param null $billingAddress
      * @throws GuzzleException
-     * @throws InputException
      */
     public function placeOrder($paymentMethod, $intentResponse, Quote $quote, string $from = '', $billingAddress = null)
     {
         $quoteId = $quote->getId();
-        $seconds = 5;
-        $lockKey = 'airwallex_place_order_' . $quoteId;
-        if ($this->cache->load($lockKey)) {
-            sleep($seconds);
-        }
-        $this->cache->save('locked', $lockKey, [], 10);
+
+        $resource = ObjectManager::getInstance()->get(PaymentIntent::class);
+        $connection = $resource->getConnection();
+        $connection->beginTransaction();
         try {
+            $query = $connection->select()
+                ->from($resource->getMainTable())
+                ->where('payment_intent_id = ?', $intentResponse['id'])
+                ->forUpdate(true);
+            $connection->query($query);
+
             try {
                 $order = ObjectManager::getInstance()->get(OrderInterface::class)->loadByAttribute('increment_id', $intentResponse['merchant_order_id']);
             } catch (Exception $e) {
@@ -544,10 +556,6 @@ trait HelperTrait
 
                 ObjectManager::getInstance()->get(PaymentIntentRepository::class)->updateOrderId($paymentIntentRecord, $orderId);
                 $order = $this->getFreshOrder($orderId);
-                if ($order->getStatus() !== Order::STATE_PENDING_PAYMENT) {
-                    $this->setCheckoutSuccess($quoteId, $order);
-                }
-
                 $this->addAVSResultToOrder($order, $intentResponse);
                 try {
                     $this->checkCardDetail($intentResponse, $order);
@@ -557,8 +565,11 @@ trait HelperTrait
 
             $this->deactivateQuote($quote);
             $this->setCheckoutSuccess($quoteId, $order);
-        } finally {
-            $this->cache->remove($lockKey);
+
+            $connection->commit();
+        }   catch (\Exception $e) {
+            $connection->rollBack();
+            throw $e;
         }
     }
 

@@ -11,8 +11,6 @@ use Magento\Framework\App\Action\HttpGetActionInterface;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\App\Response\Http as ResponseHttp;
 use Magento\Checkout\Helper\Data;
-use Magento\Framework\Exception\AlreadyExistsException;
-use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Quote\Model\QuoteRepository;
@@ -22,7 +20,6 @@ use Magento\Framework\App\CacheInterface;
 use Airwallex\Payments\Helper\IntentHelper;
 use Magento\Framework\App\ObjectManager;
 use Magento\Quote\Model\MaskedQuoteIdToQuoteIdInterface;
-use Magento\Quote\Model\Quote;
 
 class Index implements HttpGetActionInterface
 {
@@ -62,63 +59,59 @@ class Index implements HttpGetActionInterface
     }
 
     /**
-     * @throws NoSuchEntityException
-     * @throws AlreadyExistsException
+     * @return ResponseHttp
      * @throws GuzzleException
      * @throws InputException
-     * @throws JsonException|CouldNotSaveException
+     * @throws JsonException
+     * @throws NoSuchEntityException
      */
     public function execute(): ResponseHttp
     {
         $result = $this->request->getParam('awx_return_result');
-        $quoteId = $this->request->getParam('quote_id');
+        $id = $this->request->getParam('id');
         $from = $this->request->getParam('from');
+        $type = $this->request->getParam('type');
+
         if ($from === 'card') {
-            if (!is_numeric($quoteId)) {
-                $quoteId = ObjectManager::getInstance()->get(MaskedQuoteIdToQuoteIdInterface::class)->execute($quoteId);
+            if (!is_numeric($id)) {
+                $id = ObjectManager::getInstance()->get(MaskedQuoteIdToQuoteIdInterface::class)->execute($id);
             }
-            $paymentIntent = $this->paymentIntentRepository->getByQuoteId($quoteId);
+            $paymentIntent = $this->paymentIntentRepository->getByQuoteId($id);
             $order = $this->paymentIntentRepository->getOrder($paymentIntent->getIntentId());
-            $this->setCheckoutSuccess($quoteId, $order);
+            $this->setCheckoutSuccess($id, $order);
             return $this->redirect('checkout/onepage/success');
         }
 
-        if ($result !== 'success') {
+        if (!empty($result) && $result !== 'success') {
             return $this->redirect('checkout');
         }
-        $quote = $this->checkoutData->getQuote();
-        $paymentIntent = null;
 
-        if ($quote && $quote->getId()) {
-            $paymentIntent = $this->paymentIntentRepository->getByQuoteId($quote->getId());
+        if ($type === 'quote') {
+            $paymentIntent = $this->paymentIntentRepository->getByQuoteId($id);
+        } else {
+            $paymentIntent = $this->paymentIntentRepository->getByOrderId($id);
         }
-        if ($paymentIntent && $paymentIntent->getIntentId()) {
-            $resp = $this->intentGet->setPaymentIntentId($paymentIntent->getIntentId())->send();
-            $intentResponse = json_decode($resp, true);
-            $isPaidSuccess = in_array($intentResponse['status'], [
-                PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE,
-                PaymentIntentInterface::INTENT_STATUS_SUCCEEDED,
-            ], true);
+        $resp = $this->intentGet->setPaymentIntentId($paymentIntent->getIntentId())->send();
+        $intentResponse = json_decode($resp, true);
+        $isPaidSuccess = in_array($intentResponse['status'], [
+            PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE,
+            PaymentIntentInterface::INTENT_STATUS_SUCCEEDED,
+        ], true);
+
+        if ($result === 'success' || $isPaidSuccess) {
+            $quote = $this->checkoutData->getQuote();
             if ($this->isOrderBeforePayment()) {
-                if (!$isPaidSuccess) {
-                    $this->deactivateQuote($quote);
-                    return $this->redirect('checkout/onepage/success');
-                }
-                $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote);
+                $this->deactivateQuote($quote);
+                $order = $this->getFreshOrder($id);
+                $this->setCheckoutSuccess($paymentIntent->getQuoteId(), $order);
             } else {
-                if (!$isPaidSuccess) {
-                    $intentResponse['status'] = PaymentIntentInterface::INTENT_STATUS_SUCCEEDED;
-                }
+                $intentResponse['status'] = PaymentIntentInterface::INTENT_STATUS_SUCCEEDED;
                 $this->placeOrder($quote->getPayment(), $intentResponse, $quote, self::class);
             }
-        }
 
-        if ($quoteId) {
-            $paymentIntent = $this->paymentIntentRepository->getByQuoteId($quoteId);
-            $order = $this->paymentIntentRepository->getOrder($paymentIntent->getIntentId());
-            $this->setCheckoutSuccess($quoteId, $order);
+            return $this->redirect('checkout/onepage/success');
         }
-        return $this->redirect('checkout/onepage/success');
+        return $this->redirect('checkout');
     }
 
     public function redirect($url): ResponseHttp

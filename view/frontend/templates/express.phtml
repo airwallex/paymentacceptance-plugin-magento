@@ -1,5 +1,14 @@
+<?php
+
+use Airwallex\Payments\Helper\Configuration;
+use Magento\Framework\App\ObjectManager;
+
+$configuration = ObjectManager::getInstance()->get(Configuration::class);
+$area = $configuration->expressDisplayArea();
+
+if ($configuration->isExpressActive() && strpos($area, $block->getData('from')) !== false): ?>
 <div data-bind="scope: 'airwallex-express'">
-<!--  ko template: getTemplate()  --><!--   /ko     -->
+    <!-- ko template: getTemplate() --><!-- /ko -->
 </div>
 <script type="text/x-magento-init">
     {
@@ -16,3 +25,4 @@
         }
     }
 </script>
+<?php endif; ?>
