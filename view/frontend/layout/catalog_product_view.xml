@@ -7,14 +7,14 @@
     </head>
     <body>
         <referenceBlock name="product.info.addtocart.additional">
-            <block name="product.info.addtocart.airwallex.additional" template="Airwallex_Payments::express.phtml" cacheable="false" before="-">
+            <block name="product.info.addtocart.airwallex.additional" template="Airwallex_Payments::express.phtml" before="-">
                 <arguments>
                     <argument name="from" xsi:type="string">product_page</argument>
                 </arguments>
             </block>
         </referenceBlock>
         <referenceBlock name="product.info.addtocart">
-            <block name="product.info.addtocart.airwallex" template="Airwallex_Payments::express.phtml" cacheable="false" before="-">
+            <block name="product.info.addtocart.airwallex" template="Airwallex_Payments::express.phtml" before="-">
                 <arguments>
                     <argument name="from" xsi:type="string">product_page</argument>
                 </arguments>

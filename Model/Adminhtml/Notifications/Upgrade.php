@@ -103,6 +103,9 @@ class Upgrade implements MessageInterface
 
     private function getCloudVersion(): string
     {
+        if (!function_exists('curl_init')) {
+            return '';
+        }
         $ch = curl_init('https://commercemarketplace.adobe.com/airwallex-payments-plugin-magento.html');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
