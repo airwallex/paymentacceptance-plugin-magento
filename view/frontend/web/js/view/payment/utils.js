@@ -559,6 +559,9 @@ define([
         },
 
         isRecaptchaEnabled() {
+            if (this.isCheckoutPage()) {
+                return window.checkoutConfig.payment.airwallex_payments.is_recaptcha_enabled;
+            }
             return this.paymentConfig.is_recaptcha_enabled;
         },
 

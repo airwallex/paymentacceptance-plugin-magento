@@ -88,14 +88,14 @@ class ConfigProvider implements ConfigProviderInterface
      */
     public function getConfig(): array
     {
-        $recaptchaEnabled = $this->isReCaptchaEnabled();
         $config = [
             'payment' => [
                 'airwallex_payments' => [
                     'mode' => $this->configuration->getMode(),
                     'cc_auto_capture' => $this->configuration->isAutoCapture('card'),
-                    'recaptcha_enabled' => !!$recaptchaEnabled,
+                    'is_recaptcha_enabled' => $this->isReCaptchaEnabled(),
                     'recaptcha_type' => $this->configuration->recaptchaType(),
+                    'recaptcha_settings' => $this->getReCaptchaConfig(),
                     'is_recaptcha_shared' => version_compare($this->productMetadata->getVersion(), '2.4.7', '<'),
                     'cvc_required' => $this->configuration->isCvcRequired(),
                     'is_card_vault_active' => $this->configuration->isCardVaultActive(),
@@ -109,10 +109,6 @@ class ConfigProvider implements ConfigProviderInterface
                 ]
             ]
         ];
-
-        if ($recaptchaEnabled) {
-            $config['payment']['airwallex_payments']['recaptcha_settings'] = $this->getReCaptchaConfig();
-        }
 
         if ($this->customerSession->isLoggedIn() && $this->configuration->isCardVaultActive()) {
             $config['payment']['airwallex_payments']['airwallex_customer_id'] = $this->getAirwallexCustomerId();
@@ -188,3 +184,4 @@ class ConfigProvider implements ConfigProviderInterface
         return $this->isCaptchaEnabled->isCaptchaEnabledFor(self::AIRWALLEX_RECAPTCHA_FOR);
     }
 }
+
