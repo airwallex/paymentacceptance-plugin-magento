@@ -122,7 +122,7 @@ define([
             return this.details.customer_id === window.checkoutConfig.payment.airwallex_payments.airwallex_customer_id;
         },
 
-        initCvcForm: async function (id) {
+        initCvcForm: async function (id, type) {
             this.id = id;
             $('body').trigger('processStart');
             if (this.cvcElement) this.cvcElement.destroy();
@@ -133,7 +133,8 @@ define([
             if (this.cvcDetail) this.cvcDetail.complete = false;
             this.validationError('');
             this.cvcElement = Airwallex.createElement('cvc', {
-                placeholder: 'CVC'
+                placeholder: 'CVC',
+                cvcLength: 'amex' === type.toLowerCase() ? 4 : 3
             });
             const domElement = this.cvcElement.mount(id + '-cvc', { autoCapture: this.autoCapture });
             domElement.addEventListener('onReady', (event) => {

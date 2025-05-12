@@ -180,7 +180,7 @@ define(
             },
 
             isCardVaultActive() {
-                if (!customer.isLoggedIn()) return false;
+                if (!customer.isLoggedIn() || !window.checkoutConfig.payment.airwallex_payments.airwallex_customer_id) return false;
                 return window.checkoutConfig.payment.airwallex_payments.is_card_vault_active;
             },
 

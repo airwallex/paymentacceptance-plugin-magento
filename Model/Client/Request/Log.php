@@ -52,7 +52,7 @@ class Log extends AbstractClient implements BearerAuthenticationInterface
                         'severity' => 'error',
                         'eventName' => 'magento',
                         'message' => $message,
-                        'trace' => $trace,
+                        'trace' => substr($trace,0, 8000),
                         'metadata' => $this->getMetadata()
                     ),
                 ),

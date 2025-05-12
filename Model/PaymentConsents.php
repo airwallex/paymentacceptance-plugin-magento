@@ -34,6 +34,10 @@ use Airwallex\Payments\Model\Client\Request\RetrieveCustomer;
 use Magento\Framework\Api\FilterBuilder;
 use Magento\Vault\Api\Data\PaymentTokenInterface;
 use Magento\Framework\Api\SearchCriteriaBuilder;
+use Magento\Customer\Model\CustomerFactory;
+use Magento\Customer\Model\ResourceModel\Customer as CustomerResource;
+use Magento\Framework\Indexer\IndexerRegistry;
+use Airwallex\Payments\Model\Client\Request\Log as RemoteLog;
 
 class PaymentConsents implements PaymentConsentsInterface
 {
@@ -58,6 +62,10 @@ class PaymentConsents implements PaymentConsentsInterface
     private RetrieveCustomer $retrieveCustomer;
     protected FilterBuilder $filterBuilder;
     protected SearchCriteriaBuilder $searchCriteriaBuilder;
+    protected CustomerFactory $customerFactory;
+    protected CustomerResource $customerResource;
+    protected IndexerRegistry $indexerRegistry;
+    protected RemoteLog $remoteLog;
 
     public function __construct(
         CreateCustomer                       $createCustomer,
@@ -75,7 +83,11 @@ class PaymentConsents implements PaymentConsentsInterface
         ClientSecretResponseInterfaceFactory $clientSecretResponseFactory,
         RetrieveCustomer                     $retrieveCustomer,
         FilterBuilder                        $filterBuilder,
-        SearchCriteriaBuilder                $searchCriteriaBuilder
+        SearchCriteriaBuilder                $searchCriteriaBuilder,
+        CustomerFactory                      $customerFactory,
+        CustomerResource                     $customerResource,
+        IndexerRegistry                      $indexerRegistry,
+        RemoteLog                            $remoteLog
     )
     {
         $this->createCustomer = $createCustomer;
@@ -94,6 +106,10 @@ class PaymentConsents implements PaymentConsentsInterface
         $this->retrieveCustomer = $retrieveCustomer;
         $this->filterBuilder = $filterBuilder;
         $this->searchCriteriaBuilder = $searchCriteriaBuilder;
+        $this->customerFactory = $customerFactory;
+        $this->customerResource = $customerResource;
+        $this->indexerRegistry = $indexerRegistry;
+        $this->remoteLog = $remoteLog;
     }
 
     /**
@@ -118,34 +134,36 @@ class PaymentConsents implements PaymentConsentsInterface
      */
     public function createAirwallexCustomer(CustomerInterface $customer): string
     {
-        $eavSetup = $this->eavSetupFactory->create();
-        $attr = $eavSetup->getAttribute(Customer::ENTITY, self::KEY_AIRWALLEX_CUSTOMER_ID);
-        if (!$attr) {
-            return '';
-        }
-
-        $lines = ObjectManager::getInstance()->get(ScopeConfigInterface::class)->getValue('customer/address/street_lines');
-        foreach ($customer->getAddresses() as $address) {
-            if (count($address->getStreet()) > $lines) {
-                $address->setStreet([implode(', ', $address->getStreet())]);
-            }
-        }
-
-        $airwallexCustomerId = $this->tryFindCustomerInVault($customer);
-        if ($airwallexCustomerId) {
-            $this->updateCustomerId($customer, $airwallexCustomerId);
-            return $airwallexCustomerId;
-        }
-
         try {
+            $eavSetup = $this->eavSetupFactory->create();
+            $attr = $eavSetup->getAttribute(Customer::ENTITY, self::KEY_AIRWALLEX_CUSTOMER_ID);
+            if (!$attr) {
+                return '';
+            }
+
+            $lines = ObjectManager::getInstance()->get(ScopeConfigInterface::class)->getValue('customer/address/street_lines');
+            foreach ($customer->getAddresses() as $address) {
+                if (count($address->getStreet()) > $lines) {
+                    $address->setStreet([implode(', ', $address->getStreet())]);
+                }
+            }
+
+            $airwallexCustomerId = $this->tryFindCustomerInVault($customer);
+            if ($airwallexCustomerId) {
+                $this->updateCustomerId($customer, $airwallexCustomerId);
+                return $airwallexCustomerId;
+            }
+
             $airwallexCustomer = $this->createCustomer->setMagentoCustomerId($this->generateAirwallexCustomerId($customer))->send();
             $arrAirwallexCustomer = json_decode($airwallexCustomer, true);
             $airwallexCustomerId = $arrAirwallexCustomer['id'];
+
+            $this->updateCustomerId($customer, $airwallexCustomerId);
+            return $airwallexCustomerId;
         } catch (Exception $e) {
+            $this->remoteLog->setMessage($e->getMessage(), $e->getTraceAsString(), $customer->getId())->send();
             return '';
         }
-        $this->updateCustomerId($customer, $airwallexCustomerId);
-        return $airwallexCustomerId;
     }
 
     /**
@@ -205,11 +223,16 @@ class PaymentConsents implements PaymentConsentsInterface
      * @throws InputException
      * @throws LocalizedException
      */
-    protected function updateCustomerId(CustomerInterface $customer, string $airwallexCustomerId)
+    protected function updateCustomerId(CustomerInterface $customerData, string $airwallexCustomerId)
     {
-        $customer->setCustomAttribute(self::KEY_AIRWALLEX_CUSTOMER_ID, $airwallexCustomerId);
-
-        $this->customerRepository->save($customer);
+        $customer = $this->customerFactory->create();
+        $this->customerResource->load($customer, $customerData->getId());
+        $customer->setData(self::KEY_AIRWALLEX_CUSTOMER_ID, $airwallexCustomerId);
+        $this->customerResource->saveAttribute($customer, self::KEY_AIRWALLEX_CUSTOMER_ID);
+        $indexer = $this->indexerRegistry->get('customer_grid');
+        if (!$indexer->isInvalid()) {
+            $indexer->reindexRow($customer->getId());
+        }
     }
 
     /**
