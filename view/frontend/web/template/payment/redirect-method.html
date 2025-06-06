@@ -1,4 +1,4 @@
-<div data-bind="class: 'airwallex-payments airwallex ' + getCode(), css: {'_active': (getCode() == isChecked())}" class="payment-method">
+<div data-bind="attr: {'class': getCode() + ' airwallex-payments airwallex payment-method'}, css: {'_active': (getCode() == isChecked())}">
     <div class="payment-method-title field choice">
         <input type="radio"
                name="payment[method]"
@@ -12,8 +12,7 @@
         <!-- ko template: getTemplate() --><!-- /ko -->
         <!--/ko-->
         <div class="payment-method-billing-address">
-            <div class="awx-billing-confirm-tip" data-bind="text: $t('Confirm your billing address to use ' + getDisplayName())"></div>
-            <div class="awx-billing-confirm-tip-2" data-bind="text: $t('You will be shown the ' + getDisplayName() + ' QR code upon confirmation'), visible: isShowQRTip()"></div>
+            <div class="awx-billing-address-header"></div>
             <!-- ko foreach: $parent.getRegion(getBillingAddressFormName()) -->
             <!-- ko template: getTemplate() --><!-- /ko -->
             <!--/ko-->
@@ -30,9 +29,10 @@
             <div class="iframe"></div>
         </div>
 
-        <div class="awx-afterpay-countries-component"></div>
+        <div class="awx-redirect-method-footer"
+             data-bind="afterRender: loadPayment ">
+        </div>
 
-        <p class="airwallex-error" data-bind="visible: validationError, html: validationError"></p>
         <div class="actions-toolbar" style="margin-top: 15px;">
             <div class="primary">
                 <div class="awx-redirect-buttons">

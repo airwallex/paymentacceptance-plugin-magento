@@ -12,5 +12,6 @@
         <include path="Airwallex_Payments::system/redirect/paynow.xml"/>
         <include path="Airwallex_Payments::system/redirect/klarna.xml"/>
         <include path="Airwallex_Payments::system/redirect/afterpay.xml"/>
+        <include path="Airwallex_Payments::system/redirect/bank_transfer.xml"/>
     </group>
 </include>

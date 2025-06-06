@@ -47,7 +47,7 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
         $products = $this->getProducts($model);
         $merchantOrderId = $isOrder ? $model->getIncrementId() : $model->getReservedOrderId();
         $params = [
-            'amount' => round($model->getGrandTotal(), PaymentIntents::CURRENCY_TO_DECIMAL[$this->getCurrencyCode($model)]),
+            'amount' => round($model->getGrandTotal(), PaymentIntents::CURRENCY_TO_DECIMAL[$this->getCurrencyCode($model)] ?? 2),
             'currency' => $this->getCurrencyCode($model),
             'merchant_order_id' => $merchantOrderId,
             'platform_payment_id' => "",

@@ -281,6 +281,7 @@ abstract class AbstractMethod extends Adapter
                     $refundAmount = round($credit->getGrandTotal() / $orderGrandTotal * $respArr['amount'], $decimal);
                 }
             }
+            $this->processBankTransfer($respArr, $refundAmount);
             /** @var Creditmemo $credit */
             $res = $this->refund->setInformation($intentId, $refundAmount)->send();
 
@@ -296,6 +297,18 @@ abstract class AbstractMethod extends Adapter
             throw new RuntimeException(__($exception->getMessage()));
         }
         return $this;
+    }
+
+    private function processBankTransfer(array $response, $refundAmount): void
+    {
+        if ($response['currency'] === 'USD'
+            && !empty($response['latest_payment_attempt']['payment_method']['type'])
+            && $response['latest_payment_attempt']['payment_method']['type'] === 'bank_transfer') {
+            if ($response['amount'] - $refundAmount >= 0.01) {
+                throw new LocalizedException(__('Partial refunds are supported for USD, but only after additional bank account details are collected from the customer.
+                    For more information, please refer to the following document: %1.', "https://www.airwallex.com/docs/payments__global__bank-transfer-beta#refunds"));
+            }
+        }
     }
 
     /**

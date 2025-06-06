@@ -20,6 +20,7 @@ use Magento\Quote\Api\Data\PaymentInterface;
 use Magento\Quote\Model\QuoteRepository;
 use Exception;
 use JsonException;
+use Magento\Framework\App\ObjectManager;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
@@ -96,13 +97,8 @@ class PaymentIntents
      */
     public function createIntent($model, string $phone, string $email, string $from, PaymentInterface $paymentMethod): array
     {
-//        $uid = $order->getCustomerId() ?: 0;
-//        if ($uid && $this->isMiniPluginExists()) {
-//            $uid = ObjectManager::getInstance()->get(CompanyConsentsInterface::class)->getSuperId($uid);
-//        }
-//        $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($uid);
-//        $create = $from === 'card_with_saved' ? $create->setAirwallexCustomerId($airwallexCustomerId) : $create->setCustomer($email, $phone);
         $isOrder = $model instanceof Order;
+
         $uri = 'airwallex/redirect';
         if (!$isOrder) {
             $uri .= '?id=' . $model->getId() . '&type=quote';
@@ -111,12 +107,18 @@ class PaymentIntents
         }
         $create = $this->paymentIntentsCreate->setIntentParams($model, $paymentMethod, $this->urlInterface->getUrl($uri));
 
-        $intent = $create->setCustomer($email, $phone)->send();
+        $uid = $isOrder ? $model->getCustomerId() : ($model->getCustomer() ? $model->getCustomer()->getId() : null);
+        if ($this->isMiniPluginExists() && $from === 'card_with_saved' && $uid) {
+            $superId = ObjectManager::getInstance()->get(CompanyConsentsInterface::class)->getSuperId($uid);
+            $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($superId);
+            $intent = $create->setAirwallexCustomerId($airwallexCustomerId)->send();
+        } else {
+            $intent = $create->setCustomer($email, $phone)->send();
+        }
 
         $products = $this->getProducts($model);
         $shipping = $this->getShippingAddress($model);
         $billing = $this->getBillingAddress($model);
-        $uid = $isOrder ? $model->getCustomerId() : $model->getCustomer()->getId();
         $agreementIds = $paymentMethod->getExtensionAttributes()->getAgreementIds();
         $agreement = $agreementIds ? json_encode($agreementIds) : "[]";
 

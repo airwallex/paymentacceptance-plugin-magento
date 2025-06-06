@@ -612,4 +612,46 @@
             <argument name="validatorPool" xsi:type="object">AirwallexPaymentsAfterpayValidatorPool</argument>
         </arguments>
     </virtualType>
+    <!-- BankTransfer Method -->
+    <virtualType name="AirwallexPaymentBankTransferCountryValidator" type="Magento\Payment\Gateway\Validator\CountryValidator">
+        <arguments>
+            <argument name="config" xsi:type="object">AirwallexPaymentBankTransferConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsBankTransferValidatorPool" type="Magento\Payment\Gateway\Validator\ValidatorPool">
+        <arguments>
+            <argument name="validators" xsi:type="array">
+                <item name="country" xsi:type="string">AirwallexPaymentBankTransferCountryValidator</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentBankTransferConfig" type="Magento\Payment\Gateway\Config\Config">
+        <arguments>
+            <argument name="methodCode" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::BANK_TRANSFER_CODE</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentBankTransferConfigValueHandler" type="Magento\Payment\Gateway\Config\ConfigValueHandler">
+        <arguments>
+            <argument name="configInterface" xsi:type="object">AirwallexPaymentBankTransferConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentBankTransferValueHandlerPool" type="Magento\Payment\Gateway\Config\ValueHandlerPool">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="default" xsi:type="string">AirwallexPaymentBankTransferConfigValueHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsBankTransferGatewayFacade" type="Airwallex\Payments\Model\Methods\RedirectMethod">
+        <arguments>
+            <argument name="eventManager" xsi:type="object">Magento\Framework\Event\ManagerInterface</argument>
+            <argument name="valueHandlerPool" xsi:type="object">AirwallexPaymentBankTransferValueHandlerPool</argument>
+            <argument name="paymentDataObjectFactory" xsi:type="object">Magento\Payment\Gateway\Data\PaymentDataObjectFactory</argument>
+            <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::BANK_TRANSFER_CODE</argument>
+            <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
+            <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
+            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
+            <argument name="validatorPool" xsi:type="object">AirwallexPaymentsBankTransferValidatorPool</argument>
+        </arguments>
+    </virtualType>
 </config>

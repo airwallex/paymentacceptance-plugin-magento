@@ -10,11 +10,13 @@ use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Helper\CurrentPaymentMethodHelper;
 use Airwallex\Payments\Helper\IsOrderCreatedHelper;
 use Airwallex\Payments\Model\Methods\AfterpayMethod;
+use Airwallex\Payments\Model\Methods\BankTransfer;
 use Airwallex\Payments\Model\Methods\ExpressCheckout;
 use Airwallex\Payments\Model\Methods\KlarnaMethod;
 use Airwallex\Payments\Model\Methods\RedirectMethod;
 use Airwallex\Payments\Plugin\ReCaptchaValidationPlugin;
 use Exception;
+use Error;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Checkout\Api\GuestPaymentInformationManagementInterface;
@@ -281,9 +283,9 @@ class OrderService implements OrderServiceInterface
                     $this->errorLog->setMessage($e->getMessage(), $e->getTraceAsString(), $intentId)->send();
                 }
             }
-        } catch (Exception $e) {
+        } catch (Exception | Error $e) {
             $this->errorLog->setMessage('OrderService exception: ' . $e->getMessage(), $e->getTraceAsString(), $intentId)->send();
-            throw $e;
+            throw new LocalizedException(__($e->getMessage()), $e);
         }
 
         $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
@@ -381,7 +383,12 @@ class OrderService implements OrderServiceInterface
             }
         }
 
-        return $this->requestIntent($order, $paymentMethod, $email, $paymentMethodId, $from, $response);
+        $requestIntentResponse = $this->requestIntent($order, $paymentMethod, $email, $paymentMethodId, $from, $response);
+        if ($paymentMethod->getMethod() === BankTransfer::CODE && $quote && $quote->getIsActive()) {
+            $quote->setIsActive(false);
+            $this->quoteRepository->save($quote);
+        }
+        return $requestIntentResponse;
     }
 
     /**
@@ -473,13 +480,14 @@ class OrderService implements OrderServiceInterface
         if (!$returnUrl = $this->cache->load($cacheName)) {
             try {
                 $request = $this->confirm->setPaymentIntentId($intent['id'])->setBrowserInformation($browserInformation);
+                $currencySwitcherData = [];
                 if (in_array($code, RedirectMethod::CURRENCY_SWITCHER_METHODS, true)) {
-                    $res = $this->switchCurrency($intent, $paymentMethod, $address);
-                    if (!empty($res['quote_id'])) {
-                        $request = $request->setQuote($res['target_currency'], $res['quote_id']);
+                    $currencySwitcherData = $this->switchCurrency($intent, $paymentMethod, $address);
+                    if (!empty($currencySwitcherData['quote_id'])) {
+                        $request = $request->setQuote($currencySwitcherData['target_currency'], $currencySwitcherData['quote_id']);
                     }
                 }
-                $resp = $request->setInformation($this->getPaymentMethodCode($code), $address, $email)->send();
+                $resp = $request->setInformation($this->getPaymentMethodCode($code), $address, $email, $intent, $currencySwitcherData)->send();
             } catch (Exception $exception) {
                 throw new LocalizedException(__($exception->getMessage()));
             }
@@ -497,8 +505,13 @@ class OrderService implements OrderServiceInterface
      */
     protected function switchCurrency(array $intent, PaymentInterface $paymentMethod, $address): array
     {
-        $country = $address->getCountryId();
+        $currencies = json_decode($this->getAvailableCurrencies(), true);
+        if (empty($currencies)) {
+            return [];
+        }
+        $country = !empty($address) ? $address->getCountryId() : '';
         $code = $paymentMethod->getMethod();
+        $brand = '';
         if ($code === KlarnaMethod::CODE) {
             if (!in_array($country, array_keys(KlarnaMethod::SUPPORTED_COUNTRY_TO_CURRENCY), true)) {
                 throw new LocalizedException(__('Klarna is not available in your country. Please change your billing address to a compatible country or choose a different payment method.'));
@@ -507,38 +520,66 @@ class OrderService implements OrderServiceInterface
             if ($targetCurrency === $intent['currency']) {
                 return [];
             }
-            $currencies = json_decode($this->getAvailableCurrencies(), true);
-            if (!in_array($targetCurrency, $currencies, true) || !in_array($intent['currency'], $currencies, true)) {
-                throw new LocalizedException(__('Klarna is not available in your country. Please change your billing address to a compatible country or choose a different payment method.'));
-            }
+            $brand = 'Klarna';
         } elseif ($code === AfterpayMethod::CODE) {
             $account = $this->account();
             $arr = json_decode($account, true);
             $entity = $arr['owningEntity'];
-            if (!isset(AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY[$entity])) {
+            $entityCurrencies = AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY[$entity] ?? [];
+            if (empty($entityCurrencies)) {
                 throw new LocalizedException(__('The selected payment method is not supported.'));
             }
-            if (in_array($intent['currency'], AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY[$entity], true)) {
-                return [];
-            }
-            if (count(AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY[$entity]) === 1) {
-                $targetCurrency = AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY[$entity][0];
+
+            if (count($entityCurrencies) === 1) {
+                if (in_array($intent['currency'], $entityCurrencies, true)) {
+                    return [];
+                }
+                $targetCurrency = $entityCurrencies[0];
             } else {
-                $targetCurrency = AfterpayMethod::SUPPORTED_COUNTRY_TO_CURRENCY[$country] ?? '';
-                if (empty($targetCurrency)) {
-                    $afterpayCountry = $paymentMethod->getAdditionalData()['afterpay_country'] ?? '';
+                if (empty($paymentMethod->getAdditionalData())) {
+                    return [];
+                }
+                $afterpayCountry = $paymentMethod->getAdditionalData()['afterpay_country'] ?? '';
+                if (empty($afterpayCountry)) {
+                    return [];
+                }
+                if (!empty(AfterpayMethod::SUPPORTED_COUNTRY_TO_CURRENCY[$country])
+                    && in_array(AfterpayMethod::SUPPORTED_COUNTRY_TO_CURRENCY[$country], $entityCurrencies, true)) {
+                    $targetCurrency = AfterpayMethod::SUPPORTED_COUNTRY_TO_CURRENCY[$country];
+                } else {
                     $targetCurrency = AfterpayMethod::SUPPORTED_COUNTRY_TO_CURRENCY[$afterpayCountry] ?? '';
                 }
-                if (empty($targetCurrency)) {
-                    throw new LocalizedException(__('The selected afterpay country is not supported.'));
+                if ($targetCurrency === $intent['currency']) {
+                    return [];
                 }
             }
+            $brand = 'Afterpay';
+        } elseif ($code === BankTransfer::CODE) {
+            $targetCurrency = "";
+            if (isset(BankTransfer::SUPPORTED_COUNTRY_TO_CURRENCY[$country])) {
+                $targetCurrency = BankTransfer::SUPPORTED_COUNTRY_TO_CURRENCY[$country];
+            }
+            if (empty($targetCurrency) && !empty($paymentMethod->getAdditionalData())) {
+                $targetCurrency = $paymentMethod->getAdditionalData()['bank_transfer_currency'] ?? '';
+            }
+            if ($targetCurrency === $intent['currency']) {
+                return [];
+            }
+            $brand = 'Bank Transfer';
         }
-
+        if (empty($targetCurrency)) {
+            throw new LocalizedException(__('Invalid request, target currency is required.'));
+        }
+        if (empty($intent['currency']) || empty($intent['amount'])) {
+            throw new LocalizedException(__('Invalid request, intent information is required.'));
+        }
+        if (!in_array($targetCurrency, $currencies, true) || !in_array($intent['currency'], $currencies, true)) {
+            throw new LocalizedException(__('%1 is not available in your country. Please change your billing address to a compatible country or choose a different payment method.', $brand));
+        }
         $res = $this->currencySwitcher($intent['currency'], $targetCurrency, $intent['amount']);
         $switcher = json_decode($res, true);
         if (empty($switcher['id'])) {
-            throw new LocalizedException(__('Klarna is not available in your country. Please change your billing address to a compatible country or choose a different payment method.'));
+            throw new LocalizedException(__($brand . ' is not available in your country. Please change your billing address to a compatible country or choose a different payment method.'));
         }
         return [
             'quote_id' => $switcher['id'],
@@ -570,7 +611,10 @@ class OrderService implements OrderServiceInterface
             'client_secret' => $intent['clientSecret']
         ];
         if ($this->isRedirectMethodConstant($paymentMethod->getMethod())) {
-            $browserInformation = $paymentMethod->getAdditionalData()['browser_information'] ?? "";
+            $browserInformation = '';
+            if (!empty($paymentMethod->getAdditionalData())) {
+                $browserInformation = $paymentMethod->getAdditionalData()['browser_information'] ?? "";
+            }
             $data['next_action'] = $this->getAirwallexPaymentsNextAction($intent, $paymentMethod, $browserInformation, $model->getBillingAddress(), $email);
         }
 

@@ -6,9 +6,7 @@
             <label>Payment &amp; Order Sequence</label>
             <source_model>Airwallex\Payments\Model\Config\Source\OrderPaymentSequence</source_model>
             <config_path>airwallex/general/order_payment_sequence</config_path>
-            <comment>
-                <![CDATA[Choose whether to create an order before or after payment confirmation. By default, you should use “<span style='font-weight: 800'>Order first, then Payment confirmation</span>”. We <span style='font-weight: 800'>do not recommend</span> switching to “Payment first, then Order creation”, as it may result in confirmed payments without corresponding orders.]]>
-            </comment>
+            <frontend_model>Airwallex\Payments\Model\Config\Adminhtml\OrderPaymentSequence</frontend_model>
         </field>
     </group>
 </include>

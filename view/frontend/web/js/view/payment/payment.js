@@ -51,12 +51,17 @@ define([
 
     rendererList.push({
         type: 'airwallex_payments_klarna',
-        component: 'Airwallex_Payments/js/view/payment/redirect-method'
+        component: 'Airwallex_Payments/js/view/payment/redirect-method/klarna'
     });
 
     rendererList.push({
         type: 'airwallex_payments_afterpay',
-        component: 'Airwallex_Payments/js/view/payment/redirect-method'
+        component: 'Airwallex_Payments/js/view/payment/redirect-method/afterpay'
+    });
+
+    rendererList.push({
+        type: 'airwallex_payments_bank_transfer',
+        component: 'Airwallex_Payments/js/view/payment/redirect-method/bank-transfer'
     });
 
     return Component.extend({});

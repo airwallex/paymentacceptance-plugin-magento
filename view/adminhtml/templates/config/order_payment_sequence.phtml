@@ -1,0 +1,27 @@
+<div style="margin: 20px 0">
+    Choose whether to create an order before or after payment confirmation.
+    By default, you should use “<span style='font-weight: 800'>Order first, then Payment confirmation</span>”.
+    We <span style='font-weight: 800'>do not recommend</span> switching to “Payment first, then Order creation”,
+    as it may result in confirmed payments without corresponding orders.
+</div>
+<div class="awx-disable-bank-transfer-tip" style="display: none; color: red;">
+    Bank transfer has been automatically disabled because it requires longer processing times,
+    which may lead to order creation failures with your selected option.
+</div>
+
+<script>
+    require([
+            'jquery'
+        ],
+        function (jQuery) {
+            let toggleDisableBankTransferTip = function () {
+                if (jQuery('select[name="groups[airwallex_payments][groups][basic][groups][order][fields][order_payment_sequence][value]"]').val() === 'payment_before_order') {
+                    jQuery('.awx-disable-bank-transfer-tip').show();
+                } else {
+                    jQuery('.awx-disable-bank-transfer-tip').hide();
+                }
+            };
+            jQuery(document).on('change', 'select[name="groups[airwallex_payments][groups][basic][groups][order][fields][order_payment_sequence][value]"]', toggleDisableBankTransferTip);
+            toggleDisableBankTransferTip();
+        });
+</script>

@@ -85,6 +85,9 @@ class AvailablePaymentMethodsHelper
         if ($code === 'express') {
             return $this->canInitialize() && !!array_intersect($this->methodsInExpress, $this->getAllMethods());
         }
+        if ($code === 'bank_transfer' && !$this->configuration->isMethodActive('bank_transfer')) {
+            return false;
+        }
         return $this->canInitialize() && in_array($code, $this->getAllMethods(), true);
     }
 
@@ -108,6 +111,11 @@ class AvailablePaymentMethodsHelper
      */
     public function getLatestItems($useQuote = true)
     {
+        $currency = $useQuote ? $this->getCurrencyCode() : '';
+        $cacheName = "awx_available_payment_method_" . $currency;
+        if ($data = $this->cache->load($cacheName)) {
+            return json_decode($data, true);
+        }
         $request = $this->availablePaymentMethod
             ->setResources()
             ->setActive()
@@ -118,7 +126,9 @@ class AvailablePaymentMethodsHelper
             $request = $request->removeCurrency();
         }
         try {
-            return $request->send();
+            $data = $request->send();
+            $this->cache->save(json_encode($data), $cacheName, [], 300);
+            return $data;
         } catch (Exception $e) {
             return [];
         }

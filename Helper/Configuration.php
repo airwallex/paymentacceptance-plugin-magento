@@ -48,9 +48,9 @@ class Configuration extends AbstractHelper
     /**
      * Webhook secret key
      *
-     * @return string
+     * @return string|null
      */
-    public function getWebhookSecretKey(): string
+    public function getWebhookSecretKey(): ?string
     {
         return $this->scopeConfig->getValue(
             'airwallex/general/webhook_' . $this->getMode() . '_secret_key'
@@ -76,9 +76,9 @@ class Configuration extends AbstractHelper
     /**
      * Mode
      *
-     * @return string
+     * @return string|null
      */
-    public function getMode(): string
+    public function getMode(): ?string
     {
         return $this->scopeConfig->getValue('airwallex/general/mode');
     }
@@ -132,7 +132,7 @@ class Configuration extends AbstractHelper
      */
     public function isPreVerificationEnabled(): bool
     {
-        return $this->scopeConfig->getValue('payment/airwallex_payments_card/preverification');
+        return (bool)$this->scopeConfig->getValue('payment/airwallex_payments_card/preverification');
     }
 
     /**
@@ -142,7 +142,7 @@ class Configuration extends AbstractHelper
      */
     public function isCardActive(): bool
     {
-        return !!$this->scopeConfig->getValue('payment/airwallex_payments_card/active');
+        return $this->isMethodActive('card');
     }
 
     /**
@@ -153,7 +153,7 @@ class Configuration extends AbstractHelper
     public function isCardVaultActive(): bool
     {
         if (!$this->isCardActive()) return false;
-        return !!$this->scopeConfig->getValue('payment/airwallex_payments_card/vault_active');
+        return (bool)$this->scopeConfig->getValue('payment/airwallex_payments_card/vault_active');
     }
 
     /**
@@ -185,9 +185,9 @@ class Configuration extends AbstractHelper
     /**
      * Express display area
      *
-     * @return string
+     * @return string|null
      */
-    public function expressDisplayArea(): string
+    public function expressDisplayArea(): ?string
     {
         return $this->scopeConfig->getValue('payment/airwallex_payments_express/display_area');
     }
@@ -195,9 +195,9 @@ class Configuration extends AbstractHelper
     /**
      * Express seller name
      *
-     * @return string
+     * @return string|null
      */
-    public function getExpressSellerName(): string
+    public function getExpressSellerName(): ?string
     {
         return $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'seller_name') ?: '';
     }
@@ -240,10 +240,28 @@ class Configuration extends AbstractHelper
      */
     public function isExpressActive(): bool
     {
-        if (!$this->isCardActive()) {
-            return false;
+        return $this->isMethodActive('express');
+    }
+
+    /**
+     * Is method active
+     *
+     * @param $method
+     * @return bool
+     */
+    public function isMethodActive($method): bool
+    {
+        if ($method === 'express') {
+            if (!$this->isMethodActive('card')) {
+                return false;
+            }
         }
-        return !!$this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'active');
+        if ($method === 'bank_transfer') {
+            if (!$this->isOrderBeforePayment()) {
+                return false;
+            }
+        }
+        return (bool)$this->scopeConfig->getValue('payment/airwallex_payments_' . $method . '/active');
     }
 
     /**
@@ -269,9 +287,9 @@ class Configuration extends AbstractHelper
     /**
      * Country code
      *
-     * @return string
+     * @return string|null
      */
-    public function getCountryCode(): string
+    public function getCountryCode(): ?string
     {
         return $this->scopeConfig->getValue('paypal/general/merchant_country')
             ?: $this->scopeConfig->getValue('general/country/default');
@@ -296,7 +314,7 @@ class Configuration extends AbstractHelper
      */
     public function isCvcRequired(): bool
     {
-        return !!$this->scopeConfig->getValue('payment/airwallex_payments_card/cvc_required');
+        return (bool)$this->scopeConfig->getValue('payment/airwallex_payments_card/cvc_required');
     }
 
     /**

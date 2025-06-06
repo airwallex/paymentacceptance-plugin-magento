@@ -20,10 +20,9 @@ use JsonException;
 use Magento\Checkout\Api\GuestPaymentInformationManagementInterface;
 use Magento\Checkout\Api\PaymentInformationManagementInterface;
 use Magento\Checkout\Helper\Data;
+use Magento\Framework\App\CacheInterface;
 use Magento\Framework\App\ObjectManager;
-use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\Exception\AlreadyExistsException;
-use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Quote\Api\Data\PaymentExtension;
@@ -201,7 +200,16 @@ trait HelperTrait
      */
     public function account(): string
     {
-        return ObjectManager::getInstance()->get(Account::class)->send();
+        $apiKey = ObjectManager::getInstance()->get(Configuration::class)->getApiKey();
+        $cacheName = 'awx_account_information_' . $apiKey;
+        $cache = ObjectManager::getInstance()->get(CacheInterface::class);
+        $res = $cache->load($cacheName);
+        if (empty($res)) {
+            $accountRequest = ObjectManager::getInstance()->get(Account::class);
+            $res = $accountRequest->send();
+            $cache->save($res, $cacheName, [], 3600 * 12);
+        }
+        return $res;
     }
 
     /**

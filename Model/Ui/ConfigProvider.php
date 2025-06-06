@@ -5,8 +5,10 @@ namespace Airwallex\Payments\Model\Ui;
 use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Model\Client\Request\GetCurrencies;
+use Airwallex\Payments\Model\Methods\BankTransfer;
 use Airwallex\Payments\Model\Methods\KlarnaMethod;
 use Airwallex\Payments\Model\Traits\HelperTrait;
+use Error;
 use GuzzleHttp\Exception\GuzzleException;
 use Magento\Checkout\Model\ConfigProviderInterface;
 use Magento\Customer\Model\Session;
@@ -20,11 +22,13 @@ use Magento\ReCaptchaUi\Model\IsCaptchaEnabledInterface;
 use Magento\Customer\Api\CustomerRepositoryInterface;
 use Airwallex\Payments\Model\Client\Request\RetrieveCustomer;
 use Airwallex\Payments\Model\Methods\AfterpayMethod;
+use Magento\Checkout\Helper\Data as CheckoutData;
 use Exception;
 
 class ConfigProvider implements ConfigProviderInterface
 {
     use HelperTrait;
+
     public const AIRWALLEX_RECAPTCHA_FOR = 'place_order';
 
     protected Configuration $configuration;
@@ -38,6 +42,7 @@ class ConfigProvider implements ConfigProviderInterface
     private GetCurrencies $getCurrencies;
 
     private CacheInterface $cache;
+    private CheckoutData $checkoutData;
 
     /**
      * ConfigProvider constructor.
@@ -52,6 +57,7 @@ class ConfigProvider implements ConfigProviderInterface
      * @param ProductMetadata $productMetadata
      * @param GetCurrencies $getCurrencies
      * @param CacheInterface $cache
+     * @param CheckoutData $checkoutData
      */
     public function __construct(
         Configuration               $configuration,
@@ -63,7 +69,8 @@ class ConfigProvider implements ConfigProviderInterface
         RetrieveCustomer            $retrieveCustomer,
         ProductMetadata             $productMetadata,
         GetCurrencies               $getCurrencies,
-        CacheInterface              $cache
+        CacheInterface              $cache,
+        CheckoutData                $checkoutData
     )
     {
         $this->configuration = $configuration;
@@ -76,6 +83,7 @@ class ConfigProvider implements ConfigProviderInterface
         $this->productMetadata = $productMetadata;
         $this->getCurrencies = $getCurrencies;
         $this->cache = $cache;
+        $this->checkoutData = $checkoutData;
     }
 
     /**
@@ -83,41 +91,44 @@ class ConfigProvider implements ConfigProviderInterface
      *
      * @return array
      * @throws GuzzleException
-     * @throws LocalizedException
-     * @throws NoSuchEntityException
      */
     public function getConfig(): array
     {
-        $config = [
-            'payment' => [
-                'airwallex_payments' => [
-                    'mode' => $this->configuration->getMode(),
-                    'cc_auto_capture' => $this->configuration->isAutoCapture('card'),
-                    'is_recaptcha_enabled' => $this->isReCaptchaEnabled(),
-                    'recaptcha_type' => $this->configuration->recaptchaType(),
-                    'recaptcha_settings' => $this->getReCaptchaConfig(),
-                    'is_recaptcha_shared' => version_compare($this->productMetadata->getVersion(), '2.4.7', '<'),
-                    'cvc_required' => $this->configuration->isCvcRequired(),
-                    'is_card_vault_active' => $this->configuration->isCardVaultActive(),
-                    'is_pre_verification_enabled' => $this->configuration->isPreVerificationEnabled(),
-                    'card_max_width' => $this->configuration->getCardMaxWidth(),
-                    'card_fontsize' => $this->configuration->getCardFontSize(),
-                    'klarna_support_countries' => KlarnaMethod::SUPPORTED_COUNTRY_TO_CURRENCY,
-                    'afterpay_support_countries' => AfterpayMethod::SUPPORTED_COUNTRY_TO_CURRENCY,
-                    'afterpay_support_entity_to_currency' => AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY,
-                    'available_currencies' => $this->getAvailableCurrencies(),
+        try {
+            $quote = $this->checkoutData->getQuote();
+            $config = [
+                'payment' => [
+                    'airwallex_payments' => [
+                        'mode' => $this->configuration->getMode(),
+                        'cc_auto_capture' => $this->configuration->isAutoCapture('card'),
+                        'is_recaptcha_enabled' => $this->isReCaptchaEnabled(),
+                        'recaptcha_type' => $this->configuration->recaptchaType(),
+                        'recaptcha_settings' => $this->getReCaptchaConfig(),
+                        'is_recaptcha_shared' => version_compare($this->productMetadata->getVersion(), '2.4.7', '<'),
+                        'cvc_required' => $this->configuration->isCvcRequired(),
+                        'is_card_vault_active' => $this->configuration->isCardVaultActive(),
+                        'is_pre_verification_enabled' => $this->configuration->isPreVerificationEnabled(),
+                        'card_max_width' => $this->configuration->getCardMaxWidth(),
+                        'card_fontsize' => $this->configuration->getCardFontSize(),
+                        'bank_transfer_support_country_to_currency_collection' => BankTransfer::SUPPORTED_COUNTRY_TO_CURRENCY,
+                        'klarna_support_countries' => KlarnaMethod::SUPPORTED_COUNTRY_TO_CURRENCY,
+                        'afterpay_support_countries' => AfterpayMethod::SUPPORTED_COUNTRY_TO_CURRENCY,
+                        'afterpay_support_entity_to_currency' => AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY,
+                        'available_currencies' => $this->getAvailableCurrencies(),
+                        'quote_currency_code' => $quote->getQuoteCurrencyCode(),
+                        'base_currency_code' => $quote->getBaseCurrencyCode(),
+                    ]
                 ]
-            ]
-        ];
+            ];
 
-        if ($this->customerSession->isLoggedIn() && $this->configuration->isCardVaultActive()) {
-            $config['payment']['airwallex_payments']['airwallex_customer_id'] = $this->getAirwallexCustomerId();
-            $this->paymentConsents->syncVault($this->customerSession->getId());
+            if ($this->customerSession->isLoggedIn() && $this->configuration->isCardVaultActive()) {
+                $config['payment']['airwallex_payments']['airwallex_customer_id'] = $this->getAirwallexCustomerId();
+            }
+            return $config;
+        } catch (Exception|Error $exception) {
+            return [];
         }
-
-        return $config;
     }
-
 
     /**
      * @throws NoSuchEntityException

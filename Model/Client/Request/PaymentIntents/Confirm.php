@@ -4,6 +4,7 @@ namespace Airwallex\Payments\Model\Client\Request\PaymentIntents;
 
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
+use Airwallex\Payments\Model\Methods\BankTransfer;
 use Airwallex\Payments\Model\Methods\KlarnaMethod;
 use JsonException;
 use Magento\Framework\Exception\LocalizedException;
@@ -56,9 +57,12 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
      * @param string $method
      * @param AddressInterface|OrderAddressInterface|null $address
      * @param string $email
+     * @param array $intent
+     * @param array $currencySwitcherData
      * @return Confirm
+     * @throws LocalizedException
      */
-    public function setInformation(string $method, $address = null, string $email = ""): self
+    public function setInformation(string $method, $address, string $email = "", array $intent = [], array $currencySwitcherData = []): self
     {
         $data = [
             'payment_method' => [
@@ -66,9 +70,14 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
             ]
         ];
 
-        if (in_array($method, ['klarna', 'afterpay'], true)) {
+        if (in_array($method, ['klarna', 'afterpay', 'bank_transfer'], true)) {
+            if (empty($address)) {
+                throw new LocalizedException(__('Billing address cannot be empty.'));
+            }
+            if (empty($intent['currency'])) {
+                throw new LocalizedException(__('Intent currency cannot be empty.'));
+            }
             $data['payment_method'][$method] = [
-                'country_code' => $address->getCountryId(),
                 'shopper_email' => $email ?: $address->getEmail(),
                 'billing' => [
                     'address' => [
@@ -84,9 +93,26 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
                     "phone_number" => $address->getTelephone(),
                 ],
                 "shopper_phone" => $address->getTelephone(),
+                "shopper_name" => $address->getFirstName() . ' ' . $address->getLastname(),
                 'language' => $this->getLanguageCode($address->getCountryId(), $method),
             ];
             $data['payment_method_options'][$method]['auto_capture'] = $this->configuration->isAutoCapture($method);
+            if ($method === 'klarna') {
+                $data['payment_method'][$method]['country_code'] = $address->getCountryId();
+            } else if ($method === 'bank_transfer') {
+                $currencyCollection = BankTransfer::SUPPORTED_CURRENCY_TO_COUNTRY;
+                if (!empty($currencySwitcherData['target_currency'])) {
+                    if (empty($currencyCollection[$currencySwitcherData['target_currency']])) {
+                        throw new LocalizedException(__('Invalid currency for Bank Transfer'));
+                    }
+                    $data['payment_method'][$method]['country_code'] = $currencyCollection[$currencySwitcherData['target_currency']];
+                } else {
+                    if (empty($currencyCollection[$intent['currency']])) {
+                        throw new LocalizedException(__('Invalid currency for Bank Transfer'));
+                    }
+                    $data['payment_method'][$method]['country_code'] = $currencyCollection[$intent['currency']];
+                }
+            }
         }
 
         $data = $this->setFlow($data, $method);

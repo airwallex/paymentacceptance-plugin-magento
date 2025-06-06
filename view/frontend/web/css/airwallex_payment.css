@@ -273,7 +273,7 @@
     margin-bottom: 10px;
 }
 
-.awx-billing-confirm-tip-2 {
+.awx-qrcode-tip {
     font-style: normal;
     font-weight: 400;
     font-size: 14px;
@@ -370,7 +370,7 @@
 
 .input-icon {
     display: flex;
-    justify-content: end;
+    justify-content: center;
     position: absolute;
     right: 0;
     width: 50px;
@@ -387,6 +387,7 @@
     border-color: rgba(232, 234, 237, 1);
     z-index: 99;
     background-color: white;
+    margin-bottom: 15px;
 }
 
 .awx-afterpay-countries input {
@@ -443,6 +444,84 @@
     background-position: right;
 }
 
-.awx-afterpay-countries-component {
+.airwallex_payments_bank_transfer .awx-bank-transfer-currencies img.flag {
+    height: 20px;
+    margin-right: 8px;
+}
+
+.airwallex_payments_bank_transfer .awx-bank-transfer-currencies ul {
+    border-radius: 5px;
+    padding: 2px 0;
+    box-shadow: 0 2px 16px 0 rgba(0, 0, 0, 0.12);
+    margin-bottom: 14px;
+    position: absolute;
+    max-width: 375px;
+    background: white;
+    width: 100%;
+}
+
+.airwallex_payments_bank_transfer .awx-bank-transfer-currencies li {
+    display: flex;
+    align-items: center;
+    font-weight: 700;
+    cursor: pointer;
+    margin: 0;
+}
+
+.airwallex_payments_bank_transfer .awx-bank-transfer-currencies li div:hover {
+    color: rgb(97, 47, 255);
+    background: #f0effe;
+
+}
+
+.airwallex_payments_bank_transfer .awx-bank-transfer-currencies li div {
+    width: 100%;
+    padding: 10px 5px;
+    margin: 5px 5px;
+    display: flex;
+    align-items: center;
+    border-radius: 5px;
+}
+
+.airwallex_payments_bank_transfer .awx-bank-transfer-currencies .select {
+    padding: 8px 16px;
+    border: 1px solid rgba(232, 234, 237, 1);
+    border-radius: 5px;
+    color: rgba(135, 142, 153, 1);
+    font-weight: 400;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 10px 0;
+}
+
+.airwallex_payments_bank_transfer .awx-bank-transfer-currencies {
+    max-width: 375px;
+    position: relative;
+}
+
+.airwallex-payments .awx-link {
+    color: rgba(66, 71, 77, 1);
+    font-weight: 800;
+    text-decoration: underline;
+}
+
+.currency-switcher-tip {
+    color: rgba(26, 29, 33, 1);
+    display: inline-block;
+    font-weight: 600;
+}
+
+.airwallex_payments_bank_transfer .currency-switcher-tip {
     margin-bottom: 15px;
+}
+
+.awx-compatible-country-link {
+    color: rgba(66, 71, 77, 1);
+    font-weight: 800;
+    text-decoration: underline;
+}
+
+.awx-compatible-country-link:visited {
+    color: rgba(66, 71, 77, 1);
 }
