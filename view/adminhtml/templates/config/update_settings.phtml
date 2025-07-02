@@ -36,8 +36,12 @@
                 "prod": '<?= $block->escapeHtml($this->getConnectionFlowField('prod'))?>',
             };
 
-            let accountStr = '<?= $block->escapeHtml($this->getAccount()) ?>';
-            let account = accountStr ? JSON.parse(accountStr) : {};
+            let account = {
+                demo_account_id: '<?= $block->escapeHtml($this->getDemoAccountId()) ?>',
+                demo_account_name: '<?= $block->escapeHtml($this->getDemoAccountName()) ?>',
+                prod_account_id: '<?= $block->escapeHtml($this->getProdAccountId()) ?>',
+                prod_account_name: '<?= $block->escapeHtml($this->getProdAccountName()) ?>',
+            };
             let envSelector = '[name="groups[airwallex_payments][groups][basic][fields][mode][value]"]';
 
             let renderSetting = function () {

@@ -27,7 +27,31 @@ class UpdateSettings extends Field
 
     public function getAccount()
     {
-        return ObjectManager::getInstance()->get(Configuration::class)->getAccount();
+        $account = ObjectManager::getInstance()->get(Configuration::class)->getAccount();
+        if ($account) {
+            return json_decode($account, true);
+        }
+        return [];
+    }
+
+    public function getDemoAccountId() {
+        $account = $this->getAccount();
+        return $account['demo_account_id'] ?? '';
+    }
+
+    public function getDemoAccountName() {
+        $account = $this->getAccount();
+        return $account['demo_account_name'] ?? '';
+    }
+
+    public function getProdAccountId() {
+        $account = $this->getAccount();
+        return $account['prod_account_id'] ?? '';
+    }
+
+    public function getProdAccountName() {
+        $account = $this->getAccount();
+        return $account['prod_account_name'] ?? '';
     }
 
     public function getConnectionFlowField(string $env)
