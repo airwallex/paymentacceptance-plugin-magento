@@ -20,7 +20,7 @@ interface PlaceOrderResponseInterface
      * @param string|null $intentId
      * @return $this
      */
-    public function setIntentId(string $intentId = null): PlaceOrderResponseInterface;
+    public function setIntentId(?string $intentId = null): PlaceOrderResponseInterface;
 
     /**
      * @return string|null
@@ -31,7 +31,7 @@ interface PlaceOrderResponseInterface
      * @param string|null $nextAction
      * @return $this
      */
-    public function setNextAction(string $nextAction = null): PlaceOrderResponseInterface;
+    public function setNextAction(?string $nextAction = null): PlaceOrderResponseInterface;
 
     /**
      * @return string|null
@@ -42,7 +42,7 @@ interface PlaceOrderResponseInterface
      * @param string|null $clientSecret
      * @return $this
      */
-    public function setClientSecret(string $clientSecret = null): PlaceOrderResponseInterface;
+    public function setClientSecret(?string $clientSecret = null): PlaceOrderResponseInterface;
 
     /**
      * @return string|null
@@ -75,5 +75,5 @@ interface PlaceOrderResponseInterface
      * @param int|null $orderId
      * @return $this
      */
-    public function setOrderId(int $orderId = null): PlaceOrderResponseInterface;
+    public function setOrderId(?int $orderId = null): PlaceOrderResponseInterface;
 }

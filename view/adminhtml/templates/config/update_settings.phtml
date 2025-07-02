@@ -7,7 +7,7 @@
         function (jQuery) {
             const MANAGE = 'Manage';
 
-            let returnObjectStr = '<?=$this->getConnectionFlowMessage()?>';
+            let returnObjectStr = '<?=$block->escapeHtml($this->getConnectionFlowMessage())?>';
             let returnObject;
             if (returnObjectStr) {
                 returnObject = JSON.parse(returnObjectStr);
@@ -32,11 +32,11 @@
             };
 
             let connectionFlowStatus = {
-                "demo": '<?= $this->getConnectionFlowField('demo') ?>',
-                "prod": '<?= $this->getConnectionFlowField('prod') ?>'
+                "demo": '<?= $block->escapeHtml($this->getConnectionFlowField('demo'))?>',
+                "prod": '<?= $block->escapeHtml($this->getConnectionFlowField('prod'))?>',
             };
 
-            let accountStr = '<?= $this->getAccount() ?>';
+            let accountStr = '<?= $block->escapeHtml($this->getAccount()) ?>';
             let account = accountStr ? JSON.parse(accountStr) : {};
             let envSelector = '[name="groups[airwallex_payments][groups][basic][fields][mode][value]"]';
 

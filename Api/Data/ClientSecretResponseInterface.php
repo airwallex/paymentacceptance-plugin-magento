@@ -17,7 +17,7 @@ interface ClientSecretResponseInterface
      * @param string|null $secret
      * @return $this
      */
-    public function setClientSecret(string $secret = null): ClientSecretResponseInterface;
+    public function setClientSecret(?string $secret = null): ClientSecretResponseInterface;
 
     /**
      * @return string|null
@@ -28,7 +28,7 @@ interface ClientSecretResponseInterface
      * @param string|null $time
      * @return $this
      */
-    public function setExpiredTime(string $time = null): ClientSecretResponseInterface;
+    public function setExpiredTime(?string $time = null): ClientSecretResponseInterface;
 
     /**
      * @return string|null

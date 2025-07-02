@@ -19,7 +19,7 @@ class PlaceOrderResponse extends DataObject implements PlaceOrderResponseInterfa
      * @param string|null $intentId
      * @return PlaceOrderResponse
      */
-    public function setIntentId(string $intentId = null): PlaceOrderResponse
+    public function setIntentId(?string $intentId = null): PlaceOrderResponse
     {
         return $this->setData(self::DATA_KEY_INTENT_ID, $intentId);
     }
@@ -36,9 +36,9 @@ class PlaceOrderResponse extends DataObject implements PlaceOrderResponseInterfa
      * @param string|null $nextAction
      * @return PlaceOrderResponse
      */
-    public function setNextAction(string $nextAction = null): PlaceOrderResponse
+    public function setNextAction(?string $nextAction = null): PlaceOrderResponse
     {
-        return $this->setData(self::DATA_KEY_INTENT_ID, $nextAction);
+        return $this->setData(self::DATA_KEY_NEXT_ACTION, $nextAction);
     }
 
     /**
@@ -53,7 +53,7 @@ class PlaceOrderResponse extends DataObject implements PlaceOrderResponseInterfa
      * @param string|null $clientSecret
      * @return PlaceOrderResponse
      */
-    public function setClientSecret(string $clientSecret = null): PlaceOrderResponse
+    public function setClientSecret(?string $clientSecret = null): PlaceOrderResponse
     {
         return $this->setData(self::DATA_KEY_CLIENT_SECRET, $clientSecret);
     }
@@ -104,7 +104,7 @@ class PlaceOrderResponse extends DataObject implements PlaceOrderResponseInterfa
      * @param int|null $orderId
      * @return PlaceOrderResponse
      */
-    public function setOrderId(int $orderId = null): PlaceOrderResponse
+    public function setOrderId(?int $orderId = null): PlaceOrderResponse
     {
         return $this->setData(self::DATA_KEY_ORDER_ID, $orderId);
     }

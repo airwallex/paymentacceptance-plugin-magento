@@ -26,7 +26,7 @@ interface SavedPaymentResponseInterface
      * @param string|null $id
      * @return $this
      */
-    public function setId(string $id = null): SavedPaymentResponseInterface;
+    public function setId(?string $id = null): SavedPaymentResponseInterface;
 
     /**
      * @return string|null
@@ -37,7 +37,7 @@ interface SavedPaymentResponseInterface
      * @param string|null $cardBrand
      * @return $this
      */
-    public function setCardBrand(string $cardBrand = null): SavedPaymentResponseInterface;
+    public function setCardBrand(?string $cardBrand = null): SavedPaymentResponseInterface;
 
     /**
      * @return string|null
@@ -48,7 +48,7 @@ interface SavedPaymentResponseInterface
      * @param string|null $expiryMonth
      * @return $this
      */
-    public function setCardExpiryMonth(string $expiryMonth = null): SavedPaymentResponseInterface;
+    public function setCardExpiryMonth(?string $expiryMonth = null): SavedPaymentResponseInterface;
 
     /**
      * @return string|null
@@ -59,7 +59,7 @@ interface SavedPaymentResponseInterface
      * @param string|null $expiryYear
      * @return $this
      */
-    public function setCardExpiryYear(string $expiryYear = null): SavedPaymentResponseInterface;
+    public function setCardExpiryYear(?string $expiryYear = null): SavedPaymentResponseInterface;
 
     /**
      * @return string|null
@@ -70,7 +70,7 @@ interface SavedPaymentResponseInterface
      * @param string|null $lastFour
      * @return $this
      */
-    public function setCardLastFour(string $lastFour = null): SavedPaymentResponseInterface;
+    public function setCardLastFour(?string $lastFour = null): SavedPaymentResponseInterface;
 
     /**
      * @return string|null
@@ -81,13 +81,13 @@ interface SavedPaymentResponseInterface
      * @param string|null $holderName
      * @return $this
      */
-    public function setCardHolderName(string $holderName = null): SavedPaymentResponseInterface;
+    public function setCardHolderName(?string $holderName = null): SavedPaymentResponseInterface;
 
     /**
      * @param string|null $icon
      * @return $this
      */
-    public function setCardIcon(string $icon = null): SavedPaymentResponseInterface;
+    public function setCardIcon(?string $icon = null): SavedPaymentResponseInterface;
 
     /**
      * @return string|null
@@ -108,7 +108,7 @@ interface SavedPaymentResponseInterface
      * @param string|null $nextTriggeredBy
      * @return $this
      */
-    public function setNextTriggeredBy(string $nextTriggeredBy = null): SavedPaymentResponseInterface;
+    public function setNextTriggeredBy(?string $nextTriggeredBy = null): SavedPaymentResponseInterface;
 
     /**
      * @return string|null
@@ -119,7 +119,7 @@ interface SavedPaymentResponseInterface
      * @param string|null $numberType
      * @return $this
      */
-    public function setNumberType(string $numberType = null): SavedPaymentResponseInterface;
+    public function setNumberType(?string $numberType = null): SavedPaymentResponseInterface;
 
     /**
      * @return string|null
@@ -130,7 +130,7 @@ interface SavedPaymentResponseInterface
      * @param string|null $status
      * @return $this
      */
-    public function setStatus(string $status = null): SavedPaymentResponseInterface;
+    public function setStatus(?string $status = null): SavedPaymentResponseInterface;
 
     /**
      * @return string|null
@@ -141,5 +141,5 @@ interface SavedPaymentResponseInterface
      * @param string|null $billing
      * @return $this
      */
-    public function setBilling(string $billing = null): SavedPaymentResponseInterface;
+    public function setBilling(?string $billing = null): SavedPaymentResponseInterface;
 }

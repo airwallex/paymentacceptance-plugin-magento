@@ -148,7 +148,7 @@ class OrderService implements OrderServiceInterface
         string           $cartId,
         string           $email,
         PaymentInterface $paymentMethod,
-        AddressInterface $billingAddress = null,
+        ?AddressInterface $billingAddress = null,
         ?string          $intentId = '',
         ?string          $paymentMethodId = '',
         ?string          $from = ''
@@ -177,7 +177,7 @@ class OrderService implements OrderServiceInterface
     public function airwallexPlaceOrder(
         string           $cartId,
         PaymentInterface $paymentMethod,
-        AddressInterface $billingAddress = null,
+        ?AddressInterface $billingAddress = null,
         ?string          $intentId = '',
         ?string          $paymentMethodId = '',
         ?string          $from = ''
@@ -218,7 +218,7 @@ class OrderService implements OrderServiceInterface
     private function savePaymentOrPlaceOrder(
         string           $cartId,
         PaymentInterface $paymentMethod,
-        AddressInterface $billingAddress = null,
+        ?AddressInterface $billingAddress = null,
         ?string          $intentId = '',
         ?string          $email = '',
         ?string          $paymentMethodId = '',
@@ -285,7 +285,7 @@ class OrderService implements OrderServiceInterface
             }
         } catch (Exception | Error $e) {
             $this->errorLog->setMessage('OrderService exception: ' . $e->getMessage(), $e->getTraceAsString(), $intentId)->send();
-            throw new LocalizedException(__($e->getMessage()), $e);
+            throw new LocalizedException(__($e->getMessage()));
         }
 
         $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);

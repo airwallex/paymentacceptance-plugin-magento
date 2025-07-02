@@ -6,7 +6,7 @@ use Magento\Quote\Api\Data\CartInterface;
 
 class RedirectCurrencySwitcherMethod extends CardMethod
 {
-    public function isAvailable(CartInterface $quote = null): bool
+    public function isAvailable(?CartInterface $quote = null): bool
     {
         $codes = $this->availablePaymentMethodsHelper->getLatestItems(false);
         $code = $this->getPaymentMethodCode(static::CODE);

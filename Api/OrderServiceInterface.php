@@ -25,7 +25,7 @@ interface OrderServiceInterface
         string           $cartId,
         string           $email,
         PaymentInterface $paymentMethod,
-        AddressInterface $billingAddress = null,
+        ?AddressInterface $billingAddress = null,
         ?string          $intentId = '',
         ?string          $paymentMethodId = '',
         ?string          $from = ''
@@ -43,7 +43,7 @@ interface OrderServiceInterface
     public function airwallexPlaceOrder(
         string           $cartId,
         PaymentInterface $paymentMethod,
-        AddressInterface $billingAddress = null,
+        ?AddressInterface $billingAddress = null,
         ?string          $intentId = '',
         ?string          $paymentMethodId = '',
         ?string          $from = ''

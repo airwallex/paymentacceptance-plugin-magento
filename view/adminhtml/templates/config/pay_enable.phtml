@@ -4,7 +4,7 @@
         ],
         function (jQuery) {
             window.addEventListener('load', function () {
-                let type = '<?= $this->type ?>';
+                let type = '<?= $block->escapeHtml($this->type) ?>';
                 let payElement = jQuery('[name="groups[airwallex_payments][groups][card][groups][express][fields][' + type + '_pay_active][value]"]');
                 let tipElement = jQuery('#express-' + type + '-enable-tips');
 
@@ -47,4 +47,4 @@
             });
         });
 </script>
-<p id="express-<?= $this->type ?>-enable-tips" style="color: red; margin-top: 10px;"></p>
+<p id="express-<?= $block->escapeHtml($this->type) ?>-enable-tips" style="color: red; margin-top: 10px;"></p>

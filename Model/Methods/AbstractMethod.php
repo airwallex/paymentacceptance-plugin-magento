@@ -152,9 +152,9 @@ abstract class AbstractMethod extends Adapter
         IntentHelper                  $intentHelper,
         IsOrderCreatedHelper          $isOrderCreatedHelper,
         Configuration                 $configuration,
-        CommandPoolInterface          $commandPool = null,
-        ValidatorPoolInterface        $validatorPool = null,
-        CommandManagerInterface       $commandExecutor = null
+        ?CommandPoolInterface          $commandPool = null,
+        ?ValidatorPoolInterface        $validatorPool = null,
+        ?CommandManagerInterface       $commandExecutor = null
     )
     {
         parent::__construct(
@@ -330,7 +330,7 @@ abstract class AbstractMethod extends Adapter
      * @return bool
      * @throws GuzzleException
      */
-    public function isAvailable(CartInterface $quote = null): bool
+    public function isAvailable(?CartInterface $quote = null): bool
     {
         return parent::isAvailable($quote) &&
             $this->availablePaymentMethodsHelper->isAvailable($this->getPaymentMethodCode($this->getCode()));

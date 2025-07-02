@@ -13,22 +13,22 @@ $currentCustomerId = $block->currentCustomerId();
 ?>
 <?php if ($cardCustomerId === $currentCustomerId && $block->getStatus() === 'VERIFIED') {?>
 <tr>
-    <td data-th="<?= __('Card Number') ?>" class="col card-number">
-        <span><?= __('ending') ?></span> <?= /* @noEscape */ $ccNumberView ?>
+    <td data-th="<?= $block->escapeHtml(__('Card Number')) ?>" class="col card-number">
+        <span><?= $block->escapeHtml(__('ending')) ?></span> <?= /* @noEscape */ $ccNumberView ?>
     </td>
-    <td data-th="<?= __('Expiration Date') ?>" class="col card-expire">
-        <?= $block->getExpDate() ?>
+    <td data-th="<?= $block->escapeHtml(__('Expiration Date')) ?>" class="col card-expire">
+        <?= $block->escapeHtml($block->getExpDate()) ?>
     </td>
-    <td data-th="<?= __('Type') ?>" class="col card-type">
+    <td data-th="<?= $block->escapeHtml(__('Type')) ?>" class="col card-type">
         <img alt="icon" src="<?= /* @noEscape */ $block->getIconUrl() ?>"
              width="<?= /* @noEscape */ $block->getIconWidth() ?>"
              height="<?= /* @noEscape */ $block->getIconHeight() ?>"
         >
     </td>
-    <td data-th="<?= __('Actions') ?>" class="col actions">
-        <form id="form-<?= $block->getToken()->getGatewayToken() ?>"
+    <td data-th="<?= $block->escapeHtml(__('Actions')) ?>" class="col actions">
+        <form id="form-<?= $block->escapeHtml($block->getToken()->getGatewayToken()) ?>"
             class="form"
-            action="<?= $block->getUrl('vault/cards/deleteaction') ?>"
+            action="<?= $block->escapeHtml($block->getUrl('vault/cards/deleteaction')) ?>"
             method="post"
             >
             <?= $block->getBlockHtml('formkey') ?>
@@ -36,8 +36,8 @@ $currentCustomerId = $block->currentCustomerId();
                 name="<?= /* @noEscape */ PaymentTokenInterface::PUBLIC_HASH ?>"
                 value="<?= /* @noEscape */ $block->getToken()->getPublicHash() ?>"
                 type="hidden"/>
-            <button type="button" id="delete-<?= $block->getToken()->getGatewayToken() ?>" class="action delete">
-                <span><?= __('Delete') ?></span>
+            <button type="button" id="delete-<?= $block->escapeHtml($block->getToken()->getGatewayToken()) ?>" class="action delete">
+                <span><?= $block->escapeHtml(__('Delete')) ?></span>
             </button>
         </form>
     </td>
@@ -49,7 +49,7 @@ $currentCustomerId = $block->currentCustomerId();
         'mage/url'
     ], function ($, url) {
         $(document).ready(function() {
-            let id = '<?= $block->getToken()->getGatewayToken() ?>';
+            let id = '<?= $block->escapeHtml($block->getToken()->getGatewayToken()) ?>';
             $(document).on('click', '#delete-' + id, function (event) {
                 event.preventDefault();
                 $.mage.confirm({
@@ -82,7 +82,7 @@ $currentCustomerId = $block->currentCustomerId();
                         }
                     }]
                 });
-                let msg = 'You are deleting your saved <?=$brand?> card ending in <?=$ccNumberView?>.';
+                let msg = 'You are deleting your saved <?=$block->escapeHtml($brand)?> card ending in <?=$block->escapeHtml($ccNumberView)?>.';
                 $('.modal-content div').html($.mage.__(msg));
 
             });

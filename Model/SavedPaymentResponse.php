@@ -19,7 +19,7 @@ class SavedPaymentResponse extends DataObject implements SavedPaymentResponseInt
      * @param string|null $id
      * @return SavedPaymentResponse
      */
-    public function setId(string $id = null): SavedPaymentResponse
+    public function setId(?string $id = null): SavedPaymentResponseInterface
     {
         return $this->setData(self::DATA_KEY_ID, $id);
     }
@@ -36,7 +36,7 @@ class SavedPaymentResponse extends DataObject implements SavedPaymentResponseInt
      * @param string|null $cardBrand
      * @return SavedPaymentResponse
      */
-    public function setCardBrand(string $cardBrand = null): SavedPaymentResponse
+    public function setCardBrand(?string $cardBrand = null): SavedPaymentResponseInterface
     {
         return $this->setData(self::DATA_KEY_CARD_BRAND, $cardBrand);
     }
@@ -53,7 +53,7 @@ class SavedPaymentResponse extends DataObject implements SavedPaymentResponseInt
      * @param string|null $expiryMonth
      * @return SavedPaymentResponse
      */
-    public function setCardExpiryMonth(string $expiryMonth = null): SavedPaymentResponse
+    public function setCardExpiryMonth(?string $expiryMonth = null): SavedPaymentResponseInterface
     {
         return $this->setData(self::DATA_KEY_CARD_EXPIRY_MONTH, $expiryMonth);
     }
@@ -70,7 +70,7 @@ class SavedPaymentResponse extends DataObject implements SavedPaymentResponseInt
      * @param string|null $expiryYear
      * @return SavedPaymentResponse
      */
-    public function setCardExpiryYear(string $expiryYear = null): SavedPaymentResponse
+    public function setCardExpiryYear(?string $expiryYear = null): SavedPaymentResponseInterface
     {
         return $this->setData(self::DATA_KEY_CARD_EXPIRY_YEAR, $expiryYear);
     }
@@ -87,7 +87,7 @@ class SavedPaymentResponse extends DataObject implements SavedPaymentResponseInt
      * @param string|null $lastFour
      * @return SavedPaymentResponse
      */
-    public function setCardLastFour(string $lastFour = null): SavedPaymentResponse
+    public function setCardLastFour(?string $lastFour = null): SavedPaymentResponseInterface
     {
         return $this->setData(self::DATA_KEY_CARD_LAST_FOUR, $lastFour);
     }
@@ -104,7 +104,7 @@ class SavedPaymentResponse extends DataObject implements SavedPaymentResponseInt
      * @param string|null $holderName
      * @return SavedPaymentResponse
      */
-    public function setCardHolderName(string $holderName = null): SavedPaymentResponse
+    public function setCardHolderName(?string $holderName = null): SavedPaymentResponseInterface
     {
         return $this->setData(self::DATA_KEY_CARD_HOLDER_NAME, $holderName);
     }
@@ -129,7 +129,7 @@ class SavedPaymentResponse extends DataObject implements SavedPaymentResponseInt
      * @param string|null $icon
      * @return SavedPaymentResponse
      */
-    public function setCardIcon(string $icon = null): SavedPaymentResponse
+    public function setCardIcon(?string $icon = null): SavedPaymentResponseInterface
     {
         return $this->setData(self::DATA_KEY_CARD_ICON, $icon);
     }
@@ -146,7 +146,7 @@ class SavedPaymentResponse extends DataObject implements SavedPaymentResponseInt
      * @param string|null $nextTriggeredBy
      * @return $this
      */
-    public function setNextTriggeredBy(string $nextTriggeredBy = null): SavedPaymentResponse
+    public function setNextTriggeredBy(?string $nextTriggeredBy = null): SavedPaymentResponseInterface
     {
         return $this->setData(self::DATA_KEY_NEXT_TRIGGERED_BY, $nextTriggeredBy);
     }
@@ -163,7 +163,7 @@ class SavedPaymentResponse extends DataObject implements SavedPaymentResponseInt
      * @param string|null $numberType
      * @return $this
      */
-    public function setNumberType(string $numberType = null): SavedPaymentResponse
+    public function setNumberType(?string $numberType = null): SavedPaymentResponseInterface
     {
         return $this->setData(self::DATA_KEY_NUMBER_TYPE, $numberType);
     }
@@ -180,7 +180,7 @@ class SavedPaymentResponse extends DataObject implements SavedPaymentResponseInt
      * @param string|null $status
      * @return $this
      */
-    public function setStatus(string $status = null): SavedPaymentResponse
+    public function setStatus(?string $status = null): SavedPaymentResponseInterface
     {
         return $this->setData(self::DATA_STATUS, $status);
     }
@@ -197,7 +197,7 @@ class SavedPaymentResponse extends DataObject implements SavedPaymentResponseInt
      * @param string|null $billing
      * @return $this
      */
-    public function setBilling(string $billing = null): SavedPaymentResponse
+    public function setBilling(?string $billing = null): SavedPaymentResponseInterface
     {
         return $this->setData(self::DATA_BILLING, $billing);
     }

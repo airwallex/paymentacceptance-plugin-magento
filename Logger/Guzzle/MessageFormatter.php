@@ -26,8 +26,8 @@ class MessageFormatter extends BaseMessageFormatter
      */
     public function format(
         RequestInterface  $request,
-        ResponseInterface $response = null,
-        Throwable         $error = null
+        ?ResponseInterface $response = null,
+        ?Throwable         $error = null
     ): string
     {
         foreach (self::WITHOUT_HEADERS as $header) {
