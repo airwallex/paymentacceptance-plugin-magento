@@ -14,21 +14,6 @@ define([
             template: "Airwallex_Payments/payment/redirect-method",
         },
 
-        initialize() {
-            this._super();
-            quote.billingAddress.subscribe((newValue) => {
-                this.renderPayment(newValue, 'billingAddress');
-            });
-
-            quote.paymentMethod.subscribe((newValue) => {
-                this.renderPayment(newValue, 'paymentMethod');
-            });
-
-            quote.totals.subscribe((newValue) => {
-                this.renderPayment(newValue, 'totals');
-            });
-        },
-
         async loadPayment() {
             if (!this.isMethodChecked(this.code)) {
                 return;

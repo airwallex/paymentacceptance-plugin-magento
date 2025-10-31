@@ -2,24 +2,27 @@
 
 namespace Airwallex\Payments\Controller\Redirect;
 
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
 use Airwallex\Payments\Api\Data\PaymentIntentInterface;
-use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
+use Airwallex\Payments\CommonLibraryInit;
 use Airwallex\Payments\Model\Traits\HelperTrait;
+use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Framework\App\Action\HttpGetActionInterface;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\App\Response\Http as ResponseHttp;
 use Magento\Checkout\Helper\Data;
+use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\NoSuchEntityException;
-use Magento\Quote\Model\QuoteRepository;
 use Magento\Framework\UrlInterface;
 use Airwallex\Payments\Model\PaymentIntentRepository;
-use Magento\Framework\App\CacheInterface;
-use Airwallex\Payments\Helper\IntentHelper;
 use Magento\Framework\App\ObjectManager;
 use Magento\Quote\Model\MaskedQuoteIdToQuoteIdInterface;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Log as RemoteLog;
+use Psr\Log\LoggerInterface;
 
 class Index implements HttpGetActionInterface
 {
@@ -28,34 +31,30 @@ class Index implements HttpGetActionInterface
     public ResponseHttp $response;
     public RequestInterface $request;
     public Data $checkoutData;
-    public QuoteRepository $quoteRepository;
     public PaymentIntentRepository $paymentIntentRepository;
-    public Get $intentGet;
-    public CacheInterface $cache;
-    public IntentHelper $intentHelper;
-
+    public RetrievePaymentIntent $retrievePaymentIntent;
     private UrlInterface $url;
+    private CommonLibraryInit $commonLibraryInit;
+    private LoggerInterface $logger;
 
     public function __construct(
         ResponseHttp $response,
         RequestInterface $request,
         Data $checkoutData,
-        QuoteRepository $quoteRepository,
         PaymentIntentRepository $paymentIntentRepository,
-        Get $intentGet,
-        CacheInterface $cache,
-        IntentHelper $intentHelper,
-        UrlInterface $url
+        RetrievePaymentIntent $retrievePaymentIntent,
+        UrlInterface $url,
+        CommonLibraryInit $commonLibraryInit,
+        LoggerInterface $logger
     ) {
         $this->response = $response;
         $this->request = $request;
         $this->checkoutData = $checkoutData;
-        $this->quoteRepository = $quoteRepository;
         $this->paymentIntentRepository = $paymentIntentRepository;
-        $this->intentGet = $intentGet;
-        $this->cache = $cache;
-        $this->intentHelper = $intentHelper;
+        $this->retrievePaymentIntent = $retrievePaymentIntent;
         $this->url = $url;
+        $this->logger = $logger;
+        $commonLibraryInit->exec();
     }
 
     /**
@@ -64,6 +63,7 @@ class Index implements HttpGetActionInterface
      * @throws InputException
      * @throws JsonException
      * @throws NoSuchEntityException
+     * @throws AlreadyExistsException
      */
     public function execute(): ResponseHttp
     {
@@ -83,7 +83,7 @@ class Index implements HttpGetActionInterface
         }
 
         if (!empty($result) && $result !== 'success') {
-            return $this->redirect('checkout');
+            return $this->redirect('checkout#payment');
         }
 
         if ($type === 'quote') {
@@ -91,33 +91,54 @@ class Index implements HttpGetActionInterface
         } else {
             $paymentIntent = $this->paymentIntentRepository->getByOrderId($id);
         }
-        $resp = $this->intentGet->setPaymentIntentId($paymentIntent->getIntentId())->send();
-        $intentResponse = json_decode($resp, true);
-        $isPaidSuccess = in_array($intentResponse['status'], [
-            PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE,
-            PaymentIntentInterface::INTENT_STATUS_SUCCEEDED,
-        ], true);
-
-        if ($result === 'success' || $isPaidSuccess) {
-            $quote = $this->checkoutData->getQuote();
+        /** @var PaymentIntentInterface $paymentIntent */
+        if (empty($paymentIntent) || empty($paymentIntent->getIntentId())) {
+            $this->logger->critical("Payment Intent for quote {$id} doesn't exist.");
+            return $this->redirect('checkout#payment');
+        }
+        try {
+            /** @var StructPaymentIntent $paymentIntentFromApi */
+            $paymentIntentFromApi = $this->retrievePaymentIntent->setPaymentIntentId($paymentIntent->getIntentId())->send();
+        } catch (Exception $e) {
+            RemoteLog::error("Retrieve Intent ID {$paymentIntent->getIntentId()} failed: " . $e->getMessage(), 'onApiRequestError');
+            return $this->redirect('checkout#payment');
+        }
+        $quote = $this->checkoutData->getQuote();
+        if (empty($quote) || empty($quote->getId())) {
+            $paymentIntent = $this->paymentIntentRepository->getByQuoteId($paymentIntent->getQuoteId());
+            $order = $this->paymentIntentRepository->getOrder($paymentIntent->getIntentId());
+            $this->setCheckoutSuccess($paymentIntent->getQuoteId(), $order);
+            return $this->redirect('checkout/onepage/success');
+        }
+        if ($paymentIntentFromApi->isAuthorized() || $paymentIntentFromApi->isCaptured()) {
+            if ($this->isOrderBeforePayment()) {
+                $this->changeOrderStatus($paymentIntentFromApi, $paymentIntent->getOrderId(), $quote, __METHOD__);
+            } else {
+                $this->placeOrder($quote->getPayment(), $paymentIntentFromApi, $quote, __METHOD__);
+            }
+            return $this->redirect('checkout/onepage/success');
+        }
+        if ($result === 'success') {
             if ($this->isOrderBeforePayment()) {
                 $this->deactivateQuote($quote);
                 $order = $this->getFreshOrder($id);
-                $this->setCheckoutSuccess($paymentIntent->getQuoteId(), $order);
             } else {
-                $intentResponse['status'] = PaymentIntentInterface::INTENT_STATUS_SUCCEEDED;
-                $this->placeOrder($quote->getPayment(), $intentResponse, $quote, self::class);
+                $paymentIntentFromApi->setStatus(PaymentIntentInterface::INTENT_STATUS_SUCCEEDED);
+                $this->placeOrder($quote->getPayment(), $paymentIntentFromApi, $quote, __METHOD__);
+                $intentRecord = $this->paymentIntentRepository->getByIntentId($paymentIntent->getIntentId());
+                $order = $this->getFreshOrder($intentRecord->getOrderId());
             }
-
+            $this->setCheckoutSuccess($paymentIntent->getQuoteId(), $order);
             return $this->redirect('checkout/onepage/success');
         }
-        return $this->redirect('checkout');
+        $redirectUrl = $result ? 'checkout#payment' : 'checkout/?from=RedirectIndex&intent_id=' . $paymentIntent->getIntentId() . '#payment';
+        return $this->redirect($redirectUrl);
     }
 
     public function redirect($url): ResponseHttp
     {
         $redirectUrl = $this->url->getUrl($url);
-        $this->response->setRedirect($redirectUrl, 302);
+        $this->response->setRedirect(trim($redirectUrl, '/'));
         return $this->response;
     }
 }

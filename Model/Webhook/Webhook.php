@@ -14,12 +14,10 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use stdClass;
-use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Quote\Api\CartManagementInterface;
-use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
 use Magento\Framework\App\CacheInterface;
 use Magento\Framework\Lock\LockManagerInterface;
 use Magento\Framework\App\Config\Storage\WriterInterface;
@@ -70,11 +68,6 @@ class Webhook
     protected PaymentIntentRepository $paymentIntentRepository;
 
     /**
-     * @var Get
-     */
-    public Get $intentGet;
-
-    /**
      * @var OrderRepositoryInterface
      */
     public OrderRepositoryInterface $orderRepository;
@@ -88,11 +81,6 @@ class Webhook
      * @var CartManagementInterface
      */
     public CartManagementInterface $cartManagement;
-
-    /**
-     * @var ErrorLog
-     */
-    public ErrorLog $errorLog;
 
     /**
      * @var CacheInterface
@@ -122,11 +110,9 @@ class Webhook
         Expire                    $expire,
         Cancel                    $cancel,
         PaymentIntentRepository   $paymentIntentRepository,
-        Get                       $intentGet,
         OrderRepositoryInterface  $orderRepository,
         CartRepositoryInterface   $quoteRepository,
         CartManagementInterface   $cartManagement,
-        ErrorLog                  $errorLog,
         CacheInterface            $cache,
         LockManagerInterface      $lockManager,
         WriterInterface           $configWriter,
@@ -140,11 +126,9 @@ class Webhook
         $this->authorize = $authorize;
         $this->cancel = $cancel;
         $this->paymentIntentRepository = $paymentIntentRepository;
-        $this->intentGet = $intentGet;
         $this->orderRepository = $orderRepository;
         $this->quoteRepository = $quoteRepository;
         $this->cartManagement = $cartManagement;
-        $this->errorLog = $errorLog;
         $this->cache = $cache;
         $this->lockManager = $lockManager;
         $this->configWriter = $configWriter;

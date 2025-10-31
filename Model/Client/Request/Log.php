@@ -10,8 +10,8 @@ use Psr\Http\Message\ResponseInterface;
 
 class Log extends AbstractClient implements BearerAuthenticationInterface
 {
-    public const LOG_URL_LIVE = 'https://api.airwallex.com/';
-    public const LOG_URL_SANDBOX = 'https://api-demo.airwallex.com/';
+    public const LOG_URL_LIVE = 'https://o11y.airwallex.com/';
+    public const LOG_URL_SANDBOX = 'https://o11y-demo.airwallex.com/';
 
     /**
      * @return string
@@ -74,7 +74,7 @@ class Log extends AbstractClient implements BearerAuthenticationInterface
      */
     protected function getUri(): string
     {
-        return 'papluginlogs/logs';
+        return 'airtracker/logs';
     }
 
     public function send()

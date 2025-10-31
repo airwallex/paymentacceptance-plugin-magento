@@ -2,6 +2,7 @@
 
 namespace Airwallex\Payments\Controller\Webhooks;
 
+use Airwallex\Payments\CommonLibraryInit;
 use Airwallex\Payments\Exception\WebhookException;
 use Airwallex\Payments\Logger\Logger;
 use Airwallex\Payments\Model\Webhook\Webhook;
@@ -14,12 +15,13 @@ use Magento\Framework\App\Request\Http as RequestHttp;
 use Magento\Framework\App\Request\InvalidRequestException;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\App\Response\Http as ResponseHttp;
-use Airwallex\Payments\Model\Client\Request\Log as RequestLog;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
+use Magento\Framework\UrlInterface;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Log as RemoteLog;
 
 class Index implements HttpPostActionInterface, CsrfAwareActionInterface
 {
@@ -46,9 +48,9 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
     private Logger $logger;
 
     /**
-     * @var RequestLog
+     * @var UrlInterface
      */
-    private RequestLog $requestLog;
+    private UrlInterface $urlInterface;
 
     /**
      * Index constructor.
@@ -57,20 +59,23 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
      * @param RequestHttp $request
      * @param ResponseHttp $response
      * @param Logger $logger
-     * @param RequestLog $requestLog
+     * @param UrlInterface $urlInterface
+     * @param CommonLibraryInit $commonLibraryInit
      */
     public function __construct(
         Webhook $webhook,
         RequestHttp $request,
         ResponseHttp $response,
         Logger $logger,
-        RequestLog $requestLog
+        UrlInterface $urlInterface,
+        CommonLibraryInit $commonLibraryInit
     ) {
         $this->webhook = $webhook;
         $this->request = $request;
         $this->response = $response;
         $this->logger = $logger;
-        $this->requestLog = $requestLog;
+        $this->urlInterface = $urlInterface;
+        $commonLibraryInit->exec();
     }
 
     /**
@@ -89,7 +94,12 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
     public function execute(): ResponseHttp
     {
         $data = json_decode($this->request->getContent(), false, self::JSON_DECODE_DEPTH, JSON_THROW_ON_ERROR);
+        $returnUrl = $data->data->object->return_url ?? '';
+        $baseUrl = $this->urlInterface->getUrl();
 
+        if ($returnUrl && substr($returnUrl, 0, strlen($baseUrl)) !== $baseUrl) {
+            return $this->response->setStatusCode(self::HTTP_OK);
+        }
         $this->webhook->checkChecksum($this->request);
         try {
             if (isset($data->name) && isset($data->data->object)) {
@@ -97,8 +107,8 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
             }
         } catch (Exception $e) {
             $id = $data->sourceId ?? '';
-            $name = $data->name ?? '';
-            $this->requestLog->setMessage("$name $id webhook: " . $e->getMessage(), $e->getTraceAsString())->send();
+            $name = $data->name;
+            RemoteLog::error("$name $id webhook: " . $e->getMessage(), RemoteLog::ON_PROCESS_WEBHOOK_ERROR);
             $this->logger->error($e->getMessage());
             throw $e;
         }

@@ -7,7 +7,6 @@ use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Logger\Logger;
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Create;
-use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Cancel;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use GuzzleHttp\Exception\GuzzleException;
@@ -24,6 +23,9 @@ use Magento\Framework\App\ObjectManager;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Log as RemoteLog;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
 
 class PaymentIntents
 {
@@ -52,7 +54,6 @@ class PaymentIntents
 
     protected PaymentConsentsInterface $paymentConsents;
     private Create $paymentIntentsCreate;
-    private Get $paymentIntentsGet;
     private Cancel $paymentIntentsCancel;
     private Session $checkoutSession;
     private QuoteRepository $quoteRepository;
@@ -61,11 +62,11 @@ class PaymentIntents
     private PaymentIntentRepository $paymentIntentRepository;
     private OrderFactory $orderFactory;
     private OrderResourceInterface $orderResource;
+    private RetrievePaymentIntent $retrievePaymentIntent;
 
     public function __construct(
         PaymentConsentsInterface $paymentConsents,
         Create                   $paymentIntentsCreate,
-        Get                      $paymentIntentsGet,
         Cancel                   $paymentIntentsCancel,
         Session                  $checkoutSession,
         QuoteRepository          $quoteRepository,
@@ -73,12 +74,12 @@ class PaymentIntents
         UrlInterface             $urlInterface,
         PaymentIntentRepository  $paymentIntentRepository,
         OrderFactory             $orderFactory,
-        OrderResourceInterface   $orderResource
+        OrderResourceInterface   $orderResource,
+        RetrievePaymentIntent    $retrievePaymentIntent
     )
     {
         $this->paymentConsents = $paymentConsents;
         $this->paymentIntentsCreate = $paymentIntentsCreate;
-        $this->paymentIntentsGet = $paymentIntentsGet;
         $this->paymentIntentsCancel = $paymentIntentsCancel;
         $this->checkoutSession = $checkoutSession;
         $this->quoteRepository = $quoteRepository;
@@ -87,15 +88,17 @@ class PaymentIntents
         $this->paymentIntentRepository = $paymentIntentRepository;
         $this->orderFactory = $orderFactory;
         $this->orderResource = $orderResource;
+        $this->retrievePaymentIntent = $retrievePaymentIntent;
     }
 
     /**
+     * @throws Exception
      * @throws AlreadyExistsException
      * @throws GuzzleException
      * @throws JsonException
      * @throws LocalizedException
      */
-    public function createIntent($model, string $phone, string $email, string $from, PaymentInterface $paymentMethod): array
+    public function createIntent($model, string $phone, string $email, string $from, PaymentInterface $paymentMethod): StructPaymentIntent
     {
         $isOrder = $model instanceof Order;
 
@@ -107,13 +110,18 @@ class PaymentIntents
         }
         $create = $this->paymentIntentsCreate->setIntentParams($model, $paymentMethod, $this->urlInterface->getUrl($uri));
 
-        $uid = $isOrder ? $model->getCustomerId() : ($model->getCustomer() ? $model->getCustomer()->getId() : null);
-        if ($this->isMiniPluginExists() && $from === 'card_with_saved' && $uid) {
-            $superId = ObjectManager::getInstance()->get(CompanyConsentsInterface::class)->getSuperId($uid);
-            $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($superId);
-            $intent = $create->setAirwallexCustomerId($airwallexCustomerId)->send();
-        } else {
-            $intent = $create->setCustomer($email, $phone)->send();
+        try {
+            $uid = $isOrder ? $model->getCustomerId() : ($model->getCustomer() ? $model->getCustomer()->getId() : null);
+            if ($this->isMiniPluginExists() && $from === 'card_with_saved' && $uid) {
+                $superId = ObjectManager::getInstance()->get(CompanyConsentsInterface::class)->getSuperId($uid);
+                $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($superId);
+                $intent = $create->setAirwallexCustomerId($airwallexCustomerId)->send();
+            } else {
+                $intent = $create->setCustomer($email, $phone)->send();
+            }
+        } catch (Exception $e) {
+            RemoteLog::error( $e->getMessage(), RemoteLog::ON_PAYMENT_CREATION_ERROR);
+            throw $e;
         }
 
         $products = $this->getProducts($model);
@@ -134,7 +142,7 @@ class PaymentIntents
             json_encode([$paymentMethod->getMethod()]),
         );
 
-        return $intent;
+        return $this->retrievePaymentIntent->setPaymentIntentId($intent['id'])->send();
     }
 
 
@@ -146,7 +154,7 @@ class PaymentIntents
      * @throws GuzzleException
      * @throws InputException
      */
-    public function getIntent($model, string $phone, string $email, string $from, PaymentInterface $paymentMethod): array
+    public function getIntent($model, string $phone, string $email, string $from, PaymentInterface $paymentMethod): StructPaymentIntent
     {
         $isOrder = $model instanceof Order;
         if ($isOrder) {
@@ -163,20 +171,18 @@ class PaymentIntents
         $this->paymentIntentRepository->appendMethodCode($paymentIntent, $paymentMethod->getMethod());
 
         try {
-            $resp = $this->paymentIntentsGet->setPaymentIntentId($paymentIntent->getIntentId())->send();
+            /** @var StructPaymentIntent $paymentIntentFromApi */
+            $paymentIntentFromApi = $this->retrievePaymentIntent->setPaymentIntentId($paymentIntent->getIntentId())->send();
         } catch (Exception $e) {
             if ($e->getMessage() === AbstractClient::NOT_FOUND) {
                 return $this->createIntent($model, $phone, $email, $from, $paymentMethod);
             }
             throw new $e;
         }
-        $intentResponse = json_decode($resp, true);
-        return [
-            'clientSecret' => $intentResponse['client_secret'] ?? '',
-            'id' => $intentResponse['id'] ?? '',
-            'amount' => $intentResponse['amount'] ?? 0,
-            'currency' => $intentResponse['currency'] ?? '',
-        ];
+        if (!$paymentIntentFromApi->getId()) {
+            return $this->createIntent($model, $phone, $email, $from, $paymentMethod);
+        }
+        return $paymentIntentFromApi;
     }
 
     public function isRequiredToGenerateIntent($model, PaymentIntent $paymentIntent): bool

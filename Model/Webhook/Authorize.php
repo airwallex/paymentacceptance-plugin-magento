@@ -2,7 +2,7 @@
 
 namespace Airwallex\Payments\Model\Webhook;
 
-use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
@@ -14,7 +14,6 @@ use Magento\Sales\Api\OrderManagementInterface;
 use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
 use Airwallex\Payments\Helper\IntentHelper;
-use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
 
 class Authorize extends AbstractWebhook
 {
@@ -26,12 +25,11 @@ class Authorize extends AbstractWebhook
 
     private PaymentIntentRepository $paymentIntentRepository;
     private CartRepositoryInterface $quoteRepository;
-    private Get $intentGet;
+    private RetrievePaymentIntent $retrievePaymentIntent;
     public CacheInterface $cache;
     private OrderManagementInterface $orderManagement;
     private OrderFactory $orderFactory;
     private OrderResourceInterface $orderResource;
-    private ErrorLog $errorLog;
     private IntentHelper $intentHelper;
 
     /**
@@ -39,34 +37,31 @@ class Authorize extends AbstractWebhook
      *
      * @param PaymentIntentRepository $paymentIntentRepository
      * @param CartRepositoryInterface $quoteRepository
-     * @param Get $intentGet
+     * @param RetrievePaymentIntent $retrievePaymentIntent
      * @param CacheInterface $cache
      * @param OrderManagementInterface $orderManagement
      * @param OrderFactory $orderFactory
      * @param OrderResourceInterface $orderResource
-     * @param ErrorLog $errorLog
      * @param IntentHelper $intentHelper
      */
     public function __construct(
         PaymentIntentRepository  $paymentIntentRepository,
         CartRepositoryInterface  $quoteRepository,
-        Get                      $intentGet,
+        RetrievePaymentIntent    $retrievePaymentIntent,
         CacheInterface           $cache,
         OrderManagementInterface $orderManagement,
         OrderFactory             $orderFactory,
         OrderResourceInterface   $orderResource,
-        ErrorLog                 $errorLog,
         IntentHelper             $intentHelper
     )
     {
         $this->paymentIntentRepository = $paymentIntentRepository;
         $this->quoteRepository = $quoteRepository;
-        $this->intentGet = $intentGet;
+        $this->retrievePaymentIntent = $retrievePaymentIntent;
         $this->cache = $cache;
         $this->orderManagement = $orderManagement;
         $this->orderFactory = $orderFactory;
         $this->orderResource = $orderResource;
-        $this->errorLog = $errorLog;
         $this->intentHelper = $intentHelper;
     }
 
@@ -83,14 +78,13 @@ class Authorize extends AbstractWebhook
         $intentId = $data->payment_intent_id ?? $data->id;
         $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
 
-        $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
-        $intentResponse = json_decode($resp, true);
+        $paymentIntentFromApi = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
         $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
         $order = $this->getFreshOrder($paymentIntent->getOrderId());
         if (!empty($order) && !empty($order->getId())) {
-            $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote);
+            $this->changeOrderStatus($paymentIntentFromApi, $paymentIntent->getOrderId(), $quote, __METHOD__);
         } else {
-            $this->placeOrder($quote->getPayment(), $intentResponse, $quote, self::class);
+            $this->placeOrder($quote->getPayment(), $paymentIntentFromApi, $quote, __METHOD__);
         }
     }
 }

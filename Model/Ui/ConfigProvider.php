@@ -2,11 +2,14 @@
 
 namespace Airwallex\Payments\Model\Ui;
 
+use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\Afterpay;
+use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\Klarna;
+use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\BankTransfer;
 use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Model\Client\Request\GetCurrencies;
-use Airwallex\Payments\Model\Methods\BankTransfer;
-use Airwallex\Payments\Model\Methods\KlarnaMethod;
+use Airwallex\Payments\Model\Methods\RedirectMethod;
+use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\RedirectMethod as RedirectMethodConfiguration;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Error;
 use GuzzleHttp\Exception\GuzzleException;
@@ -21,7 +24,6 @@ use Magento\ReCaptchaUi\Block\ReCaptcha;
 use Magento\ReCaptchaUi\Model\IsCaptchaEnabledInterface;
 use Magento\Customer\Api\CustomerRepositoryInterface;
 use Airwallex\Payments\Model\Client\Request\RetrieveCustomer;
-use Airwallex\Payments\Model\Methods\AfterpayMethod;
 use Magento\Checkout\Helper\Data as CheckoutData;
 use Exception;
 
@@ -111,12 +113,16 @@ class ConfigProvider implements ConfigProviderInterface
                         'card_max_width' => $this->configuration->getCardMaxWidth(),
                         'card_fontsize' => $this->configuration->getCardFontSize(),
                         'bank_transfer_support_country_to_currency_collection' => BankTransfer::SUPPORTED_COUNTRY_TO_CURRENCY,
-                        'klarna_support_countries' => KlarnaMethod::SUPPORTED_COUNTRY_TO_CURRENCY,
-                        'afterpay_support_countries' => AfterpayMethod::SUPPORTED_COUNTRY_TO_CURRENCY,
-                        'afterpay_support_entity_to_currency' => AfterpayMethod::SUPPORTED_ENTITY_TO_CURRENCY,
+                        'klarna_support_countries' => Klarna::SUPPORTED_COUNTRY_TO_CURRENCY,
+                        'afterpay_support_countries' => Afterpay::SUPPORTED_COUNTRY_TO_CURRENCY,
+                        'afterpay_support_entity_to_currency' => Afterpay::SUPPORTED_ENTITY_TO_CURRENCIES,
                         'available_currencies' => $this->getAvailableCurrencies(),
                         'quote_currency_code' => $quote->getQuoteCurrencyCode(),
                         'base_currency_code' => $quote->getBaseCurrencyCode(),
+                        'redirect_method_default_currency' => RedirectMethodConfiguration::DEFAULT_CURRENCY,
+                        'redirect_method_country_to_currency' => RedirectMethodConfiguration::SUPPORTED_COUNTRY_TO_CURRENCY,
+                        'redirect_method_entity_to_currency' => RedirectMethodConfiguration::SUPPORTED_ENTITY_TO_CURRENCY,
+                        'redirect_method_display_names' => RedirectMethod::displayNames(),
                     ]
                 ]
             ];

@@ -74,14 +74,14 @@
                 <title>Saved Cards (Airwallex)</title>
                 <active>1</active>
             </airwallex_cc_vault>
-            <airwallex_payments_wechatpay>
+            <airwallex_payments_afterpay>
                 <active>0</active>
-                <model>AirwallexPaymentsWechatGatewayFacade</model>
+                <model>AirwallexPaymentsAfterpayGatewayFacade</model>
                 <allowspecific>0</allowspecific>
-                <title>Pay by Wechat (Airwallex)</title>
-                <payment_action>authorize</payment_action>
+                <title>Pay by Afterpay (Airwallex)</title>
+                <payment_action>authorize_capture</payment_action>
                 <is_gateway>1</is_gateway>
-                <can_authorize>1</can_authorize>
+                <can_authorize>0</can_authorize>
                 <can_capture>1</can_capture>
                 <can_capture_partial>0</can_capture_partial>
                 <can_refund>1</can_refund>
@@ -90,8 +90,8 @@
                 <can_cancel>1</can_cancel>
                 <can_use_internal>1</can_use_internal>
                 <can_use_checkout>1</can_use_checkout>
-                <sort_order>20</sort_order>
-            </airwallex_payments_wechatpay>
+                <sort_order>11</sort_order>
+            </airwallex_payments_afterpay>
             <airwallex_payments_alipaycn>
                 <active>0</active>
                 <model>AirwallexPaymentsAlipayCNGatewayFacade</model>
@@ -108,26 +108,8 @@
                 <can_cancel>1</can_cancel>
                 <can_use_internal>1</can_use_internal>
                 <can_use_checkout>1</can_use_checkout>
-                <sort_order>30</sort_order>
+                <sort_order>12</sort_order>
             </airwallex_payments_alipaycn>
-            <airwallex_payments_dana>
-                <active>0</active>
-                <model>AirwallexPaymentsDanaGatewayFacade</model>
-                <allowspecific>0</allowspecific>
-                <title>Pay by Dana (Airwallex)</title>
-                <payment_action>authorize</payment_action>
-                <is_gateway>1</is_gateway>
-                <can_authorize>1</can_authorize>
-                <can_capture>1</can_capture>
-                <can_capture_partial>0</can_capture_partial>
-                <can_refund>1</can_refund>
-                <can_refund_partial_per_invoice>1</can_refund_partial_per_invoice>
-                <can_void>1</can_void>
-                <can_cancel>1</can_cancel>
-                <can_use_internal>1</can_use_internal>
-                <can_use_checkout>1</can_use_checkout>
-                <sort_order>40</sort_order>
-            </airwallex_payments_dana>
             <airwallex_payments_alipayhk>
                 <active>0</active>
                 <model>AirwallexPaymentsAlipayHKGatewayFacade</model>
@@ -144,8 +126,62 @@
                 <can_cancel>1</can_cancel>
                 <can_use_internal>1</can_use_internal>
                 <can_use_checkout>1</can_use_checkout>
-                <sort_order>50</sort_order>
+                <sort_order>13</sort_order>
             </airwallex_payments_alipayhk>
+            <airwallex_payments_wechatpay>
+                <active>0</active>
+                <model>AirwallexPaymentsWechatGatewayFacade</model>
+                <allowspecific>0</allowspecific>
+                <title>Pay by Wechat (Airwallex)</title>
+                <payment_action>authorize</payment_action>
+                <is_gateway>1</is_gateway>
+                <can_authorize>1</can_authorize>
+                <can_capture>1</can_capture>
+                <can_capture_partial>0</can_capture_partial>
+                <can_refund>1</can_refund>
+                <can_refund_partial_per_invoice>1</can_refund_partial_per_invoice>
+                <can_void>1</can_void>
+                <can_cancel>1</can_cancel>
+                <can_use_internal>1</can_use_internal>
+                <can_use_checkout>1</can_use_checkout>
+                <sort_order>14</sort_order>
+            </airwallex_payments_wechatpay>
+            <airwallex_payments_bank_transfer>
+                <active>0</active>
+                <model>AirwallexPaymentsBankTransferGatewayFacade</model>
+                <allowspecific>0</allowspecific>
+                <title>Pay by Bank Transfer (Airwallex)</title>
+                <payment_action>authorize_capture</payment_action>
+                <is_gateway>1</is_gateway>
+                <can_authorize>0</can_authorize>
+                <can_capture>1</can_capture>
+                <can_capture_partial>0</can_capture_partial>
+                <can_refund>1</can_refund>
+                <can_refund_partial_per_invoice>1</can_refund_partial_per_invoice>
+                <can_void>1</can_void>
+                <can_cancel>1</can_cancel>
+                <can_use_internal>1</can_use_internal>
+                <can_use_checkout>1</can_use_checkout>
+                <sort_order>15</sort_order>
+            </airwallex_payments_bank_transfer>
+            <airwallex_payments_dana>
+                <active>0</active>
+                <model>AirwallexPaymentsDanaGatewayFacade</model>
+                <allowspecific>0</allowspecific>
+                <title>Pay by Dana (Airwallex)</title>
+                <payment_action>authorize</payment_action>
+                <is_gateway>1</is_gateway>
+                <can_authorize>1</can_authorize>
+                <can_capture>1</can_capture>
+                <can_capture_partial>0</can_capture_partial>
+                <can_refund>1</can_refund>
+                <can_refund_partial_per_invoice>1</can_refund_partial_per_invoice>
+                <can_void>1</can_void>
+                <can_cancel>1</can_cancel>
+                <can_use_internal>1</can_use_internal>
+                <can_use_checkout>1</can_use_checkout>
+                <sort_order>16</sort_order>
+            </airwallex_payments_dana>
             <airwallex_payments_gcash>
                 <active>0</active>
                 <model>AirwallexPaymentsGCashGatewayFacade</model>
@@ -162,7 +198,7 @@
                 <can_cancel>1</can_cancel>
                 <can_use_internal>1</can_use_internal>
                 <can_use_checkout>1</can_use_checkout>
-                <sort_order>60</sort_order>
+                <sort_order>17</sort_order>
             </airwallex_payments_gcash>
             <airwallex_payments_kakaopay>
                 <active>0</active>
@@ -180,44 +216,8 @@
                 <can_cancel>1</can_cancel>
                 <can_use_internal>1</can_use_internal>
                 <can_use_checkout>1</can_use_checkout>
-                <sort_order>70</sort_order>
+                <sort_order>18</sort_order>
             </airwallex_payments_kakaopay>
-            <airwallex_payments_tng>
-                <active>0</active>
-                <model>AirwallexPaymentsTouchNGoGatewayFacade</model>
-                <allowspecific>0</allowspecific>
-                <title>Pay by Touch ‘n Go (Airwallex)</title>
-                <payment_action>authorize</payment_action>
-                <is_gateway>1</is_gateway>
-                <can_authorize>1</can_authorize>
-                <can_capture>1</can_capture>
-                <can_capture_partial>0</can_capture_partial>
-                <can_refund>1</can_refund>
-                <can_refund_partial_per_invoice>1</can_refund_partial_per_invoice>
-                <can_void>1</can_void>
-                <can_cancel>1</can_cancel>
-                <can_use_internal>1</can_use_internal>
-                <can_use_checkout>1</can_use_checkout>
-                <sort_order>80</sort_order>
-            </airwallex_payments_tng>
-            <airwallex_payments_pay_now>
-                <active>0</active>
-                <model>AirwallexPaymentsPaynowGatewayFacade</model>
-                <allowspecific>0</allowspecific>
-                <title>Pay by PayNow (Airwallex)</title>
-                <payment_action>authorize</payment_action>
-                <is_gateway>1</is_gateway>
-                <can_authorize>1</can_authorize>
-                <can_capture>1</can_capture>
-                <can_capture_partial>0</can_capture_partial>
-                <can_refund>1</can_refund>
-                <can_refund_partial_per_invoice>1</can_refund_partial_per_invoice>
-                <can_void>1</can_void>
-                <can_cancel>1</can_cancel>
-                <can_use_internal>1</can_use_internal>
-                <can_use_checkout>1</can_use_checkout>
-                <sort_order>80</sort_order>
-            </airwallex_payments_pay_now>
             <airwallex_payments_klarna>
                 <active>0</active>
                 <model>AirwallexPaymentsKlarnaGatewayFacade</model>
@@ -234,16 +234,16 @@
                 <can_cancel>1</can_cancel>
                 <can_use_internal>1</can_use_internal>
                 <can_use_checkout>1</can_use_checkout>
-                <sort_order>40</sort_order>
+                <sort_order>19</sort_order>
             </airwallex_payments_klarna>
-            <airwallex_payments_afterpay>
+            <airwallex_payments_pay_now>
                 <active>0</active>
-                <model>AirwallexPaymentsAfterpayGatewayFacade</model>
+                <model>AirwallexPaymentsPaynowGatewayFacade</model>
                 <allowspecific>0</allowspecific>
-                <title>Pay by Afterpay (Airwallex)</title>
-                <payment_action>authorize_capture</payment_action>
+                <title>Pay by PayNow (Airwallex)</title>
+                <payment_action>authorize</payment_action>
                 <is_gateway>1</is_gateway>
-                <can_authorize>0</can_authorize>
+                <can_authorize>1</can_authorize>
                 <can_capture>1</can_capture>
                 <can_capture_partial>0</can_capture_partial>
                 <can_refund>1</can_refund>
@@ -252,16 +252,16 @@
                 <can_cancel>1</can_cancel>
                 <can_use_internal>1</can_use_internal>
                 <can_use_checkout>1</can_use_checkout>
-                <sort_order>40</sort_order>
-            </airwallex_payments_afterpay>
-            <airwallex_payments_bank_transfer>
+                <sort_order>20</sort_order>
+            </airwallex_payments_pay_now>
+            <airwallex_payments_tng>
                 <active>0</active>
-                <model>AirwallexPaymentsBankTransferGatewayFacade</model>
+                <model>AirwallexPaymentsTouchNGoGatewayFacade</model>
                 <allowspecific>0</allowspecific>
-                <title>Pay by Bank Transfer (Airwallex)</title>
-                <payment_action>authorize_capture</payment_action>
+                <title>Pay by Touch ‘n Go (Airwallex)</title>
+                <payment_action>authorize</payment_action>
                 <is_gateway>1</is_gateway>
-                <can_authorize>0</can_authorize>
+                <can_authorize>1</can_authorize>
                 <can_capture>1</can_capture>
                 <can_capture_partial>0</can_capture_partial>
                 <can_refund>1</can_refund>
@@ -270,8 +270,8 @@
                 <can_cancel>1</can_cancel>
                 <can_use_internal>1</can_use_internal>
                 <can_use_checkout>1</can_use_checkout>
-                <sort_order>40</sort_order>
-            </airwallex_payments_bank_transfer>
+                <sort_order>21</sort_order>
+            </airwallex_payments_tng>
         </payment>
     </default>
 </config>

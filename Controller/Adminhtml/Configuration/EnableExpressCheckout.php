@@ -19,7 +19,7 @@ use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
 use Airwallex\Payments\Model\Client\Request\ApplePayDomain\GetList;
 use Airwallex\Payments\Model\Client\Request\ApplePayDomain\Add;
 
-class PayEnable extends Action
+class EnableExpressCheckout extends Action
 {
     protected JsonFactory $resultJsonFactory;
     protected Context $context;

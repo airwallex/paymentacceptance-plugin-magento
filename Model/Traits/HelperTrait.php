@@ -2,12 +2,13 @@
 
 namespace Airwallex\Payments\Model\Traits;
 
-use Airwallex\Payments\Api\Data\PaymentIntentInterface;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\UseCase\CurrencySwitcher;
 use Airwallex\Payments\Helper\Configuration;
-use Airwallex\Payments\Model\Client\Request\Account;
-use Airwallex\Payments\Model\Client\Request\CurrencySwitcher;
+use Airwallex\Payments\Helper\IntentHelper;
 use Airwallex\Payments\Model\Client\Request\GetCurrencies;
-use Airwallex\Payments\Model\Client\Request\Log;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Log as RemoteLog;
+use Psr\Log\LoggerInterface;
 use Airwallex\Payments\Model\Client\Request\PaymentMethod\Get;
 use Airwallex\Payments\Model\Methods\AbstractMethod;
 use Airwallex\Payments\Model\Methods\CardMethod;
@@ -20,9 +21,7 @@ use JsonException;
 use Magento\Checkout\Api\GuestPaymentInformationManagementInterface;
 use Magento\Checkout\Api\PaymentInformationManagementInterface;
 use Magento\Checkout\Helper\Data;
-use Magento\Framework\App\CacheInterface;
 use Magento\Framework\App\ObjectManager;
-use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Quote\Api\Data\PaymentExtension;
@@ -38,6 +37,10 @@ use Magento\Sales\Model\OrderRepository;
 use Magento\Sales\Model\ResourceModel\Order\CollectionFactory;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
 use ReflectionClass;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Account;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\Quote as StructQuote;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\Account as StructAccount;
 
 trait HelperTrait
 {
@@ -48,27 +51,26 @@ trait HelperTrait
      * @param string $targetCurrency
      * @param string $amount
      * @return string
-     * @throws GuzzleException
-     * @throws JsonException
      */
     public function currencySwitcher(string $paymentCurrency, string $targetCurrency, string $amount): string
     {
-        $cacheName = "awx_cw_{$paymentCurrency}_{$targetCurrency}_" . $amount;
-        $cache = $this->cache->load($cacheName);
-        if ($cache) {
-            $arr = json_decode($cache, true);
-            if (isset($arr['refresh_at']) && strtotime($arr['refresh_at']) > time()) {
-                return $cache;
-            }
-        }
-        $switcher = ObjectManager::getInstance()->get(CurrencySwitcher::class)
-            ->setType()
-            ->setPaymentCurrency($paymentCurrency)
+        $switcher = $this->getCurrencySwitcher($paymentCurrency, $targetCurrency, $amount);
+        return json_encode([
+            'id' => $switcher->getId(),
+            'payment_currency' => $switcher->getPaymentCurrency(),
+            'target_currency' => $switcher->getTargetCurrency(),
+            'payment_amount' => $switcher->getPaymentAmount(),
+            'target_amount' => $switcher->getTargetAmount(),
+            'client_rate' => $switcher->getClientRate(),
+        ]);
+    }
+
+    public function getCurrencySwitcher(string $paymentCurrency, string $targetCurrency, string $amount): StructQuote
+    {
+        return ObjectManager::getInstance()->get(CurrencySwitcher::class)->setPaymentCurrency($paymentCurrency)
             ->setTargetCurrency($targetCurrency)
-            ->setAmount($amount)
-            ->send();
-        $this->cache->save($switcher, $cacheName, [], 1800);
-        return $switcher;
+            ->setPaymentAmount($amount)
+            ->get();
     }
 
     public function convertToDisplayCurrency(float $amount, $rate, $reverse = false): float
@@ -198,18 +200,9 @@ trait HelperTrait
      * @throws GuzzleException
      * @throws JsonException
      */
-    public function account(): string
+    public function account(): StructAccount
     {
-        $apiKey = ObjectManager::getInstance()->get(Configuration::class)->getApiKey();
-        $cacheName = 'awx_account_information_' . $apiKey;
-        $cache = ObjectManager::getInstance()->get(CacheInterface::class);
-        $res = $cache->load($cacheName);
-        if (empty($res)) {
-            $accountRequest = ObjectManager::getInstance()->get(Account::class);
-            $res = $accountRequest->send();
-            $cache->save($res, $cacheName, [], 3600 * 12);
-        }
-        return $res;
+        return ObjectManager::getInstance()->get(Account::class)->send();
     }
 
     /**
@@ -267,46 +260,39 @@ trait HelperTrait
     /**
      * Check intent status if available to change order status
      *
-     * @param array $intentResponse
+     * @param StructPaymentIntent $paymentIntentFromApi
      * @param Order|Quote $model
      * @throws GuzzleException
      * @throws JsonException
      * @throws Exception
      */
-    protected function checkIntent(array $intentResponse, $model): void
+    protected function checkIntent(StructPaymentIntent $paymentIntentFromApi, $model): void
     {
         $isOrder = $model instanceof Order;
 
         $currency = $this->getCurrencyCode($model);
         $orderIncrementId = $isOrder ? $model->getIncrementId() : $model->getReservedOrderId();
         $amount = $model->getGrandTotal();
-
-        $paidStatus = [
-            PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE,
-            PaymentIntentInterface::INTENT_STATUS_SUCCEEDED
-        ];
-        $intentAmount = $intentResponse['base_amount'] ?? $intentResponse['amount'];
-        $intentCurrency = $intentResponse['base_currency'] ?? $intentResponse['currency'];
+        $intentAmount = $paymentIntentFromApi->getBaseAmount() ?: $paymentIntentFromApi->getAmount();
+        $intentCurrency = $paymentIntentFromApi->getBaseCurrency() ?: $paymentIntentFromApi->getCurrency();
         if (
-            !in_array($intentResponse['status'], $paidStatus, true)
+            !($paymentIntentFromApi->isAuthorized() || $paymentIntentFromApi->isCaptured())
             || $intentCurrency !== $currency
-            || $intentResponse['merchant_order_id'] !== $orderIncrementId
-            || !$this->isAmountEqual(floatval($intentAmount), $amount)
+            || $paymentIntentFromApi->getMerchantOrderId() !== $orderIncrementId
+            || !$this->isAmountEqual($intentAmount, $amount)
         ) {
-            ObjectManager::getInstance()->get(Log::class)->setMessage(
+            ObjectManager::getInstance()->get(RemoteLog::class)->error(
                 'check intent failed',
-                "Intent Status: {$intentResponse['status']}. Intent Order ID: {$intentResponse['merchant_order_id']} - Order ID: $orderIncrementId - "
+                "Intent Status: {$paymentIntentFromApi->getStatus()}. Intent Order ID: {$paymentIntentFromApi->getMerchantOrderId()} - Order ID: $orderIncrementId - "
                     . "Intent Currency: $intentCurrency - Order Currency: $currency - "
-                    . "Intent Amount: $intentAmount - Order Amount: $amount",
-                $intentResponse['merchant_order_id']
-            )->send();
+                    . "Intent Amount: $intentAmount - Order Amount: $amount");
             $msg = 'Something went wrong while processing your request.';
             throw new Exception(__($msg));
         }
     }
 
     /**
-     * @param $intentResponse
+     * @param StructPaymentIntent $paymentIntentFromApi
      * @param Order $order
      * @return void
      * @throws GuzzleException
@@ -315,12 +301,12 @@ trait HelperTrait
      * @throws NoSuchEntityException
      * @throws Exception
      */
-    public function checkCardDetail($intentResponse, Order $order): void
+    public function checkCardDetail(StructPaymentIntent $paymentIntentFromApi, Order $order): void
     {
         if (!ObjectManager::getInstance()->get(Configuration::class)->isPreVerificationEnabled()) return;
-        $lastPaymentType = $intentResponse['latest_payment_attempt']['payment_method']['type'] ?? '';
+        $lastPaymentType = $paymentIntentFromApi->getLatestPaymentAttempt()['payment_method']['type'] ?? '';
         if ($lastPaymentType === 'card') {
-            $record = $this->paymentIntentRepository->getByIntentId($intentResponse['id']);
+            $record = ObjectManager::getInstance()->get(PaymentIntentRepository::class)->getByIntentId($paymentIntentFromApi->getId());
             $detail = $record->getDetail();
 
             $isSame = true;
@@ -330,7 +316,7 @@ trait HelperTrait
                 $response = $paymentMethodGet->setPaymentMethodId(end($detailArray['payment_method_ids']))->send();
                 $paymentMethodResponse = json_decode($response, true);
 
-                $intentCard = $intentResponse['latest_payment_attempt']['payment_method']['card'] ?? null;
+                $intentCard = $paymentIntentFromApi->getLatestPaymentAttempt()['payment_method']['card'] ?? null;
                 $card = $paymentMethodResponse['card'] ?? null;
 
                 if (
@@ -372,7 +358,7 @@ trait HelperTrait
         ]);
     }
 
-    protected function addAVSResultToOrder(Order $order, array $intentResponse)
+    protected function addAVSResultToOrder(Order $order, StructPaymentIntent $paymentIntentFromApi)
     {
         $histories = $order->getStatusHistories();
 
@@ -384,20 +370,21 @@ trait HelperTrait
             }
         }
         try {
-            $brand = $intentResponse['latest_payment_attempt']['payment_method']['card']['brand'] ?? '';
+            $brand = $paymentIntentFromApi->getLatestPaymentAttempt()['payment_method']['card']['brand'] ?? '';
             if ($brand) $brand = ' Card Brand: ' . strtoupper($brand) . '.';
-            $last4 = $intentResponse['latest_payment_attempt']['payment_method']['card']['last4'] ?? '';
+            $last4 = $paymentIntentFromApi->getLatestPaymentAttempt()['payment_method']['card']['last4'] ?? '';
             if ($last4) $last4 = ' Card Last Digits: ' . $last4 . '.';
-            $avs_check = $intentResponse['latest_payment_attempt']['authentication_data']['avs_result'] ?? '';
+            $avs_check = $paymentIntentFromApi->getLatestPaymentAttempt()['authentication_data']['avs_result'] ?? '';
             if ($avs_check) $avs_check = ' AVS Result: ' . $avs_check . '.';
-            $cvc_check = $intentResponse['latest_payment_attempt']['authentication_data']['cvc_result'] ?? '';
+            $cvc_check = $paymentIntentFromApi->getLatestPaymentAttempt()['authentication_data']['cvc_result'] ?? '';
             if ($cvc_check) $cvc_check = ' CVC Result: ' . $cvc_check . '.';
             $log .= $brand . $last4 . $avs_check . $cvc_check;
             if ($log === $src) return;
-            $latestOrder = $this->orderFactory->create();
-            $this->orderResource->load($latestOrder, $order->getId());
+            $latestOrder = ObjectManager::getInstance()->get(OrderFactory::class)->create();
+            ObjectManager::getInstance()->get(OrderResourceInterface::class)->load($latestOrder, $order->getId());
             $this->addComment($latestOrder, $log);
         } catch (Exception $e) {
+            ObjectManager::getInstance()->get(LoggerInterface::class)->error(__METHOD__ . ': ' . $e->getMessage());
         }
     }
 
@@ -430,39 +417,41 @@ trait HelperTrait
     }
 
     /**
-     * @param $intentResponse
+     * @param StructPaymentIntent $paymentIntentFromApi
      * @param int $orderId
      * @param Quote $quote
+     * @param string $from
      * @return void
-     * @throws AlreadyExistsException
      * @throws GuzzleException
      * @throws InputException
      * @throws JsonException
      * @throws NoSuchEntityException
      */
-    public function changeOrderStatus($intentResponse, int $orderId, Quote $quote): void
+    public function changeOrderStatus(StructPaymentIntent $paymentIntentFromApi, int $orderId, Quote $quote, string $from): void
     {
         $resource = ObjectManager::getInstance()->get(PaymentIntent::class);
+        $logService = ObjectManager::getInstance()->get(LoggerInterface::class);
         $connection = $resource->getConnection();
         $connection->beginTransaction();
         try {
             $query = $connection->select()
                 ->from($resource->getMainTable())
-                ->where('payment_intent_id = ?', $intentResponse['id'])
+                ->where('payment_intent_id = ?', $paymentIntentFromApi->getId())
                 ->forUpdate(true);
             $connection->query($query);
-
+            $logService->info("Start to change order status for order $orderId from $from");
             $order = $this->getFreshOrder($orderId);
             /** @var Payment $payment */
             $payment = $order->getPayment();
-            if (($payment && $payment->getAmountAuthorized() > 0 && $intentResponse['status'] === PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE) || $order->getTotalPaid() > 0) {
+            if (($payment && $payment->getAmountAuthorized() > 0 && $paymentIntentFromApi->isAuthorized()) || $order->getTotalPaid() > 0) {
                 $this->deactivateQuote($quote);
                 $connection->commit();
+                $this->setCheckoutSuccess($quote->getId(), $order);
                 return;
             }
-            $this->checkIntent($intentResponse, $order);
-            $this->setTransactionId($order->getPayment(), $intentResponse['id']);
-            $this->intentHelper->setIntent($intentResponse);
+            $this->checkIntent($paymentIntentFromApi, $order);
+            $this->setTransactionId($order->getPayment(), $paymentIntentFromApi->getId());
+            ObjectManager::getInstance()->get(IntentHelper::class)->setIntent($paymentIntentFromApi);
             if ($this->isMiniPluginExists()) {
                 $companyOrder = ObjectManager::getInstance()->get('\Magento\Company\Api\Data\CompanyOrderInterfaceFactory')->create();
                 $companyResource = ObjectManager::getInstance()->get('\Magento\Company\Model\ResourceModel\Order');
@@ -475,16 +464,18 @@ trait HelperTrait
             $order->place();
             ObjectManager::getInstance()->get(OrderRepository::class)->save($order);
 
-            $this->addAVSResultToOrder($order, $intentResponse);
+            $this->addAVSResultToOrder($order, $paymentIntentFromApi);
 
             $this->deactivateQuote($quote);
 
             try {
-                $this->checkCardDetail($intentResponse, $order);
+                $this->checkCardDetail($paymentIntentFromApi, $order);
             } catch (Exception $e) {
             }
+            $logService->info("Finish to change order status for order $orderId from $from");
             $connection->commit();
-        }   catch (\Exception $e) {
+            $this->setCheckoutSuccess($quote->getId(), $order);
+        }   catch (Exception $e) {
             $connection->rollBack();
             throw $e;
         }
@@ -508,32 +499,34 @@ trait HelperTrait
 
     /**
      * @param $paymentMethod
-     * @param $intentResponse
+     * @param StructPaymentIntent $paymentIntentFromApi
      * @param Quote $quote
      * @param string $from
      * @param null $billingAddress
      * @throws GuzzleException
+     * @throws Exception
      */
-    public function placeOrder($paymentMethod, $intentResponse, Quote $quote, string $from = '', $billingAddress = null)
+    public function placeOrder($paymentMethod, StructPaymentIntent $paymentIntentFromApi, Quote $quote, string $from = '', $billingAddress = null)
     {
         $quoteId = $quote->getId();
 
         $resource = ObjectManager::getInstance()->get(PaymentIntent::class);
+        $logService = ObjectManager::getInstance()->get(LoggerInterface::class);
         $connection = $resource->getConnection();
         $connection->beginTransaction();
         try {
             $query = $connection->select()
                 ->from($resource->getMainTable())
-                ->where('payment_intent_id = ?', $intentResponse['id'])
+                ->where('payment_intent_id = ?', $paymentIntentFromApi->getId())
                 ->forUpdate(true);
             $connection->query($query);
-
+            $logService->info("Start to place order for quote $quoteId from $from");
             try {
-                $order = ObjectManager::getInstance()->get(OrderInterface::class)->loadByAttribute('increment_id', $intentResponse['merchant_order_id']);
+                $order = ObjectManager::getInstance()->get(OrderInterface::class)->loadByAttribute('increment_id', $paymentIntentFromApi->getMerchantOrderId());
             } catch (Exception $e) {
             }
 
-            $paymentIntentRecord = ObjectManager::getInstance()->get(PaymentIntentRepository::class)->getByIntentId($intentResponse['id']);
+            $paymentIntentRecord = ObjectManager::getInstance()->get(PaymentIntentRepository::class)->getByIntentId($paymentIntentFromApi->getId());
             $detail = json_decode($paymentIntentRecord->getDetail(), true);
             $payment = $paymentMethod ?: $quote->getPayment();
             if ($payment->getMethod() === Vault::CODE) {
@@ -542,10 +535,10 @@ trait HelperTrait
 
             $this->setAgreementIds($payment, $detail['agreement']);
             if (empty($order) || empty($order->getId())) {
-                $this->checkIntent($intentResponse, $quote);
-                $resp = $this->intentGet->setPaymentIntentId($intentResponse['id'])->send();
-                $intentResponse = json_decode($resp, true);
-                $this->intentHelper->setIntent($intentResponse);
+                $this->checkIntent($paymentIntentFromApi, $quote);
+                /** @var StructPaymentIntent $paymentIntent */
+                $paymentIntentFromApi = ObjectManager::getInstance()->get(RetrievePaymentIntent::class)->setPaymentIntentId($paymentIntentFromApi->getId())->send();
+                ObjectManager::getInstance()->get(IntentHelper::class)->setIntent($paymentIntentFromApi);
                 if ($detail['uid']) {
                     $orderId = ObjectManager::getInstance()->get(PaymentInformationManagementInterface::class)->savePaymentInformationAndPlaceOrder(
                         $quoteId,
@@ -556,7 +549,7 @@ trait HelperTrait
                     $cartId = ObjectManager::getInstance()->get(QuoteIdToMaskedQuoteIdInterface::class)->execute($quoteId);
                     $orderId = ObjectManager::getInstance()->get(GuestPaymentInformationManagementInterface::class)->savePaymentInformationAndPlaceOrder(
                         $cartId,
-                        $intentResponse['customer']['email'],
+                        $paymentIntentFromApi->getCustomer()['email'] ?? '',
                         $payment,
                         $billingAddress
                     );
@@ -564,18 +557,19 @@ trait HelperTrait
 
                 ObjectManager::getInstance()->get(PaymentIntentRepository::class)->updateOrderId($paymentIntentRecord, $orderId);
                 $order = $this->getFreshOrder($orderId);
-                $this->addAVSResultToOrder($order, $intentResponse);
+                $this->addAVSResultToOrder($order, $paymentIntentFromApi);
                 try {
-                    $this->checkCardDetail($intentResponse, $order);
+                    $this->checkCardDetail($paymentIntentFromApi, $order);
                 } catch (Exception $e) {
                 }
             }
 
             $this->deactivateQuote($quote);
-            $this->setCheckoutSuccess($quoteId, $order);
 
+            $logService->info("Successfully placed order for quote ID: $quoteId from $from.");
             $connection->commit();
-        }   catch (\Exception $e) {
+            $this->setCheckoutSuccess($quoteId, $order);
+        }   catch (Exception $e) {
             $connection->rollBack();
             throw $e;
         }

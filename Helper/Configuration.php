@@ -10,8 +10,8 @@ use Magento\Payment\Model\MethodInterface;
 class Configuration extends AbstractHelper
 {
     public const MODULE_NAME = 'Airwallex_Payments';
-    private const DEMO_BASE_URL = 'https://pci-api-demo.airwallex.com/api/v1/';
-    private const PRODUCTION_BASE_URL = 'https://pci-api.airwallex.com/api/v1/';
+    private const DEMO_BASE_URL = 'https://api-demo.airwallex.com/api/v1/';
+    private const PRODUCTION_BASE_URL = 'https://api.airwallex.com/api/v1/';
 
     private const EXPRESS_PREFIX = 'payment/airwallex_payments_express/';
 

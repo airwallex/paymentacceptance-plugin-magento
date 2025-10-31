@@ -2,10 +2,10 @@
 
 namespace Airwallex\Payments\Model\Client\Request\PaymentIntents;
 
+use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\Klarna;
+use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\BankTransfer;
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
-use Airwallex\Payments\Model\Methods\BankTransfer;
-use Airwallex\Payments\Model\Methods\KlarnaMethod;
 use JsonException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Quote\Api\Data\AddressInterface;
@@ -44,10 +44,10 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
         if ($method === 'afterpay') {
             return $lang;
         }
-        if (empty(KlarnaMethod::COUNTRY_LANGUAGE[$countryCode])) {
+        if (empty(Klarna::COUNTRY_LANGUAGE[$countryCode])) {
             return 'en';
         }
-        if (in_array($lang, KlarnaMethod::COUNTRY_LANGUAGE[$countryCode], true)) {
+        if (in_array($lang, Klarna::COUNTRY_LANGUAGE[$countryCode], true)) {
             return $lang;
         }
         return 'en';
@@ -57,12 +57,12 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
      * @param string $method
      * @param AddressInterface|OrderAddressInterface|null $address
      * @param string $email
-     * @param array $intent
+     * @param $intent
      * @param array $currencySwitcherData
      * @return Confirm
      * @throws LocalizedException
      */
-    public function setInformation(string $method, $address, string $email = "", array $intent = [], array $currencySwitcherData = []): self
+    public function setInformation(string $method, $address, $intent, string $email = "", array $currencySwitcherData = []): self
     {
         $data = [
             'payment_method' => [
@@ -74,7 +74,7 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
             if (empty($address)) {
                 throw new LocalizedException(__('Billing address cannot be empty.'));
             }
-            if (empty($intent['currency'])) {
+            if (empty($intent->getCurrency())) {
                 throw new LocalizedException(__('Intent currency cannot be empty.'));
             }
             $data['payment_method'][$method] = [
@@ -107,10 +107,10 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
                     }
                     $data['payment_method'][$method]['country_code'] = $currencyCollection[$currencySwitcherData['target_currency']];
                 } else {
-                    if (empty($currencyCollection[$intent['currency']])) {
+                    if (empty($currencyCollection[$intent->getCurrency()])) {
                         throw new LocalizedException(__('Invalid currency for Bank Transfer'));
                     }
-                    $data['payment_method'][$method]['country_code'] = $currencyCollection[$intent['currency']];
+                    $data['payment_method'][$method]['country_code'] = $currencyCollection[$intent->getCurrency()];
                 }
             }
         }
@@ -138,7 +138,7 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
         return $data;
     }
 
-    public function setQuote(string $targetCurrency, string $quoteId)
+    public function setQuote(string $targetCurrency, $quoteId)
     {
         return $this->setParams([
             'currency_switcher' => [

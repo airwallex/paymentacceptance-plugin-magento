@@ -2,22 +2,24 @@
 
 namespace Airwallex\Payments\Helper;
 
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
+
 class IntentHelper
 {
-    private array $intent = [];
+    private StructPaymentIntent $intent;
 
     /**
-     * @return array
+     * @return StructPaymentIntent
      */
-    public function getIntent(): array
+    public function getIntent(): StructPaymentIntent
     {
-        return $this->intent;
+        return $this->intent ?? new StructPaymentIntent();
     }
 
     /**
-     * @param array $intent
+     * @param StructPaymentIntent $intent
      */
-    public function setIntent(array $intent): void
+    public function setIntent(StructPaymentIntent $intent): void
     {
         $this->intent = $intent;
     }

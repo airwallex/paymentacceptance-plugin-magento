@@ -19,11 +19,11 @@ use Magento\Sales\Model\Service\InvoiceService;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\Sales\Model\Order;
 use Magento\Framework\App\CacheInterface;
-use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Magento\Sales\Api\OrderManagementInterface;
 use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
-use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
 
 class Capture extends AbstractWebhook
 {
@@ -37,13 +37,12 @@ class Capture extends AbstractWebhook
     private TransactionFactory $transactionFactory;
     private CartRepositoryInterface $quoteRepository;
     public CacheInterface $cache;
-    private Get $intentGet;
     private OrderManagementInterface $orderManagement;
     private OrderFactory $orderFactory;
     private PaymentIntentRepository $paymentIntentRepository;
     private OrderRepositoryInterface $orderRepository;
     private OrderResourceInterface $orderResource;
-    public ErrorLog $errorLog;
+    private RetrievePaymentIntent $retrievePaymentIntent;
     public IntentHelper $intentHelper;
 
     /**
@@ -53,13 +52,12 @@ class Capture extends AbstractWebhook
      * @param TransactionFactory $transactionFactory
      * @param CartRepositoryInterface $quoteRepository
      * @param CacheInterface $cache
-     * @param Get $intentGet
      * @param OrderManagementInterface $orderManagement
      * @param OrderFactory $orderFactory
      * @param PaymentIntentRepository $paymentIntentRepository
      * @param OrderRepositoryInterface $orderRepository
      * @param OrderResourceInterface $orderResource
-     * @param ErrorLog $errorLog
+     * @param RetrievePaymentIntent $retrievePaymentIntent
      * @param IntentHelper $intentHelper
      */
     public function __construct(
@@ -67,13 +65,12 @@ class Capture extends AbstractWebhook
         TransactionFactory       $transactionFactory,
         CartRepositoryInterface  $quoteRepository,
         CacheInterface           $cache,
-        Get                      $intentGet,
         OrderManagementInterface $orderManagement,
         OrderFactory             $orderFactory,
         PaymentIntentRepository  $paymentIntentRepository,
         OrderRepositoryInterface $orderRepository,
         OrderResourceInterface   $orderResource,
-        ErrorLog                 $errorLog,
+        RetrievePaymentIntent    $retrievePaymentIntent,
         IntentHelper             $intentHelper
     )
     {
@@ -81,13 +78,12 @@ class Capture extends AbstractWebhook
         $this->transactionFactory = $transactionFactory;
         $this->quoteRepository = $quoteRepository;
         $this->cache = $cache;
-        $this->intentGet = $intentGet;
         $this->orderManagement = $orderManagement;
         $this->orderFactory = $orderFactory;
         $this->paymentIntentRepository = $paymentIntentRepository;
         $this->orderRepository = $orderRepository;
         $this->orderResource = $orderResource;
-        $this->errorLog = $errorLog;
+        $this->retrievePaymentIntent = $retrievePaymentIntent;
         $this->intentHelper = $intentHelper;
     }
 
@@ -117,21 +113,24 @@ class Capture extends AbstractWebhook
         $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
         $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
         if (empty($order) || empty($order->getId())) {
-            $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
-            $intentResponse = json_decode($resp, true);
-            $this->placeOrder($quote->getPayment(), $intentResponse, $quote, self::class);
+            /** @var StructPaymentIntent $paymentIntent */
+            $paymentIntentFromApi = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
+            $this->placeOrder($quote->getPayment(), $paymentIntentFromApi, $quote, __METHOD__);
             return;
         }
 
         if (!$this->isOrderBeforePayment()) {
+            /** @var StructPaymentIntent $paymentIntent */
+            $paymentIntentFromApi = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
+            $this->changeOrderStatus($paymentIntentFromApi, $paymentIntent->getOrderId(), $quote, __METHOD__);
             $this->deactivateQuote($quote);
             return;
         }
 
         if ($data->captured_amount === $data->amount && $this->isOrderBeforePayment()) {
-            $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
-            $intentResponse = json_decode($resp, true);
-            $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote);
+            /** @var StructPaymentIntent $paymentIntent */
+            $paymentIntentFromApi = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
+            $this->changeOrderStatus($paymentIntentFromApi, $paymentIntent->getOrderId(), $quote, __METHOD__);
             return;
         }
 

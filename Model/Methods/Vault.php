@@ -4,7 +4,7 @@ namespace Airwallex\Payments\Model\Methods;
 
 use Magento\Vault\Model\VaultPaymentInterface;
 
-class Vault extends CardMethod implements VaultPaymentInterface
+class Vault extends AbstractMethod implements VaultPaymentInterface
 {
     public const CODE = 'airwallex_cc_vault';
 

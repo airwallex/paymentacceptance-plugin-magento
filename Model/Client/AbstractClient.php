@@ -4,16 +4,15 @@ namespace Airwallex\Payments\Model\Client;
 
 use Airwallex\Payments\Helper\AuthenticationHelper;
 use Airwallex\Payments\Helper\Configuration;
-use Airwallex\Payments\Helper\CurrentPaymentMethodHelper;
 use Airwallex\Payments\Logger\Guzzle\RequestLogger;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
 use Airwallex\Payments\Model\Client\Request\Authentication;
+use Airwallex\Payments\Model\Methods\RedirectMethod;
 use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Framework\App\CacheInterface;
-use Magento\Framework\App\ObjectManager;
 use Magento\Framework\App\ProductMetadataInterface;
 use Magento\Framework\DataObject\IdentityService;
 use Magento\Framework\Module\ModuleListInterface;
@@ -270,6 +269,11 @@ abstract class AbstractClient
             'is_order_before_payment' => $this->configuration->isOrderBeforePayment(),
             'host' => $_SERVER['HTTP_HOST'] ?? '',
         ];
+
+        foreach (array_keys(RedirectMethod::displayNames()) as $paymentMethod) {
+            $paymentMethod = str_replace(RedirectMethod::PAYMENT_PREFIX, '', $paymentMethod);
+            $metadata['is_' . $paymentMethod . '_active'] = $this->configuration->isMethodActive($paymentMethod);
+        }
 
         return $metadata;
     }

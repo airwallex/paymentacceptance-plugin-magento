@@ -6,7 +6,6 @@ use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Logger\Logger;
 use Exception;
 use GuzzleHttp\HandlerStack;
-use GuzzleHttp\MessageFormatter;
 use GuzzleHttp\Middleware;
 use Magento\Framework\App\Filesystem\DirectoryList;
 use Magento\Framework\Exception\FileSystemException;

@@ -14,21 +14,6 @@ define([
             template: "Airwallex_Payments/payment/redirect-method",
         },
 
-        initialize() {
-            this._super();
-            quote.billingAddress.subscribe((newValue) => {
-                this.renderPayment(newValue, 'billingAddress');
-            });
-
-            quote.paymentMethod.subscribe((newValue) => {
-                this.renderPayment(newValue, 'paymentMethod');
-            });
-
-            quote.totals.subscribe((newValue) => {
-                this.renderPayment(newValue, 'totals');
-            });
-        },
-
         async loadPayment() {
             if (!this.isMethodChecked(this.code)) {
                 return;
@@ -43,10 +28,11 @@ define([
             const entityToCurrency = paymentData.afterpay_support_entity_to_currency;
             const countryToCurrency = paymentData.afterpay_support_countries;
             const quoteCountryId = quote.billingAddress() ? quote.billingAddress().countryId : '';
+            localStorage.setItem(this.afterpayCountryKey, '');
 
             if (!entityToCurrency[entity]) {
-                $(container).html(utils.awxAlert($t('Invalid merchant entity.')));
-                this.disableCheckoutButton(this.code);
+                console.warn('Invalid merchant entity:');
+                this.enableCheckoutButton(this.code);
                 return;
             }
 
@@ -86,7 +72,9 @@ define([
             let targetCurrency;
             if (countryToCurrency[quoteCountryId]) {
                 targetCurrency = countryToCurrency[quoteCountryId];
+                localStorage.setItem(this.afterpayCountryKey, quoteCountryId);
                 if (entityToCurrency[entity].indexOf(targetCurrency) === -1) {
+                    localStorage.setItem(this.afterpayCountryKey, '');
                     targetCurrency = '';
                 }
             }
@@ -112,12 +100,12 @@ define([
             let html = `
                 <div style="font-weight: 700;">` + $t('Choose your Afterpay account region') + `</div>
                 <div style="margin: 10px 0;">` + $t('If you don’t have an account yet, choose the region that you will create your account from.') + `</div>
-                <div class="awx-afterpay-countries">
+                <div class="awx-selector-container">
                     <div class="input-icon">
                         <img src="` + require.toUrl('Airwallex_Payments/assets/select-arrow.svg') + `" alt="arrow" />
                     </div>
                     <div>
-                        <input type="text" placeholder="Afterpay account region" />
+                        <input type="text" placeholder="` + $t('Afterpay account region') + `" />
                     </div>
                     <div class="countries" style="display: none">
                         <ul>
@@ -147,8 +135,8 @@ define([
                 }
             }
 
-            let $li = $(".awx-afterpay-countries li");
-            let $input = $(".awx-afterpay-countries input");
+            let $li = $(".awx-selector-container li");
+            let $input = $(".awx-selector-container input");
             $li.each(function () {
                 let country = localStorage.getItem(that.afterpayCountryKey);
                 if ($(this).data("value") === country) {
@@ -157,10 +145,10 @@ define([
                 }
             });
             let showCountries = function () {
-                $(".awx-afterpay-countries .countries").fadeIn(300);
+                $(".awx-selector-container .countries").fadeIn(300);
                 let country = localStorage.getItem(that.afterpayCountryKey);
                 if (country) {
-                    $(".awx-afterpay-countries li").each(function () {
+                    $(".awx-selector-container li").each(function () {
                         $(this).removeClass("selected");
                         if ($(this).data("value") === country) {
                             $(this).addClass("selected");
@@ -169,9 +157,9 @@ define([
                 }
             };
             $input.off('focus').on('focus', showCountries);
-            $('.awx-afterpay-countries .input-icon').off('click').on('click', showCountries);
+            $('.awx-selector-container .input-icon').off('click').on('click', showCountries);
             $input.off('blur').on('blur', function () {
-                $(".awx-afterpay-countries .countries").fadeOut(300);
+                $(".awx-selector-container .countries").fadeOut(300);
             });
             $li.off('click').on('click', function () {
                 let $body = $('body');

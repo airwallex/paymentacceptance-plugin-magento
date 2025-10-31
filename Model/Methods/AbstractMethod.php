@@ -2,7 +2,8 @@
 
 namespace Airwallex\Payments\Model\Methods;
 
-use Airwallex\Payments\Api\Data\PaymentIntentInterface;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
+use Airwallex\Payments\CommonLibraryInit;
 use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
 use Airwallex\Payments\Helper\CancelHelper;
 use Airwallex\Payments\Helper\Configuration;
@@ -14,6 +15,7 @@ use Airwallex\Payments\Model\PaymentIntentRepository;
 use Airwallex\Payments\Model\PaymentIntents;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
+use JsonException;
 use Magento\Checkout\Helper\Data as CheckoutData;
 use Magento\Framework\Event\ManagerInterface;
 use Magento\Framework\Exception\InputException;
@@ -30,12 +32,12 @@ use Magento\Quote\Api\Data\CartInterface;
 use Magento\Sales\Model\Order\Creditmemo;
 use Magento\Sales\Model\Order\Payment;
 use RuntimeException;
-use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Airwallex\Payments\Logger\Logger;
 use Magento\Framework\App\CacheInterface;
 use Airwallex\Payments\Helper\IntentHelper;
 use Magento\Sales\Model\Order;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
 
 /**
  * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
@@ -99,10 +101,10 @@ abstract class AbstractMethod extends Adapter
      */
     protected CacheInterface $cache;
 
-    protected Get $intentGet;
     protected IsOrderCreatedHelper $isOrderCreatedHelper;
     protected IntentHelper $intentHelper;
     protected Configuration $configuration;
+    protected RetrievePaymentIntent  $retrievePaymentIntent;
 
     /**
      * Payment constructor.
@@ -121,15 +123,15 @@ abstract class AbstractMethod extends Adapter
      * @param AvailablePaymentMethodsHelper $availablePaymentMethodsHelper
      * @param CancelHelper $cancelHelper
      * @param PaymentIntentRepository $paymentIntentRepository
-     * @param Get $intentGet
      * @param Logger $logger
      * @param CacheInterface $cache
      * @param IntentHelper $intentHelper
-     * @param IsOrderCreatedHelper|null $isOrderCreatedHelper
+     * @param IsOrderCreatedHelper $isOrderCreatedHelper
      * @param CommandPoolInterface|null $commandPool
      * @param ValidatorPoolInterface|null $validatorPool
      * @param CommandManagerInterface|null $commandExecutor
      * @param Configuration $configuration
+     * @param RetrievePaymentIntent $retrievePaymentIntent
      */
     public function __construct(
         PaymentIntents                $paymentIntents,
@@ -146,15 +148,16 @@ abstract class AbstractMethod extends Adapter
         AvailablePaymentMethodsHelper $availablePaymentMethodsHelper,
         CancelHelper                  $cancelHelper,
         PaymentIntentRepository       $paymentIntentRepository,
-        Get                           $intentGet,
         Logger                        $logger,
         CacheInterface                $cache,
         IntentHelper                  $intentHelper,
         IsOrderCreatedHelper          $isOrderCreatedHelper,
         Configuration                 $configuration,
-        ?CommandPoolInterface          $commandPool = null,
-        ?ValidatorPoolInterface        $validatorPool = null,
-        ?CommandManagerInterface       $commandExecutor = null
+        RetrievePaymentIntent         $retrievePaymentIntent,
+        CommonLibraryInit             $commonLibraryInit,
+        ?CommandPoolInterface         $commandPool = null,
+        ?ValidatorPoolInterface       $validatorPool = null,
+        ?CommandManagerInterface      $commandExecutor = null
     )
     {
         parent::__construct(
@@ -178,11 +181,12 @@ abstract class AbstractMethod extends Adapter
         $this->availablePaymentMethodsHelper = $availablePaymentMethodsHelper;
         $this->cancelHelper = $cancelHelper;
         $this->checkoutHelper = $checkoutHelper;
-        $this->intentGet = $intentGet;
         $this->cache = $cache;
         $this->isOrderCreatedHelper = $isOrderCreatedHelper;
         $this->intentHelper = $intentHelper;
         $this->configuration = $configuration;
+        $this->retrievePaymentIntent = $retrievePaymentIntent;
+        $commonLibraryInit->exec();
     }
 
     /**
@@ -195,27 +199,53 @@ abstract class AbstractMethod extends Adapter
     public function authorize(InfoInterface $payment, $amount): self
     {
         if (!$this->configuration->isOrderBeforePayment()) {
-            $intentResponse = $this->intentHelper->getIntent();
+            $paymentIntent = $this->intentHelper->getIntent();
             /** @var Payment $payment */
-            $this->setTransactionId($payment, $intentResponse['id']);
+            $this->setTransactionId($payment, $paymentIntent->getId());
         }
         return $this;
     }
+
 
     /**
      * @param InfoInterface $payment
      * @param float $amount
      *
-     * @return $this
-     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
+     * @return self
+     * @throws GuzzleException
+     * @throws InputException
+     * @throws JsonException
+     * @throws LocalizedException
      */
     public function capture(InfoInterface $payment, $amount): self
     {
-        if (!$this->configuration->isOrderBeforePayment()) {
-            $intentResponse = $this->intentHelper->getIntent();
+        if ($amount <= 0) return $this;
+
+        $order = $payment->getOrder();
+        if ($order && $order->getId()) {
             /** @var Payment $payment */
-            $this->setTransactionId($payment, $intentResponse['id']);
+            $intentId = $this->getIntentId($payment);
+        } else {
+            $paymentIntent = $this->intentHelper->getIntent();
+            /** @var Payment $payment */
+            $this->setTransactionId($payment, $paymentIntent->getId());
+            $intentId = $paymentIntent->getId();
         }
+
+        try {
+            /** @var StructPaymentIntent $paymentIntent */
+            $paymentIntent = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
+        } catch (Exception $e) {
+            throw new LocalizedException(__('Something went wrong while trying to capture the payment.'));
+        }
+
+        // capture in frontend element will run here too, but can not go inside
+        if (!$paymentIntent->isAuthorized()) {
+            return $this;
+        }
+
+        $this->cache->save(true, $this->captureCacheName($intentId), [], 3600);
+        $this->capture->setPaymentIntentId($intentId)->setInformation($paymentIntent->getAmount())->send();
         return $this;
     }
 
@@ -267,21 +297,21 @@ abstract class AbstractMethod extends Adapter
 
         $this->cache->save(true, $this->refundCacheName($intentId), [], 3600);
         try {
-            $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
-            $respArr = json_decode($resp, true);
+            /** @var StructPaymentIntent $paymentIntent */
+            $paymentIntent = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
             $record = $this->paymentIntentRepository->getByIntentId($intentId);
-            if ($credit->getOrderCurrencyCode() === $respArr['currency']) {
+            if ($credit->getOrderCurrencyCode() === $paymentIntent->getCurrency()) {
                 $refundAmount = $credit->getGrandTotal();
             } else {
                 $orderGrandTotal = $order->getGrandTotal();
-                if ($credit->getGrandTotal() === $order->getGrandTotal() && $credit->getOrderCurrencyCode === $order->getOrderCurrencyCode()) {
-                    $refundAmount = $respArr['amount'];
+                if ($credit->getGrandTotal() === $order->getGrandTotal() && $credit->getOrderCurrencyCode() === $order->getOrderCurrencyCode()) {
+                    $refundAmount = $paymentIntent->getAmount();
                 } else {
-                    $decimal = PaymentIntents::CURRENCY_TO_DECIMAL[$respArr['currency']] ?? 2;
-                    $refundAmount = round($credit->getGrandTotal() / $orderGrandTotal * $respArr['amount'], $decimal);
+                    $decimal = PaymentIntents::CURRENCY_TO_DECIMAL[$paymentIntent->getCurrency()] ?? 2;
+                    $refundAmount = round($credit->getGrandTotal() / $orderGrandTotal * $paymentIntent->getAmount(), $decimal);
                 }
             }
-            $this->processBankTransfer($respArr, $refundAmount);
+            $this->processBankTransfer($paymentIntent, $refundAmount);
             /** @var Creditmemo $credit */
             $res = $this->refund->setInformation($intentId, $refundAmount)->send();
 
@@ -299,12 +329,15 @@ abstract class AbstractMethod extends Adapter
         return $this;
     }
 
-    private function processBankTransfer(array $response, $refundAmount): void
+    /**
+     * @throws LocalizedException
+     */
+    private function processBankTransfer(StructPaymentIntent $paymentIntent, $refundAmount): void
     {
-        if ($response['currency'] === 'USD'
-            && !empty($response['latest_payment_attempt']['payment_method']['type'])
-            && $response['latest_payment_attempt']['payment_method']['type'] === 'bank_transfer') {
-            if ($response['amount'] - $refundAmount >= 0.01) {
+        if ($paymentIntent->getCurrency() === 'USD'
+            && !empty($paymentIntent->getLatestPaymentAttempt()['payment_method']['type'])
+            && $paymentIntent->getLatestPaymentAttempt()['payment_method']['type'] === 'bank_transfer') {
+            if ($paymentIntent->getAmount() - $refundAmount >= 0.01) {
                 throw new LocalizedException(__('Partial refunds are supported for USD, but only after additional bank account details are collected from the customer.
                     For more information, please refer to the following document: %1.', "https://www.airwallex.com/docs/payments__global__bank-transfer-beta#refunds"));
             }
@@ -355,14 +388,14 @@ abstract class AbstractMethod extends Adapter
 
     public function getConfigPaymentAction(): string
     {
-        $intent = $this->intentHelper->getIntent();
-        if (empty($intent) || empty($intent['status'])) {
+        $paymentIntent = $this->intentHelper->getIntent();
+        if (empty($paymentIntent->getStatus())) {
             return '';
         }
-        if ($intent['status'] ===  PaymentIntentInterface::INTENT_STATUS_SUCCEEDED) {
+        if ($paymentIntent->isCaptured()) {
             return MethodInterface::ACTION_AUTHORIZE_CAPTURE;
         }
-        if ($intent['status'] === PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE) {
+        if ($paymentIntent->isAuthorized()) {
             return MethodInterface::ACTION_AUTHORIZE;
         }
         return '';

@@ -1,0 +1,92 @@
+<?php
+
+use Magento\Framework\Escaper;
+use Magento\Framework\View\Element\AbstractBlock;
+
+/** @var AbstractBlock $block */
+/** @var Escaper $escaper */
+
+?>
+<script>
+    require([
+            'jquery'
+        ],
+        function (jQuery) {
+            window.addEventListener('load', function () {
+                const converts = {
+                    'alipay_cn': 'alipaycn',
+                    'alipay_hk': 'alipayhk',
+                    'kakao': 'kakaopay',
+                    'touch_n_go': 'tng',
+                };
+
+                async function getPaymentMethodTypeStatus(type) {
+                    const $body = jQuery('body');
+                    $body.trigger('processStart');
+
+                    try {
+                        return await jQuery.ajax({
+                            url: '<?= $escaper->escapeUrl($block->getUrl('airwallex/configuration/GetPaymentMethodTypeStatus')) ?>',
+                            method: 'POST',
+                            data: {method: type},
+                            dataType: 'json'
+                        });
+                    } catch (error) {
+                        return null;
+                    } finally {
+                        $body.trigger('processStop');
+                    }
+                }
+
+                function bindPaymentMethodActiveChange(selector, paymentMethod) {
+                    const warningContainerId = 'airwallex-' + paymentMethod + '-disabled';
+                    jQuery(selector).on('change', async function () {
+                        if (jQuery(this).val() === '1') {
+                            const requestPaymentMethod = converts[paymentMethod] || paymentMethod;
+                            const paymentMethodStatus = await getPaymentMethodTypeStatus(requestPaymentMethod);
+                            let $warningContainer = jQuery(this).parent().find('#' + warningContainerId);
+                            if (!$warningContainer.length) {
+                                $warningContainer = jQuery('<div/>', {
+                                    id: warningContainerId,
+                                    class: 'awx-payment-method-disabled'
+                                }).appendTo(jQuery(this).parent());
+                            }
+                            if (!paymentMethodStatus || paymentMethodStatus === 'inactive') {
+                                const paymentMethodName = jQuery(this).closest('fieldset').find('legend').first().text() || paymentMethod;
+                                let tip = `
+                                    <div style="color: #D91807; font-size: 12px; margin-top: 5px; font-weight: 400; display: flex;">
+                                        <img style="height: 12px; width: 40px; margin-top: 2px;" src="<?php echo $block->getViewFileUrl('Airwallex_Payments::img/warning.svg'); ?>" alt="Warning">
+                                        <span>
+                                            <?php
+                                                echo sprintf(
+                                                    __('%s is not activated for this account. Please go to <a href="%s" target="_blank" style="color: #D91807; font-weight: 600; text-decoration: underline;">Airwallex to activate %s</a> before trying again.'),
+                                                    '${paymentMethodName}',
+                                                    'https://demo.airwallex.com/app/acquiring/payment-methods/other-pms',
+                                                    '${paymentMethodName}'
+                                                );
+                                            ?>
+                                        </span>
+                                    </div>
+                                `;
+                                if (document.querySelector('[name="groups[airwallex_payments][groups][basic][fields][mode][value]"]').value === 'prod') {
+                                    tip = tip.replace('demo.airwallex', 'www.airwallex');
+                                }
+                                $warningContainer.html(tip);
+                                jQuery(this).val('0').trigger('change');
+                            }
+                        }
+                    });
+                }
+
+                jQuery('[name^="groups[airwallex_payments][groups][redirect][groups]"][name$="[fields][active][value]"]').each(function () {
+                    const match = jQuery(this).attr('name').match(/\[redirect\]\[groups\]\[(.*?)\]\[fields\]\[active\]/);
+                    if (match) {
+                        bindPaymentMethodActiveChange(this, match[1]);
+                    }
+                });
+
+                bindPaymentMethodActiveChange('[name="groups[airwallex_payments][groups][card][fields][active][value]"]', 'card');
+            });
+        }
+    );
+</script>

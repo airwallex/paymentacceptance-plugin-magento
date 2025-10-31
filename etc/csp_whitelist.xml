@@ -31,6 +31,8 @@
                 <value id="bws_airwallex_default" type="host">bws.airwallex.com</value>
                 <value id="api_demo_airwallex_default" type="host">api-demo.airwallex.com</value>
                 <value id="api_airwallex_default" type="host">api.airwallex.com</value>
+                <value id="o11y_demo_airwallex_default" type="host">o11y-demo.airwallex.com</value>
+                <value id="o11y_airwallex_default" type="host">o11y.airwallex.com</value>
                 <value id="signifyd-clear-png" type="host">imgs.signifyd.com</value>
                 <value id="airwallex" type="host">airwallex.com</value>
                 <value id="general_airwallex" type="host">*.airwallex.com</value>

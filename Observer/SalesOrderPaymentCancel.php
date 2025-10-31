@@ -2,10 +2,9 @@
 
 namespace Airwallex\Payments\Observer;
 
-use Airwallex\Payments\Api\Data\PaymentIntentInterface;
+use Airwallex\Payments\CommonLibraryInit;
 use Airwallex\Payments\Helper\CancelHelper;
-use Airwallex\Payments\Model\Client\Request\PaymentIntents\Cancel;
-use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Cancel as CancelPaymentIntent;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
@@ -17,7 +16,6 @@ use Airwallex\Payments\Model\PaymentIntentRepository;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
-use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
@@ -26,54 +24,56 @@ use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
 use Magento\Sales\Api\OrderManagementInterface;
 use Airwallex\Payments\Helper\IntentHelper;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Log as RemoteLog;
 
 class SalesOrderPaymentCancel implements ObserverInterface
 {
     use HelperTrait;
 
     protected PaymentIntentRepository $paymentIntentRepository;
-    protected ErrorLog $errorLog;
     protected CacheInterface $cache;
     protected CancelHelper $cancelHelper;
     protected CartRepositoryInterface $quoteRepository;
-    protected Cancel $cancel;
+    protected CancelPaymentIntent $cancelPaymentIntent;
     protected Logger $logger;
-    protected Get $intentGet;
     protected OrderFactory $orderFactory;
     protected OrderResourceInterface $orderResource;
     protected OrderManagementInterface $orderManagement;
     protected OrderRepositoryInterface $orderRepository;
     protected IntentHelper $intentHelper;
+    protected RetrievePaymentIntent $retrievePaymentIntent;
 
     public function __construct(
         PaymentIntentRepository  $paymentIntentRepository,
-        ErrorLog                 $errorLog,
         CacheInterface           $cache,
         CancelHelper             $cancelHelper,
         CartRepositoryInterface  $quoteRepository,
-        Cancel                   $cancel,
+        CancelPaymentIntent      $cancelPaymentIntent,
         Logger                   $logger,
-        Get                      $intentGet,
         OrderFactory             $orderFactory,
         OrderResourceInterface   $orderResource,
         OrderManagementInterface $orderManagement,
         OrderRepositoryInterface $orderRepository,
-        IntentHelper             $intentHelper
+        IntentHelper             $intentHelper,
+        RetrievePaymentIntent    $retrievePaymentIntent,
+        CommonLibraryInit        $commonLibraryInit
     )
     {
         $this->paymentIntentRepository = $paymentIntentRepository;
-        $this->errorLog = $errorLog;
         $this->cache = $cache;
         $this->cancelHelper = $cancelHelper;
         $this->quoteRepository = $quoteRepository;
-        $this->cancel = $cancel;
+        $this->cancelPaymentIntent = $cancelPaymentIntent;
         $this->logger = $logger;
-        $this->intentGet = $intentGet;
         $this->orderFactory = $orderFactory;
         $this->orderResource = $orderResource;
         $this->orderManagement = $orderManagement;
         $this->orderRepository = $orderRepository;
         $this->intentHelper = $intentHelper;
+        $this->retrievePaymentIntent = $retrievePaymentIntent;
+        $commonLibraryInit->exec();
     }
 
     /**
@@ -90,39 +90,34 @@ class SalesOrderPaymentCancel implements ObserverInterface
      */
     public function execute(Observer $observer): void
     {
-        $payment = $observer->getPayment();
         /** @var Order $order */
-        $order = $payment->getOrder();
+        $order = $observer->getPayment()->getOrder();
+        $paymentIntentFromDB = $this->paymentIntentRepository->getByOrderId($order->getId());
+        if (!$paymentIntentFromDB || $this->cancelHelper->isWebhookCanceling()) {
+            return;
+        }
+        /** @var StructPaymentIntent $paymentIntentFromApi */
+        $paymentIntentFromApi = $this->retrievePaymentIntent->setPaymentIntentId($paymentIntentFromDB->getIntentId())->send();
+        if ($paymentIntentFromApi->getStatus() === StructPaymentIntent::STATUS_CANCELLED) {
+            return;
+        }
+        if ($paymentIntentFromApi->isCaptured()) {
+            $quote = $this->quoteRepository->get($paymentIntentFromDB->getQuoteId());
+            $this->changeOrderStatus($paymentIntentFromApi, $paymentIntentFromDB->getOrderId(), $quote, __METHOD__);
+            $updatedOrder = $this->orderFactory->create();
+            $this->orderResource->load($updatedOrder, $order->getId());
+            $order->setPayment($updatedOrder->getPayment());
+            $order->setTotalPaid($order->getGrandTotal());
+            $order->setBaseTotalPaid($order->getBaseGrandTotal());
 
-        $paymentIntent = $this->paymentIntentRepository->getByOrderId($order->getId());
-        if (!$paymentIntent) return;
-        $intentId = $paymentIntent->getIntentId();
-        if ($this->cancelHelper->isWebhookCanceling()) {
+            $order->setState(Order::STATE_PROCESSING)->setStatus(Order::STATE_PROCESSING);
+            $order->setItems([]);
             return;
         }
         try {
-            $this->cancel->setPaymentIntentId($intentId)->send();
+            $this->cancelPaymentIntent->setPaymentIntentId($paymentIntentFromDB->getIntentId())->send();
         } catch (Exception $e) {
-            if (strstr($e->getMessage(), 'CANCELLED')) {
-                return;
-            }
-            $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
-            $intentResponse = json_decode($resp, true);
-
-            if (!empty($intentResponse['status']) && $intentResponse['status'] === PaymentIntentInterface::INTENT_STATUS_SUCCEEDED) {
-                $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
-                $this->changeOrderStatus($intentResponse, $paymentIntent->getOrderId(), $quote);
-                $updatedOrder = $this->orderFactory->create();
-                $this->orderResource->load($updatedOrder, $order->getId());
-                $order->setPayment($updatedOrder->getPayment());
-                $order->setTotalPaid($order->getGrandTotal());
-                $order->setBaseTotalPaid($order->getBaseGrandTotal());
-
-                $order->setState(Order::STATE_PROCESSING)->setStatus(Order::STATE_PROCESSING);
-                $order->setItems([]);
-            }
-            $this->logger->orderError($payment->getOrder(), 'cancel', $e->getMessage());
-            $this->errorLog->setMessage($e->getMessage(), $e->getTraceAsString(), $intentId)->send();
+            RemoteLog::error(__METHOD__ . $e->getMessage(), 'onApiRequestError');
         }
     }
 }

@@ -5,6 +5,7 @@ namespace Airwallex\Payments\Api;
 use Exception;
 use JsonException;
 use GuzzleHttp\Exception\GuzzleException;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\Account as StructAccount;
 
 interface ServiceInterface
 {
@@ -65,11 +66,11 @@ interface ServiceInterface
     /**
      * Account detail
      *
-     * @return string
+     * @return StructAccount
      * @throws GuzzleException
      * @throws JsonException
      */
-    public function account(): string;
+    public function account(): StructAccount;
 
     /**
      * Currency switcher

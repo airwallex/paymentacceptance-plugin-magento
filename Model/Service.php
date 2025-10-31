@@ -2,12 +2,10 @@
 
 namespace Airwallex\Payments\Model;
 
-use Airwallex\Payments\Api\Data\PaymentIntentInterface;
-use Airwallex\Payments\Api\Data\PlaceOrderResponseInterfaceFactory;
 use Airwallex\Payments\Api\ServiceInterface;
 use Airwallex\Payments\Helper\Configuration;
+use Airwallex\Payments\CommonLibraryInit;
 use Airwallex\Payments\Model\Client\Request\ApplePayValidateMerchant;
-use Airwallex\Payments\Model\Client\Request\CurrencySwitcher;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
@@ -33,11 +31,9 @@ use Magento\Quote\Api\ShipmentEstimationInterface;
 use Magento\Checkout\Api\ShippingInformationManagementInterface;
 use Magento\Checkout\Api\Data\ShippingInformationInterfaceFactory;
 use Airwallex\Payments\Model\Ui\ConfigProvider;
-use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Magento\Framework\Exception\InputException;
 use Magento\Quote\Model\ValidationRules\ShippingAddressValidationRule;
 use Magento\Quote\Model\ValidationRules\BillingAddressValidationRule;
-use Airwallex\Payments\Model\Client\Request\Log as ErrorLog;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\CheckoutAgreements\Model\AgreementsConfigProvider;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
@@ -49,6 +45,10 @@ use Magento\Framework\App\CacheInterface;
 use Magento\Framework\App\Cache\Manager;
 use Magento\Framework\App\Config\Storage\Writer;
 use Magento\Framework\App\Filesystem\DirectoryList;
+use Psr\Log\LoggerInterface;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Log as RemoteLog;
 
 class Service implements ServiceInterface
 {
@@ -61,7 +61,6 @@ class Service implements ServiceInterface
     protected RequestInterface $request;
     protected ProductRepositoryInterface $productRepository;
     private SerializerInterface $serializer;
-    protected Get $intentGet;
     private LocalizedToNormalized $localizedToNormalized;
     private Resolver $localeResolver;
     private CartRepositoryInterface $quoteRepository;
@@ -75,7 +74,6 @@ class Service implements ServiceInterface
     private ApplePayValidateMerchant $validateMerchant;
     private ShippingAddressValidationRule $shippingAddressValidationRule;
     private BillingAddressValidationRule $billingAddressValidationRule;
-    protected ErrorLog $errorLog;
     protected AgreementsConfigProvider $agreementsConfigProvider;
     protected PaymentIntentRepository $paymentIntentRepository;
     protected OrderResourceInterface $orderResource;
@@ -87,7 +85,8 @@ class Service implements ServiceInterface
     protected CacheInterface $cache;
     protected Manager $cacheManager;
     protected Writer $configWriter;
-    protected CurrencySwitcher $currencySwitcher;
+    protected LoggerInterface $logger;
+    protected RetrievePaymentIntent $retrievePaymentIntent;
 
     /**
      * Index constructor.
@@ -99,7 +98,6 @@ class Service implements ServiceInterface
      * @param RequestInterface $request
      * @param ProductRepositoryInterface $productRepository
      * @param SerializerInterface $serializer
-     * @param Get $intentGet
      * @param LocalizedToNormalized $localizedToNormalized
      * @param Resolver $localeResolver
      * @param CartRepositoryInterface $quoteRepository
@@ -113,7 +111,6 @@ class Service implements ServiceInterface
      * @param ApplePayValidateMerchant $validateMerchant
      * @param ShippingAddressValidationRule $shippingAddressValidationRule
      * @param BillingAddressValidationRule $billingAddressValidationRule
-     * @param ErrorLog $errorLog
      * @param AgreementsConfigProvider $agreementsConfigProvider
      * @param PaymentIntentRepository $paymentIntentRepository
      * @param OrderResourceInterface $orderResource
@@ -125,7 +122,9 @@ class Service implements ServiceInterface
      * @param CacheInterface $cache
      * @param Manager $cacheManager
      * @param Writer $configWriter
-     * @param CurrencySwitcher $currencySwitcher
+     * @param CommonLibraryInit $commonLibraryInit
+     * @param LoggerInterface $logger
+     * @param RetrievePaymentIntent $retrievePaymentIntent
      */
     public function __construct(
         Configuration                          $configuration,
@@ -135,7 +134,6 @@ class Service implements ServiceInterface
         RequestInterface                       $request,
         ProductRepositoryInterface             $productRepository,
         SerializerInterface                    $serializer,
-        Get                                    $intentGet,
         LocalizedToNormalized                  $localizedToNormalized,
         Resolver                               $localeResolver,
         CartRepositoryInterface                $quoteRepository,
@@ -149,7 +147,6 @@ class Service implements ServiceInterface
         ApplePayValidateMerchant               $validateMerchant,
         ShippingAddressValidationRule          $shippingAddressValidationRule,
         BillingAddressValidationRule           $billingAddressValidationRule,
-        ErrorLog                               $errorLog,
         AgreementsConfigProvider               $agreementsConfigProvider,
         PaymentIntentRepository                $paymentIntentRepository,
         OrderResourceInterface                 $orderResource,
@@ -161,7 +158,9 @@ class Service implements ServiceInterface
         CacheInterface                         $cache,
         Manager                                $cacheManager,
         Writer                                 $configWriter,
-        CurrencySwitcher                       $currencySwitcher
+        CommonLibraryInit                      $commonLibraryInit,
+        LoggerInterface                        $logger,
+        RetrievePaymentIntent                  $retrievePaymentIntent
     )
     {
         $this->configuration = $configuration;
@@ -171,7 +170,6 @@ class Service implements ServiceInterface
         $this->request = $request;
         $this->productRepository = $productRepository;
         $this->serializer = $serializer;
-        $this->intentGet = $intentGet;
         $this->localizedToNormalized = $localizedToNormalized;
         $this->localeResolver = $localeResolver;
         $this->quoteRepository = $quoteRepository;
@@ -185,7 +183,6 @@ class Service implements ServiceInterface
         $this->validateMerchant = $validateMerchant;
         $this->shippingAddressValidationRule = $shippingAddressValidationRule;
         $this->billingAddressValidationRule = $billingAddressValidationRule;
-        $this->errorLog = $errorLog;
         $this->agreementsConfigProvider = $agreementsConfigProvider;
         $this->paymentIntentRepository = $paymentIntentRepository;
         $this->orderResource = $orderResource;
@@ -197,7 +194,9 @@ class Service implements ServiceInterface
         $this->cache = $cache;
         $this->cacheManager = $cacheManager;
         $this->configWriter = $configWriter;
-        $this->currencySwitcher = $currencySwitcher;
+        $this->logger = $logger;
+        $this->retrievePaymentIntent = $retrievePaymentIntent;
+        $commonLibraryInit->exec();
     }
 
     /**
@@ -242,43 +241,50 @@ class Service implements ServiceInterface
      * @throws GuzzleException
      * @throws InputException
      * @throws NoSuchEntityException
+     * @throws JsonException
      */
     public function intent(string $intentId): string
     {
         $data = [
             'paid' => false,
-            'is_order_status_changed' => false,
+            'is_order_handled_success' => false,
         ];
         try {
-            $resp = $this->intentGet->setPaymentIntentId($intentId)->send();
-            $respArr = json_decode($resp, true);
-            $paidStatus = [
-                PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE,
-                PaymentIntentInterface::INTENT_STATUS_SUCCEEDED,
-            ];
-            $data['paid'] = in_array($respArr['status'], $paidStatus, true);
+            /** @var StructPaymentIntent $paymentIntentFromApi */
+            $paymentIntentFromApi = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
+            $data['paid'] = $paymentIntentFromApi->isAuthorized() || $paymentIntentFromApi->isCaptured();
         } catch (Exception $e) {
+            $this->logger->error(__METHOD__ . ': ' . $e->getMessage());
+            return json_encode($data);
         }
         if (!$data['paid'] ) {
             return json_encode($data);
         }
         $intentRecord = $this->paymentIntentRepository->getByIntentId($intentId);
-        $order = $this->orderFactory->create();
+        $quote = $this->quoteRepository->get($intentRecord->getQuoteId());
+        if ($quote && $quote->getId()) {
+            try {
+                if ($this->configuration->isOrderBeforePayment()) {
+                    $this->changeOrderStatus($paymentIntentFromApi, $intentRecord->getOrderId(), $quote, __METHOD__);
+                } else {
+                    $this->placeOrder($quote->getPayment(), $paymentIntentFromApi, $quote, __METHOD__);
+                }
+            } catch (Exception $e) {
+                RemoteLog::error(__METHOD__ . ': ' . $e->getMessage(), 'onOrderConfirmationError');
+                $this->logger->error(__METHOD__ . ': ' . $e->getMessage());
+            }
+        }
+
+        $intentRecord = $this->paymentIntentRepository->getByIntentId($intentId);
         try {
-            $this->orderResource->load($order, $intentRecord->getOrderId());
-        } catch (Exception $e) {}
-        if (empty($order) || empty($order->getId())) {
-            return json_encode($data);
+            $order = $this->getFreshOrder($intentRecord->getOrderId());
+        } catch (Exception $e) {
+            $this->logger->error(__METHOD__ . ': ' . $e->getMessage());
         }
-        $quoteId = $intentRecord->getQuoteId();
-        if ($order->getStatus() !== Order::STATE_PENDING_PAYMENT && !$this->configuration->isOrderBeforePayment()) {
-            $this->checkoutHelper->getCheckout()->setLastQuoteId($quoteId);
-            $this->checkoutHelper->getCheckout()->setLastSuccessQuoteId($quoteId);
-            $this->checkoutHelper->getCheckout()->setLastOrderId($order->getId());
-            $this->checkoutHelper->getCheckout()->setLastRealOrderId($order->getIncrementId());
-            $this->checkoutHelper->getCheckout()->setLastOrderStatus($order->getStatus());
+        if (!empty($order) && $order->getId() && $order->getStatus() !== Order::STATE_PENDING_PAYMENT && !$this->configuration->isOrderBeforePayment()) {
+            $this->setCheckoutSuccess($intentRecord->getQuoteId(), $order);
         }
-        $data['is_order_status_changed'] = $order->getStatus() !== Order::STATE_PENDING_PAYMENT;
+        $data['is_order_handled_success'] = !empty($order) && $order->getStatus() !== Order::STATE_PENDING_PAYMENT;
         return json_encode($data);
     }
 
@@ -441,7 +447,7 @@ class Service implements ServiceInterface
                 'mask_cart_id' => $maskCartId,
             ]);
         } catch (Exception $e) {
-            $this->errorLog->setMessage($e->getMessage(), $e->getTraceAsString())->send();
+            RemoteLog::error(__METHOD__ . ': ' . $e->getMessage(), 'onAddToCartError');
             throw new CouldNotSaveException(__($e->getMessage()), $e);
         }
     }

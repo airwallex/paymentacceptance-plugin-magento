@@ -15,7 +15,7 @@
                         return;
                     }
                     jQuery('body').trigger('processStart');
-                    new Ajax.Request('<?= $block->escapeJs($block->getUrl('airwallex/configuration/PayEnable')) ?>', {
+                    new Ajax.Request('<?= $block->escapeJs($block->getUrl('airwallex/configuration/EnableExpressCheckout')) ?>', {
                         parameters: {"methods": type + '_pay'},
                         type: "POST",
                         loaderArea:     false,

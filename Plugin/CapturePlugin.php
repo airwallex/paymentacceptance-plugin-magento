@@ -2,11 +2,11 @@
 
 namespace Airwallex\Payments\Plugin;
 
-use Airwallex\Payments\Api\Data\PaymentIntentInterface;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Helper\IntentHelper;
 use Airwallex\Payments\Helper\IsOrderCreatedHelper;
-use Airwallex\Payments\Model\Client\Request\PaymentIntents\Get;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Exception;
@@ -54,19 +54,19 @@ class CapturePlugin
             return;
         }
 
-        $response = ObjectManager::getInstance()->get(Get::class)->setPaymentIntentId($record->getIntentId())->send();
-        $intent = json_decode($response, true);
+        /** @var StructPaymentIntent $paymentIntent */
+        $paymentIntent = ObjectManager::getInstance()->get(RetrievePaymentIntent::class)->setPaymentIntentId($record->getIntentId())->send();
 
         try {
-            $this->checkIntent($intent, $order);
+            $this->checkIntent($paymentIntent, $order);
         } catch (Exception $e) {
             throw new LocalizedException(__($e->getMessage()));
         }
 
         ObjectManager::getInstance()->get(IsOrderCreatedHelper::class)->setIsCreated(true);
-        ObjectManager::getInstance()->get(IntentHelper::class)->setIntent($intent);
+        ObjectManager::getInstance()->get(IntentHelper::class)->setIntent($paymentIntent);
 
-        if ($intent['status'] === PaymentIntentInterface::INTENT_STATUS_REQUIRES_CAPTURE) {
+        if ($paymentIntent->isAuthorized()) {
             $order->place();
             ObjectManager::getInstance()->get(OrderRepository::class)->save($order);
             $quoteRepository = ObjectManager::getInstance()->get(QuoteRepository::class);
@@ -74,7 +74,7 @@ class CapturePlugin
             $this->deactivateQuote($quote);
         }
 
-        if ($intent['status'] === PaymentIntentInterface::INTENT_STATUS_SUCCEEDED) return;
+        if ($paymentIntent->isCaptured()) return;
         if (empty($payment->getAmountAuthorized()) or $payment->getAmountAuthorized() < 0) {
             throw new LocalizedException(__('Authorized amount must be greater than 0.'));
         }

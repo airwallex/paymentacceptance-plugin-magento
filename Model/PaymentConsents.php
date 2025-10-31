@@ -14,10 +14,8 @@ use Magento\Customer\Api\CustomerRepositoryInterface;
 use Magento\Customer\Api\Data\CustomerInterface;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\App\ObjectManager;
-use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
-use Magento\Framework\Exception\State\InputMismatchException;
 use Magento\Eav\Setup\EavSetupFactory;
 use Exception;
 use Magento\Customer\Model\Customer;
@@ -37,7 +35,7 @@ use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Customer\Model\CustomerFactory;
 use Magento\Customer\Model\ResourceModel\Customer as CustomerResource;
 use Magento\Framework\Indexer\IndexerRegistry;
-use Airwallex\Payments\Model\Client\Request\Log as RemoteLog;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Log as RemoteLog;
 
 class PaymentConsents implements PaymentConsentsInterface
 {
@@ -65,7 +63,6 @@ class PaymentConsents implements PaymentConsentsInterface
     protected CustomerFactory $customerFactory;
     protected CustomerResource $customerResource;
     protected IndexerRegistry $indexerRegistry;
-    protected RemoteLog $remoteLog;
 
     public function __construct(
         CreateCustomer                       $createCustomer,
@@ -86,8 +83,7 @@ class PaymentConsents implements PaymentConsentsInterface
         SearchCriteriaBuilder                $searchCriteriaBuilder,
         CustomerFactory                      $customerFactory,
         CustomerResource                     $customerResource,
-        IndexerRegistry                      $indexerRegistry,
-        RemoteLog                            $remoteLog
+        IndexerRegistry                      $indexerRegistry
     )
     {
         $this->createCustomer = $createCustomer;
@@ -109,7 +105,6 @@ class PaymentConsents implements PaymentConsentsInterface
         $this->customerFactory = $customerFactory;
         $this->customerResource = $customerResource;
         $this->indexerRegistry = $indexerRegistry;
-        $this->remoteLog = $remoteLog;
     }
 
     /**
@@ -161,7 +156,7 @@ class PaymentConsents implements PaymentConsentsInterface
             $this->updateCustomerId($customer, $airwallexCustomerId);
             return $airwallexCustomerId;
         } catch (Exception $e) {
-            $this->remoteLog->setMessage($e->getMessage(), $e->getTraceAsString(), $customer->getId())->send();
+            RemoteLog::error("Create Airwallex Customer failed {$customer->getId()}: " . $e->getMessage(), 'onCreateAirwallexCustomerError');
             return '';
         }
     }
@@ -217,11 +212,9 @@ class PaymentConsents implements PaymentConsentsInterface
     }
 
     /**
-     * @param CustomerInterface $customer
+     * @param CustomerInterface $customerData
      * @param string $airwallexCustomerId
-     * @throws InputMismatchException
-     * @throws InputException
-     * @throws LocalizedException
+     * @throws Exception
      */
     protected function updateCustomerId(CustomerInterface $customerData, string $airwallexCustomerId)
     {

@@ -322,6 +322,7 @@
     background: rgba(255, 239, 239, 1);
     display: flex;
     padding: 12px 16px;
+    margin-top: 10px;
 }
 
 .awx-alert .icon {
@@ -363,7 +364,7 @@
     z-index: 500;
 }
 
-.awx-afterpay-countries {
+.awx-selector-container {
     width: 328px;
     position: relative;
 }
@@ -383,14 +384,14 @@
     margin-right: 20px;
 }
 
-.awx-afterpay-countries {
+.awx-selector-container {
     border-color: rgba(232, 234, 237, 1);
     z-index: 99;
     background-color: white;
     margin-bottom: 15px;
 }
 
-.awx-afterpay-countries input {
+.awx-selector-container input {
     height: 40px;
     padding: 8px 16px 8px 16px;
     border-radius: 5px;
@@ -399,34 +400,34 @@
     border: 1px solid rgba(232, 234, 237, 1);
 }
 
-.awx-afterpay-countries input::placeholder {
+.awx-selector-container input::placeholder {
     color: rgba(135, 142, 153, 1);
 }
 
-.awx-afterpay-countries input:focus {
+.awx-selector-container input:focus {
     outline: none;
     border: 1px solid #612fff;
     box-shadow: #612fff 0 0 0 1px;
 }
 
-.awx-afterpay-countries ul {
+.awx-selector-container ul {
     padding-inline-start: 0;
     padding-right: 13px;
 }
 
-.awx-afterpay-countries li {
+.awx-selector-container li {
     list-style: none;
     padding: 10px 8px;
     margin: 12px 8px;
     border-radius: 5px;
 }
 
-.awx-afterpay-countries li:hover {
+.awx-selector-container li:hover {
     color: #622ef7;
     background: #f0effe;
 }
 
-.awx-afterpay-countries .countries {
+.awx-selector-container .countries {
     border: 1px solid rgba(232, 234, 237, 1);
     box-shadow: 0 2px 16px 0 rgba(0, 0, 0, 0.12);
     border-radius: 5px;
@@ -437,7 +438,7 @@
     background: white;
 }
 
-.awx-afterpay-countries li.selected {
+.awx-selector-container li.selected {
     background-image: url(data:image/svg+xml;utf8,%3Csvg%20width%3D%2212%22%20height%3D%2210%22%20viewBox%3D%220%200%2012%2010%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20clip-rule%3D%22evenodd%22%20d%3D%22M2.99529%208.98128L0.520413%206.50641C0.032258%206.01825%200.032258%205.2268%200.520413%204.73864C1.00857%204.25048%201.80002%204.25048%202.28818%204.73864L3.87917%206.32963L9.7128%200.495999C10.201%200.00784397%2010.9924%200.00784397%2011.4806%200.495999C11.9687%200.984155%2011.9687%201.77561%2011.4806%202.26377L4.76305%208.98128C4.2749%209.46944%203.48344%209.46944%202.99529%208.98128Z%22%20fill%3D%22%2368707A%22%2F%3E%3C%2Fsvg%3E);
     background-size: 12px;
     background-repeat: no-repeat;
