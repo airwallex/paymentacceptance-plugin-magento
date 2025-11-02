@@ -2,6 +2,7 @@
 
 namespace Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\Customer;
 
+use Airwallex\PayappsPlugin\CommonLibrary\Configuration\Init;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\Customer;
 use Exception;
@@ -24,7 +25,7 @@ class Create extends AbstractApi
      */
     public function setCustomerId($platformUserId): Create
     {
-        $platform = $_ENV['PLUGIN_TYPE'] ?? '';
+        $platform = Init::getInstance()->get('plugin_type', '');
         $merchantCustomerId = substr(bin2hex(random_bytes(10)), 0, 20);
         return $this->setParam('merchant_customer_id', $platform . '-' . $platformUserId . '-' . $merchantCustomerId);
     }

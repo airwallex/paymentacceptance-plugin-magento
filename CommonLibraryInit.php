@@ -37,6 +37,6 @@ class CommonLibraryInit
             'platform_version' => $this->productMetadata->getVersion(),
         ]);
 
-        CacheManager::setInstance(new CacheService($this->configuration->getClientId()));
+        CacheManager::setInstance(new CacheService());
     }
 }

@@ -208,6 +208,7 @@ define([
             });
 
             quote.paymentMethod.subscribe((newValue) => {
+                this.hideYouPay();
                 this.renderPayment(newValue, 'paymentMethod');
             });
 

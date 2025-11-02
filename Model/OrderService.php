@@ -516,7 +516,7 @@ class OrderService implements OrderServiceInterface
         $currentPaymentMethodCode = $paymentMethod->getMethod();
         $cacheName = $currentPaymentMethodCode . '-qrcode-' . $intent->getId();
         if (!empty($_SERVER['HTTP_USER_AGENT'])) {
-            $cacheName .= '-' . md5($_SERVER['HTTP_USER_AGENT']);
+            $cacheName .= '-' . hash('sha256', $_SERVER['HTTP_USER_AGENT']);
         }
         try {
             $currencySwitcherData = $this->switchCurrency($intent, $paymentMethod, $address);

@@ -13,7 +13,8 @@
     "autoload": {
         "files": [ "registration.php" ],
         "psr-4": {
-            "Airwallex\\Payments\\": ""
+            "Airwallex\\Payments\\": "",
+            "Airwallex\\PayappsPlugin\\CommonLibrary\\": "payapps-plugin-php-common-lib/"
         }
     },
     "archive": {

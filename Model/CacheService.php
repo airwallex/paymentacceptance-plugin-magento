@@ -3,13 +3,11 @@
 namespace Airwallex\Payments\Model;
 
 use Airwallex\PayappsPlugin\CommonLibrary\Cache\CacheInterface;
+use Airwallex\Payments\Helper\Configuration;
 use Magento\Framework\App\CacheInterface as MagentoCacheInterface;
 use Magento\Framework\App\ObjectManager;
 
 class CacheService implements CacheInterface {
-
-    const PREFIX = 'awx_';
-
     /**
      * Prefix of the cache key
      *
@@ -19,14 +17,11 @@ class CacheService implements CacheInterface {
 
     private $cache;
 
-    /**
-     * Set the prefix according to the salt provided
-     *
-     * @param string $salt
-     */
-    public function __construct( $salt = '' ) {
-        $this->prefix = self::PREFIX . ( $salt ? md5( $salt ) : '' ) . '_';
+    public function __construct() {
         $this->cache = ObjectManager::getInstance()->get(MagentoCacheInterface::class);
+        /** @var Configuration $configuration */
+        $configuration = ObjectManager::getInstance()->get(Configuration::class);
+        $this->prefix = 'awx_' . hash('sha256', $configuration->getClientId() . '-' . $configuration->getApiKey()) . '_';
     }
 
     /**
@@ -38,10 +33,25 @@ class CacheService implements CacheInterface {
      * @return bool
      */
     public function set(string $key, $value, int $maxAge = 7200 ): bool {
-        if ( !is_string( $value ) ) {
-            $value = '__SERIALIZED__' . serialize( $value );
+        $normalize = function ($item) {
+            return [
+                'raw_data'   => (is_object($item) && method_exists($item, 'getRawData')) ? $item->getRawData() : $item,
+                'class_type' => (is_object($item) && method_exists($item, 'getClassType')) ? $item->getClassType() : "",
+            ];
+        };
+
+        if (is_array($value) && !empty($value) && is_object($value[0])) {
+            $value = array_map($normalize, $value);
+        } else {
+            $value = $normalize($value);
         }
-        return $this->cache->save($value, $this->prefix . $key, [], $maxAge);
+
+        $jsonData = json_encode($value, JSON_UNESCAPED_UNICODE);
+        if ($jsonData === false) {
+            return false;
+        }
+
+        return $this->cache->save($jsonData, $this->prefix . $key, [], $maxAge);
     }
 
     /**
@@ -52,10 +62,44 @@ class CacheService implements CacheInterface {
      */
     public function get(string $key ) {
         $value = $this->cache->load($this->prefix . $key);
-        if (is_string($value) && strpos($value, '__SERIALIZED__') === 0) {
-            return unserialize(substr($value, 14));
+        if (empty($value)) {
+            return null;
         }
-        return $value;
+        $data = json_decode($value, true);
+        if ($data === null) {
+            return null;
+        }
+        if (isset($data[0]) && is_array($data[0]) && array_key_exists('raw_data', $data[0])) {
+            $result = [];
+            foreach ($data as $item) {
+                $classType = $item['class_type'] ?? '';
+                $rawData   = $item['raw_data'] ?? null;
+
+                if (empty($classType) || !class_exists($classType)) {
+                    $result[] = $rawData;
+                    continue;
+                }
+
+                $result[] = new $classType(
+                    is_string($rawData) ? json_decode($rawData, true) : (array)$rawData
+                );
+            }
+            return $result;
+        }
+        $classType = $data['class_type'] ?? '';
+        $rawData   = $data['raw_data'] ?? null;
+
+        if (empty($classType)) {
+            return $rawData;
+        }
+
+        if (!class_exists($classType)) {
+            return null;
+        }
+
+        return new $classType(
+            is_string($rawData) ? json_decode($rawData, true) : (array)$rawData
+        );
     }
 
     /**
