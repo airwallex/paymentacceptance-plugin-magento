@@ -55,16 +55,20 @@ use Magento\Framework\View\Element\AbstractBlock;
                                 const paymentMethodName = jQuery(this).closest('fieldset').find('legend').first().text() || paymentMethod;
                                 let tip = `
                                     <div style="color: #D91807; font-size: 12px; margin-top: 5px; font-weight: 400; display: flex;">
-                                        <img style="height: 12px; width: 40px; margin-top: 2px;" src="<?php echo $block->getViewFileUrl('Airwallex_Payments::img/warning.svg'); ?>" alt="Warning">
+                                        <img style="height: 12px; width: 40px; margin-top: 2px;" src="<?php echo $block->escapeHtml($block->getViewFileUrl('Airwallex_Payments::img/warning.svg')); ?>" alt="Warning">
                                         <span>
                                             <?php
-                                                echo sprintf(
-                                                    __('%s is not activated for this account. Please go to <a href="%s" target="_blank" style="color: #D91807; font-weight: 600; text-decoration: underline;">Airwallex to activate %s</a> before trying again.'),
+                                            echo $block->escapeHtml(
+                                                sprintf(
+                                                    '%s is not activated for this account. Please go to <a href="%s" target="_blank" class="awx-deactivate-link">Airwallex to activate %s</a> before trying again.',
                                                     '${paymentMethodName}',
                                                     'https://demo.airwallex.com/app/acquiring/payment-methods/other-pms',
-                                                    '${paymentMethodName}'
-                                                );
+                                                    '${paymentMethodName}',
+                                                ),
+                                                ['a']
+                                            );
                                             ?>
+
                                         </span>
                                     </div>
                                 `;
