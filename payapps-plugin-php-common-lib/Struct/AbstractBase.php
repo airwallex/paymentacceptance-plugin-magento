@@ -53,8 +53,6 @@ abstract class AbstractBase
     }
 
     /**
-     * Sets the raw input data.
-     *
      * @param string $rawType
      * @return $this
      */

@@ -58,17 +58,16 @@ use Magento\Framework\View\Element\AbstractBlock;
                                         <img style="height: 12px; width: 40px; margin-top: 2px;" src="<?php echo $block->escapeHtml($block->getViewFileUrl('Airwallex_Payments::img/warning.svg')); ?>" alt="Warning">
                                         <span>
                                             <?php
-                                            echo $block->escapeHtml(
-                                                sprintf(
-                                                    '%s is not activated for this account. Please go to <a href="%s" target="_blank" class="awx-deactivate-link">Airwallex to activate %s</a> before trying again.',
-                                                    '${paymentMethodName}',
-                                                    'https://demo.airwallex.com/app/acquiring/payment-methods/other-pms',
-                                                    '${paymentMethodName}',
-                                                ),
-                                                ['a']
-                                            );
+                                                echo $block->escapeHtml(
+                                                    sprintf(
+                                                        '%s is not activated for this account. Please go to <a href="%s" target="_blank" class="awx-deactivate-link">Airwallex to activate %s</a> before trying again.',
+                                                        '${paymentMethodName}',
+                                                        'https://demo.airwallex.com/app/acquiring/payment-methods/other-pms',
+                                                        '${paymentMethodName}',
+                                                    ),
+                                                    ['a']
+                                                );
                                             ?>
-
                                         </span>
                                     </div>
                                 `;
