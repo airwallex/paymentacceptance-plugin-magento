@@ -2,11 +2,10 @@
 
 namespace Airwallex\Payments\Helper;
 
-use Airwallex\Payments\Model\Client\Request\AvailablePaymentMethods;
-use Airwallex\Payments\Model\Methods\AbstractMethod;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentMethodType;
+use Airwallex\PayappsPlugin\CommonLibrary\UseCase\PaymentMethodType\GetList as GetPaymentMethodTypeList;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Exception;
-use GuzzleHttp\Exception\GuzzleException;
 use Magento\Framework\App\CacheInterface;
 use Magento\Checkout\Helper\Data as CheckoutData;
 
@@ -17,9 +16,9 @@ class AvailablePaymentMethodsHelper
     private const CACHE_NAME = 'airwallex_payment_methods';
     private const CACHE_TIME = 60;
     /**
-     * @var AvailablePaymentMethods
+     * @var GetPaymentMethodTypeList
      */
-    private AvailablePaymentMethods $availablePaymentMethod;
+    private GetPaymentMethodTypeList $getPaymentMethodTypeList;
 
     /**
      * @var CacheInterface
@@ -44,19 +43,19 @@ class AvailablePaymentMethodsHelper
     /**
      * AvailablePaymentMethodsHelper constructor.
      *
-     * @param AvailablePaymentMethods $availablePaymentMethod
+     * @param GetPaymentMethodTypeList $getPaymentMethodTypeList
      * @param CacheInterface $cache
      * @param Configuration $configuration
      * @param CheckoutData $checkoutHelper
      */
     public function __construct(
-        AvailablePaymentMethods $availablePaymentMethod,
-        CacheInterface          $cache,
-        Configuration           $configuration,
-        CheckoutData            $checkoutHelper
+        GetPaymentMethodTypeList $getPaymentMethodTypeList,
+        CacheInterface           $cache,
+        Configuration            $configuration,
+        CheckoutData             $checkoutHelper
     )
     {
-        $this->availablePaymentMethod = $availablePaymentMethod;
+        $this->getPaymentMethodTypeList = $getPaymentMethodTypeList;
         $this->cache = $cache;
         $this->configuration = $configuration;
         $this->checkoutHelper = $checkoutHelper;
@@ -74,7 +73,7 @@ class AvailablePaymentMethodsHelper
      * @param string $code
      *
      * @return bool
-     * @throws GuzzleException
+     * @throws Exception
      */
     public function isAvailable(string $code): bool
     {
@@ -83,86 +82,76 @@ class AvailablePaymentMethodsHelper
             $code = 'card';
         }
         if ($code === 'express') {
-            return $this->canInitialize() && !!array_intersect($this->methodsInExpress, $this->getAllMethods());
+            return $this->canInitialize() && !!array_intersect($this->methodsInExpress, $this->getAllPaymentMethodTypeNames());
         }
         if ($code === 'bank_transfer' && !$this->configuration->isMethodActive('bank_transfer')) {
             return false;
         }
-        return $this->canInitialize() && in_array($code, $this->getAllMethods(), true);
-    }
-
-    /**
-     * @return mixed
-     * @throws GuzzleException
-     */
-    private function getItems($useQuote = true)
-    {
-        $cacheName = $this->getCacheName();
-        $items = $this->cache->load($cacheName);
-        if ($items) return json_decode($items, true);
-
-        $resp = $this->getLatestItems($useQuote);
-        $this->cache->save(json_encode($resp), $cacheName, AbstractMethod::CACHE_TAGS, self::CACHE_TIME);
-        return $resp;
-    }
-
-    /**
-     * @throws GuzzleException
-     */
-    public function getLatestItems($useQuote = true)
-    {
-        $currency = $useQuote ? $this->getCurrencyCode() : '';
-        $cacheName = "awx_available_payment_method_" . $currency;
-        if ($data = $this->cache->load($cacheName)) {
-            return json_decode($data, true);
-        }
-        $request = $this->availablePaymentMethod
-            ->setResources()
-            ->setActive()
-            ->setTransactionMode(AvailablePaymentMethods::TRANSACTION_MODE);
-        if ($useQuote) {
-            $request = $request->setCurrency($this->getCurrencyCode());
-        } else {
-            $request = $request->removeCurrency();
-        }
-        try {
-            $data = $request->send();
-            $this->cache->save(json_encode($data), $cacheName, [], 300);
-            return $data;
-        } catch (Exception $e) {
-            return [];
-        }
+        return $this->canInitialize() && in_array($code, $this->getAllPaymentMethodTypeNames(), true);
     }
 
     /**
      * @return array
-     * @throws GuzzleException
+     * @throws Exception
      */
-    private function getAllMethods(): array
+    private function getAllPaymentMethodTypeNames(): array
     {
-        $items = $this->getItems(false);
+        $paymentMethodTypes = $this->getAllPaymentMethodTypes();
         $methods = [];
-        foreach ($items as $item) {
-            if (!empty($item['name'])) $methods[] = $item['name'];
+        /** @var PaymentMethodType $paymentMethodType */
+        foreach ($paymentMethodTypes as $paymentMethodType) {
+            if (!empty($paymentMethodType->getName())) $methods[] = $paymentMethodType->getName();
         }
         return $methods;
     }
 
-    /**
-     * @return array
-     * @throws GuzzleException
-     */
-    public function getAllPaymentMethodTypes(): array
+    public function getCardLogos(): array
     {
-        return $this->getItems(false);
+        $cacheName = 'awxCardLogos';
+        $cardLogos = $this->cache->load($cacheName);
+        if (!empty($cardLogos)) {
+            $logos = json_decode($cardLogos, true);
+            if (!empty($logos)) {
+                return $logos;
+            }
+        }
+        $logos = [];
+        try {
+            $paymentMethodTypes = $this->getAllPaymentMethodTypes();
+            /** @var PaymentMethodType $paymentMethodType */
+            foreach ($paymentMethodTypes as $paymentMethodType) {
+                if ($paymentMethodType->getName() === 'card') {
+                    $cardSchemes = $paymentMethodType->getCardSchemes();
+                    foreach ($cardSchemes as $cardScheme) {
+                        $logos[$cardScheme['name']] = $cardScheme['resources']['logos']['png'] ?? '';
+                    }
+                    break;
+                }
+            }
+        } catch (Exception $e) {
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
+        }
+        $this->cache->save(json_encode($logos), $cacheName, [], 3600);
+        return $logos;
     }
 
     /**
-     * @return string
+     * @throws Exception
      */
-    private function getCacheName(): string
+    public function getAllPaymentMethodTypes(): array
     {
-        return self::CACHE_NAME . $this->getCurrencyCode();
+        try {
+            return $this->getPaymentMethodTypeList
+                ->setActive(true)
+                ->setCacheTime(60)
+                ->setTransactionCurrency('')
+                ->setIncludeResources(true)
+                ->setTransactionMode(PaymentMethodType::PAYMENT_METHOD_TYPE_ONE_OFF)
+                ->get();
+        } catch (Exception $e) {
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
+            return [];
+        }
     }
 
     /**

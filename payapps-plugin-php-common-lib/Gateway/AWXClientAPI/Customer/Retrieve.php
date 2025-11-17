@@ -7,6 +7,12 @@ use Airwallex\PayappsPlugin\CommonLibrary\Struct\Customer;
 
 class Retrieve extends AbstractApi
 {
+    const ERROR_VALIDATION_ERROR = 'validation_error';
+    const ERROR_UNAUTHORIZED = 'unauthorized';
+    const ERROR_NOT_FOUND = 'not_found';
+    const ERROR_RESOURCE_NOT_FOUND = 'resource_not_found';
+    const ERROR_INTERNAL_ERROR = 'internal_error';
+
     /**
      * @var string
      */

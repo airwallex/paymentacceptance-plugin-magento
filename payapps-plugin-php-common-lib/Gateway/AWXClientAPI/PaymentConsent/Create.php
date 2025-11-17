@@ -36,6 +36,16 @@ class Create extends AbstractApi
     }
 
     /**
+     * @param string $merchantTriggerReason
+     *
+     * @return Create
+     */
+    public function setMerchantTriggerReason(string $merchantTriggerReason): Create
+    {
+        return $this->setParam('merchant_trigger_reason', $merchantTriggerReason);
+    }
+
+    /**
      * @param $response
      *
      * @return PaymentConsent

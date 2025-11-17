@@ -10,7 +10,6 @@ use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Helper\IsOrderCreatedHelper;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Cancel;
 use Airwallex\Payments\Model\Client\Request\PaymentIntents\Capture;
-use Airwallex\Payments\Model\Client\Request\PaymentIntents\Refund;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Airwallex\Payments\Model\PaymentIntents;
 use Exception;
@@ -38,6 +37,8 @@ use Magento\Framework\App\CacheInterface;
 use Airwallex\Payments\Helper\IntentHelper;
 use Magento\Sales\Model\Order;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\Refund\Create as CreateRefund;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\Refund as StructRefund;
 
 /**
  * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
@@ -57,9 +58,9 @@ abstract class AbstractMethod extends Adapter
     protected Logger $logger;
 
     /**
-     * @var Refund
+     * @var CreateRefund
      */
-    private Refund $refund;
+    private CreateRefund $createRefund;
 
     /**
      * @var Capture
@@ -116,7 +117,7 @@ abstract class AbstractMethod extends Adapter
      * @param string $code
      * @param string $formBlockType
      * @param string $infoBlockType
-     * @param Refund $refund
+     * @param CreateRefund $createRefund
      * @param Capture $capture
      * @param Cancel $cancel
      * @param CheckoutData $checkoutHelper
@@ -127,11 +128,12 @@ abstract class AbstractMethod extends Adapter
      * @param CacheInterface $cache
      * @param IntentHelper $intentHelper
      * @param IsOrderCreatedHelper $isOrderCreatedHelper
+     * @param Configuration $configuration
+     * @param RetrievePaymentIntent $retrievePaymentIntent
+     * @param CommonLibraryInit $commonLibraryInit
      * @param CommandPoolInterface|null $commandPool
      * @param ValidatorPoolInterface|null $validatorPool
      * @param CommandManagerInterface|null $commandExecutor
-     * @param Configuration $configuration
-     * @param RetrievePaymentIntent $retrievePaymentIntent
      */
     public function __construct(
         PaymentIntents                $paymentIntents,
@@ -141,7 +143,7 @@ abstract class AbstractMethod extends Adapter
         string                        $code,
         string                        $formBlockType,
         string                        $infoBlockType,
-        Refund                        $refund,
+        CreateRefund                  $createRefund,
         Capture                       $capture,
         Cancel                        $cancel,
         CheckoutData                  $checkoutHelper,
@@ -174,7 +176,7 @@ abstract class AbstractMethod extends Adapter
         );
         $this->paymentIntents = $paymentIntents;
         $this->logger = $logger;
-        $this->refund = $refund;
+        $this->createRefund = $createRefund;
         $this->capture = $capture;
         $this->paymentIntentRepository = $paymentIntentRepository;
         $this->cancel = $cancel;
@@ -222,7 +224,11 @@ abstract class AbstractMethod extends Adapter
         if ($amount <= 0) return $this;
 
         $order = $payment->getOrder();
+        /** @var Order $order */
         if ($order && $order->getId()) {
+            if ($order->getTotalPaid() > 0) {
+                throw new LocalizedException(__('This order has already been captured and cannot be captured again.'));
+            }
             /** @var Payment $payment */
             $intentId = $this->getIntentId($payment);
         } else {
@@ -236,16 +242,28 @@ abstract class AbstractMethod extends Adapter
             /** @var StructPaymentIntent $paymentIntent */
             $paymentIntent = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
         } catch (Exception $e) {
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
             throw new LocalizedException(__('Something went wrong while trying to capture the payment.'));
         }
 
-        // capture in frontend element will run here too, but can not go inside
-        if (!$paymentIntent->isAuthorized()) {
+        if ($paymentIntent->isCaptured()) {
             return $this;
         }
 
         $this->cache->save(true, $this->captureCacheName($intentId), [], 3600);
-        $this->capture->setPaymentIntentId($intentId)->setInformation($paymentIntent->getAmount())->send();
+        if (empty($order) || empty($order->getId())) {
+            $captureAmount = $paymentIntent->getAmount();
+        } else {
+            if ($order->getBaseGrandTotal() <= 0) {
+                throw new LocalizedException(__('The base grand total of the order must be greater than zero.'));
+            }
+
+            $captureAmount = $this->isAmountEqual($amount, $order->getBaseGrandTotal())
+                ? $paymentIntent->getAmount()
+                : $amount / $order->getBaseGrandTotal() * $paymentIntent->getAmount();
+        }
+        $decimal = PaymentIntents::CURRENCY_TO_DECIMAL[$paymentIntent->getCurrency()] ?? 2;
+        $this->capture->setPaymentIntentId($intentId)->setInformation(round($captureAmount, $decimal))->send();
         return $this;
     }
 
@@ -300,30 +318,43 @@ abstract class AbstractMethod extends Adapter
             /** @var StructPaymentIntent $paymentIntent */
             $paymentIntent = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
             $record = $this->paymentIntentRepository->getByIntentId($intentId);
+            /** @var Creditmemo $credit */
             if ($credit->getOrderCurrencyCode() === $paymentIntent->getCurrency()) {
                 $refundAmount = $credit->getGrandTotal();
             } else {
                 $orderGrandTotal = $order->getGrandTotal();
-                if ($credit->getGrandTotal() === $order->getGrandTotal() && $credit->getOrderCurrencyCode() === $order->getOrderCurrencyCode()) {
+                if ($this->isAmountEqual($credit->getGrandTotal(), $order->getGrandTotal()) && $credit->getOrderCurrencyCode() === $order->getOrderCurrencyCode()) {
                     $refundAmount = $paymentIntent->getAmount();
                 } else {
                     $decimal = PaymentIntents::CURRENCY_TO_DECIMAL[$paymentIntent->getCurrency()] ?? 2;
+                    if ($orderGrandTotal <= 0) {
+                        throw new LocalizedException(__('The grand total of the order must be greater than zero.'));
+                    }
                     $refundAmount = round($credit->getGrandTotal() / $orderGrandTotal * $paymentIntent->getAmount(), $decimal);
                 }
             }
+            if ($refundAmount <= 0) {
+                throw new LocalizedException(__('The refund amount must be greater than zero.'));
+            }
             $this->processBankTransfer($paymentIntent, $refundAmount);
-            /** @var Creditmemo $credit */
-            $res = $this->refund->setInformation($intentId, $refundAmount)->send();
+            try {
+                /** @var StructRefund $refundedObject */
+                $refundedObject = $this->createRefund->setPaymentIntentId($intentId)->setAmount($refundAmount)->send();
+            } catch (Exception $e) {
+                $this->logError(__METHOD__ . ': ' . $e->getMessage());
+                $this->cache->remove($this->refundCacheName($intentId));
+                throw new LocalizedException(__('Something went wrong while trying to process the refund.'));
+            }
 
             $detail = $record->getDetail();
             $detailArray = $detail ? json_decode($detail, true) : [];
             if (empty($detailArray['refund_ids'])) {
                 $detailArray['refund_ids'] = [];
             }
-            $detailArray['refund_ids'][] = $res->id;
+            $detailArray['refund_ids'][] = $refundedObject->getId();
             $this->paymentIntentRepository->updateDetail($record, json_encode($detailArray));
-        } catch (GuzzleException $exception) {
-            $this->logger->orderError($payment->getOrder(), 'refund', $exception->getMessage());
+        } catch (Exception $exception) {
+            $this->logError(__METHOD__ . $exception->getMessage());
             throw new RuntimeException(__($exception->getMessage()));
         }
         return $this;
@@ -361,7 +392,7 @@ abstract class AbstractMethod extends Adapter
      * @param CartInterface|null $quote
      *
      * @return bool
-     * @throws GuzzleException
+     * @throws Exception
      */
     public function isAvailable(?CartInterface $quote = null): bool
     {

@@ -53,6 +53,22 @@ class Confirm extends AbstractApi
     }
 
     /**
+     * @param string $targetCurrency
+     * @param string $quoteId
+     *
+     * @return Confirm
+     */
+    public function setCurrencySwitcher(string $targetCurrency, string $quoteId): Confirm
+    {
+        return $this->setParams([
+                'currency_switcher' => [
+                    'target_currency' => $targetCurrency,
+                    'quote_id' => $quoteId
+                ],
+        ]);
+    }
+
+    /**
      * @param array $deviceData
      *
      * @return Confirm

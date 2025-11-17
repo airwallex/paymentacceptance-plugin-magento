@@ -2,8 +2,10 @@
 
 namespace Airwallex\Payments\Controller\Adminhtml\Configuration;
 
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentMethodType;
+use Airwallex\Payments\CommonLibraryInit;
+use Airwallex\Payments\Model\Traits\HelperTrait;
 use Exception;
-use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Framework\App\Filesystem\DirectoryList;
 use Magento\Framework\Exception\FileSystemException;
@@ -16,11 +18,14 @@ use Magento\Store\Model\StoreManager;
 use Magento\Framework\App\CacheInterface;
 use Magento\Framework\App\RequestInterface;
 use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
-use Airwallex\Payments\Model\Client\Request\ApplePayDomain\GetList;
-use Airwallex\Payments\Model\Client\Request\ApplePayDomain\Add;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\Config\ApplePay\Domain\AddItems as ApplePayDomainAddItems;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\Config\ApplePay\Domain\GetList as ApplePayDomainGetList;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\ApplePayDomains as StructApplePayDomains;
 
 class EnableExpressCheckout extends Action
 {
+    use HelperTrait;
+
     protected JsonFactory $resultJsonFactory;
     protected Context $context;
     protected StoreManager $storeManager;
@@ -29,8 +34,8 @@ class EnableExpressCheckout extends Action
     protected RequestInterface $request;
     protected DirectoryList $directoryList;
     protected AvailablePaymentMethodsHelper $availablePaymentMethodsHelper;
-    protected GetList $appleDomainList;
-    protected Add $appleDomainAdd;
+    protected ApplePayDomainGetList $appleDomainList;
+    protected ApplePayDomainAddItems $appleDomainAdd;
 
     public function __construct(
         Context                       $context,
@@ -41,8 +46,9 @@ class EnableExpressCheckout extends Action
         RequestInterface              $request,
         DirectoryList                 $directoryList,
         AvailablePaymentMethodsHelper $availablePaymentMethodsHelper,
-        GetList                       $appleDomainList,
-        Add                           $appleDomainAdd
+        ApplePayDomainGetList         $appleDomainList,
+        ApplePayDomainAddItems        $appleDomainAdd,
+        CommonLibraryInit             $commonLibraryInit
     )
     {
         parent::__construct($context);
@@ -56,6 +62,7 @@ class EnableExpressCheckout extends Action
         $this->availablePaymentMethodsHelper = $availablePaymentMethodsHelper;
         $this->appleDomainList = $appleDomainList;
         $this->appleDomainAdd = $appleDomainAdd;
+        $commonLibraryInit->exec();
     }
 
     protected function getHost()
@@ -101,7 +108,6 @@ class EnableExpressCheckout extends Action
      * Set Apple Pay domain
      *
      * @return Json
-     * @throws GuzzleException
      * @throws JsonException
      * @throws FileSystemException
      * @throws Exception
@@ -111,18 +117,19 @@ class EnableExpressCheckout extends Action
         $resultJson = $this->resultJsonFactory->create();
         $methods = $this->request->getParam('methods');
         $host = $this->getHost();
-        $types = $this->availablePaymentMethodsHelper->getLatestItems(false);
+        $paymentMethodTypes = $this->availablePaymentMethodsHelper->getAllPaymentMethodTypes();
         $isApplePayActive = false;
         $isGooglePayActive = false;
         if (empty($methods)) {
             $resultJson->setData($this->error('post parameter methods is required'));
             return $resultJson;
         }
-        foreach ($types as $type) {
-            if (strstr($methods, 'apple_pay') && $type['name'] === 'applepay' && $type['active'] === true) {
+        /** @var PaymentMethodType $paymentMethodType */
+        foreach ($paymentMethodTypes as $paymentMethodType) {
+            if (strstr($methods, 'apple_pay') && $paymentMethodType->getName() === 'applepay' && $paymentMethodType->getActive()) {
                 $isApplePayActive = true;
             }
-            if (strstr($methods, 'google_pay') && $type['name'] === 'googlepay' && $type['active'] === true) {
+            if (strstr($methods, 'google_pay') && $paymentMethodType->getName() === 'googlepay' && $paymentMethodType->getActive()) {
                 $isGooglePayActive = true;
             }
         }
@@ -135,21 +142,27 @@ class EnableExpressCheckout extends Action
             $resultJson->setData($this->error($this->methodInactiveTip('Google Pay')));
             return $resultJson;
         }
-
         if (empty(strstr($methods, 'apple_pay'))) return $resultJson;
-        $list = $this->appleDomainList->send();
-        if (in_array($host, $list, true)) {
-            $resultJson->setData($this->success());
-            return $resultJson;
-        }
-        if (!$this->uploadAppleDomainFile()) {
-            $resultJson->setData($this->error($this->fileUploadFailedTip()));
-            return $resultJson;
-        }
+        try {
+            /** @var StructApplePayDomains $appleDomainList */
+            $appleDomainList = $this->appleDomainList->send();
+            if ($appleDomainList->hasDomain($host)) {
+                $resultJson->setData($this->success());
+                return $resultJson;
+            }
+            if (!$this->uploadAppleDomainFile()) {
+                $resultJson->setData($this->error($this->fileUploadFailedTip()));
+                return $resultJson;
+            }
 
-        $list = $this->appleDomainAdd->setDomain($host)->send();
-        if (in_array($host, $list, true)) {
-            $resultJson->setData($this->success());
+            /** @var StructApplePayDomains $applePayDomains */
+            $applePayDomains = $this->appleDomainAdd->setItems([$host])->send();
+            if ($applePayDomains->hasDomain($host)) {
+                $resultJson->setData($this->success());
+                return $resultJson;
+            }
+        } catch (Exception $e) {
+            $resultJson->setData($this->error(__($e->getMessage())));
             return $resultJson;
         }
 
@@ -174,6 +187,7 @@ class EnableExpressCheckout extends Action
             try {
                 mkdir($destinationDir, 0755, true);
             } catch (Exception $e) {
+                $this->logError(__METHOD__ . $e->getMessage());
                 return false;
             }
         }
@@ -182,6 +196,7 @@ class EnableExpressCheckout extends Action
         try {
             copy($sourceFile, $destinationFile);
         } catch (Exception $e) {
+            $this->logError(__METHOD__ . $e->getMessage());
             return false;
         }
         return true;

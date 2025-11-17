@@ -134,7 +134,7 @@ define([
             this.validationError('');
             this.cvcElement = Airwallex.createElement('cvc', {
                 placeholder: 'CVC',
-                cvcLength: 'amex' === type.toLowerCase() ? 4 : 3
+                cvcLength: (['amex', 'american express'].indexOf(type.toLowerCase()) !== -1) ? 4 : 3
             });
             const domElement = this.cvcElement.mount(id + '-cvc', { autoCapture: this.autoCapture });
             domElement.addEventListener('onReady', (event) => {

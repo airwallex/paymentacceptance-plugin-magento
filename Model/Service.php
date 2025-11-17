@@ -5,7 +5,7 @@ namespace Airwallex\Payments\Model;
 use Airwallex\Payments\Api\ServiceInterface;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\CommonLibraryInit;
-use Airwallex\Payments\Model\Client\Request\ApplePayValidateMerchant;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\Config\ApplePay\StartPaymentSession as ApplePayStartPaymentSession;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
@@ -38,8 +38,6 @@ use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\CheckoutAgreements\Model\AgreementsConfigProvider;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
 use Magento\Sales\Model\OrderFactory;
-use Airwallex\Payments\Model\Client\Request\ApplePayDomain\GetList;
-use Airwallex\Payments\Model\Client\Request\ApplePayDomain\Add;
 use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
 use Magento\Framework\App\CacheInterface;
 use Magento\Framework\App\Cache\Manager;
@@ -71,15 +69,13 @@ class Service implements ServiceInterface
     private ShippingInformationManagementInterface $shippingInformationManagement;
     private ShippingInformationInterfaceFactory $shippingInformationFactory;
     private ConfigProvider $configProvider;
-    private ApplePayValidateMerchant $validateMerchant;
+    private ApplePayStartPaymentSession $applePayStartPaymentSession;
     private ShippingAddressValidationRule $shippingAddressValidationRule;
     private BillingAddressValidationRule $billingAddressValidationRule;
     protected AgreementsConfigProvider $agreementsConfigProvider;
     protected PaymentIntentRepository $paymentIntentRepository;
     protected OrderResourceInterface $orderResource;
     protected OrderFactory $orderFactory;
-    protected GetList $appleDomainList;
-    protected Add $appleDomainAdd;
     protected DirectoryList $directoryList;
     protected AvailablePaymentMethodsHelper $availablePaymentMethodsHelper;
     protected CacheInterface $cache;
@@ -108,15 +104,13 @@ class Service implements ServiceInterface
      * @param ShippingInformationManagementInterface $shippingInformationManagement
      * @param ShippingInformationInterfaceFactory $shippingInformationFactory
      * @param ConfigProvider $configProvider
-     * @param ApplePayValidateMerchant $validateMerchant
+     * @param ApplePayStartPaymentSession $applePayStartPaymentSession
      * @param ShippingAddressValidationRule $shippingAddressValidationRule
      * @param BillingAddressValidationRule $billingAddressValidationRule
      * @param AgreementsConfigProvider $agreementsConfigProvider
      * @param PaymentIntentRepository $paymentIntentRepository
      * @param OrderResourceInterface $orderResource
      * @param OrderFactory $orderFactory
-     * @param GetList $appleDomainList
-     * @param Add $appleDomainAdd
      * @param DirectoryList $directoryList
      * @param AvailablePaymentMethodsHelper $availablePaymentMethodsHelper
      * @param CacheInterface $cache
@@ -144,15 +138,13 @@ class Service implements ServiceInterface
         ShippingInformationManagementInterface $shippingInformationManagement,
         ShippingInformationInterfaceFactory    $shippingInformationFactory,
         ConfigProvider                         $configProvider,
-        ApplePayValidateMerchant               $validateMerchant,
+        ApplePayStartPaymentSession            $applePayStartPaymentSession,
         ShippingAddressValidationRule          $shippingAddressValidationRule,
         BillingAddressValidationRule           $billingAddressValidationRule,
         AgreementsConfigProvider               $agreementsConfigProvider,
         PaymentIntentRepository                $paymentIntentRepository,
         OrderResourceInterface                 $orderResource,
         OrderFactory                           $orderFactory,
-        GetList                                $appleDomainList,
-        Add                                    $appleDomainAdd,
         DirectoryList                          $directoryList,
         AvailablePaymentMethodsHelper          $availablePaymentMethodsHelper,
         CacheInterface                         $cache,
@@ -180,15 +172,13 @@ class Service implements ServiceInterface
         $this->shippingInformationManagement = $shippingInformationManagement;
         $this->shippingInformationFactory = $shippingInformationFactory;
         $this->configProvider = $configProvider;
-        $this->validateMerchant = $validateMerchant;
+        $this->applePayStartPaymentSession = $applePayStartPaymentSession;
         $this->shippingAddressValidationRule = $shippingAddressValidationRule;
         $this->billingAddressValidationRule = $billingAddressValidationRule;
         $this->agreementsConfigProvider = $agreementsConfigProvider;
         $this->paymentIntentRepository = $paymentIntentRepository;
         $this->orderResource = $orderResource;
         $this->orderFactory = $orderFactory;
-        $this->appleDomainList = $appleDomainList;
-        $this->appleDomainAdd = $appleDomainAdd;
         $this->directoryList = $directoryList;
         $this->availablePaymentMethodsHelper = $availablePaymentMethodsHelper;
         $this->cache = $cache;
@@ -554,7 +544,7 @@ class Service implements ServiceInterface
             return $this->error('Initiative Context is empty.');
         }
 
-        return $this->validateMerchant->setInitiativeParams([
+        return $this->applePayStartPaymentSession->setInitiativeParams([
             'validation_url' => $validationUrl,
             'initiative_context' => $initiativeContext,
         ])->send();

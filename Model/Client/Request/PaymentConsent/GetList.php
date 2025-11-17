@@ -2,6 +2,7 @@
 
 namespace Airwallex\Payments\Model\Client\Request\PaymentConsent;
 
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentMethodType;
 use Airwallex\Payments\Api\Data\SavedPaymentResponseInterface;
 use Airwallex\Payments\Api\Data\SavedPaymentResponseInterfaceFactory;
 use Airwallex\Payments\Helper\AuthenticationHelper;
@@ -11,6 +12,7 @@ use Airwallex\Payments\Logger\Guzzle\RequestLogger;
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
 use Airwallex\Payments\Model\SavedPaymentResponse;
+use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Framework\DataObject\IdentityService;
@@ -113,18 +115,16 @@ class GetList extends AbstractClient implements BearerAuthenticationInterface
     }
 
     /**
-     * @return array|mixed
-     * @throws GuzzleException
+     * @return array
+     * @throws Exception
      */
-    public function getCardSchemes()
+    public function getCardSchemes(): array
     {
-        $methods = $this->availablePaymentMethodsHelper->getAllPaymentMethodTypes();
-        if (!$methods) {
-            return [];
-        }
-        foreach ($methods as $method) {
-            if ($method['name'] === 'card') {
-                return $method['card_schemes'];
+        $paymentMethodTypes = $this->availablePaymentMethodsHelper->getAllPaymentMethodTypes();
+        /** @var PaymentMethodType $paymentMethodType */
+        foreach ($paymentMethodTypes as $paymentMethodType) {
+            if ($paymentMethodType->getName() === 'card') {
+                return $paymentMethodType->getCardSchemes();
             }
         }
         return [];

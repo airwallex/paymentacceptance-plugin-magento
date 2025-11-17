@@ -3,7 +3,6 @@
 namespace Airwallex\PayappsPlugin\CommonLibrary\UseCase;
 
 use Airwallex\PayappsPlugin\CommonLibrary\Cache\CacheTrait;
-use Airwallex\PayappsPlugin\CommonLibrary\Configuration\Init;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Quote;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\Quote as StructQuote;
 use Exception;

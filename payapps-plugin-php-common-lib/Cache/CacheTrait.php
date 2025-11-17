@@ -2,8 +2,6 @@
 
 namespace Airwallex\PayappsPlugin\CommonLibrary\Cache;
 
-use Airwallex\PayappsPlugin\CommonLibrary\Configuration\Init;
-
 trait CacheTrait
 {
     public function cacheRemember(string $key, callable $callback, int $ttl = 3600)

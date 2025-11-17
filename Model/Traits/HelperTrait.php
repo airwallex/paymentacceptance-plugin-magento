@@ -651,4 +651,14 @@ trait HelperTrait
         $code = str_replace(AbstractMethod::PAYMENT_PREFIX, '', $code);
         return str_replace('airwallex_cc_', '', $code);
     }
+
+    public function logError(string $message)
+    {
+        ObjectManager::getInstance()->get(LoggerInterface::class)->error($message);
+    }
+
+    public function logDebug(string $message)
+    {
+        ObjectManager::getInstance()->get(LoggerInterface::class)->debug($message);
+    }
 }

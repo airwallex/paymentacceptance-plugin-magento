@@ -2,11 +2,11 @@
 
 namespace Airwallex\Payments\Model\Client;
 
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\Payments\Helper\AuthenticationHelper;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Logger\Guzzle\RequestLogger;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
-use Airwallex\Payments\Model\Client\Request\Authentication;
 use Airwallex\Payments\Model\Methods\RedirectMethod;
 use Exception;
 use GuzzleHttp\Client;
@@ -227,7 +227,7 @@ abstract class AbstractClient
 
         if ($this instanceof BearerAuthenticationInterface) {
             $header['Authorization'] = 'Bearer ' . $this->authenticationHelper->getBearerToken();
-            $header['x-api-version'] = Authentication::X_API_VERSION;
+            $header['x-api-version'] = AbstractApi::X_API_VERSION;
             $header['x-awx-internal-domain'] = 'payapps';
         }
 

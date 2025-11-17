@@ -49,4 +49,21 @@ class Init
     {
         return $this->config[$key] ?? $default;
     }
+
+    /**
+     * Update configuration (merge or replace)
+     *
+     * @param array $config
+     * @param bool $merge Whether to merge with existing config (true) or replace completely (false)
+     *
+     * @return void
+     */
+    public function updateConfig(array $config, bool $merge = true): void
+    {
+        if ($merge) {
+            $this->config = array_merge($this->config, $config);
+        } else {
+            $this->config = $config;
+        }
+    }
 }

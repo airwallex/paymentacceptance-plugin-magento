@@ -8,6 +8,8 @@ class Refund extends AbstractBase
     const STATUS_ACCEPTED = 'ACCEPTED';
     const STATUS_SETTLED = 'SETTLED';
     const STATUS_FAILED = 'FAILED';
+    const STATUS_SUCCEEDED = 'SUCCEEDED';
+    const STATUS_PROCESSING = 'PROCESSING';
 
     /**
      * @var string

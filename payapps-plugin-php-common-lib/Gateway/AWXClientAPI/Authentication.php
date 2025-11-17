@@ -3,6 +3,7 @@
 namespace Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI;
 
 use Airwallex\PayappsPlugin\CommonLibrary\Configuration\Init;
+use Airwallex\PayappsPlugin\CommonLibrary\Exception\RequestException;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\AccessToken;
 
 class Authentication extends AbstractApi
@@ -24,6 +25,16 @@ class Authentication extends AbstractApi
     protected function getUri(): string
     {
         return 'authentication/login';
+    }
+
+    /**
+     * @return mixed
+     * @throws RequestException
+     * @throws Exception
+     */
+    public function send()
+    {
+        return $this->doSend();
     }
 
     /**

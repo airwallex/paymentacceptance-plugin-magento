@@ -304,6 +304,7 @@ class OrderService implements OrderServiceInterface
                 try {
                     $this->paymentConsents->syncVault($quote->getCustomer()->getId());
                 } catch (Exception $e) {
+                    $this->logError(__METHOD__ . ': ' . $e->getMessage());
                     RemoteLog::error(__METHOD__ . ': ' . $e->getMessage(), 'onSyncSaveCardError');
                 }
             }

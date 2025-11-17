@@ -18,5 +18,6 @@ class Afterpay
         'AIRWALLEX_US' => ['USD'],
         'AIRWALLEX_UK' => ['GBP'],
         'AIRWALLEX_CA' => ['CAD'],
+        'AIRWALLEX_NZ' => ['NZD'],
     ];
 }

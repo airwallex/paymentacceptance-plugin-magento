@@ -56,16 +56,6 @@ class Create extends AbstractApi
     }
 
     /**
-     * @param array $metadata
-     *
-     * @return Create
-     */
-    public function setMetadata(array $metadata): Create
-    {
-        return $this->setParam('metadata', $metadata);
-    }
-
-    /**
      * @param string $type
      *
      * @return Create

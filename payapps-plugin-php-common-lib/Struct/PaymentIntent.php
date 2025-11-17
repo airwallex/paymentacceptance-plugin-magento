@@ -14,6 +14,17 @@ class PaymentIntent extends AbstractBase
     const STATUS_SUCCEEDED = 'SUCCEEDED';
     const STATUS_CAPTURE_REQUESTED = 'CAPTURE_REQUESTED';
     const STATUS_REQUESTED_CAPTURE = 'REQUESTED_CAPTURE';
+    const PAYMENT_METHOD_TYPE_CARD = 'card';
+    const THREE_DS_FRICTIONLESS_MAP = [
+        'Y' => 'Y - Frictionless transaction',
+        'N' => 'N - Non Frictionless transaction',
+    ];
+    const THREE_DS_AUTHENTICATED_MAP = [
+        'Y' => 'Y - Authenticated',
+        'N' => 'N - Not Authenticated',
+        'U' => 'U - Authentication could not be performed',
+        'A' => 'A - Attempted to authenticate',
+    ];
 
     /**
      * @var array
@@ -756,5 +767,230 @@ class PaymentIntent extends AbstractBase
     {
         $this->updatedAt = $updatedAt;
         return $this;
+    }
+
+    /**
+     * @return array
+     */
+    public function getPaymentMethod(): array
+    {
+        return $this->getLatestPaymentAttempt()['payment_method'] ?? [];
+    }
+
+    /**
+     * @return string
+     */
+    public function getPaymentMethodType(): string
+    {
+        return $this->getPaymentMethod()['type'] ?? '';
+    }
+
+
+    /**
+     * @return string
+     */
+    public function getCardLast4(): string
+    {
+        return $this->getPaymentMethod()['card']['last4'] ?? '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getCardNumberType(): string
+    {
+        return $this->getPaymentMethod()['card']['number_type'] ?? '';
+    }
+
+    /**
+     * @return array
+     */
+    public function getCardBilling(): array
+    {
+        return $this->getPaymentMethod()['card']['billing'] ?? [];
+    }
+
+    /**
+     * @return string
+     */
+    public function getCardBrand(): string
+    {
+        return $this->getPaymentMethod()['card']['brand'] ?? '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getCardType(): string
+    {
+        return $this->getPaymentMethod()['card']['card_type'] ?? '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getCardIssuerName(): string
+    {
+        return $this->getPaymentMethod()['card']['issuer_name'] ?? '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getCardIssuerCountryCode(): string
+    {
+        return $this->getPaymentMethod()['card']['issuer_country_code'] ?? '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getCardBin(): string
+    {
+        return $this->getPaymentMethod()['card']['bin'] ?? '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getCardFingerprint(): string
+    {
+        return $this->getPaymentMethod()['card']['fingerprint'] ?? '';
+    }
+
+    /**
+     * @return bool
+     */
+    public function isCommercialCard(): bool
+    {
+        return $this->getPaymentMethod()['card']['is_commercial'] ?? false;
+    }
+
+    /**
+     * @return string
+     */
+    public function getCardExpiryMonth(): string
+    {
+        return $this->getPaymentMethod()['card']['expiry_month'] ?? '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getCardExpiryYear(): string
+    {
+        return $this->getPaymentMethod()['card']['expiry_year'] ?? '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getCardHolderName(): string
+    {
+        return $this->getPaymentMethod()['card']['name'] ?? '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getCardLifecycleId(): string
+    {
+        return $this->getPaymentMethod()['card']['lifecycle_id'] ?? '';
+    }
+
+    /**
+     * @return array
+     */
+    public function getKoreanCardInfo(): array
+    {
+        return $this->getPaymentMethod()['card']['korean_card'] ?? [];
+    }
+
+    /**
+     * @return array
+     */
+    public function getCardAdditionalInfo(): array
+    {
+        return $this->getPaymentMethod()['card']['additional_info'] ?? [];
+    }
+
+    /**
+     * @return string
+     */
+    public function getBillingCity(): string
+    {
+        return $this->getCardBilling()['address']['city'] ?? '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getBillingCountryCode(): string
+    {
+        return $this->getCardBilling()['address']['country_code'] ?? '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getBillingPostcode(): string
+    {
+        return $this->getCardBilling()['address']['postcode'] ?? '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getBillingState(): string
+    {
+        return $this->getCardBilling()['address']['state'] ?? '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getBillingStreet(): string
+    {
+        return $this->getCardBilling()['address']['street'] ?? '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getBillingFirstName(): string
+    {
+        return $this->getCardBilling()['first_name'] ?? '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getBillingLastName(): string
+    {
+        return $this->getCardBilling()['last_name'] ?? '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getBillingEmail(): string
+    {
+        return $this->getCardBilling()['email'] ?? '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getBillingPhoneNumber(): string
+    {
+        return $this->getCardBilling()['phone_number'] ?? '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getBillingDateOfBirth(): string
+    {
+        return $this->getCardBilling()['date_of_birth'] ?? '';
     }
 }

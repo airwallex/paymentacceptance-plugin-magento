@@ -2,8 +2,10 @@
 
 namespace Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI;
 
+use Airwallex\PayappsPlugin\CommonLibrary\Cache\CacheManager;
 use Airwallex\PayappsPlugin\CommonLibrary\Cache\CacheTrait;
 use Airwallex\PayappsPlugin\CommonLibrary\Configuration\Init;
+use Airwallex\PayappsPlugin\CommonLibrary\Exception\UnauthorizedException;
 use Airwallex\PayappsPlugin\CommonLibrary\Exception\RequestException;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\Response;
 use Error;
@@ -12,6 +14,8 @@ use Exception;
 abstract class AbstractApi
 {
     use CacheTrait;
+
+    const ACCESS_TOKEN_CACHE_KEY = 'awx_access_token';
 
     /**
      * @var int
@@ -51,14 +55,29 @@ abstract class AbstractApi
     /**
      * @var array
      */
-    private $metaData = [];
+    private $metadata = [];
 
     /**
      * @return mixed
+     *
      * @throws RequestException
      * @throws Exception
      */
     public function send()
+    {
+        try {
+            return $this->doSend();
+        } catch (UnauthorizedException $e) {
+            CacheManager::getInstance()->remove(self::ACCESS_TOKEN_CACHE_KEY);
+            return $this->doSend();
+        }
+    }
+
+    /**
+     * @throws RequestException
+     * @throws Exception
+     */
+    public function doSend()
     {
         try {
             if (Init::getInstance()->get('plugin_type') === 'woo_commerce') {
@@ -77,6 +96,9 @@ abstract class AbstractApi
     public function checkResponse(string $body, int $statusCode)
     {
         if ($statusCode >= 400 && $statusCode < 500) {
+            if ($statusCode === 401) {
+                throw new UnauthorizedException($body);
+            }
             throw new RequestException($body);
         }
         if ($body === 'ok') {
@@ -153,7 +175,7 @@ abstract class AbstractApi
         } elseif ($method === 'GET') {
             $options['query'] = $this->params;
         }
-
+        \Magento\Framework\App\ObjectManager::getInstance()->get(\Psr\Log\LoggerInterface::class)->debug($this->getUri());
         $response = $client->request($method, $this->getUri(), $options);
         $this->checkResponse((string)$response->getBody(), $response->getStatusCode());
         return $this->parseResponse($response);
@@ -215,7 +237,7 @@ abstract class AbstractApi
      */
     protected function getMetadata(): array
     {
-        return $this->metaData + [
+        return $this->metadata + [
             'php_version' => phpversion(),
             'platform_version' => Init::getInstance()->get('platform_version'),
             'host' => $_SERVER['HTTP_HOST'] ?? '',
@@ -226,9 +248,9 @@ abstract class AbstractApi
      * @param array $data
      * @return self
      */
-    public function setMetaData(array $data): self
+    public function setMetadata(array $data): self
     {
-        $this->metaData = $data;
+        $this->metadata = $data;
         return $this;
     }
 
@@ -300,13 +322,13 @@ abstract class AbstractApi
     /**
      * @return string
      * @throws RequestException
+     * @throws Exception
      */
     protected function getToken(): string
     {
-        $cacheName = 'awx_api_key_access_token';
-        return $this->cacheRemember($cacheName, function () {
+        return $this->cacheRemember(self::ACCESS_TOKEN_CACHE_KEY, function () {
             $accessToken = (new Authentication())->send();
             return $accessToken->getToken();
-        }, 60 * 30);
+        }, 60 * 25);
     }
 }

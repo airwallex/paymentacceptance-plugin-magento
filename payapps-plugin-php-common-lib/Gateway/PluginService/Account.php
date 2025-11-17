@@ -2,7 +2,6 @@
 
 namespace Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService;
 
-use Airwallex\PayappsPlugin\CommonLibrary\Configuration\Init;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\Account as StructAccount;
 use Exception;

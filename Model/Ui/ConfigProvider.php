@@ -5,6 +5,7 @@ namespace Airwallex\Payments\Model\Ui;
 use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\Afterpay;
 use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\Klarna;
 use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\BankTransfer;
+use Airwallex\PayappsPlugin\CommonLibrary\Exception\RequestException;
 use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Model\Client\Request\GetCurrencies;
@@ -23,7 +24,7 @@ use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\ReCaptchaUi\Block\ReCaptcha;
 use Magento\ReCaptchaUi\Model\IsCaptchaEnabledInterface;
 use Magento\Customer\Api\CustomerRepositoryInterface;
-use Airwallex\Payments\Model\Client\Request\RetrieveCustomer;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\Customer\Retrieve as RetrieveCustomer;
 use Magento\Checkout\Helper\Data as CheckoutData;
 use Exception;
 
@@ -161,11 +162,17 @@ class ConfigProvider implements ConfigProviderInterface
         }
 
         try {
-            $this->retrieveCustomer->setAirwallexCustomerId($airwallexCustomerId)->send();
-        } catch (Exception $e) {
-            if ($this->retrieveCustomer::NOT_FOUND === $e->getMessage()) {
+            $this->retrieveCustomer->setCustomerId($airwallexCustomerId)->send();
+        } catch (RequestException $e) {
+            $error = json_decode($e->getMessage(), true);
+            $code = (is_array($error) && isset($error['code'])) ? $error['code'] : '';
+            if ($code === RetrieveCustomer::ERROR_RESOURCE_NOT_FOUND) {
                 return $this->paymentConsents->createAirwallexCustomer($customer);
             }
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
+            return '';
+        } catch (Exception $exception) {
+            $this->logError(__METHOD__ . ': ' . $exception->getMessage());
             return '';
         }
         return $airwallexCustomerId;
