@@ -2,6 +2,7 @@
 
 namespace Airwallex\Payments\Model;
 
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentMethodType as StructPaymentMethodType;
 use Airwallex\Payments\Api\ServiceInterface;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\CommonLibraryInit;
@@ -47,6 +48,7 @@ use Psr\Log\LoggerInterface;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Log as RemoteLog;
+use Error;
 
 class Service implements ServiceInterface
 {
@@ -352,7 +354,33 @@ class Service implements ServiceInterface
             'is_recaptcha_enabled' => $this->configProvider->isReCaptchaEnabled(),
             'recaptcha_type' => $this->configuration->recaptchaType(),
             'agreements' => $this->agreementsConfigProvider->getConfig(),
+            'allowed_card_networks' => $this->getAllowedCardNetworks(),
         ];
+    }
+
+    public function getAllowedCardNetworks()
+    {
+        try {
+            $allowedNetworks = [];
+            $paymentMethodTypes = $this->availablePaymentMethodsHelper->getAllPaymentMethodTypes();
+            /** @var StructPaymentMethodType $paymentMethodType */
+            foreach ($paymentMethodTypes as $paymentMethodType) {
+                if (in_array($paymentMethodType->getName(), ['googlepay', 'applepay'], true)) {
+                    $allowedNetworks[$paymentMethodType->getName()] = array_column($paymentMethodType->getCardSchemes(), 'name');
+                }
+            }
+        } catch (Exception|Error $exception) {
+            $this->logError(__METHOD__ . $exception->getMessage());
+
+        }
+        if (empty($allowedNetworks)) {
+            $defaultNetworks = ['visa', 'mastercard', 'amex', 'unionpay', 'jcb', 'discover', 'diners', 'maestro'];
+            return [
+                'applepay' => $defaultNetworks,
+                'googlepay' => $defaultNetworks,
+            ];
+        }
+        return $allowedNetworks;
     }
 
     /**

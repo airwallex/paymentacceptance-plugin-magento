@@ -170,6 +170,26 @@ define([
             return Object.assign(paymentDataRequest, transactionInfo);
         },
 
+        getSupportedNetworks(supportBrands) {
+            let brands = supportBrands.map(function (brand) {
+                    if (brand === 'unionpay') {
+                        return 'chinaUnionPay';
+                    }
+                    if (brand === 'mastercard') {
+                        return 'masterCard';
+                    }
+                    return brand;
+                }).filter(function (brand) {
+                    return brand !== 'diners';
+                });
+
+            if (brands.indexOf('masterCard') !== -1 && brands.indexOf('maestro') === -1) {
+                brands.push('maestro');
+            }
+
+            return brands;
+        },
+
         getOptions() {
             let options = {
                 mode: 'payment',
@@ -181,6 +201,7 @@ define([
                 requiredBillingContactFields: this.requiredBillingContactFields,
                 requiredShippingContactFields: this.requiredShippingContactFields,
                 autoCapture: this.paymentConfig.is_express_auto_capture,
+                supportedNetworks: this.getSupportedNetworks(this.paymentConfig.allowed_card_networks.applepay),
             };
             if (options.buttonType === 'checkout') {
                 options.buttonType = 'check-out';

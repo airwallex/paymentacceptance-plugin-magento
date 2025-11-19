@@ -131,7 +131,17 @@ define([
                     merchantName: this.paymentConfig.express_seller_name || '',
                 },
                 autoCapture: this.paymentConfig.is_express_auto_capture,
+                allowedCardNetworks: this.getSupportedNetworks(this.paymentConfig.allowed_card_networks.googlepay)
             };
+        },
+
+        getSupportedNetworks(supportBrands) {
+            let brands = supportBrands.map(function (brand) {
+                return brand.toUpperCase();
+            }).filter(function (brand) {
+                return brand !== 'UNIONPAY' && brand !== 'MAESTRO' && brand !== 'DINERS';
+            });
+            return brands;
         },
 
         getDisplayItems() {

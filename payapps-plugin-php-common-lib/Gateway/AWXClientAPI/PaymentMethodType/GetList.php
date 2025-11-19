@@ -96,6 +96,7 @@ class GetList extends AbstractApi
     {
         $items = [];
         $responseArray = json_decode((string)$response->getBody(), true);
+        \Magento\Framework\App\ObjectManager::getInstance()->get(\Psr\Log\LoggerInterface::class)->debug(json_encode($responseArray));
         if (!empty($responseArray['items'])) {
             foreach ($responseArray['items'] as $item) {
                 $items[] = new PaymentMethodType($item);
