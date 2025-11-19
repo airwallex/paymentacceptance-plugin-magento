@@ -175,7 +175,6 @@ abstract class AbstractApi
         } elseif ($method === 'GET') {
             $options['query'] = $this->params;
         }
-        \Magento\Framework\App\ObjectManager::getInstance()->get(\Psr\Log\LoggerInterface::class)->debug($this->getUri());
         $response = $client->request($method, $this->getUri(), $options);
         $this->checkResponse((string)$response->getBody(), $response->getStatusCode());
         return $this->parseResponse($response);
