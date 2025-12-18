@@ -39,7 +39,7 @@ define([
                 return;
             }
 
-            const availableCurrencies = paymentData.available_currencies ? JSON.parse(paymentData.available_currencies) : [];
+            const availableCurrencies = paymentData.available_currencies || [];
             if (availableCurrencies.indexOf(paymentData.quote_currency_code) === -1) {
                 const msg = $t('%1 is not available in %2 for your billing country. Please use a different payment method to complete your purchase.')
                     .replace('%1', 'Klarna')

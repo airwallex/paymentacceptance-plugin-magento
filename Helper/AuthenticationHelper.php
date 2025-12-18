@@ -2,7 +2,8 @@
 
 namespace Airwallex\Payments\Helper;
 
-use Airwallex\Payments\Model\Client\Request\Authentication;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\Authentication;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\AccessToken;
 use DateTime;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
@@ -48,9 +49,10 @@ class AuthenticationHelper
 
         if (empty($token)) {
             try {
-                $authenticationData = $this->objectManager->create(Authentication::class)->send();
-                $token = $authenticationData->token;
-                $cacheLifetime = $this->getCacheLifetime($authenticationData->expires_at);
+                /** @var AccessToken $accessToken */
+                $accessToken = $this->objectManager->create(Authentication::class)->send();
+                $token = $accessToken->getToken();
+                $cacheLifetime = $this->getCacheLifetime($accessToken->getExpiresAt());
                 $this->cache->save($token, self::CACHE_NAME, [], $cacheLifetime);
             } catch (Exception $e) {
                 return '';

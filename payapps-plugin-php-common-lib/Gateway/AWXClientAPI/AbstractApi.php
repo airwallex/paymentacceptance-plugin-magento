@@ -15,6 +15,11 @@ abstract class AbstractApi
 {
     use CacheTrait;
 
+    const ERROR_VALIDATION_ERROR = 'validation_error';
+    const ERROR_UNAUTHORIZED = 'unauthorized';
+    const ERROR_NOT_FOUND = 'not_found';
+    const ERROR_RESOURCE_NOT_FOUND = 'resource_not_found';
+    const ERROR_INTERNAL_ERROR = 'internal_error';
     const ACCESS_TOKEN_CACHE_KEY = 'awx_access_token';
 
     /**

@@ -5,6 +5,7 @@ namespace Airwallex\Payments\Model;
 use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\Afterpay;
 use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\Klarna;
 use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\BankTransfer;
+use Airwallex\PayappsPlugin\CommonLibrary\Exception\RequestException;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Log as RemoteLog;
 use Airwallex\Payments\Model\Methods\BankTransfer as BankTransferMethod;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
@@ -45,7 +46,7 @@ use Magento\Framework\Exception\InputException;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\Sales\Api\TransactionRepositoryInterface;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
-use Airwallex\Payments\Model\Client\Request\PaymentIntents\Confirm;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Confirm as ConfirmPaymentIntent;
 use Magento\CheckoutAgreements\Model\Checkout\Plugin\GuestValidation;
 use Magento\CheckoutAgreements\Model\Checkout\Plugin\Validation;
 use Magento\AdminNotification\Model\Inbox;
@@ -53,6 +54,7 @@ use Magento\Quote\Model\Quote\Address;
 use Magento\Sales\Model\Order\Address as OrderAddress;
 use Magento\Quote\Model\QuoteIdToMaskedQuoteIdInterface;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
+use Detection\MobileDetect;
 
 class OrderService implements OrderServiceInterface
 {
@@ -74,7 +76,7 @@ class OrderService implements OrderServiceInterface
     private OrderManagementInterface $orderManagement;
     private IsOrderCreatedHelper $isOrderCreatedHelper;
     private OrderResourceInterface $orderResource;
-    private Confirm $confirm;
+    private ConfirmPaymentIntent $confirmPaymentIntent;
     protected Validation $agreementValidation;
     protected GuestValidation $agreementGuestValidation;
     private Inbox $inbox;
@@ -100,7 +102,7 @@ class OrderService implements OrderServiceInterface
         OrderManagementInterface                   $orderManagement,
         IsOrderCreatedHelper                       $isOrderCreatedHelper,
         OrderResourceInterface                     $orderResource,
-        Confirm                                    $confirm,
+        ConfirmPaymentIntent                       $confirmPaymentIntent,
         Validation                                 $agreementValidation,
         GuestValidation                            $agreementGuestValidation,
         Inbox                                      $inbox,
@@ -126,7 +128,7 @@ class OrderService implements OrderServiceInterface
         $this->orderManagement = $orderManagement;
         $this->isOrderCreatedHelper = $isOrderCreatedHelper;
         $this->orderResource = $orderResource;
-        $this->confirm = $confirm;
+        $this->confirmPaymentIntent = $confirmPaymentIntent;
         $this->agreementValidation = $agreementValidation;
         $this->agreementGuestValidation = $agreementGuestValidation;
         $this->inbox = $inbox;
@@ -321,12 +323,20 @@ class OrderService implements OrderServiceInterface
     }
 
     /**
+     * @param $model
+     * @param PaymentInterface $paymentMethod
+     * @param string|null $email
+     * @param string|null $paymentMethodId
+     * @param string|null $from
+     * @param PlaceOrderResponse $response
+     * @return PlaceOrderResponse
      * @throws AlreadyExistsException
-     * @throws LocalizedException
-     * @throws JsonException
-     * @throws NoSuchEntityException
      * @throws GuzzleException
      * @throws InputException
+     * @throws JsonException
+     * @throws LocalizedException
+     * @throws NoSuchEntityException
+     * @throws RequestException
      */
     public function requestIntent($model, PaymentInterface $paymentMethod, ?string $email, ?string $paymentMethodId, ?string $from, PlaceOrderResponse $response): PlaceOrderResponse
     {
@@ -487,12 +497,33 @@ class OrderService implements OrderServiceInterface
         return true;
     }
 
+    private function getLanguageCode($countryCode, $method): string
+    {
+        if (!in_array($method, ['klarna', 'afterpay'], true)) return 'en';
+        if (empty($_SERVER['HTTP_ACCEPT_LANGUAGE'])) return 'en';
+        $languages = explode(',', $_SERVER['HTTP_ACCEPT_LANGUAGE']);
+        $lang = $languages[0];
+        if ($lang === 'zh-TW') {
+            $lang = 'zh-HK';
+        }
+        if ($method === 'afterpay') {
+            return $lang;
+        }
+        if (empty(Klarna::COUNTRY_LANGUAGE[$countryCode])) {
+            return 'en';
+        }
+        if (in_array($lang, Klarna::COUNTRY_LANGUAGE[$countryCode], true)) {
+            return $lang;
+        }
+        return 'en';
+    }
+
     /**
      * @throws GuzzleException
      * @throws LocalizedException
      * @throws Exception
      */
-    public function getAirwallexPaymentsNextAction(StructPaymentIntent $intent, PaymentInterface $paymentMethod, string $browserInformation, $address, $email = "")
+    public function getAirwallexPaymentsNextAction(StructPaymentIntent $intent, PaymentInterface $paymentMethod, $address, $email = "")
     {
         if (empty($intent->getId())) {
             throw new Exception('Intent id is required.');
@@ -508,6 +539,7 @@ class OrderService implements OrderServiceInterface
             } else {
                 $this->placeOrder($quote->getPayment(), $paymentIntentFromApi, $quote, __METHOD__);
             }
+            $this->logInfo('Payment already completed for intent ' . $intent->getId());
             return json_encode([
                 'type' => 'redirect',
                 'url' => $this->url->getUrl('checkout/onepage/success')
@@ -521,26 +553,29 @@ class OrderService implements OrderServiceInterface
         }
         try {
             $currencySwitcherData = $this->switchCurrency($intent, $paymentMethod, $address);
-        } catch (Exception $exception) {
-            throw new LocalizedException(__($exception->getMessage()));
-        } catch (Error $error) {
-            throw new LocalizedException(__($error->getMessage()));
+        } catch (Exception | Error $e) {
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
+            throw new LocalizedException(__($e->getMessage()));
         }
         if (!empty($currencySwitcherData['quote_id'])) {
             $cacheName .= '-' . $currencySwitcherData['quote_id'];
         }
         if (!$returnUrl = $this->cache->load($cacheName)) {
             try {
-                $confirmRequest = $this->confirm->setPaymentIntentId($intent->getId())->setBrowserInformation($browserInformation);
+                $confirmRequest = $this->confirmPaymentIntent->setPaymentIntentId($intent->getId());
                 if (!empty($currencySwitcherData['target_currency'])) {
-                    $confirmRequest = $confirmRequest->setQuote($currencySwitcherData['target_currency'], $currencySwitcherData['quote_id'] ?? null);
+                    $confirmRequest = $confirmRequest->setCurrencySwitcher($currencySwitcherData['target_currency'], $currencySwitcherData['quote_id']);
                 }
-                $confirmResponse = $confirmRequest->setInformation($this->getPaymentMethodCode($currentPaymentMethodCode), $address, $intent, $email, $currencySwitcherData)->send();
+                $confirmRequest = $this->setConfirmPaymentMethod($confirmRequest, $address, $intent, $email, $currencySwitcherData, $paymentMethod);
+                $confirmedPaymentIntent = $confirmRequest
+                    ->setMetadata($this->getMetadata())
+                    ->setReferrerDataType($this->getReferrerDataType($paymentMethod))
+                    ->send();
             } catch (Exception $exception) {
                 throw new LocalizedException(__($exception->getMessage()));
             }
 
-            $returnUrl = json_encode($confirmResponse);
+            $returnUrl = json_encode($confirmedPaymentIntent->getNextAction());
             $this->cache->save($returnUrl, $cacheName, [], 300);
         }
         return $returnUrl;
@@ -554,7 +589,7 @@ class OrderService implements OrderServiceInterface
     protected function switchCurrency(StructPaymentIntent $intent, PaymentInterface $paymentMethod, $address): array
     {
         $baseCurrency = $intent->getBaseCurrency() ?: $intent->getCurrency();
-        $availableCurrencies = json_decode($this->getAvailableCurrencies(), true);
+        $availableCurrencies = $this->getAvailableCurrencies();
         if (empty($availableCurrencies)) {
             return [];
         }
@@ -692,14 +727,100 @@ class OrderService implements OrderServiceInterface
             'client_secret' => $intent->getClientSecret(),
         ];
         if ($this->isRedirectMethodConstant($paymentMethod->getMethod())) {
-            $browserInformation = '';
-            if (!empty($paymentMethod->getAdditionalData())) {
-                $browserInformation = $paymentMethod->getAdditionalData()['browser_information'] ?? "";
-            }
-            $data['next_action'] = $this->getAirwallexPaymentsNextAction($intent, $paymentMethod, $browserInformation, $model->getBillingAddress(), $email);
+            $data['next_action'] = $this->getAirwallexPaymentsNextAction($intent, $paymentMethod, $model->getBillingAddress(), $email);
         }
 
         $this->cache->save(1, $this->reCaptchaValidationPlugin->getCacheKey($intent->getId()), [], 3600);
         return $response->setData($data);
+    }
+
+    /**
+     * @param $address
+     * @param StructPaymentIntent $intent
+     * @param $email
+     * @param ConfirmPaymentIntent $confirmRequest
+     * @param array $currencySwitcherData
+     * @param PaymentInterface $paymentMethod
+     * @return ConfirmPaymentIntent
+     * @throws LocalizedException
+     */
+    public function setConfirmPaymentMethod(ConfirmPaymentIntent $confirmRequest, $address, StructPaymentIntent $intent, $email, array $currencySwitcherData, PaymentInterface $paymentMethod): ConfirmPaymentIntent
+    {
+        $paymentMethodTypeName = $this->getPaymentMethodCode($paymentMethod->getMethod());
+        $paymentMethodParams = [
+            'type' => $paymentMethodTypeName,
+        ];
+        if (in_array($paymentMethodTypeName, ['klarna', 'afterpay', 'bank_transfer'], true)) {
+            if (empty($address)) {
+                throw new LocalizedException(__('Billing address cannot be empty.'));
+            }
+            if (empty($intent->getCurrency())) {
+                throw new LocalizedException(__('Intent currency cannot be empty.'));
+            }
+            $paymentMethodParams[$paymentMethodTypeName] = [
+                'shopper_email' => $email ?: $address->getEmail(),
+                'billing' => [
+                    'address' => [
+                        "country_code" => $address->getCountryId(),
+                        "street" => $address->getStreet() ? implode(', ', $address->getStreet()) : '',
+                        "city" => $address->getCity(),
+                        'state' => $address->getRegionCode(),
+                        'postcode' => $address->getPostcode(),
+                    ],
+                    'email' => $email ?: $address->getEmail(),
+                    'first_name' => $address->getFirstName(),
+                    'last_name' => $address->getLastname(),
+                    "phone_number" => $address->getTelephone(),
+                ],
+                "shopper_phone" => $address->getTelephone(),
+                "shopper_name" => $address->getFirstName() . ' ' . $address->getLastname(),
+                'language' => $this->getLanguageCode($address->getCountryId(), $paymentMethodTypeName),
+            ];
+            $confirmRequest = $confirmRequest->setPaymentMethodOptions([
+                $paymentMethodTypeName => [
+                    'auto_capture' => $this->configuration->isAutoCapture($paymentMethodTypeName)
+                ]
+            ]);
+            if ($paymentMethodTypeName === 'klarna') {
+                $paymentMethodParams[$paymentMethodTypeName]['country_code'] = $address->getCountryId();
+            } else if ($paymentMethodTypeName === 'bank_transfer') {
+                $currencyCollection = BankTransfer::SUPPORTED_CURRENCY_TO_COUNTRY;
+                if (!empty($currencySwitcherData['target_currency'])) {
+                    if (empty($currencyCollection[$currencySwitcherData['target_currency']])) {
+                        throw new LocalizedException(__('Invalid currency for Bank Transfer'));
+                    }
+                    $paymentMethodParams[$paymentMethodTypeName]['country_code'] = $currencyCollection[$currencySwitcherData['target_currency']];
+                } else {
+                    if (empty($currencyCollection[$intent->getCurrency()])) {
+                        throw new LocalizedException(__('Invalid currency for Bank Transfer'));
+                    }
+                    $paymentMethodParams[$paymentMethodTypeName]['country_code'] = $currencyCollection[$intent->getCurrency()];
+                }
+            }
+        }
+        $browserInformation = [];
+        if (!empty($paymentMethod->getAdditionalData())) {
+            $browserInformation = $paymentMethod->getAdditionalData()['browser_information'] ?? [];
+        }
+        $deviceData = (!is_array($browserInformation) || empty($browserInformation['device_data'])) ? [] : json_decode($browserInformation['device_data'], true);
+        $flow = 'qrcode';
+        if (!empty($_SERVER['HTTP_USER_AGENT'])) {
+            $detect = new MobileDetect();
+            $detect->setUserAgent($_SERVER['HTTP_USER_AGENT']);
+            $deviceData['user_agent'] = $_SERVER['HTTP_USER_AGENT'];
+            $deviceData['javascript_enabled'] = true;
+            if ($detect->isMobile() && !in_array($paymentMethodTypeName, ['klarna', 'afterpay', 'pay_now'], true)) {
+                $paymentMethodParams[$paymentMethodTypeName]['os_type'] = $detect->isAndroidOS() ? 'android' : 'ios';
+                $flow = 'mobile_web';
+            }
+        }
+        if (!empty($deviceData)) {
+            $confirmRequest = $confirmRequest->setDeviceData($deviceData);
+        }
+        if (!isset($paymentMethodParams[$paymentMethodTypeName])) {
+            $paymentMethodParams[$paymentMethodTypeName] = [];
+        }
+        $paymentMethodParams[$paymentMethodTypeName]['flow'] = $flow;
+        return $confirmRequest->setPaymentMethod($paymentMethodParams);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Airwallex\Payments\Model;
 
+use Airwallex\PayappsPlugin\CommonLibrary\Exception\RequestException;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentMethodType as StructPaymentMethodType;
 use Airwallex\Payments\Api\ServiceInterface;
 use Airwallex\Payments\Helper\Configuration;
@@ -44,7 +45,6 @@ use Magento\Framework\App\CacheInterface;
 use Magento\Framework\App\Cache\Manager;
 use Magento\Framework\App\Config\Storage\Writer;
 use Magento\Framework\App\Filesystem\DirectoryList;
-use Psr\Log\LoggerInterface;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Log as RemoteLog;
@@ -83,7 +83,6 @@ class Service implements ServiceInterface
     protected CacheInterface $cache;
     protected Manager $cacheManager;
     protected Writer $configWriter;
-    protected LoggerInterface $logger;
     protected RetrievePaymentIntent $retrievePaymentIntent;
 
     /**
@@ -119,7 +118,6 @@ class Service implements ServiceInterface
      * @param Manager $cacheManager
      * @param Writer $configWriter
      * @param CommonLibraryInit $commonLibraryInit
-     * @param LoggerInterface $logger
      * @param RetrievePaymentIntent $retrievePaymentIntent
      */
     public function __construct(
@@ -153,7 +151,6 @@ class Service implements ServiceInterface
         Manager                                $cacheManager,
         Writer                                 $configWriter,
         CommonLibraryInit                      $commonLibraryInit,
-        LoggerInterface                        $logger,
         RetrievePaymentIntent                  $retrievePaymentIntent
     )
     {
@@ -186,7 +183,6 @@ class Service implements ServiceInterface
         $this->cache = $cache;
         $this->cacheManager = $cacheManager;
         $this->configWriter = $configWriter;
-        $this->logger = $logger;
         $this->retrievePaymentIntent = $retrievePaymentIntent;
         $commonLibraryInit->exec();
     }
@@ -246,7 +242,7 @@ class Service implements ServiceInterface
             $paymentIntentFromApi = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
             $data['paid'] = $paymentIntentFromApi->isAuthorized() || $paymentIntentFromApi->isCaptured();
         } catch (Exception $e) {
-            $this->logger->error(__METHOD__ . ': ' . $e->getMessage());
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
             return json_encode($data);
         }
         if (!$data['paid'] ) {
@@ -263,7 +259,7 @@ class Service implements ServiceInterface
                 }
             } catch (Exception $e) {
                 RemoteLog::error(__METHOD__ . ': ' . $e->getMessage(), 'onOrderConfirmationError');
-                $this->logger->error(__METHOD__ . ': ' . $e->getMessage());
+                $this->logError(__METHOD__ . ': ' . $e->getMessage());
             }
         }
 
@@ -271,7 +267,7 @@ class Service implements ServiceInterface
         try {
             $order = $this->getFreshOrder($intentRecord->getOrderId());
         } catch (Exception $e) {
-            $this->logger->error(__METHOD__ . ': ' . $e->getMessage());
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
         }
         if (!empty($order) && $order->getId() && $order->getStatus() !== Order::STATE_PENDING_PAYMENT && !$this->configuration->isOrderBeforePayment()) {
             $this->setCheckoutSuccess($intentRecord->getQuoteId(), $order);
@@ -293,6 +289,7 @@ class Service implements ServiceInterface
         try {
             $maskCartId = $this->quoteIdToMaskedQuoteId->execute($cartId);
         } catch (NoSuchEntityException $e) {
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
             $maskCartId = '';
         }
 
@@ -358,7 +355,7 @@ class Service implements ServiceInterface
         ];
     }
 
-    public function getAllowedCardNetworks()
+    public function getAllowedCardNetworks(): array
     {
         try {
             $allowedNetworks = [];
@@ -452,6 +449,7 @@ class Service implements ServiceInterface
             try {
                 $maskCartId = $this->quoteIdToMaskedQuoteId->execute($quote->getId());
             } catch (NoSuchEntityException $e) {
+                $this->logError(__METHOD__ . $e->getMessage());
                 $maskCartId = '';
             }
             if ($maskCartId === '') {
@@ -558,7 +556,7 @@ class Service implements ServiceInterface
      * Apple pay validate merchant
      *
      * @return string
-     * @throws Exception|GuzzleException
+     * @throws RequestException
      */
     public function validateMerchant(): string
     {

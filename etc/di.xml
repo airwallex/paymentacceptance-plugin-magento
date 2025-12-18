@@ -30,14 +30,6 @@
             <argument name="filesystem" xsi:type="object">Magento\Framework\Filesystem\Driver\File</argument>
         </arguments>
     </type>
-    <type name="Airwallex\Payments\Logger\Logger">
-        <arguments>
-            <argument name="name" xsi:type="string">Airwallex_Payments_Logger</argument>
-            <argument name="handlers"  xsi:type="array">
-                <item name="system" xsi:type="object">Airwallex\Payments\Logger\Handler</item>
-            </argument>
-        </arguments>
-    </type>
     <!-- Card Method -->
     <virtualType name="AirwallexPaymentCardCountryValidator" type="Magento\Payment\Gateway\Validator\CountryValidator">
         <arguments>
@@ -77,7 +69,6 @@
             <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\CardMethod::CODE</argument>
             <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
             <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
-            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
             <argument name="validatorPool" xsi:type="object">AirwallexPaymentCardValidatorPool</argument>
         </arguments>
     </virtualType>
@@ -120,7 +111,6 @@
             <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\Vault::CODE</argument>
             <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
             <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
-            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
             <argument name="validatorPool" xsi:type="object">AirwallexPaymentCardVaultValidatorPool</argument>
         </arguments>
     </virtualType>
@@ -188,11 +178,10 @@
             <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\ExpressCheckout::CODE</argument>
             <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
             <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
-            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
             <argument name="validatorPool" xsi:type="object">AirwallexPaymentExpressValidatorPool</argument>
         </arguments>
     </virtualType>
-    <!-- Wechat Method -->
+    <!-- WeChat Method -->
     <virtualType name="AirwallexPaymentWechatCountryValidator" type="Magento\Payment\Gateway\Validator\CountryValidator">
         <arguments>
             <argument name="config" xsi:type="object">AirwallexPaymentWechatConfig</argument>
@@ -230,7 +219,6 @@
             <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::WECHAT_CODE</argument>
             <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
             <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
-            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
             <argument name="validatorPool" xsi:type="object">AirwallexPaymentsWechatValidatorPool</argument>
         </arguments>
     </virtualType>
@@ -272,7 +260,6 @@
             <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::ALIPAYCN_CODE</argument>
             <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
             <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
-            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
             <argument name="validatorPool" xsi:type="object">AirwallexPaymentsAlipayCNValidatorPool</argument>
         </arguments>
     </virtualType>
@@ -314,7 +301,6 @@
             <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::DANA_CODE</argument>
             <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
             <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
-            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
             <argument name="validatorPool" xsi:type="object">AirwallexPaymentsDanaValidatorPool</argument>
         </arguments>
     </virtualType>
@@ -356,7 +342,6 @@
             <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::ALIPAYHK_CODE</argument>
             <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
             <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
-            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
             <argument name="validatorPool" xsi:type="object">AirwallexPaymentsAlipayHKValidatorPool</argument>
         </arguments>
     </virtualType>
@@ -398,8 +383,48 @@
             <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::GCASH_CODE</argument>
             <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
             <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
-            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
             <argument name="validatorPool" xsi:type="object">AirwallexPaymentsGCashValidatorPool</argument>
+        </arguments>
+    </virtualType>
+    <!-- iDEAL Method -->
+    <virtualType name="AirwallexPaymentIDEALCountryValidator" type="Magento\Payment\Gateway\Validator\CountryValidator">
+        <arguments>
+            <argument name="config" xsi:type="object">AirwallexPaymentIDEALConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsIDEALValidatorPool" type="Magento\Payment\Gateway\Validator\ValidatorPool">
+        <arguments>
+            <argument name="validators" xsi:type="array">
+                <item name="country" xsi:type="string">AirwallexPaymentIDEALCountryValidator</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentIDEALConfig" type="Magento\Payment\Gateway\Config\Config">
+        <arguments>
+            <argument name="methodCode" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::IDEAL_CODE</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentIDEALConfigValueHandler" type="Magento\Payment\Gateway\Config\ConfigValueHandler">
+        <arguments>
+            <argument name="configInterface" xsi:type="object">AirwallexPaymentIDEALConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentIDEALValueHandlerPool" type="Magento\Payment\Gateway\Config\ValueHandlerPool">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="default" xsi:type="string">AirwallexPaymentIDEALConfigValueHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsIDEALGatewayFacade" type="Airwallex\Payments\Model\Methods\RedirectMethod">
+        <arguments>
+            <argument name="eventManager" xsi:type="object">Magento\Framework\Event\ManagerInterface</argument>
+            <argument name="valueHandlerPool" xsi:type="object">AirwallexPaymentIDEALValueHandlerPool</argument>
+            <argument name="paymentDataObjectFactory" xsi:type="object">Magento\Payment\Gateway\Data\PaymentDataObjectFactory</argument>
+            <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::IDEAL_CODE</argument>
+            <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
+            <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
+            <argument name="validatorPool" xsi:type="object">AirwallexPaymentsIDEALValidatorPool</argument>
         </arguments>
     </virtualType>
     <!-- Kakao Method -->
@@ -440,7 +465,6 @@
             <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::KAKAO_CODE</argument>
             <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
             <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
-            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
             <argument name="validatorPool" xsi:type="object">AirwallexPaymentsKakaoValidatorPool</argument>
         </arguments>
     </virtualType>
@@ -482,7 +506,6 @@
             <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::TOUCH_N_GO_CODE</argument>
             <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
             <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
-            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
             <argument name="validatorPool" xsi:type="object">AirwallexPaymentsTouchNGoValidatorPool</argument>
         </arguments>
     </virtualType>
@@ -524,7 +547,6 @@
             <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::PAY_NOW_CODE</argument>
             <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
             <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
-            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
             <argument name="validatorPool" xsi:type="object">AirwallexPaymentsPaynowValidatorPool</argument>
         </arguments>
     </virtualType>
@@ -566,7 +588,6 @@
             <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\KlarnaMethod::CODE</argument>
             <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
             <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
-            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
             <argument name="validatorPool" xsi:type="object">AirwallexPaymentsKlarnaValidatorPool</argument>
         </arguments>
     </virtualType>
@@ -608,7 +629,6 @@
             <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\AfterpayMethod::CODE</argument>
             <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
             <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
-            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
             <argument name="validatorPool" xsi:type="object">AirwallexPaymentsAfterpayValidatorPool</argument>
         </arguments>
     </virtualType>
@@ -650,7 +670,6 @@
             <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\RedirectMethod::BANK_TRANSFER_CODE</argument>
             <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
             <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
-            <argument name="logger" xsi:type="object">Airwallex\Payments\Logger\Logger</argument>
             <argument name="validatorPool" xsi:type="object">AirwallexPaymentsBankTransferValidatorPool</argument>
         </arguments>
     </virtualType>

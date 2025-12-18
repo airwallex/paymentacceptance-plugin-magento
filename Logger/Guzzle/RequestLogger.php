@@ -3,7 +3,7 @@
 namespace Airwallex\Payments\Logger\Guzzle;
 
 use Airwallex\Payments\Helper\Configuration;
-use Airwallex\Payments\Logger\Logger;
+use Monolog\Logger;
 use Exception;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;

@@ -22,7 +22,7 @@ define([
 
             const container = $(`.${this.index} .awx-redirect-method-footer`);
             const paymentData = window.checkoutConfig.payment.airwallex_payments;
-            const availableCurrencies = paymentData.available_currencies ? JSON.parse(paymentData.available_currencies) : [];
+            const availableCurrencies = paymentData.available_currencies || [];
 
             if (availableCurrencies.length === 0) {
                 if (Object.values(paymentData.bank_transfer_support_country_to_currency_collection).indexOf(paymentData.quote_currency_code) !== -1) {

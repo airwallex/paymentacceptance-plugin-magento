@@ -170,6 +170,7 @@ class Webhook
                 $this->reinitableConfig->reinit();
             }
         } catch (Exception $e) {
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
         }
 
         if ($status === self::WEBHOOK_FAILED) {

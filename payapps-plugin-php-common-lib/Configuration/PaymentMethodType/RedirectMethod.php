@@ -47,6 +47,7 @@ class RedirectMethod
         'pay_now' => 'SGD',
         'tng' => 'MYR',
         'wechatpay' => 'CNY',
+        'ideal' => 'EUR',
     ];
 
     const SUPPORTED_ENTITY_TO_CURRENCY = [
@@ -107,6 +108,14 @@ class RedirectMethod
             'AIRWALLEX_AU' => ['AUD', 'USD', 'CNY'],
             'AIRWALLEX_UK' => ['EUR', 'GBP', 'CNY'],
             'AIRWALLEX_EU' => ['EUR', 'CNY'],
+        ],
+        'ideal' => [
+            'AIRWALLEX_HK' => ['EUR'],
+            'AIRWALLEX_AU' => ['EUR'],
+            'AIRWALLEX_UK' => ['EUR'],
+            'AIRWALLEX_EU' => ['EUR'],
+            'AIRWALLEX_SG' => ['EUR'],
+            'AIRWALLEX_US' => ['EUR'],
         ],
     ];
 }

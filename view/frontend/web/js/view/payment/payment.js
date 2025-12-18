@@ -64,5 +64,10 @@ define([
         component: 'Airwallex_Payments/js/view/payment/redirect-method/bank-transfer'
     });
 
+    rendererList.push({
+        type: 'airwallex_payments_ideal',
+        component: 'Airwallex_Payments/js/view/payment/redirect-method'
+    });
+
     return Component.extend({});
 });

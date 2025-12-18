@@ -4,6 +4,7 @@ namespace Airwallex\Payments\Model;
 
 use Airwallex\Payments\Api\Data\PaymentIntentInterface;
 use Magento\Framework\DataObject\IdentityInterface;
+use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Model\AbstractModel;
 use Airwallex\Payments\Model\ResourceModel\PaymentIntent as ResourcePaymentIntent;
 
@@ -11,6 +12,7 @@ class PaymentIntent extends AbstractModel implements IdentityInterface, PaymentI
 {
     /**
      * @return void
+     * @throws LocalizedException
      */
     public function _construct()
     {

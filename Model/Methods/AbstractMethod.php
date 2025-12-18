@@ -2,19 +2,18 @@
 
 namespace Airwallex\Payments\Model\Methods;
 
+use Airwallex\PayappsPlugin\CommonLibrary\Exception\RequestException;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
 use Airwallex\Payments\CommonLibraryInit;
 use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
 use Airwallex\Payments\Helper\CancelHelper;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Helper\IsOrderCreatedHelper;
-use Airwallex\Payments\Model\Client\Request\PaymentIntents\Cancel;
-use Airwallex\Payments\Model\Client\Request\PaymentIntents\Capture;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Cancel as CancelPaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Capture as CapturePaymentIntent;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Airwallex\Payments\Model\PaymentIntents;
 use Exception;
-use GuzzleHttp\Exception\GuzzleException;
-use JsonException;
 use Magento\Checkout\Helper\Data as CheckoutData;
 use Magento\Framework\Event\ManagerInterface;
 use Magento\Framework\Exception\InputException;
@@ -32,7 +31,6 @@ use Magento\Sales\Model\Order\Creditmemo;
 use Magento\Sales\Model\Order\Payment;
 use RuntimeException;
 use Airwallex\Payments\Model\Traits\HelperTrait;
-use Airwallex\Payments\Logger\Logger;
 use Magento\Framework\App\CacheInterface;
 use Airwallex\Payments\Helper\IntentHelper;
 use Magento\Sales\Model\Order;
@@ -48,14 +46,8 @@ abstract class AbstractMethod extends Adapter
 {
     use HelperTrait;
 
-    public const CACHE_TAGS = ['airwallex'];
     public const PAYMENT_PREFIX = 'airwallex_payments_';
     public const ADDITIONAL_DATA = ['intent_id', 'intent_status'];
-
-    /**
-     * @var Logger
-     */
-    protected Logger $logger;
 
     /**
      * @var CreateRefund
@@ -63,9 +55,9 @@ abstract class AbstractMethod extends Adapter
     private CreateRefund $createRefund;
 
     /**
-     * @var Capture
+     * @var CapturePaymentIntent
      */
-    protected Capture $capture;
+    protected CapturePaymentIntent $capturePaymentIntent;
 
     /**
      * @var PaymentIntentRepository
@@ -73,9 +65,9 @@ abstract class AbstractMethod extends Adapter
     protected PaymentIntentRepository $paymentIntentRepository;
 
     /**
-     * @var Cancel
+     * @var CancelPaymentIntent
      */
-    private Cancel $cancel;
+    private CancelPaymentIntent $cancelPaymentIntent;
 
     /**
      * @var CancelHelper
@@ -118,13 +110,12 @@ abstract class AbstractMethod extends Adapter
      * @param string $formBlockType
      * @param string $infoBlockType
      * @param CreateRefund $createRefund
-     * @param Capture $capture
-     * @param Cancel $cancel
+     * @param CapturePaymentIntent $capturePaymentIntent
+     * @param CancelPaymentIntent $cancelPaymentIntent
      * @param CheckoutData $checkoutHelper
      * @param AvailablePaymentMethodsHelper $availablePaymentMethodsHelper
      * @param CancelHelper $cancelHelper
      * @param PaymentIntentRepository $paymentIntentRepository
-     * @param Logger $logger
      * @param CacheInterface $cache
      * @param IntentHelper $intentHelper
      * @param IsOrderCreatedHelper $isOrderCreatedHelper
@@ -144,13 +135,12 @@ abstract class AbstractMethod extends Adapter
         string                        $formBlockType,
         string                        $infoBlockType,
         CreateRefund                  $createRefund,
-        Capture                       $capture,
-        Cancel                        $cancel,
+        CapturePaymentIntent          $capturePaymentIntent,
+        CancelPaymentIntent           $cancelPaymentIntent,
         CheckoutData                  $checkoutHelper,
         AvailablePaymentMethodsHelper $availablePaymentMethodsHelper,
         CancelHelper                  $cancelHelper,
         PaymentIntentRepository       $paymentIntentRepository,
-        Logger                        $logger,
         CacheInterface                $cache,
         IntentHelper                  $intentHelper,
         IsOrderCreatedHelper          $isOrderCreatedHelper,
@@ -172,14 +162,12 @@ abstract class AbstractMethod extends Adapter
             $commandPool,
             $validatorPool,
             $commandExecutor,
-            $logger
         );
         $this->paymentIntents = $paymentIntents;
-        $this->logger = $logger;
         $this->createRefund = $createRefund;
-        $this->capture = $capture;
+        $this->capturePaymentIntent = $capturePaymentIntent;
         $this->paymentIntentRepository = $paymentIntentRepository;
-        $this->cancel = $cancel;
+        $this->cancelPaymentIntent = $cancelPaymentIntent;
         $this->availablePaymentMethodsHelper = $availablePaymentMethodsHelper;
         $this->cancelHelper = $cancelHelper;
         $this->checkoutHelper = $checkoutHelper;
@@ -214,10 +202,9 @@ abstract class AbstractMethod extends Adapter
      * @param float $amount
      *
      * @return self
-     * @throws GuzzleException
      * @throws InputException
-     * @throws JsonException
      * @throws LocalizedException
+     * @throws RequestException
      */
     public function capture(InfoInterface $payment, $amount): self
     {
@@ -263,7 +250,7 @@ abstract class AbstractMethod extends Adapter
                 : $amount / $order->getBaseGrandTotal() * $paymentIntent->getAmount();
         }
         $decimal = PaymentIntents::CURRENCY_TO_DECIMAL[$paymentIntent->getCurrency()] ?? 2;
-        $this->capture->setPaymentIntentId($intentId)->setInformation(round($captureAmount, $decimal))->send();
+        $this->capturePaymentIntent->setPaymentIntentId($intentId)->setAmount(round($captureAmount, $decimal))->send();
         return $this;
     }
 
@@ -271,7 +258,6 @@ abstract class AbstractMethod extends Adapter
      * @param InfoInterface $payment
      *
      * @return $this
-     * @throws GuzzleException
      * @throws InputException
      * @throws LocalizedException
      */
@@ -284,13 +270,13 @@ abstract class AbstractMethod extends Adapter
         $intentId = $this->getIntentId($payment);
         $this->cache->save(true, $this->cancelCacheName($intentId), [], 3600);
         try {
-            $this->cancel->setPaymentIntentId($intentId)->send();
+            $this->cancelPaymentIntent->setPaymentIntentId($intentId)->send();
         } catch (Exception $e) {
             if (strstr($e->getMessage(), 'CANCELLED')) {
                 return $this;
             }
             /** @var Payment $payment */
-            $this->logger->orderError($payment->getOrder(), 'cancel', $e->getMessage());
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
             throw new RuntimeException(__($e->getMessage()));
         }
 
@@ -379,7 +365,6 @@ abstract class AbstractMethod extends Adapter
      * @param InfoInterface $payment
      *
      * @return $this
-     * @throws GuzzleException
      * @throws InputException
      * @throws LocalizedException
      */

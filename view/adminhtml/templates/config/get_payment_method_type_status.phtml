@@ -42,9 +42,10 @@ use Magento\Framework\View\Element\AbstractBlock;
                     const warningContainerId = 'airwallex-' + paymentMethod + '-disabled';
                     jQuery(selector).on('change', async function () {
                         if (jQuery(this).val() === '1') {
+                            let $warningContainer = jQuery(this).parent().find('#' + warningContainerId);
+                            $warningContainer.html('');
                             const requestPaymentMethod = converts[paymentMethod] || paymentMethod;
                             const paymentMethodStatus = await getPaymentMethodTypeStatus(requestPaymentMethod);
-                            let $warningContainer = jQuery(this).parent().find('#' + warningContainerId);
                             if (!$warningContainer.length) {
                                 $warningContainer = jQuery('<div/>', {
                                     id: warningContainerId,

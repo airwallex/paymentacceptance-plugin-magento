@@ -4,7 +4,7 @@ namespace Airwallex\Payments\Controller\Webhooks;
 
 use Airwallex\Payments\CommonLibraryInit;
 use Airwallex\Payments\Exception\WebhookException;
-use Airwallex\Payments\Logger\Logger;
+use Psr\Log\LoggerInterface as Logger;
 use Airwallex\Payments\Model\Webhook\Webhook;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
@@ -27,6 +27,7 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
 {
     private const JSON_DECODE_DEPTH = 512;
     private const HTTP_OK = 200;
+    private const HTTP_UNAUTHORIZED = 401;
 
     /**
      * @var Webhook
@@ -100,7 +101,16 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
         if ($returnUrl && substr($returnUrl, 0, strlen($baseUrl)) !== $baseUrl) {
             return $this->response->setStatusCode(self::HTTP_OK);
         }
-        $this->webhook->checkChecksum($this->request);
+        try {
+            $this->webhook->checkChecksum($this->request);
+        } catch (Exception $e) {
+            $host = $_SERVER['HTTP_HOST'] ?? '';
+            $webhookHost = $data->data->object->metadata->host ?? '';
+            if ($host && $webhookHost && $host !== $webhookHost) {
+                return $this->response->setStatusCode(self::HTTP_UNAUTHORIZED);
+            }
+            throw $e;
+        }
         try {
             if (isset($data->name) && isset($data->data->object)) {
                 $this->webhook->dispatch($data->name, $data->data->object);

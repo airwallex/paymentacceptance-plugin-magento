@@ -8,6 +8,7 @@
         <include path="Airwallex_Payments::system/redirect/bank_transfer.xml"/>
         <include path="Airwallex_Payments::system/redirect/dana.xml"/>
         <include path="Airwallex_Payments::system/redirect/gcash.xml"/>
+        <include path="Airwallex_Payments::system/redirect/ideal.xml"/>
         <include path="Airwallex_Payments::system/redirect/kakao.xml"/>
         <include path="Airwallex_Payments::system/redirect/klarna.xml"/>
         <include path="Airwallex_Payments::system/redirect/paynow.xml"/>

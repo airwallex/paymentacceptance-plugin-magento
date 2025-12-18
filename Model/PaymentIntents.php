@@ -2,12 +2,12 @@
 
 namespace Airwallex\Payments\Model;
 
+use Airwallex\PayappsPlugin\CommonLibrary\Exception\RequestException;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\Payments\Admin\Cards\Api\CompanyConsentsInterface;
 use Airwallex\Payments\Api\PaymentConsentsInterface;
-use Airwallex\Payments\Logger\Logger;
-use Airwallex\Payments\Model\Client\AbstractClient;
-use Airwallex\Payments\Model\Client\Request\PaymentIntents\Create;
-use Airwallex\Payments\Model\Client\Request\PaymentIntents\Cancel;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Create as CreatePaymentIntent;
+use Airwallex\Payments\Model\Methods\KlarnaMethod;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use GuzzleHttp\Exception\GuzzleException;
 use Magento\Checkout\Model\Session;
@@ -53,11 +53,9 @@ class PaymentIntents
     ];
 
     protected PaymentConsentsInterface $paymentConsents;
-    private Create $paymentIntentsCreate;
-    private Cancel $paymentIntentsCancel;
+    private CreatePaymentIntent $createPaymentIntent;
     private Session $checkoutSession;
     private QuoteRepository $quoteRepository;
-    private Logger $logger;
     private UrlInterface $urlInterface;
     private PaymentIntentRepository $paymentIntentRepository;
     private OrderFactory $orderFactory;
@@ -66,11 +64,9 @@ class PaymentIntents
 
     public function __construct(
         PaymentConsentsInterface $paymentConsents,
-        Create                   $paymentIntentsCreate,
-        Cancel                   $paymentIntentsCancel,
+        CreatePaymentIntent      $createPaymentIntent,
         Session                  $checkoutSession,
         QuoteRepository          $quoteRepository,
-        Logger                   $logger,
         UrlInterface             $urlInterface,
         PaymentIntentRepository  $paymentIntentRepository,
         OrderFactory             $orderFactory,
@@ -79,11 +75,9 @@ class PaymentIntents
     )
     {
         $this->paymentConsents = $paymentConsents;
-        $this->paymentIntentsCreate = $paymentIntentsCreate;
-        $this->paymentIntentsCancel = $paymentIntentsCancel;
+        $this->createPaymentIntent = $createPaymentIntent;
         $this->checkoutSession = $checkoutSession;
         $this->quoteRepository = $quoteRepository;
-        $this->logger = $logger;
         $this->urlInterface = $urlInterface;
         $this->paymentIntentRepository = $paymentIntentRepository;
         $this->orderFactory = $orderFactory;
@@ -108,16 +102,46 @@ class PaymentIntents
         } else {
             $uri .= '?id=' . $model->getId() . '&type=order';
         }
-        $create = $this->paymentIntentsCreate->setIntentParams($model, $paymentMethod, $this->urlInterface->getUrl($uri));
+
+        if (!$isOrder && !$model->getReservedOrderId()) {
+            $model->reserveOrderId();
+            $this->quoteRepository->save($model);
+        }
+
+        $products = $this->getProducts($model);
+        if ($paymentMethod->getMethod() === KlarnaMethod::CODE) {
+            $products[] = [
+                'code' => 0,
+                'name' => 'Other Fees',
+                'quantity' => 1,
+                'sku' => '',
+                'unit_price' => $model->getGrandTotal(),
+            ];
+        }
+        $merchantOrderId = $isOrder ? $model->getIncrementId() : $model->getReservedOrderId();
+        $createPaymentIntentRequest = $this->createPaymentIntent
+            ->setMetadata($this->getMetadata())
+            ->setReferrerDataType($this->getReferrerDataType($paymentMethod, $from))
+            ->setOrder([
+                'products' => $products,
+                'shipping' => $this->getShippingAddress($model)
+            ])
+            ->setAmount(round($model->getGrandTotal(), PaymentIntents::CURRENCY_TO_DECIMAL[$this->getCurrencyCode($model)] ?? 2))
+            ->setCurrency($this->getCurrencyCode($model))
+            ->setMerchantOrderId($merchantOrderId)
+            ->setReturnUrl(trim($this->urlInterface->getUrl($uri), '/'));
 
         try {
             $uid = $isOrder ? $model->getCustomerId() : ($model->getCustomer() ? $model->getCustomer()->getId() : null);
             if ($this->isMiniPluginExists() && $from === 'card_with_saved' && $uid) {
                 $superId = ObjectManager::getInstance()->get(CompanyConsentsInterface::class)->getSuperId($uid);
                 $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($superId);
-                $intent = $create->setAirwallexCustomerId($airwallexCustomerId)->send();
+                $intent = $createPaymentIntentRequest->setCustomerId($airwallexCustomerId)->send();
             } else {
-                $intent = $create->setCustomer($email, $phone)->send();
+                $customer = [];
+                if (!empty($email)) $customer['email'] = $email;
+                if (!empty($phone)) $customer['phone_number'] = $phone;
+                $intent = $createPaymentIntentRequest->setCustomer($customer)->send();
             }
         } catch (Exception $e) {
             RemoteLog::error( $e->getMessage(), RemoteLog::ON_PAYMENT_CREATION_ERROR);
@@ -132,7 +156,7 @@ class PaymentIntents
 
         $this->paymentIntentRepository->save(
             $isOrder ? $model->getIncrementId() : $model->getReservedOrderId(),
-            $intent['id'],
+            $intent->getId(),
             $this->getCurrencyCode($model),
             $model->getGrandTotal(),
             $isOrder ? $model->getId() : 0,
@@ -142,17 +166,22 @@ class PaymentIntents
             json_encode([$paymentMethod->getMethod()]),
         );
 
-        return $this->retrievePaymentIntent->setPaymentIntentId($intent['id'])->send();
+        return $this->retrievePaymentIntent->setPaymentIntentId($intent->getId())->send();
     }
 
-
-
     /**
+     * @param $model
+     * @param string $phone
+     * @param string $email
+     * @param string $from
+     * @param PaymentInterface $paymentMethod
+     * @return StructPaymentIntent
      * @throws AlreadyExistsException
-     * @throws LocalizedException
-     * @throws JsonException
      * @throws GuzzleException
      * @throws InputException
+     * @throws JsonException
+     * @throws LocalizedException
+     * @throws RequestException
      */
     public function getIntent($model, string $phone, string $email, string $from, PaymentInterface $paymentMethod): StructPaymentIntent
     {
@@ -174,10 +203,11 @@ class PaymentIntents
             /** @var StructPaymentIntent $paymentIntentFromApi */
             $paymentIntentFromApi = $this->retrievePaymentIntent->setPaymentIntentId($paymentIntent->getIntentId())->send();
         } catch (Exception $e) {
-            if ($e->getMessage() === AbstractClient::NOT_FOUND) {
+            $error = json_decode($e->getMessage(), true);
+            if (is_array($error) && isset($error['code']) && $error['code'] === AbstractApi::ERROR_RESOURCE_NOT_FOUND) {
                 return $this->createIntent($model, $phone, $email, $from, $paymentMethod);
             }
-            throw new $e;
+            throw $e;
         }
         if (!$paymentIntentFromApi->getId()) {
             return $this->createIntent($model, $phone, $email, $from, $paymentMethod);
@@ -207,7 +237,7 @@ class PaymentIntents
         $detail = json_decode($paymentIntent->getDetail(), true);
         if (empty($detail['products'])) return true;
 
-        $products = $this->paymentIntentsCreate->getProducts($model);
+        $products = $this->getProducts($model);
         return $this->getProductsForCompare($products) !== $this->getProductsForCompare($detail['products']);
     }
 

@@ -19,7 +19,6 @@ use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
-use Airwallex\Payments\Logger\Logger;
 use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
 use Magento\Sales\Api\OrderManagementInterface;
@@ -37,7 +36,6 @@ class SalesOrderPaymentCancel implements ObserverInterface
     protected CancelHelper $cancelHelper;
     protected CartRepositoryInterface $quoteRepository;
     protected CancelPaymentIntent $cancelPaymentIntent;
-    protected Logger $logger;
     protected OrderFactory $orderFactory;
     protected OrderResourceInterface $orderResource;
     protected OrderManagementInterface $orderManagement;
@@ -51,7 +49,6 @@ class SalesOrderPaymentCancel implements ObserverInterface
         CancelHelper             $cancelHelper,
         CartRepositoryInterface  $quoteRepository,
         CancelPaymentIntent      $cancelPaymentIntent,
-        Logger                   $logger,
         OrderFactory             $orderFactory,
         OrderResourceInterface   $orderResource,
         OrderManagementInterface $orderManagement,
@@ -66,7 +63,6 @@ class SalesOrderPaymentCancel implements ObserverInterface
         $this->cancelHelper = $cancelHelper;
         $this->quoteRepository = $quoteRepository;
         $this->cancelPaymentIntent = $cancelPaymentIntent;
-        $this->logger = $logger;
         $this->orderFactory = $orderFactory;
         $this->orderResource = $orderResource;
         $this->orderManagement = $orderManagement;

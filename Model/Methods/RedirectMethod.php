@@ -15,6 +15,7 @@ class RedirectMethod extends AbstractMethod
     public const KLARNA_CODE = 'airwallex_payments_klarna';
     public const AFTERPAY_CODE = 'airwallex_payments_afterpay';
     public const BANK_TRANSFER_CODE = 'airwallex_payments_bank_transfer';
+    public const IDEAL_CODE = 'airwallex_payments_ideal';
 
     public static function displayNames(): array
     {
@@ -30,6 +31,7 @@ class RedirectMethod extends AbstractMethod
             self::TOUCH_N_GO_CODE => __("Touch 'n Go"),
             self::PAY_NOW_CODE => __('PayNow'),
             self::WECHAT_CODE => __('WeChat Pay'),
+            self::IDEAL_CODE => __('iDEAL'),
         ];
     }
 }

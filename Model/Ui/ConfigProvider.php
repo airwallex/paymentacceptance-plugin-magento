@@ -6,9 +6,9 @@ use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\Afterp
 use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\Klarna;
 use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\BankTransfer;
 use Airwallex\PayappsPlugin\CommonLibrary\Exception\RequestException;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Helper\Configuration;
-use Airwallex\Payments\Model\Client\Request\GetCurrencies;
 use Airwallex\Payments\Model\Methods\RedirectMethod;
 use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\RedirectMethod as RedirectMethodConfiguration;
 use Airwallex\Payments\Model\Traits\HelperTrait;
@@ -42,7 +42,6 @@ class ConfigProvider implements ConfigProviderInterface
     private CustomerRepositoryInterface $customerRepository;
     private RetrieveCustomer $retrieveCustomer;
     private ProductMetadata $productMetadata;
-    private GetCurrencies $getCurrencies;
 
     private CacheInterface $cache;
     private CheckoutData $checkoutData;
@@ -58,7 +57,6 @@ class ConfigProvider implements ConfigProviderInterface
      * @param CustomerRepositoryInterface $customerRepository
      * @param RetrieveCustomer $retrieveCustomer
      * @param ProductMetadata $productMetadata
-     * @param GetCurrencies $getCurrencies
      * @param CacheInterface $cache
      * @param CheckoutData $checkoutData
      */
@@ -71,7 +69,6 @@ class ConfigProvider implements ConfigProviderInterface
         CustomerRepositoryInterface $customerRepository,
         RetrieveCustomer            $retrieveCustomer,
         ProductMetadata             $productMetadata,
-        GetCurrencies               $getCurrencies,
         CacheInterface              $cache,
         CheckoutData                $checkoutData
     )
@@ -84,7 +81,6 @@ class ConfigProvider implements ConfigProviderInterface
         $this->customerRepository = $customerRepository;
         $this->retrieveCustomer = $retrieveCustomer;
         $this->productMetadata = $productMetadata;
-        $this->getCurrencies = $getCurrencies;
         $this->cache = $cache;
         $this->checkoutData = $checkoutData;
     }
@@ -138,9 +134,9 @@ class ConfigProvider implements ConfigProviderInterface
     }
 
     /**
-     * @throws NoSuchEntityException
-     * @throws GuzzleException
+     * @return string
      * @throws LocalizedException
+     * @throws NoSuchEntityException
      */
     private function getAirwallexCustomerId(): string
     {
@@ -166,7 +162,7 @@ class ConfigProvider implements ConfigProviderInterface
         } catch (RequestException $e) {
             $error = json_decode($e->getMessage(), true);
             $code = (is_array($error) && isset($error['code'])) ? $error['code'] : '';
-            if ($code === RetrieveCustomer::ERROR_RESOURCE_NOT_FOUND) {
+            if ($code === AbstractApi::ERROR_RESOURCE_NOT_FOUND) {
                 return $this->paymentConsents->createAirwallexCustomer($customer);
             }
             $this->logError(__METHOD__ . ': ' . $e->getMessage());

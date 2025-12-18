@@ -6,10 +6,13 @@ use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Ret
 use Airwallex\PayappsPlugin\CommonLibrary\UseCase\CurrencySwitcher;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Helper\IntentHelper;
-use Airwallex\Payments\Model\Client\Request\GetCurrencies;
+use Airwallex\PayappsPlugin\CommonLibrary\UseCase\Config\CurrencySwitcherAvailableCurrencies;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Log as RemoteLog;
-use Psr\Log\LoggerInterface;
-use Airwallex\Payments\Model\Client\Request\PaymentMethod\Get;
+use Airwallex\Payments\Model\Methods\RedirectMethod;
+use Magento\Framework\App\ProductMetadataInterface;
+use Magento\Framework\Module\ModuleListInterface;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentMethod\Get as RetrievePaymentMethod;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentMethod as StructPaymentMethod;
 use Airwallex\Payments\Model\Methods\AbstractMethod;
 use Airwallex\Payments\Model\Methods\CardMethod;
 use Airwallex\Payments\Model\Methods\Vault;
@@ -36,6 +39,7 @@ use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Model\OrderRepository;
 use Magento\Sales\Model\ResourceModel\Order\CollectionFactory;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
+use Psr\Log\LoggerInterface;
 use ReflectionClass;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Account;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\Quote as StructQuote;
@@ -304,21 +308,20 @@ trait HelperTrait
     public function checkCardDetail(StructPaymentIntent $paymentIntentFromApi, Order $order): void
     {
         if (!ObjectManager::getInstance()->get(Configuration::class)->isPreVerificationEnabled()) return;
-        $lastPaymentType = $paymentIntentFromApi->getLatestPaymentAttempt()['payment_method']['type'] ?? '';
-        if ($lastPaymentType === 'card') {
+        if ($paymentIntentFromApi->getPaymentMethodType() === 'card') {
             $record = ObjectManager::getInstance()->get(PaymentIntentRepository::class)->getByIntentId($paymentIntentFromApi->getId());
             $detail = $record->getDetail();
 
             $isSame = true;
             $detailArray = $detail ? json_decode($detail, true) : [];
             if (!empty($detailArray['payment_method_ids'])) {
-                $paymentMethodGet = ObjectManager::getInstance()->get(Get::class);
-                $response = $paymentMethodGet->setPaymentMethodId(end($detailArray['payment_method_ids']))->send();
-                $paymentMethodResponse = json_decode($response, true);
+                $paymentMethodGet = ObjectManager::getInstance()->get(RetrievePaymentMethod::class);
+                /** @var RetrievePaymentMethod $paymentMethodGet */
+                $paymentMethodObject = $paymentMethodGet->setPaymentMethodId(end($detailArray['payment_method_ids']))->send();
 
                 $intentCard = $paymentIntentFromApi->getLatestPaymentAttempt()['payment_method']['card'] ?? null;
-                $card = $paymentMethodResponse['card'] ?? null;
-
+                /** @var StructPaymentMethod $paymentMethodObject */
+                $card = $paymentMethodObject->getCard() ?: null;
                 if (
                     !$intentCard || !$card || $intentCard['bin'] !== $card['bin']
                     || $intentCard['expiry_month'] !== $card['expiry_month']
@@ -384,7 +387,7 @@ trait HelperTrait
             ObjectManager::getInstance()->get(OrderResourceInterface::class)->load($latestOrder, $order->getId());
             $this->addComment($latestOrder, $log);
         } catch (Exception $e) {
-            ObjectManager::getInstance()->get(LoggerInterface::class)->error(__METHOD__ . ': ' . $e->getMessage());
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
         }
     }
 
@@ -430,7 +433,6 @@ trait HelperTrait
     public function changeOrderStatus(StructPaymentIntent $paymentIntentFromApi, int $orderId, Quote $quote, string $from): void
     {
         $resource = ObjectManager::getInstance()->get(PaymentIntent::class);
-        $logService = ObjectManager::getInstance()->get(LoggerInterface::class);
         $connection = $resource->getConnection();
         $connection->beginTransaction();
         try {
@@ -439,7 +441,7 @@ trait HelperTrait
                 ->where('payment_intent_id = ?', $paymentIntentFromApi->getId())
                 ->forUpdate(true);
             $connection->query($query);
-            $logService->info("Start to change order status for order $orderId from $from");
+            $this->logInfo("Start to change order status for order $orderId from $from");
             $order = $this->getFreshOrder($orderId);
             /** @var Payment $payment */
             $payment = $order->getPayment();
@@ -471,12 +473,14 @@ trait HelperTrait
             try {
                 $this->checkCardDetail($paymentIntentFromApi, $order);
             } catch (Exception $e) {
+                $this->logError('checkCardDetail failed: ' . $e->getMessage());
             }
-            $logService->info("Finish to change order status for order $orderId from $from");
+            $this->logInfo("Finish to change order status for order $orderId from $from");
             $connection->commit();
             $this->setCheckoutSuccess($quote->getId(), $order);
         }   catch (Exception $e) {
             $connection->rollBack();
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
             throw $e;
         }
     }
@@ -511,7 +515,6 @@ trait HelperTrait
         $quoteId = $quote->getId();
 
         $resource = ObjectManager::getInstance()->get(PaymentIntent::class);
-        $logService = ObjectManager::getInstance()->get(LoggerInterface::class);
         $connection = $resource->getConnection();
         $connection->beginTransaction();
         try {
@@ -520,7 +523,7 @@ trait HelperTrait
                 ->where('payment_intent_id = ?', $paymentIntentFromApi->getId())
                 ->forUpdate(true);
             $connection->query($query);
-            $logService->info("Start to place order for quote $quoteId from $from");
+            $this->logInfo("Start to place order for quote $quoteId from $from");
             try {
                 $order = ObjectManager::getInstance()->get(OrderInterface::class)->loadByAttribute('increment_id', $paymentIntentFromApi->getMerchantOrderId());
             } catch (Exception $e) {
@@ -561,16 +564,18 @@ trait HelperTrait
                 try {
                     $this->checkCardDetail($paymentIntentFromApi, $order);
                 } catch (Exception $e) {
+                    $this->logError('checkCardDetail failed: ' . $e->getMessage());
                 }
             }
 
             $this->deactivateQuote($quote);
 
-            $logService->info("Successfully placed order for quote ID: $quoteId from $from.");
+            $this->logInfo("Successfully placed order for quote ID: $quoteId from $from.");
             $connection->commit();
             $this->setCheckoutSuccess($quoteId, $order);
         }   catch (Exception $e) {
             $connection->rollBack();
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
             throw $e;
         }
     }
@@ -594,6 +599,25 @@ trait HelperTrait
         return str_replace(AbstractMethod::PAYMENT_PREFIX, '', $code);
     }
 
+    public function getReferrerDataType($paymentMethod, $from = '')
+    {
+        $code = $this->getPaymentMethodCode($paymentMethod->getMethod());
+
+        if ($code === 'express' && in_array($from, ['googlepay', 'applepay'], true)) {
+            return "magento_{$from}";
+        }
+
+        if ($code === 'card') {
+            return "magento_credit_card";
+        }
+
+        if ($code !== 'express') {
+            return "magento_{$code}";
+        }
+
+        return 'magento';
+    }
+
     public function isMiniPluginExists(): bool
     {
         return file_exists('../app/code/airwallex/paymentacceptance-minifeature-magento-admin-card/Model/CompanyConsents.php');
@@ -613,32 +637,7 @@ trait HelperTrait
      */
     public function getAvailableCurrencies()
     {
-        $cacheName = 'airwallex_available_currencies';
-        $result = $this->cache->load($cacheName);
-        if (empty($result) || $result === "[]") {
-            $index = 0;
-            $items = [];
-            while (true) {
-                try {
-                    $res = ObjectManager::getInstance()->get(GetCurrencies::class)
-                        ->setPage($index, 200)
-                        ->send();
-                } catch (Exception $exception) {
-                    return json_encode($items);
-                }
-
-                $index++;
-                if (!empty($res['items'])) {
-                    $items = array_merge($items, $res['items']);
-                }
-                if (!$res['has_more']) {
-                    break;
-                }
-            }
-            $result = json_encode($items);
-            $this->cache->save($result, $cacheName, [], 300);
-        }
-        return $result;
+        return ObjectManager::getInstance()->get(CurrencySwitcherAvailableCurrencies::class)->get();
     }
 
     public function isOrderBeforePayment(): bool
@@ -657,8 +656,37 @@ trait HelperTrait
         ObjectManager::getInstance()->get(LoggerInterface::class)->error($message);
     }
 
-    public function logDebug(string $message)
+    public function logInfo(string $message)
     {
         ObjectManager::getInstance()->get(LoggerInterface::class)->debug($message);
+    }
+
+    protected function getMetadata(): array
+    {
+        $productMetadata = ObjectManager::getInstance()->get(ProductMetadataInterface::class);
+        $configuration = ObjectManager::getInstance()->get(Configuration::class);
+        $moduleList = ObjectManager::getInstance()->get(ModuleListInterface::class);
+        $metadata = [
+            'php_version' => phpversion(),
+            'magento_version' => $productMetadata->getVersion(),
+            'plugin_version' => $moduleList->getOne(Configuration::MODULE_NAME)['setup_version'],
+            'is_card_active' => $configuration->isCardActive() ?? false,
+            'is_card_auto_capture' => $configuration->isAutoCapture('card') ?? false,
+            'is_card_vault_active' => $configuration->isCardVaultActive() ?? false,
+            'is_express_active' => $configuration->isExpressActive() ?? false,
+            'is_express_auto_capture' => $configuration->isAutoCapture('express') ?? false,
+            'express_display_area' => $configuration->expressDisplayArea() ?? '',
+            'is_request_logger_enable' => $configuration->isRequestLoggerEnable() ?? false,
+            'express_checkout' => $configuration->getCheckout() ?? '',
+            'is_order_before_payment' => $configuration->isOrderBeforePayment(),
+            'host' => $_SERVER['HTTP_HOST'] ?? '',
+        ];
+
+        foreach (array_keys(RedirectMethod::displayNames()) as $paymentMethod) {
+            $paymentMethod = str_replace(AbstractMethod::PAYMENT_PREFIX, '', $paymentMethod);
+            $metadata['is_' . $paymentMethod . '_active'] = $configuration->isMethodActive($paymentMethod);
+        }
+
+        return $metadata;
     }
 }

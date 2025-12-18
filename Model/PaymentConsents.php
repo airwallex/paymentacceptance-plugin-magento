@@ -3,6 +3,7 @@
 namespace Airwallex\Payments\Model;
 
 use Airwallex\PayappsPlugin\CommonLibrary\Exception\RequestException;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentConsent as StructPaymentConsent;
 use Airwallex\Payments\Api\Data\SavedPaymentResponseInterface;
 use Airwallex\Payments\Api\PaymentConsentsInterface;
@@ -32,7 +33,7 @@ use Airwallex\PayappsPlugin\CommonLibrary\Struct\CustomerClientSecret as StructC
 use Airwallex\Payments\Api\Data\ClientSecretResponseInterfaceFactory;
 use Airwallex\Payments\Api\Data\ClientSecretResponseInterface;
 use Magento\Framework\Encryption\EncryptorInterface;
-use Airwallex\Payments\Model\Client\Request\RetrieveCustomer;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\Customer\Retrieve as RetrieveCustomer;
 use Magento\Framework\Api\FilterBuilder;
 use Magento\Vault\Api\Data\PaymentTokenInterface;
 use Magento\Framework\Api\SearchCriteriaBuilder;
@@ -47,7 +48,6 @@ use Airwallex\Payments\Api\Data\SavedPaymentResponseInterfaceFactory;
 class PaymentConsents implements PaymentConsentsInterface
 {
     use HelperTrait;
-    public const CUSTOMER_ID_PREFIX = 'magento_';
     public const STATUS_VERIFIED = 'VERIFIED';
 
     public const KEY_AIRWALLEX_CUSTOMER_ID = 'airwallex_customer_id';
@@ -180,7 +180,6 @@ class PaymentConsents implements PaymentConsentsInterface
     /**
      * @param CustomerInterface $customer
      * @return string
-     * @throws GuzzleException
      */
     private function tryFindCustomerInVault(CustomerInterface $customer): string
     {
@@ -199,11 +198,12 @@ class PaymentConsents implements PaymentConsentsInterface
         $oldAirwallexCustomerId = '';
         foreach ($ids as $id) {
             try {
-                $this->retrieveCustomer->setAirwallexCustomerId($id)->send();
+                $this->retrieveCustomer->setCustomerId($id)->send();
                 $oldAirwallexCustomerId = $id;
                 break;
             } catch (Exception $e) {
-                if ($this->retrieveCustomer::NOT_FOUND === $e->getMessage()) {
+                $error = json_decode($e->getMessage(), true);
+                if (is_array($error) && isset($error['code']) && $error['code'] === AbstractApi::ERROR_RESOURCE_NOT_FOUND) {
                     continue;
                 }
                 return '';
@@ -249,6 +249,7 @@ class PaymentConsents implements PaymentConsentsInterface
      * @return SavedPaymentResponseInterface[]|array
      * @throws LocalizedException
      * @throws NoSuchEntityException
+     * @throws Exception
      */
     public function getSavedCards(int $customerId): array
     {
@@ -511,6 +512,7 @@ class PaymentConsents implements PaymentConsentsInterface
     /**
      * @return ClientSecretResponseInterface
      * @throws RequestException
+     * @throws Exception
      */
     public function guestGenerateClientSecret(): ClientSecretResponseInterface
     {

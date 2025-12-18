@@ -22,7 +22,6 @@ use Magento\Framework\App\ObjectManager;
 use Magento\Quote\Model\MaskedQuoteIdToQuoteIdInterface;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Log as RemoteLog;
-use Psr\Log\LoggerInterface;
 
 class Index implements HttpGetActionInterface
 {
@@ -35,7 +34,6 @@ class Index implements HttpGetActionInterface
     public RetrievePaymentIntent $retrievePaymentIntent;
     private UrlInterface $url;
     private CommonLibraryInit $commonLibraryInit;
-    private LoggerInterface $logger;
 
     public function __construct(
         ResponseHttp $response,
@@ -44,8 +42,7 @@ class Index implements HttpGetActionInterface
         PaymentIntentRepository $paymentIntentRepository,
         RetrievePaymentIntent $retrievePaymentIntent,
         UrlInterface $url,
-        CommonLibraryInit $commonLibraryInit,
-        LoggerInterface $logger
+        CommonLibraryInit $commonLibraryInit
     ) {
         $this->response = $response;
         $this->request = $request;
@@ -53,7 +50,6 @@ class Index implements HttpGetActionInterface
         $this->paymentIntentRepository = $paymentIntentRepository;
         $this->retrievePaymentIntent = $retrievePaymentIntent;
         $this->url = $url;
-        $this->logger = $logger;
         $commonLibraryInit->exec();
     }
 
@@ -93,7 +89,7 @@ class Index implements HttpGetActionInterface
         }
         /** @var PaymentIntentInterface $paymentIntent */
         if (empty($paymentIntent) || empty($paymentIntent->getIntentId())) {
-            $this->logger->critical("Payment Intent for quote {$id} doesn't exist.");
+            $this->logError("Payment Intent for quote $id doesn't exist.");
             return $this->redirect('checkout#payment');
         }
         try {

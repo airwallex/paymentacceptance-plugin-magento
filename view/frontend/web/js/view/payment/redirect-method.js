@@ -73,7 +73,7 @@ define([
                 return;
             }
 
-            const availableCurrencies = paymentData.available_currencies ? JSON.parse(paymentData.available_currencies) : [];
+            const availableCurrencies = paymentData.available_currencies || [];
 
             if (entityToCurrency[this.entity].indexOf(paymentData.quote_currency_code) !== -1) {
                 $(container).html('');
