@@ -26,6 +26,7 @@ class Klarna
         'GB' => 'GBP',
         'CZ' => 'CZK',
         'US' => 'USD',
+        'NZ' => 'NZD',
     ];
 
     const COUNTRY_LANGUAGE = [

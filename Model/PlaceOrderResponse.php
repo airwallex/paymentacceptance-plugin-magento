@@ -85,7 +85,7 @@ class PlaceOrderResponse extends DataObject implements PlaceOrderResponseInterfa
 
     /**
      * @param string $message
-     * @return $this
+     * @return PlaceOrderResponse
      */
     public function setMessage(string $message): PlaceOrderResponse
     {
