@@ -44,4 +44,3 @@ bin/magento indexer:reindex customer_grid  # This command is required only durin
 bin/magento cache:clean
 bin/magento cache:flush
 ```
-
