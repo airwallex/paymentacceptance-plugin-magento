@@ -3,10 +3,14 @@
 namespace Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\Customer;
 
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\DataSanitizationTrait;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\Customer;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\StringHelper;
 
 class Update extends AbstractApi
 {
+    use DataSanitizationTrait;
+
     /**
      * @var string
      */
@@ -38,7 +42,7 @@ class Update extends AbstractApi
      */
     public function setAddress(array $address): Update
     {
-        return $this->setParam('address', $address);
+        return $this->setParam('address', $this->sanitizeAddressData($address));
     }
 
     /**
@@ -48,7 +52,7 @@ class Update extends AbstractApi
      */
     public function setBusinessName(string $businessName): Update
     {
-        return $this->setParam('business_name', $businessName);
+        return $this->setParam('business_name', StringHelper::sanitize($businessName, 128));
     }
 
     /**
@@ -58,7 +62,7 @@ class Update extends AbstractApi
      */
     public function setEmail(string $email): Update
     {
-        return $this->setParam('email', $email);
+        return $this->setParam('email', StringHelper::sanitize($email, 256));
     }
 
     /**
@@ -68,7 +72,7 @@ class Update extends AbstractApi
      */
     public function setFirstName(string $firstName): Update
     {
-        return $this->setParam('first_name', $firstName);
+        return $this->setParam('first_name', StringHelper::sanitize($firstName, 128));
     }
 
     /**
@@ -78,7 +82,7 @@ class Update extends AbstractApi
      */
     public function setLastName(string $lastName): Update
     {
-        return $this->setParam('last_name', $lastName);
+        return $this->setParam('last_name', StringHelper::sanitize($lastName, 128));
     }
 
     /**
@@ -88,7 +92,7 @@ class Update extends AbstractApi
      */
     public function setPhoneNumber(string $phoneNumber): Update
     {
-        return $this->setParam('phone_number', $phoneNumber);
+        return $this->setParam('phone_number', StringHelper::sanitize($phoneNumber, 50, false));
     }
 
     /**
@@ -98,7 +102,7 @@ class Update extends AbstractApi
      */
     public function setMerchantCustomerId(string $merchantCustomerId): Update
     {
-        return $this->setParam('merchant_customer_id', $merchantCustomerId);
+        return $this->setParam('merchant_customer_id', StringHelper::sanitize($merchantCustomerId, 64));
     }
 
     /**

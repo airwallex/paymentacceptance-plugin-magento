@@ -61,6 +61,9 @@
            <label>Webhook Url</label>
            <frontend_model>Airwallex\Payments\Model\Config\Source\WebhookUrl</frontend_model>
        </field>
+       <field id="test_connection" translate="label" type="button" sortOrder="35" showInDefault="1" showInWebsite="1" showInStore="1">
+           <frontend_model>Airwallex\Payments\Model\Config\Adminhtml\TestConnectionButton</frontend_model>
+       </field>
         <field id="request_logger" translate="label" type="select" sortOrder="40" showInDefault="1" showInWebsite="1">
             <label>Request Logger</label>
             <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>

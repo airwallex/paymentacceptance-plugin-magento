@@ -1,0 +1,12 @@
+<?php
+/** @var \Airwallex\Payments\Block\Success\CartClear $block */
+?>
+<script type="text/x-magento-init">
+{
+    "*": {
+        "Airwallex_Payments/js/success-page-cart-clear": {
+            "isAirwallexPayment": <?= $block->isAirwallexPayment() ? 'true' : 'false' ?>
+        }
+    }
+}
+</script>

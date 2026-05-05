@@ -2,7 +2,14 @@
     "name": "airwallex/payments-plugin-magento",
     "type": "magento2-module",
     "description": "",
-    "version": "1.20.0",
+    "license": "MIT",
+    "version": "1.21.0",
+    "authors": [
+        {
+            "name": "Airwallex",
+            "homepage": "https://www.airwallex.com"
+        }
+    ],
     "require": {
         "ext-json": "*",
         "php": "^7.4|^8.0",
@@ -10,11 +17,19 @@
         "magento/module-re-captcha-webapi-api": "^1.0.0",
         "magento/module-vault": "^100.1.0 || ^101.0.0"
     },
+    "require-dev": {
+        "phpunit/phpunit": "^9.0"
+    },
     "autoload": {
         "files": [ "registration.php" ],
         "psr-4": {
             "Airwallex\\Payments\\": "",
             "Airwallex\\PayappsPlugin\\CommonLibrary\\": "payapps-plugin-php-common-lib/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Airwallex\\Magento\\Tests\\": "tests/"
         }
     },
     "archive": {

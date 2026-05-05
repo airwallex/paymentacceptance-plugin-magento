@@ -10,7 +10,7 @@
         </field>
         <field id="title" translate="label comment" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
             <label>Title</label>
-            <comment><![CDATA[This is the payment method title used at the checkout page]]></comment>
+            <comment><![CDATA[This is the payment method title used at the checkout page.]]></comment>
             <config_path>payment/airwallex_payments_klarna/title</config_path>
         </field>
         <field id="airwallex_payment_action" translate="label" type="select" sortOrder="45" showInDefault="1" showInWebsite="0" showInStore="0">

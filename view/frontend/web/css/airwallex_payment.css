@@ -526,3 +526,66 @@
 .awx-compatible-country-link:visited {
     color: rgba(66, 71, 77, 1);
 }
+
+.airwallex-apm-container {
+    margin-top: 15px;
+}
+
+.airwallex-apm-description {
+    margin-bottom: 15px;
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.airwallex-apm-element-container {
+    padding: 15px 0;
+}
+
+.airwallex-apm-placeholder {
+    padding: 20px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.airwallex-apm-placeholder p {
+    margin: 0;
+    color: #6c757d;
+}
+
+.airwallex-apm-loading {
+    text-align: center;
+    padding: 30px;
+    color: #6c757d;
+}
+
+#airwallex-apm-error {
+    margin-top: 15px;
+    padding: 10px 15px;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    color: #721c24;
+}
+
+#airwallex-apm-error .error-text {
+    margin: 0;
+}
+
+.airwallex_payments_apm .checkout {
+    margin-top: 15px;
+}
+
+.airwallex_payments_apm .airwallex-payment-method-logos {
+    display: inline-flex;
+    gap: 8px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.airwallex_payments_apm .airwallex-payment-logo {
+    max-height: 20px;
+    width: auto;
+    object-fit: contain;
+}

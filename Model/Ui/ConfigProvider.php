@@ -1,5 +1,33 @@
 <?php
-
+/**
+ * Airwallex Payments for Magento
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 Airwallex
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * @author    Airwallex
+ * @copyright 2026 Airwallex
+ * @license   https://opensource.org/licenses/MIT MIT License
+ */
 namespace Airwallex\Payments\Model\Ui;
 
 use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\Afterpay;
@@ -21,12 +49,15 @@ use Magento\Framework\App\ProductMetadata;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
+use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\ReCaptchaUi\Block\ReCaptcha;
 use Magento\ReCaptchaUi\Model\IsCaptchaEnabledInterface;
 use Magento\Customer\Api\CustomerRepositoryInterface;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\Customer\Retrieve as RetrieveCustomer;
 use Magento\Checkout\Helper\Data as CheckoutData;
 use Exception;
+use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
+use Airwallex\Payments\CommonLibraryInit;
 
 class ConfigProvider implements ConfigProviderInterface
 {
@@ -42,6 +73,8 @@ class ConfigProvider implements ConfigProviderInterface
     private CustomerRepositoryInterface $customerRepository;
     private RetrieveCustomer $retrieveCustomer;
     private ProductMetadata $productMetadata;
+    private AvailablePaymentMethodsHelper $availablePaymentMethodsHelper;
+    private ScopeConfigInterface $scopeConfig;
 
     private CacheInterface $cache;
     private CheckoutData $checkoutData;
@@ -59,6 +92,9 @@ class ConfigProvider implements ConfigProviderInterface
      * @param ProductMetadata $productMetadata
      * @param CacheInterface $cache
      * @param CheckoutData $checkoutData
+     * @param AvailablePaymentMethodsHelper $availablePaymentMethodsHelper
+     * @param ScopeConfigInterface $scopeConfig
+     * @param CommonLibraryInit $commonLibraryInit
      */
     public function __construct(
         Configuration               $configuration,
@@ -70,7 +106,10 @@ class ConfigProvider implements ConfigProviderInterface
         RetrieveCustomer            $retrieveCustomer,
         ProductMetadata             $productMetadata,
         CacheInterface              $cache,
-        CheckoutData                $checkoutData
+        CheckoutData                $checkoutData,
+        ScopeConfigInterface        $scopeConfig,
+        CommonLibraryInit           $commonLibraryInit,
+        AvailablePaymentMethodsHelper $availablePaymentMethodsHelper
     )
     {
         $this->configuration = $configuration;
@@ -83,6 +122,10 @@ class ConfigProvider implements ConfigProviderInterface
         $this->productMetadata = $productMetadata;
         $this->cache = $cache;
         $this->checkoutData = $checkoutData;
+        $this->availablePaymentMethodsHelper = $availablePaymentMethodsHelper;
+        $this->scopeConfig = $scopeConfig;
+
+        $commonLibraryInit->exec();
     }
 
     /**
@@ -120,6 +163,8 @@ class ConfigProvider implements ConfigProviderInterface
                         'redirect_method_country_to_currency' => RedirectMethodConfiguration::SUPPORTED_COUNTRY_TO_CURRENCY,
                         'redirect_method_entity_to_currency' => RedirectMethodConfiguration::SUPPORTED_ENTITY_TO_CURRENCY,
                         'redirect_method_display_names' => RedirectMethod::displayNames(),
+                        'is_order_before_payment' => $this->configuration->isOrderBeforePayment(),
+                        'apm_selected_logos' => $this->getSelectedPaymentMethodLogos(),
                     ]
                 ]
             ];
@@ -202,6 +247,43 @@ class ConfigProvider implements ConfigProviderInterface
     public function isReCaptchaEnabled(): bool
     {
         return $this->isCaptchaEnabled->isCaptchaEnabledFor(self::AIRWALLEX_RECAPTCHA_FOR);
+    }
+
+    private function getSelectedPaymentMethodLogos(): array
+    {
+        $configuredLogos = $this->scopeConfig->getValue('payment/airwallex_payments_apm/selected_payment_method_logos');
+
+        if (empty($configuredLogos)) {
+            return [];
+        }
+
+        try {
+            $allMethods = $this->availablePaymentMethodsHelper->getAllPaymentMethodTypes();
+            $selectedLogoNames = explode(',', $configuredLogos);
+            $selectedLogos = [];
+            foreach ($allMethods as $method) {
+                $methodName = $method->getName();
+                if (!in_array($methodName, $selectedLogoNames)) {
+                    continue;
+                }
+
+                $resources = $method->getResources();
+                $logos = $resources['logos'] ?? [];
+
+                if (!empty($logos['svg'])) {
+                    $selectedLogos[] = $logos['svg'];
+                    continue;
+                }
+
+                if (!empty($logos['png'])) {
+                    $selectedLogos[] = $logos['png'];
+                }
+            }
+            return array_slice($selectedLogos, 0, 5);
+        } catch (Exception $e) {
+            $this->logError('[ConfigProvider] Failed to get selected payment method logos: ' . $e->getMessage());
+            return [];
+        }
     }
 }
 

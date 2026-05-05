@@ -1,0 +1,103 @@
+<?php
+$methods = $block->getAvailablePaymentMethods();
+$selectedLogos = $block->getSelectedPaymentMethodLogos();
+?>
+
+<div class="airwallex-payment-logos-selector" id="<?= $block->escapeHtmlAttr($block->getElementId()) ?>_container">
+    <input type="hidden"
+           name="<?= $block->escapeHtmlAttr($block->getElementName()) ?>"
+           id="<?= $block->escapeHtmlAttr($block->getElementId()) ?>"
+           value="<?= $block->escapeHtmlAttr(implode(',', $selectedLogos)) ?>" />
+
+    <?php if (empty($methods)): ?>
+        <div class="message message-notice">
+            <p><?= $block->escapeHtml(__('No payment methods available. Please configure your API credentials in Basic Settings first.')) ?></p>
+        </div>
+    <?php else: ?>
+        <div class="airwallex-payment-logos-list">
+            <?php foreach ($methods as $method): ?>
+                <?php
+                $methodName = $method->getName() ?? '';
+                $displayName = $method->getDisplayName() ?: $method->getName();
+                $logoUrl = $block->getMethodLogoUrl($method);
+                $isSelected = $block->isLogoSelected($methodName);
+                ?>
+                <label class="airwallex-payment-logo-label">
+                    <input type="checkbox"
+                           class="airwallex-payment-logo-checkbox"
+                           value="<?= $block->escapeHtmlAttr($methodName) ?>"
+                           <?= $isSelected ? 'checked' : '' ?> />
+                    <img src="<?= $block->escapeUrl($logoUrl) ?>"
+                         alt="<?= $block->escapeHtmlAttr($displayName) ?>"
+                         title="<?= $block->escapeHtmlAttr($displayName) ?>"
+                         class="airwallex-payment-logo-image" />
+                </label>
+            <?php endforeach; ?>
+        </div>
+
+        <p class="note">
+            <span><?= $block->escapeHtml(__('Select which payment method logos to display on the checkout page. Up to 5 logos will be displayed.')) ?></span>
+        </p>
+    <?php endif; ?>
+</div>
+
+<style>
+.airwallex-payment-logos-selector {
+    margin: 10px 0;
+}
+
+.airwallex-payment-logos-list {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin: 10px 0;
+}
+
+.airwallex-payment-logo-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    margin: 0;
+    padding: 8px;
+}
+
+.airwallex-payment-logo-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.airwallex-payment-logo-image {
+    height: 25px;
+    width: auto;
+    object-fit: contain;
+    display: block;
+}
+
+.airwallex-payment-logo-label:hover {
+    background-color: #f9fafb;
+}
+</style>
+
+<script>
+require(['jquery'], function($) {
+    $(document).ready(function() {
+        const container = $('#<?= $block->escapeJs($block->getElementId()) ?>_container');
+        const hiddenInput = $('#<?= $block->escapeJs($block->getElementId()) ?>');
+
+        function updateHiddenInput() {
+            const selectedLogos = [];
+            container.find('.airwallex-payment-logo-checkbox:checked').each(function() {
+                selectedLogos.push($(this).val());
+            });
+            hiddenInput.val(selectedLogos.join(',')).trigger('change');
+        }
+
+        container.find('.airwallex-payment-logo-checkbox').on('change', function() {
+            updateHiddenInput();
+        });
+    });
+});
+</script>

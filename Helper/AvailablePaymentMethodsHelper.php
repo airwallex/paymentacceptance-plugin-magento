@@ -1,5 +1,33 @@
 <?php
-
+/**
+ * Airwallex Payments for Magento
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 Airwallex
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * @author    Airwallex
+ * @copyright 2026 Airwallex
+ * @license   https://opensource.org/licenses/MIT MIT License
+ */
 namespace Airwallex\Payments\Helper;
 
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentMethodType;
@@ -7,6 +35,7 @@ use Airwallex\PayappsPlugin\CommonLibrary\UseCase\PaymentMethodType\GetList as G
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Exception;
 use Magento\Framework\App\CacheInterface;
+use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Checkout\Helper\Data as CheckoutData;
 
 class AvailablePaymentMethodsHelper
@@ -35,6 +64,11 @@ class AvailablePaymentMethodsHelper
      */
     private CheckoutData $checkoutHelper;
 
+    /**
+     * @var ScopeConfigInterface
+     */
+    private ScopeConfigInterface $scopeConfig;
+
     protected array $methodsInExpress = [
         'googlepay',
         'applepay',
@@ -47,18 +81,21 @@ class AvailablePaymentMethodsHelper
      * @param CacheInterface $cache
      * @param Configuration $configuration
      * @param CheckoutData $checkoutHelper
+     * @param ScopeConfigInterface $scopeConfig
      */
     public function __construct(
         GetPaymentMethodTypeList $getPaymentMethodTypeList,
         CacheInterface           $cache,
         Configuration            $configuration,
-        CheckoutData             $checkoutHelper
+        CheckoutData             $checkoutHelper,
+        ScopeConfigInterface     $scopeConfig
     )
     {
         $this->getPaymentMethodTypeList = $getPaymentMethodTypeList;
         $this->cache = $cache;
         $this->configuration = $configuration;
         $this->checkoutHelper = $checkoutHelper;
+        $this->scopeConfig = $scopeConfig;
     }
 
     /**
@@ -83,6 +120,16 @@ class AvailablePaymentMethodsHelper
         }
         if ($code === 'express') {
             return $this->canInitialize() && !!array_intersect($this->methodsInExpress, $this->getAllPaymentMethodTypeNames());
+        }
+        if ($code === 'apm') {
+            if (!$this->canInitialize()) {
+                return false;
+            }
+            if (!$this->configuration->isMethodActive('apm')) {
+                return false;
+            }
+            $enabledMethods = $this->scopeConfig->getValue('payment/airwallex_payments_apm/enabled_methods');
+            return !empty($enabledMethods);
         }
         if ($code === 'bank_transfer' && !$this->configuration->isMethodActive('bank_transfer')) {
             return false;
@@ -143,7 +190,7 @@ class AvailablePaymentMethodsHelper
         try {
             return $this->getPaymentMethodTypeList
                 ->setActive(true)
-                ->setCacheTime(60)
+                ->setCacheTime(600)
                 ->setTransactionCurrency('')
                 ->setIncludeResources(true)
                 ->setTransactionMode(PaymentMethodType::PAYMENT_METHOD_TYPE_ONE_OFF)

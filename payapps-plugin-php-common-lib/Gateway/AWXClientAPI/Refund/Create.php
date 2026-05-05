@@ -4,9 +4,20 @@ namespace Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\Refund;
 
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\Refund as StructRefund;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\AmountHelper;
 
 class Create extends AbstractApi
 {
+    /**
+     * @var float
+     */
+    private $amount;
+
+    /**
+     * @var string
+     */
+    private $currency;
+
     /**
      * @inheritDoc
      */
@@ -32,7 +43,19 @@ class Create extends AbstractApi
      */
     public function setAmount(float $amount): self
     {
+        $this->amount = $amount;
         return $this->setParam('amount', $amount);
+    }
+
+    /**
+     * @param string $currency
+     *
+     * @return self
+     */
+    public function setCurrency(string $currency): self
+    {
+        $this->currency = $currency;
+        return $this;
     }
 
     /**
@@ -43,6 +66,20 @@ class Create extends AbstractApi
     public function setReason(string $reason): self
     {
         return $this->setParam('reason', $reason);
+    }
+
+    /**
+     * @return void
+     * @throws \Exception
+     */
+    protected function initializePostParams()
+    {
+        // Format amount according to currency decimal places
+        if ($this->amount && $this->currency) {
+            $this->setParam('amount', AmountHelper::formatAmount($this->amount, $this->currency));
+        }
+
+        parent::initializePostParams();
     }
 
     /**

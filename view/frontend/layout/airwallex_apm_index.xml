@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" layout="1column" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <head>
+        <script src="https://checkout.airwallex.com/assets/elements.bundle.min.js" src_type="url" />
+        <css src="Airwallex_Payments::css/airwallex_payment.css" />
+    </head>
+    <body>
+        <referenceContainer name="content">
+            <block class="Airwallex\Payments\Block\Apm\Payment" name="airwallex.apm.payment" template="Airwallex_Payments::apm/payment.phtml" />
+        </referenceContainer>
+    </body>
+</page>

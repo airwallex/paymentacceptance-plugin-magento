@@ -1,5 +1,33 @@
 <?php
-
+/**
+ * Airwallex Payments for Magento
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 Airwallex
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * @author    Airwallex
+ * @copyright 2026 Airwallex
+ * @license   https://opensource.org/licenses/MIT MIT License
+ */
 namespace Airwallex\Payments\Model;
 
 use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\Afterpay;
@@ -55,6 +83,7 @@ use Magento\Sales\Model\Order\Address as OrderAddress;
 use Magento\Quote\Model\QuoteIdToMaskedQuoteIdInterface;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
 use Detection\MobileDetect;
+use Airwallex\Payments\Helper\ApmElementOptionsHelper;
 
 class OrderService implements OrderServiceInterface
 {
@@ -84,6 +113,7 @@ class OrderService implements OrderServiceInterface
     private QuoteIdToMaskedQuoteIdInterface $quoteIdToMaskedQuoteId;
     private UrlInterface $url;
     private RetrievePaymentIntent $retrievePaymentIntent;
+    private ApmElementOptionsHelper $apmElementOptionsHelper;
 
     public function __construct(
         PaymentConsentsInterface                   $paymentConsents,
@@ -109,7 +139,8 @@ class OrderService implements OrderServiceInterface
         CommonLibraryInit                          $commonLibraryInit,
         QuoteIdToMaskedQuoteIdInterface            $quoteIdToMaskedQuoteId,
         UrlInterface                               $url,
-        RetrievePaymentIntent                      $retrievePaymentIntent
+        RetrievePaymentIntent                      $retrievePaymentIntent,
+        ApmElementOptionsHelper                    $apmElementOptionsHelper
     )
     {
         $this->paymentConsents = $paymentConsents;
@@ -135,6 +166,7 @@ class OrderService implements OrderServiceInterface
         $this->quoteIdToMaskedQuoteId = $quoteIdToMaskedQuoteId;
         $this->url = $url;
         $this->retrievePaymentIntent = $retrievePaymentIntent;
+        $this->apmElementOptionsHelper = $apmElementOptionsHelper;
         $commonLibraryInit->exec();
     }
 
@@ -419,6 +451,9 @@ class OrderService implements OrderServiceInterface
         }
 
         $requestIntentResponse = $this->requestIntent($order, $paymentMethod, $email, $paymentMethodId, $from, $response);
+
+        $requestIntentResponse->setOrderId($order->getId());
+
         if ($paymentMethod->getMethod() === BankTransferMethod::CODE && $quote && $quote->getIsActive()) {
             $quote->setIsActive(false);
             $this->quoteRepository->save($quote);
@@ -547,6 +582,7 @@ class OrderService implements OrderServiceInterface
         }
 
         $currentPaymentMethodCode = $paymentMethod->getMethod();
+
         $cacheName = $currentPaymentMethodCode . '-qrcode-' . $intent->getId();
         if (!empty($_SERVER['HTTP_USER_AGENT'])) {
             $cacheName .= '-' . hash('sha256', $_SERVER['HTTP_USER_AGENT']);
@@ -726,6 +762,16 @@ class OrderService implements OrderServiceInterface
             'intent_id' => $intent->getId(),
             'client_secret' => $intent->getClientSecret(),
         ];
+
+        if ($paymentMethod->getMethod() === 'airwallex_payments_apm') {
+            try {
+                $elementOptions = $this->apmElementOptionsHelper->getElementOptions($intent, $model, $email);
+                $data['element_options'] = json_encode($elementOptions);
+            } catch (\Exception $e) {
+                $this->logError('[APM] Error generating element options: ' . $e->getMessage());
+            }
+        }
+
         if ($this->isRedirectMethodConstant($paymentMethod->getMethod())) {
             $data['next_action'] = $this->getAirwallexPaymentsNextAction($intent, $paymentMethod, $model->getBillingAddress(), $email);
         }
