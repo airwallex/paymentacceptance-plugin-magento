@@ -1,0 +1,97 @@
+<?php
+$methods = $block->getAvailablePaymentMethods();
+?>
+
+<div class="airwallex-payment-methods-selector" id="<?= $block->escapeHtmlAttr($block->getElementId()) ?>_container">
+    <input type="hidden"
+           name="<?= $block->escapeHtmlAttr($block->getElementName()) ?>"
+           id="<?= $block->escapeHtmlAttr($block->getElementId()) ?>"
+           value="<?= $block->escapeHtmlAttr(implode(',', $block->getEnabledPaymentMethods())) ?>" />
+
+    <?php if (empty($methods)): ?>
+        <div class="message message-notice">
+            <p><?= $block->escapeHtml(__('No payment methods available. Please configure your API credentials in Basic Settings first.')) ?></p>
+        </div>
+    <?php else: ?>
+        <div class="airwallex-payment-methods-list">
+            <?php foreach ($methods as $method): ?>
+                <?php
+                $methodName = $method->getName() ?? '';
+                $isEnabled = in_array($methodName, $block->getEnabledPaymentMethods());
+                ?>
+                <label class="airwallex-payment-method-label">
+                    <input type="checkbox"
+                           class="airwallex-payment-method-checkbox"
+                           value="<?= $block->escapeHtmlAttr($methodName) ?>"
+                           <?= $isEnabled ? 'checked' : '' ?> />
+                    <span class="airwallex-payment-method-name">
+                        <?= $block->escapeHtml($method->getDisplayName() ?: $method->getName()) ?>
+                    </span>
+                </label>
+            <?php endforeach; ?>
+        </div>
+
+        <p class="note">
+            <span><?= $block->escapeHtml(__('Select which alternative payment methods to display at checkout. Selected methods will be shown to customers on the All Payment Methods page.')) ?></span>
+        </p>
+    <?php endif; ?>
+</div>
+
+<style>
+.airwallex-payment-methods-selector {
+    margin: 10px 0;
+}
+
+.airwallex-payment-methods-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.airwallex-payment-method-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    margin: 0;
+    padding: 4px 0;
+}
+
+.airwallex-payment-method-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.airwallex-payment-method-name {
+    font-size: 13px;
+    color: #333;
+}
+
+.airwallex-payment-method-label:hover .airwallex-payment-method-name {
+    color: #6366F1;
+}
+</style>
+
+<script>
+require(['jquery'], function($) {
+    $(document).ready(function() {
+        const container = $('#<?= $block->escapeJs($block->getElementId()) ?>_container');
+        const hiddenInput = $('#<?= $block->escapeJs($block->getElementId()) ?>');
+
+        function updateHiddenInput() {
+            const selectedMethods = [];
+            container.find('.airwallex-payment-method-checkbox:checked').each(function() {
+                selectedMethods.push($(this).val());
+            });
+            hiddenInput.val(selectedMethods.join(',')).trigger('change');
+        }
+
+        container.find('.airwallex-payment-method-checkbox').on('change', function() {
+            updateHiddenInput();
+        });
+    });
+});
+</script>

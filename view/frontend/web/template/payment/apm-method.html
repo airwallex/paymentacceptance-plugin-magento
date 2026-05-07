@@ -1,0 +1,72 @@
+<!--
+/**
+ * Airwallex Payments for Magento
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 Airwallex
+ */
+-->
+
+<div data-bind="attr: {'class': getCode() + ' airwallex-payments airwallex payment-method'}, css: {'_active': (getCode() == isChecked())}">
+    <div class="payment-method-title field choice">
+        <input type="radio"
+               name="payment[method]"
+               class="radio"
+               data-bind="attr: {'id': getCode()}, value: getCode(), checked: isChecked, click: selectPaymentMethod, visible: isRadioButtonVisible()">
+        <label data-bind="attr: {'for': getCode()}" class="label">
+            <span data-bind="text: getTitle()"></span>
+            <!-- ko if: shouldShowLogos() -->
+            <div class="airwallex-payment-method-logos">
+                <!-- ko foreach: getPaymentMethodLogos() -->
+                <img data-bind="attr: { src: $data }" class="airwallex-payment-logo" />
+                <!-- /ko -->
+            </div>
+            <!-- /ko -->
+        </label>
+    </div>
+
+    <div class="payment-method-content">
+        <!-- ko foreach: getRegion('messages') -->
+            <!-- ko template: getTemplate() --><!-- /ko -->
+        <!--/ko-->
+
+        <div class="payment-method-billing-address">
+            <!-- ko foreach: $parent.getRegion(getBillingAddressFormName()) -->
+                <!-- ko template: getTemplate() --><!-- /ko -->
+            <!--/ko-->
+        </div>
+
+        <div class="checkout-agreements-block">
+            <!-- ko foreach: $parent.getRegion('before-place-order') -->
+                <!-- ko template: getTemplate() --><!-- /ko -->
+            <!--/ko-->
+        </div>
+
+        <div id="airwallex-apm-error" class="message message-error error" style="display: none;">
+        
+        </div>
+
+        <!-- ko if: isPaymentBeforeOrder() && (isApmContainerReady() || isApmElementMounted()) -->
+        <div class="airwallex-apm-element-container" style="margin-top: 15px; margin-bottom: 15px;" data-bind="afterRender: onApmContainerRendered">
+            <div id="airwallex-apm-element-checkout"></div>
+        </div>
+        <!-- /ko -->
+
+        <!-- ko ifnot: isPaymentBeforeOrder() -->
+        <div class="actions-toolbar" style="margin-top: 15px;">
+            <div class="primary">
+                <button class="action primary checkout"
+                        type="submit"
+                        data-bind="
+                            click: placeOrder,
+                            enable: (getCode() == isChecked()),
+                            attr: {title: $t('Place Order')}
+                        ">
+                    <span data-bind="text: $t('Place Order')"></span>
+                </button>
+            </div>
+        </div>
+        <!-- /ko -->
+    </div>
+</div>

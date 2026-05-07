@@ -1,3 +1,32 @@
+/**
+ * Airwallex Payments for Magento
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 Airwallex
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * @author    Airwallex
+ * @copyright 2026 Airwallex
+ * @license   https://opensource.org/licenses/MIT MIT License
+ */
 define([
     'mage/url',
     'jquery',
@@ -75,6 +104,32 @@ define([
 
         formatCurrency(v) {
             return parseFloat(v).toFixed(2);
+        },
+
+        isSameBillingAddress(addr1, addr2) {
+            if (!addr1 && !addr2) {
+                return true;
+            }
+            if (!addr1 || !addr2) {
+                return false;
+            }
+
+            const keys = ['countryId', 'regionId', 'region', 'city', 'postcode', 'street'];
+            for (let i = 0; i < keys.length; i++) {
+                const key = keys[i];
+                if (key === 'street') {
+                    const street1 = Array.isArray(addr1.street) ? addr1.street.join(',') : addr1.street;
+                    const street2 = Array.isArray(addr2.street) ? addr2.street.join(',') : addr2.street;
+                    if (street1 !== street2) {
+                        return false;
+                    }
+                } else {
+                    if (addr1[key] !== addr2[key]) {
+                        return false;
+                    }
+                }
+            }
+            return true;
         },
 
         isCartEmpty() {
@@ -396,7 +451,7 @@ define([
             return `
                 <div class="awx-alert">
                     <div class="icon">
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_2204_2193)"><path fill-rule="evenodd" clip-rule="evenodd" d="M11.1872 0.928627C11.6188 1.16392 11.9727 1.52225 12.205 1.95922L19.7001 16.0532C20.3559 17.2865 19.9003 18.8245 18.6823 19.4885C18.3174 19.6875 17.9093 19.7917 17.4948 19.7917H2.50467C1.12138 19.7917 0 18.6562 0 17.2556C0 16.8359 0.102869 16.4228 0.299381 16.0532L7.79447 1.95922C8.45029 0.725995 9.96927 0.264585 11.1872 0.928627ZM10 13.9583C9.30964 13.9583 8.75 14.518 8.75 15.2083C8.75 15.8987 9.30964 16.4583 10 16.4583C10.6904 16.4583 11.25 15.8987 11.25 15.2083C11.25 14.518 10.6904 13.9583 10 13.9583ZM10 6.45833C9.30964 6.45833 8.75 7.01798 8.75 7.70833V11.4583C8.75 12.1487 9.30964 12.7083 10 12.7083C10.6904 12.7083 11.25 12.1487 11.25 11.4583V7.70833C11.25 7.01798 10.6904 6.45833 10 6.45833Z"fill="#FF4F42"/></g><defs><clipPath id="clip0_2204_2193"><rect width="20" height="20" fill="white"/></clipPath></defs></svg>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_2204_2193)"><path fill-rule="evenodd" clip-rule="evenodd" d="M11.1872 0.928627C11.6188 1.16392 11.9727 1.52225 12.205 1.95922L19.7001 16.0532C20.3559 17.2865 19.9003 18.8245 18.6823 19.4885C18.3174 19.6875 17.9093 19.7917 17.4948 19.7917H2.50467C1.12138 19.7917 0 18.6562 0 17.2556C0 16.8359 0.102869 16.4228 0.299381 16.0532L7.79447 1.95922C8.45029 0.725995 9.96927 0.264585 11.1872 0.928627ZM10 13.9583C9.30964 13.9583 8.75 14.518 8.75 15.2083C8.75 15.8987 9.30964 16.4583 10 16.4583C10.6904 16.4583 11.25 15.8987 11.25 15.2083C11.25 14.518 10.6904 13.9583 10 13.9583ZM10 6.45833C9.30964 6.45833 8.75 7.01798 8.75 7.70833V11.4583C8.75 12.1487 9.30964 12.7083 10 12.7083C10.6904 12.7083 11.25 12.1487 11.25 11.4583V7.70833C11.25 7.01798 10.6904 6.45833 10 6.45833Z"fill="#FF4F42"></path></g><defs><clipPath id="clip0_2204_2193"><rect width="20" height="20" fill="white"></rect></clipPath></defs></svg>
                     </div>
                     <div class="body"><span>${msg}</span></div>
                 </div>
@@ -716,6 +771,85 @@ define([
             _.each(placeOrderHooks.afterRequestListeners, function (listener) {
                 listener();
             });
+        },
+
+        showYouPay(switchers, $t) {
+            switchers = switchers || {};
+            $(".totals.charge").hide();
+            let youPayElement = '.awx-you-pay';
+            if (!$(youPayElement).length) {
+                $(".table-totals tbody").append(
+                    '<tr class="awx-you-pay"></tr>'
+                );
+            }
+
+            let formattedTargetAmount = this.convertToAwxAmount(switchers.target_amount, switchers.target_currency);
+            let formattedClientRate = switchers.client_rate;
+
+            $(youPayElement).html(
+                '<th class="mark" scope="row" style="padding-top: 33px;">' +
+                    '<span style="font-size: 1.8rem; font-weight: 600;">' + $t('You Pay') + '</strong>' +
+                '</th>' +
+                '<td class="amount">' +
+                    '<div class="switcher-tip">' +
+                        '<div style="color: rgba(108, 116, 127, 1); margin-right: 5px;">1 ' + switchers.payment_currency + ' = ' + formattedClientRate + ' ' + switchers.target_currency + '</div>' +
+                        '<svg width="12" height="24" viewBox="0 0 12 24" xmlns="http://www.w3.org/2000/svg">' +
+                            '<line x1="6.5" y1="2.18557e-08" x2="6.5" y2="6" stroke="#E8EAED"></line>' +
+                                '<path fill-rule="evenodd" clip-rule="evenodd" d="M10.8751 12.006C11.2227 11.8469 11.641 11.9755 11.836 12.3134C12.0431 12.6721 11.9202 13.1308 11.5615 13.3379L9.93769 14.2754C9.57897 14.4825 9.12028 14.3596 8.91317 14.0009L7.97567 12.3771C7.76857 12.0184 7.89147 11.5597 8.25019 11.3526C8.60891 11.1455 9.0676 11.2684 9.27471 11.6271L9.36849 11.7895C9.25886 10.0245 7.79267 8.62695 6.00007 8.62695C5.0122 8.62695 4.12347 9.05137 3.50626 9.72782L2.44482 8.66638C3.33417 7.71884 4.598 7.12695 6.00007 7.12695C8.69245 7.12695 10.8751 9.30957 10.8751 12.002C10.8751 12.0033 10.8751 12.0047 10.8751 12.006ZM1.12576 12.0887L1.12513 12.0891C0.766406 12.2962 0.307713 12.1733 0.100606 11.8146C-0.106501 11.4559 0.0164058 10.9972 0.375125 10.7901L1.99892 9.85256C2.35764 9.64545 2.81633 9.76836 3.02344 10.1271L3.96094 11.7509C4.16805 12.1096 4.04514 12.5683 3.68642 12.7754C3.3277 12.9825 2.86901 12.8596 2.6619 12.5009L2.66152 12.5002C2.90238 14.1279 4.30533 15.377 6 15.377C6.85293 15.377 7.63196 15.0606 8.22613 14.5387L9.28834 15.6009C8.42141 16.3935 7.26716 16.877 6 16.877C3.3366 16.877 1.17206 14.7411 1.12576 12.0887Z" fill="#B0B6BF"></path>' +
+                            '<line x1="6.5" y1="18" x2="6.5" y2="24" stroke="#E8EAED"></line>' +
+                        '</svg>' +
+                    '</div>' +
+                    '<div class="awx-amount">' + switchers.target_currency + ' ' + formattedTargetAmount + '</div>' +
+                '</td>'
+            );
+            $(youPayElement).show();
+        },
+
+        hideYouPay() {
+            const youPayElement = '.awx-you-pay';
+            $(youPayElement).hide();
+            $(".totals.charge").show();
+        },
+
+        customizedCurrencyOptions(currency) {
+            // HUF, IDR, MGA, TWD should have 0 decimal places, different from the ISO 4217 standards
+            let zeroDecimalCurrencies = ['IDR', 'HUF', 'MGA', 'TWD'];
+
+            if (zeroDecimalCurrencies.indexOf(currency.toUpperCase()) !== -1) {
+                return {
+                    maximumFractionDigits: 0,
+                    minimumFractionDigits: 0
+                };
+            }
+            return {};
+        },
+
+        convertToAwxAmount(amount, currencyCode) {
+            let customOptions = this.customizedCurrencyOptions(currencyCode);
+            let formatterOptions = {
+                style: 'currency',
+                currency: currencyCode
+            };
+
+            // Merge customOptions into formatterOptions
+            for (let key in customOptions) {
+                if (customOptions.hasOwnProperty(key)) {
+                    formatterOptions[key] = customOptions[key];
+                }
+            }
+
+            let formatter = new Intl.NumberFormat('en-US', formatterOptions);
+            let parts = formatter.formatToParts(Number(amount));
+            let numberParts = [];
+
+            for (let i = 0; i < parts.length; i++) {
+                let part = parts[i];
+                if (part.type === 'integer' || part.type === 'decimal' || part.type === 'fraction') {
+                    numberParts.push(part.value);
+                }
+            }
+
+            return numberParts.join('');
         }
     };
 });

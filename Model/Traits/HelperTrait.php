@@ -1,5 +1,33 @@
 <?php
-
+/**
+ * Airwallex Payments for Magento
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 Airwallex
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * @author    Airwallex
+ * @copyright 2026 Airwallex
+ * @license   https://opensource.org/licenses/MIT MIT License
+ */
 namespace Airwallex\Payments\Model\Traits;
 
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
@@ -45,6 +73,9 @@ use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Account;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\Quote as StructQuote;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\Account as StructAccount;
+use Magento\Quote\Model\MaskedQuoteIdToQuoteIdInterface;
+use Magento\Customer\Model\Session as CustomerSession;
+use Magento\Checkout\Model\Session as CheckoutSession;
 
 trait HelperTrait
 {
@@ -214,22 +245,29 @@ trait HelperTrait
      *
      * @return array|null
      */
-    public function getBillingAddress($object): ?array
+    public function getBillingAddress($object, ?string $email = null): ?array
     {
         $billingAddress = $object->getBillingAddress();
+        if (empty($billingAddress)) return null;
 
-        return [
+        $data = [
             'first_name' => $billingAddress->getFirstname(),
             'last_name' => $billingAddress->getLastname(),
             'phone_number' => $billingAddress->getTelephone(),
             'address' => [
                 'city' => $billingAddress->getCity(),
                 'country_code' => $billingAddress->getCountryId(),
+                'street' => $billingAddress->getStreet() ? implode(', ', $billingAddress->getStreet()) : '',
+                'state' => $billingAddress->getRegion() ?: $billingAddress->getRegionCode(),
                 'postcode' => $billingAddress->getPostcode(),
-                'state' => $billingAddress->getRegion(),
-                'street' => implode(', ', $billingAddress->getStreet()),
             ],
         ];
+
+        if ($email !== null) {
+            $data['email'] = $email ?: $billingAddress->getEmail();
+        }
+
+        return $data;
     }
 
     /**
@@ -659,6 +697,58 @@ trait HelperTrait
     public function logInfo(string $message)
     {
         ObjectManager::getInstance()->get(LoggerInterface::class)->debug($message);
+    }
+
+    public function resolveQuoteId($quoteId): int
+    {
+        if (is_numeric($quoteId)) {
+            return (int)$quoteId;
+        }
+
+        return ObjectManager::getInstance()->get(MaskedQuoteIdToQuoteIdInterface::class)->execute($quoteId);
+    }
+
+    public function validateQuoteOwnership($quote, $customerSession = null, $checkoutSession = null): bool
+    {
+        $customerSession = $customerSession ?: ObjectManager::getInstance()->get(CustomerSession::class);
+
+        if ($customerSession->isLoggedIn()) {
+            return $this->validateCustomerOwnership($quote, $customerSession->getCustomerId(), 'Quote');
+        }
+
+        $checkoutSession = $checkoutSession ?: ObjectManager::getInstance()->get(CheckoutSession::class);
+        $sessionQuoteId = $checkoutSession->getQuoteId();
+        if ($quote->getId() != $sessionQuoteId) {
+            $this->logError("Quote {$quote->getId()} is not in current session. Session quote: {$sessionQuoteId}");
+            return false;
+        }
+
+        return true;
+    }
+
+    public function validateOrderOwnership($order, $customerSession = null): bool
+    {
+        $customerSession = $customerSession ?: ObjectManager::getInstance()->get(CustomerSession::class);
+
+        if ($customerSession->isLoggedIn()) {
+            return $this->validateCustomerOwnership($order, $customerSession->getCustomerId(), 'Order');
+        }
+
+        if ($order->getCustomerId()) {
+            $this->logError("Guest user attempted to access registered customer order {$order->getId()}");
+            return false;
+        }
+
+        return true;
+    }
+
+    private function validateCustomerOwnership($entity, $customerId, $entityType): bool
+    {
+        if ($entity->getCustomerId() != $customerId) {
+            $this->logError("{$entityType} {$entity->getId()} does not belong to customer {$customerId}");
+            return false;
+        }
+        return true;
     }
 
     protected function getMetadata(): array

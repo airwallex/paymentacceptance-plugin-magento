@@ -8,7 +8,7 @@
         </field>
         <field id="title" translate="label comment" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
             <label>Title</label>
-            <comment><![CDATA[This is the payment method title used at the checkout page]]></comment>
+            <comment><![CDATA[This is the payment method title used at the checkout page.]]></comment>
             <config_path>payment/airwallex_payments_dana/title</config_path>
         </field>
         <field id="allowspecific" translate="label" type="allowspecific" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">

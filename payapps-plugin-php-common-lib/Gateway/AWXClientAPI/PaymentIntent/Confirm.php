@@ -3,10 +3,14 @@
 namespace Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent;
 
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\DataSanitizationTrait;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\StringHelper;
 
 class Confirm extends AbstractApi
 {
+    use DataSanitizationTrait;
+
     const ERROR_VALIDATION_ERROR = 'validation_error';
     const ERROR_DUPLICATE_REQUEST = 'duplicate_request';
     const ERROR_SUSPENDED_FROM_ONLINE_PAYMENTS = 'suspended_from_online_payments';
@@ -127,6 +131,39 @@ class Confirm extends AbstractApi
     public function setPaymentMethod(array $paymentMethod): Confirm
     {
         return $this->setParam('payment_method', $paymentMethod);
+    }
+
+    /**
+     * Sanitize billing data
+     *
+     * @param array $billing
+     * @return array
+     */
+    private function sanitizeBillingData(array $billing): array
+    {
+        $sanitized = [];
+
+        if (isset($billing['first_name'])) {
+            $sanitized['first_name'] = StringHelper::sanitize($billing['first_name'], 128);
+        }
+
+        if (isset($billing['last_name'])) {
+            $sanitized['last_name'] = StringHelper::sanitize($billing['last_name'], 128);
+        }
+
+        if (isset($billing['email'])) {
+            $sanitized['email'] = StringHelper::sanitize($billing['email'], 256);
+        }
+
+        if (isset($billing['phone_number'])) {
+            $sanitized['phone_number'] = StringHelper::sanitize($billing['phone_number'], 50, false);
+        }
+
+        if (isset($billing['address']) && is_array($billing['address'])) {
+            $sanitized['address'] = $this->sanitizeAddressData($billing['address']);
+        }
+
+        return $sanitized;
     }
 
     /**

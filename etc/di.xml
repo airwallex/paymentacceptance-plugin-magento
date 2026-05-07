@@ -673,4 +673,44 @@
             <argument name="validatorPool" xsi:type="object">AirwallexPaymentsBankTransferValidatorPool</argument>
         </arguments>
     </virtualType>
+    <virtualType name="AirwallexPaymentApmCountryValidator" type="Magento\Payment\Gateway\Validator\CountryValidator">
+        <arguments>
+            <argument name="config" xsi:type="object">AirwallexPaymentApmConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsApmValidatorPool" type="Magento\Payment\Gateway\Validator\ValidatorPool">
+        <arguments>
+            <argument name="validators" xsi:type="array">
+                <item name="country" xsi:type="string">AirwallexPaymentApmCountryValidator</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentApmConfig" type="Magento\Payment\Gateway\Config\Config">
+        <arguments>
+            <argument name="methodCode" xsi:type="const">Airwallex\Payments\Model\Methods\ApmMethod::CODE</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentApmConfigValueHandler" type="Magento\Payment\Gateway\Config\ConfigValueHandler">
+        <arguments>
+            <argument name="configInterface" xsi:type="object">AirwallexPaymentApmConfig</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentApmValueHandlerPool" type="Magento\Payment\Gateway\Config\ValueHandlerPool">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="default" xsi:type="string">AirwallexPaymentApmConfigValueHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="AirwallexPaymentsApmGatewayFacade" type="Airwallex\Payments\Model\Methods\ApmMethod">
+        <arguments>
+            <argument name="eventManager" xsi:type="object">Magento\Framework\Event\ManagerInterface</argument>
+            <argument name="valueHandlerPool" xsi:type="object">AirwallexPaymentApmValueHandlerPool</argument>
+            <argument name="paymentDataObjectFactory" xsi:type="object">Magento\Payment\Gateway\Data\PaymentDataObjectFactory</argument>
+            <argument name="code" xsi:type="const">Airwallex\Payments\Model\Methods\ApmMethod::CODE</argument>
+            <argument name="formBlockType" xsi:type="string">Magento\Payment\Block\Form</argument>
+            <argument name="infoBlockType" xsi:type="string">Magento\Payment\Block\Info</argument>
+            <argument name="validatorPool" xsi:type="object">AirwallexPaymentsApmValidatorPool</argument>
+        </arguments>
+    </virtualType>
 </config>

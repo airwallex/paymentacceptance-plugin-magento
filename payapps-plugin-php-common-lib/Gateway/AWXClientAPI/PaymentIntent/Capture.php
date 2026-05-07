@@ -4,6 +4,7 @@ namespace Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentInte
 
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\AmountHelper;
 
 class Capture extends AbstractApi
 {
@@ -11,6 +12,16 @@ class Capture extends AbstractApi
      * @var string
      */
     private $id;
+
+    /**
+     * @var float
+     */
+    private $amount;
+
+    /**
+     * @var string
+     */
+    private $currency;
 
     /**
      * @inheritDoc
@@ -38,7 +49,19 @@ class Capture extends AbstractApi
      */
     public function setAmount(float $amount): Capture
     {
+        $this->amount = $amount;
         return $this->setParam('amount', $amount);
+    }
+
+    /**
+     * @param string $currency
+     *
+     * @return Capture
+     */
+    public function setCurrency(string $currency): Capture
+    {
+        $this->currency = $currency;
+        return $this;
     }
 
     /**
@@ -49,6 +72,20 @@ class Capture extends AbstractApi
     public function setFundsSplitData(array $fundsSplitData): Capture
     {
         return $this->setParam('funds_split_data', $fundsSplitData);
+    }
+
+    /**
+     * @return void
+     * @throws \Exception
+     */
+    protected function initializePostParams()
+    {
+        // Format amount according to currency decimal places
+        if ($this->amount && $this->currency) {
+            $this->setParam('amount', AmountHelper::formatAmount($this->amount, $this->currency));
+        }
+
+        parent::initializePostParams();
     }
 
     /**

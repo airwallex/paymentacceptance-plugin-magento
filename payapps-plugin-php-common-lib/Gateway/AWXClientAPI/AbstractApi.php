@@ -160,28 +160,50 @@ abstract class AbstractApi
      */
     public function guzzleHttpSend()
     {
-        $client = new \GuzzleHttp\Client([
-            'base_uri' => $this->getBaseUrl(),
+        $isLegacyGuzzle = !method_exists(\GuzzleHttp\Client::class, 'request');
+
+        $clientConfig = [
+            $isLegacyGuzzle ? 'base_url' : 'base_uri' => $this->getBaseUrl(),
             'timeout' => static::TIMEOUT,
-        ]);
+        ];
+
+        if ($isLegacyGuzzle) {
+            $clientConfig['defaults'] = ['timeout' => static::TIMEOUT];
+        }
+
+        $client = new \GuzzleHttp\Client($clientConfig);
 
         $options = [
             'headers' => array_merge($this->getHeaders(), [
                 'Content-Type' => 'application/json',
                 'x-api-version' => self::X_API_VERSION
             ]),
-            'http_errors' => false
         ];
 
-        $method = $this->getMethod();
+        if (!$isLegacyGuzzle) {
+            $options['http_errors'] = false;
+        } else {
+            $options['exceptions'] = false;
+        }
+
+        $method = strtoupper($this->getMethod());
+
         if ($method === 'POST') {
             $this->initializePostParams();
             $options['json'] = $this->params;
         } elseif ($method === 'GET') {
             $options['query'] = $this->params;
         }
-        $response = $client->request($method, $this->getUri(), $options);
+
+        if ($isLegacyGuzzle) {
+            $request  = $client->createRequest($method, $this->getUri(), $options);
+            $response = $client->send($request);
+        } else {
+            $response = $client->request($method, $this->getUri(), $options);
+        }
+
         $this->checkResponse((string)$response->getBody(), $response->getStatusCode());
+        
         return $this->parseResponse($response);
     }
 

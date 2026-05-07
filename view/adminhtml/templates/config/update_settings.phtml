@@ -1,4 +1,46 @@
-<?php /** @var \Airwallex\Payments\Model\Config\Adminhtml\UpdateSettings $block */ ?>
+<?php
+/**
+ * Airwallex Payments for Magento
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 Airwallex
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * @author    Airwallex
+ * @copyright 2026 Airwallex
+ * @license   https://opensource.org/licenses/MIT MIT License
+ * @var \Airwallex\Payments\Model\Config\Adminhtml\UpdateSettings $block
+ */
+?>
+
+<div class="manage-container">
+    <div id="awx-connected" class="awx-connect-tip"></div>
+    <div class="awx-action-container">
+        <?php echo $block->getButtonHtml() ?>
+        <div id="awx-connection-options">
+            <span class="manual-config">or enter credentials manually</span>
+            <span class="cancel">Cancel</span>
+        </div>
+    </div>
+</div>
 
 <script>
     require([
@@ -26,9 +68,6 @@
                         element.closest('tr').find('td').toggle(show);
                     }
                 });
-
-                jQuery("#awx-connection-options").toggle(show);
-                jQuery('.manage-container').toggle(!show);
             };
 
             let connectionFlowStatus = {
@@ -58,41 +97,31 @@
                 }
 
                 let connectedSelector = "#awx-connected";
-                if (!account[env + "_account_id"]) {
+                let hasAccount = !!account[env + "_account_id"];
+
+                if (!hasAccount) {
                     jQuery(connectedSelector).hide();
-                    jQuery("#airwallex_update_settings").html('Connect account');
+                    jQuery("#airwallex_update_settings").html('Connect with Airwallex');
                 } else {
                     jQuery(connectedSelector).show();
                     jQuery(connectedSelector).html(account[env + "_account_name"]);
                     jQuery("#airwallex_update_settings").html(MANAGE);
                 }
 
-                let hasApiKey = !!jQuery("input[name='groups[airwallex_payments][groups][basic][fields][" + env + "_api_key][value]']").val().trim();
+                jQuery('.manage-container').show();
+                jQuery('#awx-connection-options').show();
 
-                if (hasApiKey && connectionFlowStatus[env] === 'success') {
-                    jQuery('#awx-connection-options .cancel').show();
-                } else {
-                    jQuery('#awx-connection-options .cancel').hide();
-                }
+                toggleInputs(env, false);
+                jQuery('#awx-connection-options .manual-config').show();
+                jQuery('#awx-test-connection-container').hide();
+                jQuery('#awx-connection-options .cancel').hide();
 
-                if (connectionFlowStatus[env] && connectionFlowStatus[env] !== 'success') {
-                    toggleInputs(env, true);
-                    return;
-                }
-
-                if (!hasApiKey) {
-                    toggleInputs(env, false);
-                    return;
-                }
-
-                if (connectionFlowStatus[env] === 'success') {
-                    toggleInputs(env, false);
-                } else {
-                    toggleInputs(env, true);
-                }
+                jQuery('#awx-test-connection-message').hide();
             };
 
-            jQuery(document).ready(renderSetting);
+            jQuery(document).ready(function() {
+                renderSetting();
+            });
             jQuery(envSelector).on('change', renderSetting);
             jQuery('.airwallex-admin-config tbody').find('.entry-edit-head').first().on('click', renderSetting);
 
@@ -103,9 +132,20 @@
                 return (S4() + S4() + "-" + S4() + "-" + S4() + "-" + S4() + "-" + S4() + S4() + S4());
             }
 
+            jQuery('#awx-connection-options .manual-config').on('click', function () {
+                let env = document.querySelector(envSelector).value;
+                toggleInputs(env, true);
+                jQuery('#awx-connection-options .manual-config').hide();
+                jQuery('#awx-test-connection-container').show();
+                jQuery('#awx-connection-options .cancel').show();
+            });
+
             jQuery('#awx-connection-options .cancel').on('click', function () {
                 let env = document.querySelector(envSelector).value;
                 toggleInputs(env, false);
+                jQuery('#awx-connection-options .manual-config').show();
+                jQuery('#awx-test-connection-container').hide();
+                jQuery('#awx-connection-options .cancel').hide();
             });
 
             let redirect = function () {
@@ -125,32 +165,17 @@
                 location.href = `${awxUrl.trim()}payment_app/plugin/api/v1/connection/start?${params.toString()}`;
             };
 
-            jQuery('#awx-connection-options .redirect').on('click', redirect);
-
             jQuery('#airwallex_update_settings').on('click', function () {
-                let env = document.querySelector(envSelector).value;
-                if (jQuery('#airwallex_update_settings').html() === MANAGE) {
-                    toggleInputs(env, true);
-                } else {
-                    redirect();
-                }
+                redirect();
             });
         });
 </script>
 
-<div style="display: flex" class="manage-container">
-    <div id="awx-connected" class="awx-connect-tip"></div>
-    <?php echo $block->getButtonHtml() ?>
-</div>
-
-<div style="display: flex" id="awx-connection-options">
-    <div class="redirect">Connect via Airwallex log-in</div>
-    <div class="cancel">Cancel</div>
-</div>
-
 <style>
     .awx-connect-tip {
         margin: 10px 10px 10px 0;
+        font-weight: 500;
+        color: #333;
     }
 
     .awx-connect-tip .title {
@@ -158,22 +183,41 @@
         margin-bottom: 5px;
     }
 
+    .awx-action-container {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
     #awx-connection-options {
         font-size: 14px;
         color: rgba(34, 113, 177, 1);
+        display: inline-block;
     }
 
-    #awx-connection-options .cancel {
-        margin-left: 20px;
-    }
-
-    #awx-connection-options div {
+    #awx-connection-options span {
         cursor: pointer;
+        text-decoration: underline;
+    }
+
+    #awx-connection-options span:hover {
+        color: rgba(20, 80, 130, 1);
     }
 
     tr.awx-return-message td div {
         background: #ffcccc;
         padding: 20px 40px;
         color: #333333;
+    }
+
+    #awx-test-connection-message {
+        margin-top: 10px;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    #airwallex_test_connection {
+        margin-top: 10px;
     }
 </style>

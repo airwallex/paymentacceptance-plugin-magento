@@ -1,0 +1,366 @@
+<?php
+/**
+ * Airwallex Payments for Magento
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 Airwallex
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * @author    Airwallex
+ * @copyright 2026 Airwallex
+ * @license   https://opensource.org/licenses/MIT MIT License
+ */
+
+$paymentConfig = $block->getPaymentConfig();
+$orderDetails = $block->getOrderDetails();
+
+if (!$paymentConfig) {
+    echo '<div class="message error">' .
+        $escaper->escapeHtml(__('Unable to load payment information. Please try again.')) .
+        '</div>';
+    return;
+}
+?>
+
+<div class="airwallex-apm-page">
+    <div class="airwallex-apm-container">
+        <div class="airwallex-apm-left">
+            <?php if ($orderDetails): ?>
+            <div class="airwallex-order-summary">
+                <h3><?= $escaper->escapeHtml(__('Order Summary')) ?></h3>
+
+                <?php if (!empty($orderDetails['items'])): ?>
+                <div class="airwallex-order-items">
+                    <table class="data table">
+                        <thead>
+                            <tr>
+                                <th><?= $escaper->escapeHtml(__('Product')) ?></th>
+                                <th class="col qty"><?= $escaper->escapeHtml(__('Qty')) ?></th>
+                                <th class="col price"><?= $escaper->escapeHtml(__('Price')) ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($orderDetails['items'] as $item): ?>
+                            <tr>
+                                <td><?= $escaper->escapeHtml($item['name']) ?></td>
+                                <td class="col qty"><?= (int)$item['qty'] ?></td>
+                                <td class="col price">
+                                    <?= $escaper->escapeHtml($block->formatPrice($item['row_total'])) ?>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <?php endif; ?>
+
+                <div class="airwallex-order-info">
+                    <div class="airwallex-order-subtotal">
+                        <span><?= $escaper->escapeHtml(__('Subtotal')) ?></span>
+                        <span><?= $escaper->escapeHtml($block->formatPrice($orderDetails['subtotal'])) ?></span>
+                    </div>
+
+                    <?php if (!empty($orderDetails['shipping_amount']) && $orderDetails['shipping_amount'] > 0): ?>
+                    <div class="airwallex-order-shipping">
+                        <span>
+                            <?= $escaper->escapeHtml(__('Shipping')) ?>
+                            <?php if (!empty($orderDetails['shipping_description'])): ?>
+                                <span class="airwallex-shipping-method">
+                                    (<?= $escaper->escapeHtml($orderDetails['shipping_description']) ?>)
+                                </span>
+                            <?php endif; ?>
+                        </span>
+                        <span><?= $escaper->escapeHtml($block->formatPrice($orderDetails['shipping_amount'])) ?></span>
+                    </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($orderDetails['tax_amount']) && $orderDetails['tax_amount'] > 0): ?>
+                    <div class="airwallex-order-tax">
+                        <span><?= $escaper->escapeHtml(__('Tax')) ?></span>
+                        <span><?= $escaper->escapeHtml($block->formatPrice($orderDetails['tax_amount'])) ?></span>
+                    </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($orderDetails['discount_amount']) && $orderDetails['discount_amount'] < 0): ?>
+                    <div class="airwallex-order-discount">
+                        <span><?= $escaper->escapeHtml(__('Discount')) ?></span>
+                        <span><?= $escaper->escapeHtml($block->formatPrice($orderDetails['discount_amount'])) ?></span>
+                    </div>
+                    <?php endif; ?>
+
+                    <div class="airwallex-order-total">
+                        <strong><?= $escaper->escapeHtml(__('Grand Total')) ?></strong>
+                        <span class="airwallex-price">
+                            <?= $escaper->escapeHtml($orderDetails['currency_code']) ?>
+                            <?= $escaper->escapeHtml($block->formatPrice($orderDetails['grand_total'])) ?>
+                        </span>
+                    </div>
+                </div>
+
+                <div id="airwallex-currency-conversion" class="airwallex-currency-conversion" style="display: none;">
+                    <div class="airwallex-conversion-rate" id="airwallex-conversion-rate"></div>
+                    <div class="airwallex-conversion-total">
+                        <span class="airwallex-label"><?= $escaper->escapeHtml(__('You Pay')) ?></span>
+                        <span class="airwallex-conversion-price" id="airwallex-conversion-amount"></span>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+        </div>
+
+        <div class="airwallex-apm-right">
+            <div id="airwallex-error-message" class="message message-error error" style="display: none;"></div>
+
+            <div id="airwallex-apm-container">
+                <div id="airwallex-loading-overlay">
+                    <div class="airwallex-loading-content">
+                        <div class="airwallex-spinner-border" role="status"></div>
+                        <p class="airwallex-loading-text">
+                            <?= $escaper->escapeHtml(__('Payment processing...')) ?>
+                        </p>
+                    </div>
+                </div>
+                <div id="airwallex-apm-element"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="text/x-magento-init">
+{
+    "*": {
+        "Airwallex_Payments/js/view/payment/apm-payment": {
+            "config": <?= /* @noEscape */ json_encode($paymentConfig) ?>
+        }
+    }
+}
+</script>
+
+<style>
+.minicart-wrapper {
+    display: none;
+}
+
+.airwallex-apm-page {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 0 15px;
+}
+
+.airwallex-apm-container {
+    display: flex;
+    gap: 30px;
+    margin-top: 20px;
+}
+
+.airwallex-apm-left {
+    flex: 1;
+    max-width: 400px;
+}
+
+.airwallex-apm-right {
+    flex: 2;
+}
+
+.airwallex-order-summary {
+    background: #f5f5f5;
+    padding: 20px;
+    border-radius: 4px;
+}
+
+.airwallex-order-summary h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 18px;
+}
+
+.airwallex-order-info {
+    padding-top: 15px;
+    border-top: 2px solid #ddd;
+}
+
+.airwallex-order-info > div {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    font-size: 14px;
+}
+
+.airwallex-order-subtotal,
+.airwallex-order-shipping,
+.airwallex-order-tax,
+.airwallex-order-discount {
+    color: #666;
+}
+
+.airwallex-shipping-method {
+    font-size: 12px;
+    color: #999;
+}
+
+.airwallex-order-total {
+    margin-top: 10px;
+    padding-top: 15px;
+    border-top: 2px solid #ddd;
+    font-size: 16px;
+}
+
+.airwallex-order-total .airwallex-price {
+    color: #006bb4;
+    font-weight: bold;
+}
+
+.airwallex-order-items {
+    margin-top: 20px;
+}
+
+.airwallex-order-items table {
+    width: 100%;
+}
+
+.airwallex-order-items th,
+.airwallex-order-items td {
+    padding: 8px 4px;
+    text-align: left;
+}
+
+.airwallex-order-items th {
+    border-bottom: 2px solid #ccc;
+}
+
+.airwallex-order-items .col.qty,
+.airwallex-order-items .col.price {
+    text-align: right;
+}
+
+#switcher-currency-trigger {
+    display: none;
+}
+
+.airwallex-conversion-rate {
+    font-size: 14px;
+    color: #666;
+    text-align: right;
+    padding: 5px 0;
+    margin-bottom: 5px;
+}
+
+.airwallex-conversion-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 8px 0;
+}
+
+.airwallex-conversion-total .airwallex-label {
+    color: #333;
+}
+
+.airwallex-conversion-total .airwallex-conversion-price {
+    color: #333;
+    font-weight: bold;
+    font-size: 20px;
+}
+
+#airwallex-apm-container {
+    position: relative;
+    min-height: 400px;
+}
+
+#airwallex-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.95);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0.4;
+}
+
+.airwallex-payment-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.95);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0.4;
+}
+
+.airwallex-loading-content {
+    text-align: center;
+}
+
+.airwallex-spinner-border {
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #006bb4;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: airwallex-spin 1s linear infinite;
+    margin: 0 auto 15px;
+}
+
+.airwallex-loading-text {
+    color: #555;
+    font-size: 14px;
+    font-weight: 500;
+    margin: 0;
+}
+
+.airwallex-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+@keyframes airwallex-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+    .airwallex-apm-container {
+        flex-direction: column;
+    }
+
+    .airwallex-apm-left {
+        max-width: 100%;
+    }
+}
+</style>
