@@ -8,6 +8,7 @@ use Magento\Framework\App\RequestInterface;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
 use Airwallex\Payments\Helper\Configuration;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\CurrencyHelper;
 use Magento\Sales\Model\OrderRepository;
 use Airwallex\Payments\CommonLibraryInit;
 use Magento\Quote\Api\CartRepositoryInterface;
@@ -81,12 +82,23 @@ class Payment extends Template
                 ->setPaymentIntentId($paymentIntentRecord->getIntentId())
                 ->send();
 
+            $orderCurrency = $entityType === 'order'
+                ? $entity->getOrderCurrencyCode()
+                : $entity->getQuoteCurrencyCode();
+
             $config = [
                 'env' => $this->configuration->getMode(),
                 'return_url' => $this->getUrl('airwallex/redirect', [
                     '_query' => ['awx_return_result' => 'success', 'id' => $entityId, 'type' => $entityType]
                 ]),
                 $entityType . '_id' => $entityId,
+                'intent_base_currency' => $paymentIntent->getBaseCurrency() ?: $paymentIntent->getCurrency(),
+                'intent_base_amount' => $paymentIntent->getBaseCurrency() ? $paymentIntent->getBaseAmount() : $paymentIntent->getAmount(),
+                'order_currency' => $orderCurrency,
+                'available_currencies' => $this->getAvailableCurrencies(),
+                'country_to_currency' => CurrencyHelper::COUNTRY_TO_CURRENCY,
+                'currency_to_country' => CurrencyHelper::CURRENCY_TO_COUNTRY_MAP,
+                'eu_country_codes' => CurrencyHelper::AVAILABLE_EU_COUNTRY_CODES,
                 'elementOptions' => $this->apmElementOptionsHelper->getElementOptions(
                     $paymentIntent,
                     $entity,

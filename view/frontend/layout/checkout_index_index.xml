@@ -8,6 +8,11 @@
         <css src="Airwallex_Payments::js/qrcode.min.js" />
     </head>
     <body>
+        <referenceContainer name="content">
+            <block class="Magento\Framework\View\Element\Template"
+                   name="airwallex.apm.currency.switcher.template"
+                   template="Airwallex_Payments::apm/_currency-switcher-template.phtml" />
+        </referenceContainer>
         <referenceBlock name="checkout.root">
             <arguments>
                 <argument name="jsLayout" xsi:type="array">

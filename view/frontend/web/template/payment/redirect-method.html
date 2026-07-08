@@ -4,7 +4,14 @@
                name="payment[method]"
                class="radio"
                data-bind="attr: {'id': getCode()}, value: getCode(), checked: isChecked, click: selectPaymentMethod, visible: isRadioButtonVisible()">
-        <label data-bind="attr: {'for': getCode()}" class="label"><span data-bind="text: getTitle()"></span></label>
+        <label data-bind="attr: {'for': getCode()}" class="label">
+            <span data-bind="text: getTitle()"></span>
+            <!-- ko if: hasMethodLogo() -->
+            <span class="airwallex-payment-method-logos">
+                <img data-bind="attr: { src: getMethodLogo() }" class="airwallex-payment-logo" />
+            </span>
+            <!-- /ko -->
+        </label>
     </div>
 
     <div class="payment-method-content">

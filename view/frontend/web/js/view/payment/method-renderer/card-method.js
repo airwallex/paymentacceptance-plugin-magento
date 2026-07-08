@@ -28,6 +28,54 @@
  * @license   https://opensource.org/licenses/MIT MIT License
  */
 /* global Airwallex */
+                                                                     
+
+                                  
+                                                     
+ 
+
+                         
+                          
+ 
+
+                                
+                        
+ 
+
+                                                     
+
+                      
+                               
+                                                
+ 
+
+                                
+                                                                              
+                                                     
+ 
+
+                       
+                                                                       
+ 
+
+                             
+                       
+ 
+
+/** `this` receiver for the card renderer's methods. */
+                                                    
+                               
+                               
+                            
+                                        
+                                        
+                                     
+                                                                  
+                                                                                 
+                                                                  
+                       
+ 
+
 define(
     [
         'jquery',
@@ -43,17 +91,17 @@ define(
         'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
     ],
     function (
-        $,
-        ko,
-        url,
-        storage,
-        Component,
-        quote,
-        additionalValidators,
-        errorProcessor,
-        customer,
-        utils,
-        addressHandler,
+        $              ,
+        ko                ,
+        url         ,
+        storage         ,
+        Component                        ,
+        quote            ,
+        additionalValidators                      ,
+        errorProcessor         ,
+        customer               ,
+        utils             ,
+        addressHandler                      ,
     ) {
         'use strict';
 
@@ -73,8 +121,8 @@ define(
             cardExpiryDetail: {},
             cardCvcDetail: {},
             validationError: ko.observable(),
-            autoCapture: !!window.checkoutConfig.payment.airwallex_payments.cc_auto_capture,
-            maxWidth: window.checkoutConfig.payment.airwallex_payments.card_max_width,
+            autoCapture: !!window.checkoutConfig .payment .airwallex_payments .cc_auto_capture,
+            maxWidth: window.checkoutConfig .payment .airwallex_payments .card_max_width,
             fonts: [{
                 src: 'https://checkout.airwallex.com/fonts/CircularXXWeb/CircularXXWeb-Regular.woff2',
                 family: 'AxLLCircular',
@@ -89,12 +137,12 @@ define(
                 if (!customer.isLoggedIn()) {
                     return null;
                 }
-                return window.checkoutConfig.payment.airwallex_payments.airwallex_customer_id;
+                return window.checkoutConfig .payment .airwallex_payments .airwallex_customer_id;
             },
 
-            loadPayment() {
+            loadPayment(                  ) {
                 Airwallex.init({
-                    env: window.checkoutConfig.payment.airwallex_payments.mode,
+                    env: window.checkoutConfig .payment .airwallex_payments .mode,
                     origin: window.location.origin,
                     fonts: this.fonts
                 });
@@ -111,22 +159,22 @@ define(
                 return addressHandler.intentConfirmBillingAddressFromOfficial;
             },
 
-            showNumberError() {
+            showNumberError(                  ) {
                 return this.validationError() && !this.isNumberComplete();
             },
 
-            showExpiryError() {
+            showExpiryError(                  ) {
                 return this.validationError() && !this.isExpiryComplete();
             },
 
-            showCvcError() {
+            showCvcError(                  ) {
                 return this.validationError() && !this.isCvcComplete();
             },
 
-            initPayment: async function () {
-                let fontSize = window.checkoutConfig.payment.airwallex_payments.card_fontsize;
+            initPayment: async function (                  ) {
+                let fontSize = window.checkoutConfig .payment .airwallex_payments .card_fontsize;
                 if (window.airwallex_card_fontsize) {
-                    fontSize = parseInt(window.airwallex_card_fontsize);
+                    fontSize = parseInt(window.airwallex_card_fontsize          );
                     let min = 12;
                     let max = 20;
                     fontSize = fontSize < min ? min : fontSize;
@@ -159,7 +207,7 @@ define(
 
                 for (let type of ['Number', 'Expiry', 'Cvc']) {
                     this['card' + type + 'Element'].mount(this['card' + type + 'Selector']);
-                    this['card' + type + 'Element'].on('change', (event) => {
+                    this['card' + type + 'Element'].on('change', (event     ) => {
                         this['card' + type + 'Detail'] = event.detail;
                         this['is' + type + 'Complete'](this['card' + type + 'Detail'].complete);
                         if (this.isNumberComplete() && this.isExpiryComplete() && this.isCvcComplete()) {
@@ -176,28 +224,28 @@ define(
                     });
                 }
 
-                this['cardNumberElement'].on('change', (e) => {
+                this['cardNumberElement'] .on('change', (e     ) => {
                     if (e.detail.complete) {
-                        this['cardExpiryElement'].focus()
+                        this['cardExpiryElement'] .focus()
                     }
                 });
 
-                this['cardExpiryElement'].on('change', (e) => {
+                this['cardExpiryElement'] .on('change', (e     ) => {
                     if (e.detail.complete) {
-                        this['cardCvcElement'].focus()
+                        this['cardCvcElement'] .focus()
                     }
                 });
 
-                this.cardNumberElement.on('ready', () => {
-                    this.cardNumberElement.focus();
+                this.cardNumberElement .on('ready', () => {
+                    this.cardNumberElement .focus();
                 });
 
                 $('.airwallex-card-container .payment-method-title').click(() => {
-                    this.cardNumberElement.focus();
+                    this.cardNumberElement .focus();
                 });
             },
 
-            initiateOrderPlacement: async function () {
+            initiateOrderPlacement: async function (                  ) {
                 const self = this;
 
                 if (!additionalValidators.validate()) {
@@ -209,18 +257,18 @@ define(
             },
 
             isCardVaultActive() {
-                if (!customer.isLoggedIn() || !window.checkoutConfig.payment.airwallex_payments.airwallex_customer_id) return false;
-                return window.checkoutConfig.payment.airwallex_payments.is_card_vault_active;
+                if (!customer.isLoggedIn() || !window.checkoutConfig .payment .airwallex_payments .airwallex_customer_id) return false;
+                return window.checkoutConfig .payment .airwallex_payments .is_card_vault_active;
             },
 
-            isSaveCardSelected: function () {
+            isSaveCardSelected: function (                  ) {
                 if (!this.isCardVaultActive()) {
                     return false;
                 }
                 return $('#airwallex-payments-card-save').is(':checked');
             },
 
-            async placeOrder() {
+            async placeOrder(                  ) {
                 let self = this;
                 this.validationError('');
                 if (this.validate() && additionalValidators.validate()) {

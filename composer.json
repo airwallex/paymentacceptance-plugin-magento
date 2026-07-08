@@ -3,7 +3,7 @@
     "type": "magento2-module",
     "description": "",
     "license": "MIT",
-    "version": "1.21.0",
+    "version": "1.23.0",
     "authors": [
         {
             "name": "Airwallex",
@@ -33,6 +33,6 @@
         }
     },
     "archive": {
-        "exclude": ["release/*", "tests/*", "magento-plugin.zip", "release.sh", ".git/*", ".github/*", ".gitlab/*", ".gitignore", ".gitlab-ci.yml", ".releaserc.js", "yarn.lock", "package.json"]
+        "exclude": ["release/*", "tests/*", "magento-plugin.zip", "release.sh", ".git/*", ".github/*", ".gitlab/*", ".gitignore", ".gitlab-ci.yml", ".releaserc.js", "yarn.lock", "package.json", "package-lock.json", "AGENTS.md", "node_modules", "view/frontend/web/js/__tests__", "*.test.ts", "*.ts", "vitest.config.mts", "tsconfig.json", "tsconfig.build.json", "coverage", ".vscode", ".idea", ".cursor", ".history", "auth.json", ".env"]
     }
 }

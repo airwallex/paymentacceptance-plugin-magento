@@ -28,11 +28,99 @@
  * @license   https://opensource.org/licenses/MIT MIT License
  */
 /* global Airwallex */
+                                                                 
+                                                               
+
+                                  
+                                                     
+ 
+
+                      
+                                
+ 
+
+                       
+                                                                  
+                                                                                                              
+                                                                  
+                                                                                                                                 
+ 
+
+                          
+                       
+                                                          
+                               
+                                                                             
+                              
+                          
+                                                                  
+                                                                                
+                                                                            
+                                                          
+                                                                                            
+                                                                                                         
+                                                                           
+                           
+                                  
+                             
+                                
+                                               
+                                             
+                       
+            
+                                   
+                             
+                                
+                                               
+                                             
+                       
+            
+                                           
+ 
+
+                                
+                        
+ 
+
+                                
+                                                                                                  
+ 
+
+                      
+                                                          
+                                                              
+                                                                  
+                                    
+                                  
+                               
+ 
+
+                                            
+
+                                
+                            
+                    
+                       
+                                                 
+                                                         
+      
+                          
+ 
+
+/** `this` receiver for the APM renderer's methods. */
+                                                  
+                 
+                                                                                 
+                                                                  
+                       
+ 
+
 define([
     'Magento_Checkout/js/view/payment/default',
     'jquery',
     'ko',
     'mage/url',
+    'mage/storage',
     'Airwallex_Payments/js/view/payment/utils',
     'Magento_Checkout/js/model/payment/additional-validators',
     'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
@@ -40,16 +128,17 @@ define([
     'Magento_Customer/js/customer-data',
     'mage/translate'
 ], function (
-    Component,
-    $,
-    ko,
-    urlBuilder,
-    utils,
-    additionalValidators,
-    addressHandler,
-    quote,
-    customerData,
-    $t
+    Component                        ,
+    $              ,
+    ko                ,
+    urlBuilder            ,
+    storage             ,
+    utils                ,
+    additionalValidators                      ,
+    addressHandler                      ,
+    quote            ,
+    customerData         ,
+    $t             
 ) {
     'use strict';
 
@@ -66,8 +155,12 @@ define([
         lastBillingAddress: null,
         lastGrandTotal: null,
         agreementsBound: false,
+        currentCurrency: null,
+        currencyToken: 0,
+        initialConversionRate: null,
+        preQuoteFailed: false,
 
-        getCode() {
+        getCode(                 ) {
             return this.code;
         },
 
@@ -78,16 +171,16 @@ define([
             return {};
         },
 
-        shouldShowLogos() {
+        shouldShowLogos(                 ) {
             return this.getPaymentMethodLogos().length > 0;
         },
 
-        getPaymentMethodLogos() {
+        getPaymentMethodLogos(                 ) {
             const paymentConfig = this.getPaymentConfig();
             return paymentConfig.apm_selected_logos || [];
         },
 
-        isPaymentBeforeOrder() {
+        isPaymentBeforeOrder(                 ) {
             const paymentConfig = this.getPaymentConfig();
             return paymentConfig.is_order_before_payment === false;
         },
@@ -97,7 +190,7 @@ define([
             return !!(config && config.isEnabled && config.agreements && config.agreements.length > 0);
         },
 
-        hasAgreements() {
+        hasAgreements(                 ) {
             return this.getAgreementCheckboxes().length > 0;
         },
 
@@ -110,7 +203,16 @@ define([
             return !!(billing && billing.countryId);
         },
 
-        canMountApmElement() {
+        getBillingCurrency() {
+            const billing = quote.billingAddress();
+            if (!billing || !billing.countryId) {
+                return '';
+            }
+            const map = window.checkoutConfig?.payment?.airwallex_payments?.country_to_currency || {};
+            return map[String(billing.countryId).toUpperCase()] || '';
+        },
+
+        canMountApmElement(                 ) {
             if (!this.isChecked() || !this.isPaymentBeforeOrder()) {
                 return false;
             }
@@ -123,16 +225,12 @@ define([
             return true;
         },
 
-        shouldShowApmElement() {
-            return this.isApmContainerReady() || this.isApmElementMounted();
-        },
-
-        onApmContainerRendered() {
+        onApmContainerRendered(                 ) {
             this.watchAgreementChanges();
             this.tryMountApmElement();
         },
 
-        tryMountApmElement() {
+        tryMountApmElement(                 ) {
             if (!this.canMountApmElement()) {
                 if (this.isApmElementMounted()) {
                     this.unmountApmElement();
@@ -144,18 +242,18 @@ define([
             }
         },
 
-        initialize() {
+        initialize(                 ) {
             this._super();
 
             this.isChecked.subscribe(this.onPaymentMethodChange.bind(this));
 
-            quote.paymentMethod.subscribe(function (newMethod) {
+            quote.paymentMethod.subscribe(function (                   newMethod                           ) {
                 if (!newMethod || newMethod.method !== this.code) {
                     this.cleanupApmElement();
                 }
             }.bind(this));
 
-            quote.billingAddress.subscribe(function (newAddress) {
+            quote.billingAddress.subscribe(function (                   newAddress                              ) {
                 utils.hideYouPay();
                 if (utils.isSameBillingAddress(this.lastBillingAddress, newAddress)) {
                     return;
@@ -168,7 +266,7 @@ define([
                 }
             }.bind(this));
 
-            quote.totals.subscribe(function (newTotals) {
+            quote.totals.subscribe(function (                   newTotals     ) {
                 if (!newTotals) {
                     return;
                 }
@@ -182,11 +280,18 @@ define([
                 this.lastGrandTotal = newGrandTotal;
             }.bind(this));
 
-            this.isApmContainerReady.subscribe(function (isReady) {
+            this.isApmContainerReady.subscribe(function (                   isReady         ) {
                 if (isReady && this.isChecked() && !this.isApmElementMounted()) {
                     ko.tasks.schedule(() => {
                         this.tryMountApmElement();
                     });
+                }
+            }.bind(this));
+
+            this.isApmElementMounted.subscribe(function (                   mounted         ) {
+                if (!mounted) {
+                    utils.removeCheckoutCurrencySwitcher();
+                    utils.hideYouPay();
                 }
             }.bind(this));
 
@@ -197,7 +302,7 @@ define([
             return this;
         },
 
-        onPaymentMethodChange(isSelected) {
+        onPaymentMethodChange(                   isSelected         ) {
             if (isSelected) {
                 if (this.isPaymentBeforeOrder()) {
                     this.initPaymentBeforeOrderFlow();
@@ -207,7 +312,7 @@ define([
             }
         },
 
-        unmountApmElement() {
+        unmountApmElement(                 ) {
             if (this.apmElement) {
                 try {
                     this.apmElement.destroy();
@@ -219,12 +324,17 @@ define([
             this.isApmElementMounted(false);
         },
 
-        cleanupApmElement() {
+        cleanupApmElement(                 ) {
             this.unmountApmElement();
             this.isApmContainerReady(false);
+            this.currentCurrency = null;
+            this.initialConversionRate = null;
+            this.preQuoteFailed = false;
+            utils.removeCheckoutCurrencySwitcher();
+            utils.hideYouPay();
         },
 
-        selectPaymentMethod() {
+        selectPaymentMethod(                 ) {
             this._super();
 
             if (this.isPaymentBeforeOrder()) {
@@ -234,11 +344,11 @@ define([
             return true;
         },
 
-        initPaymentBeforeOrderFlow() {
+        initPaymentBeforeOrderFlow(                 ) {
             this.isApmContainerReady(true);
         },
 
-        watchAgreementChanges() {
+        watchAgreementChanges(                 ) {
             if (this.agreementsBound) {
                 return;
             }
@@ -246,7 +356,7 @@ define([
 
             const self = this;
 
-            $(document).off('change.apm').on('change.apm', 'div[data-role=checkout-agreements] input[type="checkbox"]', function() {
+            $(document).off('change.apm').on('change.apm', 'div[data-role=checkout-agreements] input[type="checkbox"]', function(                 ) {
                 const $paymentMethod = $(this).closest('.payment-method');
                 const isApmMethod = $paymentMethod.hasClass(self.getCode());
 
@@ -259,14 +369,14 @@ define([
             });
         },
 
-        areAllAgreementsChecked() {
+        areAllAgreementsChecked(                 ) {
             const $agreements = this.getAgreementCheckboxes();
             if ($agreements.length === 0) {
                 return !this.isAgreementsEnabled();
             }
 
             let allChecked = true;
-            $agreements.each(function() {
+            $agreements.each(function(                 ) {
                 if (!$(this).prop('checked')) {
                     allChecked = false;
                     return false;
@@ -275,7 +385,7 @@ define([
             return allChecked;
         },
 
-        async mountApmElement() {
+        async mountApmElement(                 ) {
             if (this.isApmElementMounted()) {
                 return;
             }
@@ -286,9 +396,11 @@ define([
             try {
                 await this.initializeAirwallex();
                 this.isApmElementMounted(true);
-            } catch (e) {
+            } catch (e     ) {
                 let msg = $t('Failed to initialize payment system. Please try again.');
-                if (e && e.message) {
+                if (e && e.responseJSON && e.responseJSON.message) {
+                    msg = e.responseJSON.message;
+                } else if (e && e.message) {
                     msg = e.message;
                 }
                 this.showError(msg);
@@ -297,7 +409,7 @@ define([
             }
         },
 
-        async initializeAirwallex() {
+        async initializeAirwallex(                 ) {
             const intentResponse = await this.createPaymentIntent();
 
             if (!intentResponse.element_options) {
@@ -309,6 +421,8 @@ define([
                 elementOptions = JSON.parse(elementOptions);
             }
 
+            await this.applyBillingCurrencyToElementOptions(elementOptions);
+
             const paymentConfig = this.getPaymentConfig();
             const env = paymentConfig.mode === 'demo' ? 'demo' : 'prod';
 
@@ -317,11 +431,34 @@ define([
                 origin: window.location.origin,
             });
 
-            this.createApmElement(elementOptions);
+            elementOptions.disableAutoCurrencyConversion = true;
+            await this.createApmElement(elementOptions);
         },
 
-        async createPaymentIntent() {
-            const payload = {
+        async applyBillingCurrencyToElementOptions(                   elementOptions     ) {
+            this.preQuoteFailed = false;
+            const baseCurrency = (elementOptions.currency || '').toUpperCase();
+            const billingCurrency = (this.getBillingCurrency() || '').toUpperCase();
+            if (!billingCurrency || !baseCurrency || billingCurrency === baseCurrency) {
+                return;
+            }
+
+            try {
+                const quoteResp = await utils.conversionQuote(baseCurrency, billingCurrency);
+                elementOptions.currency = billingCurrency;
+                elementOptions.quote_id = quoteResp.id;
+                this.currentCurrency = billingCurrency;
+                this.initialConversionRate = quoteResp.conversion_rate;
+            } catch (e) {
+                // Pre-quote failed — drop back to order currency, don't show switcher
+                this.currentCurrency = null;
+                this.initialConversionRate = null;
+                this.preQuoteFailed = true;
+            }
+        },
+
+        async createPaymentIntent(                 ) {
+            const payload                       = {
                 cartId: quote.getQuoteId(),
                 paymentMethod: {
                     method: this.code,
@@ -346,7 +483,7 @@ define([
             return await utils.getIntent(payload, {});
         },
 
-        createApmElement(elementOptions) {
+        async createApmElement(                   elementOptions     ) {
             const self = this;
 
             try {
@@ -358,20 +495,20 @@ define([
             }
 
             let readyLogged = false;
-            this.apmElement.on('ready', function() {
+            this.apmElement .on('ready', function() {
                 if (readyLogged) {
                     return;
                 }
                 readyLogged = true;
             });
 
-            this.apmElement.on('success', function() {
+            this.apmElement .on('success', function() {
                 $('body').trigger('processStart');
                 utils.clearDataAfterPay({}, customerData);
                 window.location.href = urlBuilder.build('airwallex/redirect?type=quote&id=' + quote.getQuoteId());
             });
 
-            this.apmElement.on('quoteCreate', function(event) {
+            this.apmElement .on('quoteCreate', function(event) {
                 const quote = event?.detail?.quote;
                 if (quote) {
                     utils.showYouPay(quote, $t);
@@ -379,9 +516,137 @@ define([
                     utils.hideYouPay();
                 }
             });
+
+            await this.maybeRenderCurrencySwitcher();
         },
 
-        async placeOrder(_data, event) {
+        async maybeRenderCurrencySwitcher(                 ) {
+            const quoteCurrency = (this.getPaymentConfig().quote_currency_code || '').toUpperCase();
+            const billingCurrency = (this.getBillingCurrency() || '').toUpperCase();
+
+            if (!billingCurrency || billingCurrency === quoteCurrency) {
+                utils.removeCheckoutCurrencySwitcher();
+                return;
+            }
+
+            // Pre-quote failed — don't show switcher, use order currency instead
+            if (this.preQuoteFailed) {
+                utils.removeCheckoutCurrencySwitcher();
+                utils.hideYouPay();
+                return;
+            }
+
+            this.renderCurrencySwitcher();
+
+            if (this.initialConversionRate) {
+                try {
+                    const grandTotal = await this.fetchGrandTotal();
+                    const rate = Number(this.initialConversionRate);
+                    utils.showYouPay({
+                        target_amount: grandTotal * rate,
+                        target_currency: billingCurrency,
+                        payment_currency: quoteCurrency,
+                        client_rate: this.initialConversionRate,
+                    }, $t);
+                } catch (e) {
+                    utils.hideYouPay();
+                }
+            }
+        },
+
+        async fetchGrandTotal() {
+            const url = urlBuilder.build('rest/V1/airwallex/payments/express-data');
+            const resp = await storage.get(url, undefined, 'application/json', {});
+            const expressData = typeof resp === 'string' ? JSON.parse(resp) : resp;
+            return Number(expressData.grand_total);
+        },
+
+        renderCurrencySwitcher(                 ) {
+            const paymentConfig = this.getPaymentConfig();
+            const quoteCurrency = (paymentConfig.quote_currency_code || '').toUpperCase();
+            const currencies = utils.buildSwitcherCurrencies(quoteCurrency, paymentConfig.available_currencies);
+
+            if (currencies.length === 0) {
+                utils.removeCheckoutCurrencySwitcher();
+                return;
+            }
+
+            if (!this.currentCurrency) {
+                this.currentCurrency = quoteCurrency;
+            }
+
+            const billing = quote.billingAddress();
+            const billingCountryCode = billing ? billing.countryId : undefined;
+
+            const self = this;
+            utils.renderCheckoutCurrencySwitcher(
+                currencies,
+                this.currentCurrency,
+                billingCountryCode,
+                function (selected        ) {
+                    self.onCurrencyChange(selected, quoteCurrency);
+                },
+                $t
+            );
+        },
+
+        async onCurrencyChange(                   selected        , baseCurrency        ) {
+            const effectiveCurrent = this.currentCurrency || baseCurrency;
+            if (!this.apmElement || selected === effectiveCurrent) {
+                return;
+            }
+
+            if (selected === baseCurrency) {
+                this.currentCurrency = selected;
+                this.apmElement.update({
+                    currency: selected,
+                    quote_id: undefined,
+                });
+                utils.hideYouPay();
+                return;
+            }
+
+            const token = ++this.currencyToken;
+
+            let quoteResp                         ;
+            try {
+                quoteResp = await utils.conversionQuote(baseCurrency, selected);
+            } catch (e     ) {
+                let msg = $t('Failed to convert currency. Please try again.');
+                if (e && e.responseJSON && e.responseJSON.message) {
+                    msg = e.responseJSON.message;
+                } else if (e && e.message) {
+                    msg = e.message;
+                }
+                this.showError(msg);
+                return;
+            }
+
+            if (token !== this.currencyToken) {
+                return;
+            }
+
+            this.currentCurrency = selected;
+            this.apmElement.update({
+                quote_id: quoteResp.id,
+                currency: selected,
+            });
+
+            try {
+                const grandTotal = await this.fetchGrandTotal();
+                const rate = Number(quoteResp.conversion_rate);
+                utils.showYouPay({
+                    target_amount: grandTotal * rate,
+                    target_currency: selected,
+                    payment_currency: baseCurrency,
+                    client_rate: quoteResp.conversion_rate,
+                }, $t);
+            } catch (e) {
+                utils.hideYouPay();
+            }
+        },
+
+        async placeOrder(                   _data          , event        ) {
             if (event) {
                 event.preventDefault();
             }
@@ -400,7 +665,7 @@ define([
 
             try {
                 await this._placeOrder();
-            } catch (e) {
+            } catch (e     ) {
                 let msg = $t('Something went wrong while processing your request. Please try again.');
 
                 if (e && e.responseJSON && e.responseJSON.message) {
@@ -418,8 +683,8 @@ define([
             return true;
         },
 
-        async _placeOrder() {
-            const payload = {
+        async _placeOrder(                 ) {
+            const payload                       = {
                 cartId: quote.getQuoteId(),
                 paymentMethod: {
                     method: this.code,
@@ -455,7 +720,7 @@ define([
             location.href = apmUrl;
         },
 
-        showError(message) {
+        showError(message        ) {
             const $errorContainer = $('#airwallex-apm-error');
             if (!$errorContainer.length) {
                 return;
@@ -465,14 +730,14 @@ define([
             $errorContainer.show();
         },
 
-        getData() {
+        getData(                 ) {
             return {
                 'method': this.item.method,
                 'additional_data': {}
             };
         },
 
-        disposeSubscriptions() {
+        disposeSubscriptions(                 ) {
             this._super();
             this.cleanupApmElement();
         }

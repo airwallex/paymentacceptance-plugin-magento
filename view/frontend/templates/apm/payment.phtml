@@ -109,7 +109,6 @@ if (!$paymentConfig) {
                     <div class="airwallex-order-total">
                         <strong><?= $escaper->escapeHtml(__('Grand Total')) ?></strong>
                         <span class="airwallex-price">
-                            <?= $escaper->escapeHtml($orderDetails['currency_code']) ?>
                             <?= $escaper->escapeHtml($block->formatPrice($orderDetails['grand_total'])) ?>
                         </span>
                     </div>
@@ -122,12 +121,16 @@ if (!$paymentConfig) {
                         <span class="airwallex-conversion-price" id="airwallex-conversion-amount"></span>
                     </div>
                 </div>
+
+                <div id="airwallex-currency-switcher" class="airwallex-currency-switcher" style="display: none;"></div>
             </div>
             <?php endif; ?>
         </div>
 
         <div class="airwallex-apm-right">
             <div id="airwallex-error-message" class="message message-error error" style="display: none;"></div>
+
+            <?= /* @noEscape */ $block->fetchView($block->getTemplateFile('Airwallex_Payments::apm/_currency-switcher-template.phtml')) ?>
 
             <div id="airwallex-apm-container">
                 <div id="airwallex-loading-overlay">
@@ -280,6 +283,10 @@ if (!$paymentConfig) {
     color: #333;
     font-weight: bold;
     font-size: 20px;
+}
+
+.airwallex-currency-switcher {
+    margin-top: 15px;
 }
 
 #airwallex-apm-container {

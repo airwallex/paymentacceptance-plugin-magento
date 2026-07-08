@@ -27,24 +27,96 @@
  * @copyright 2026 Airwallex
  * @license   https://opensource.org/licenses/MIT MIT License
  */
+                                                         
+                                                                  
+                                                                                        
+
+                       
+                             
+                              
+                          
+                        
+                               
+                                        
+                                       
+                                                   
+                                                                               
+                                                                             
+                                                         
+                                                                                          
+                                                            
+                                              
+                                                                   
+                                                        
+                                                 
+                           
+                                                                     
+                                                                  
+                               
+ 
+
+                                
+                                                                  
+                                                                  
+                                                                                  
+                                                                                 
+                                                      
+                                                                  
+                                                                                                      
+                                                                  
+                                                             
+                                                                  
+                                                                      
+                                                                  
+                                                                                
+                                                                                                     
+                                                                                                                             
+ 
+
+/** Options built by `getOptions` then extended by `getRequestOptions`. */
+                                  
+                 
+                        
+                       
+                   
+                            
+                        
+                                           
+                                            
+                         
+                                
+                                                                                
+                                                     
+                       
+                                                    
+                                                                      
+                         
+      
+                           
+ 
+
+/** `this` receiver for the applepay module's methods (the returned object). */
+                                               
+                  
+ 
+
 define([
     'jquery',
     'Airwallex_Payments/js/view/payment/utils',
     'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
     'mage/url',
 ], function (
-    $,
-    utils,
-    addressHandler,
-    url,
+    $              ,
+    utils             ,
+    addressHandler                      ,
+    url                                 ,
 ) {
     'use strict';
 
     return {
-        applepay: null,
+        elements: {},
         expressData: {},
         paymentConfig: {},
-        from: '',
         methods: [],
         selectedMethod: {},
         intermediateShippingAddress: {},
@@ -58,9 +130,11 @@ define([
             'postalAddress',
         ],
 
-        create(that) {
-            this.applepay = Airwallex.createElement('applePayButton', this.getRequestOptions());
-            let el = this.applepay.mount('awx-apple-pay-' + this.from);
+        create(                    that                     ) {
+            let element = Airwallex.createElement('applePayButton', this.getRequestOptions(true)                                            );
+            this.elements[that.from] = element;
+            let el = element.mount('awx-apple-pay-' + that.from);
+            utils.attachHeightGuard(element, 'applePayButton');
             el.addEventListener('onReady', (event) => {
                 utils.initCheckoutPageExpressCheckoutClick();
                 if (that.deviceSupportApplePay()) {
@@ -70,34 +144,42 @@ define([
                     if (!that.isGooglePayActive()) $(".airwallex-recaptcha").hide();
                 }
             });
-            this.attachEvents(that);
+            this.attachEvents(that, element);
             utils.loadRecaptcha(that.isShowRecaptcha);
         },
 
-        confirmIntent(params) {
-            return this.applepay.confirmIntent(params);
+        confirmIntent(                    from        , params                         ) {
+            return this.elements[from].confirmIntent(params);
         },
 
-        attachEvents(that) {
-            this.applepay.on('click', () => {
+        destroy(                    from        ) {
+            if (this.elements[from]) {
+                utils.detachHeightGuard(this.elements[from]);
+                this.elements[from].destroy();
+                delete this.elements[from];
+            }
+        },
+
+        attachEvents(                    that                     , element                  ) {
+            element.on('click', () => {
                 if (utils.isProductPage()) {
                     $('#btn-minicart-close').click();
                 }
             });
 
-            this.applepay.on('validateMerchant', async (event) => {
+            element.on('validateMerchant', async (event     ) => {
                 try {
                     const merchantSession = await $.ajax(utils.postOptions({
                         validationUrl: event.detail.validationURL,
                         origin: window.location.host,
                     }, url.build('rest/V1/airwallex/payments/validate-merchant')));
-                    this.applepay.completeValidation(JSON.parse(merchantSession));
+                    element.completeValidation(JSON.parse(merchantSession));
                 } catch (e) {
                     utils.error(e);
                 }
             });
 
-            this.applepay.on('shippingAddressChange', async (event) => {
+            element.on('shippingAddressChange', async (event     ) => {
                 await utils.addToCart(that);
 
                 this.intermediateShippingAddress = addressHandler.getIntermediateShippingAddress(event.detail.shippingAddress, 'apple');
@@ -110,10 +192,10 @@ define([
                 if (utils.isRequireShippingOption()) {
                     options.shippingMethods = addressHandler.formatShippingMethodsToApple(this.methods, this.selectedMethod);
                 }
-                this.applepay.update(options);
+                element.update(options);
             });
 
-            this.applepay.on('shippingMethodChange', async (event) => {
+            element.on('shippingMethodChange', async (event     ) => {
                 try {
                     await that.postAddress(this.intermediateShippingAddress, event.detail.shippingMethod.identifier);
                 } catch (e) {
@@ -121,10 +203,10 @@ define([
                 }
                 let options = this.getRequestOptions();
                 options.shippingMethods = addressHandler.formatShippingMethodsToApple(this.methods, this.selectedMethod);
-                this.applepay.update(options);
+                element.update(options);
             });
 
-            this.applepay.on('authorized', async (event) => {
+            element.on('authorized', async (event     ) => {
                 let shipping = event.detail.paymentData.shippingContact;
                 let billing = event.detail.paymentData.billingContact;
                 let phone, email;
@@ -132,7 +214,7 @@ define([
                     let quote = require('Magento_Checkout/js/model/quote');
                     if (utils.isLoggedIn()) {
                         phone = quote.shippingAddress().telephone;
-                        email = window.checkoutConfig.quoteData.customer_email;
+                        email = window.checkoutConfig .quoteData .customer_email;
                     } else {
                         phone = this.expressData.is_virtual ? shipping.phoneNumber : quote.shippingAddress().telephone;
                         email = $(utils.guestEmailSelector).val();
@@ -164,8 +246,8 @@ define([
             });
         },
 
-        getRequestOptions() {
-            let paymentDataRequest = this.getOptions();
+        getRequestOptions(                    initial          = false)                         {
+            let paymentDataRequest = this.getOptions()                          ;
 
             if (utils.isCheckoutPage()) {
                 paymentDataRequest.requiredShippingContactFields = [];
@@ -188,18 +270,19 @@ define([
                 }
             }
 
+            const showZero = initial && utils.isProductPage();
             const transactionInfo = {
                 amount: {
-                    value: utils.formatCurrency(this.expressData.grand_total),
+                    value: showZero ? '0.00' : utils.formatCurrency(this.expressData.grand_total ),
                     currency: $('[property="product:price:currency"]').attr("content") || this.expressData.quote_currency_code,
                 },
-                lineItems: this.getDisplayItems(),
+                lineItems: showZero ? [] : this.getDisplayItems(),
             };
 
             return Object.assign(paymentDataRequest, transactionInfo);
         },
 
-        getSupportedNetworks(supportBrands) {
+        getSupportedNetworks(supportBrands          )           {
             let brands = supportBrands.map(function (brand) {
                     if (brand === 'unionpay') {
                         return 'chinaUnionPay';
@@ -219,18 +302,18 @@ define([
             return brands;
         },
 
-        getOptions() {
-            let options = {
+        getOptions(                  )                         {
+            let options                         = {
                 mode: 'payment',
-                buttonColor: this.paymentConfig.express_style.theme,
-                buttonType: this.paymentConfig.express_style.call_to_action,
+                buttonColor: this.paymentConfig.express_style .theme,
+                buttonType: this.paymentConfig.express_style .call_to_action,
                 origin: window.location.origin,
                 totalPriceLabel: this.paymentConfig.express_seller_name || '',
-                countryCode: this.paymentConfig.country_code,
+                countryCode: this.paymentConfig.country_code ,
                 requiredBillingContactFields: this.requiredBillingContactFields,
                 requiredShippingContactFields: this.requiredShippingContactFields,
-                autoCapture: this.paymentConfig.is_express_auto_capture,
-                supportedNetworks: this.getSupportedNetworks(this.paymentConfig.allowed_card_networks.applepay),
+                autoCapture: this.paymentConfig.is_express_auto_capture ,
+                supportedNetworks: this.getSupportedNetworks(this.paymentConfig.allowed_card_networks .applepay),
             };
             if (options.buttonType === 'checkout') {
                 options.buttonType = 'check-out';
@@ -238,8 +321,8 @@ define([
             return options;
         },
 
-        getDisplayItems() {
-            let res = [];
+        getDisplayItems(                  )                                 {
+            let res                                 = [];
             for (let key in this.expressData) {
                 if (this.expressData[key] === '0.0000' || !this.expressData[key]) {
                     continue;
@@ -263,7 +346,7 @@ define([
                     if (this.expressData[key] !== this.expressData['subtotal']) {
                         res.push({
                             'label': 'Discount',
-                            'amount': '-' + utils.getDiscount(this.expressData['subtotal'], this.expressData['subtotal_with_discount']).toString()
+                            'amount': '-' + utils.getDiscount(this.expressData['subtotal'] , this.expressData['subtotal_with_discount'] ).toString()
                         });
                     }
                 }

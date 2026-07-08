@@ -157,4 +157,11 @@
             <resource ref="anonymous"/>
         </resources>
     </route>
+
+    <route url="/V1/airwallex/conversion-quote" method="POST">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="conversionQuote"/>
+        <resources>
+            <resource ref="anonymous"/>
+        </resources>
+    </route>
 </routes>

@@ -27,15 +27,39 @@
  * @copyright 2026 Airwallex
  * @license   https://opensource.org/licenses/MIT MIT License
  */
+/** Builds a store-relative URL into an absolute one (`mage/url`). */
+                      
+                                
+ 
+
+/** A single button descriptor consumed by the Magento modal config. */
+                       
+                 
+                  
+                                      
+ 
+
+/**
+ * The modal config object the caller passes in; this module appends the
+ * Cancel/Delete buttons before handing it to `modalToggle`.
+ */
+                             
+                            
+                           
+ 
+
+/** `Magento_Ui/js/modal/modalToggle` — wires a modal to the trigger element. */
+                                                                                        
+
 define([
     'jquery',
     'Magento_Ui/js/modal/modalToggle',
     'mage/url',
     'mage/translate',
-], function ($, modalToggle, url) {
+], function ($              , modalToggle             , url            ) {
     'use strict';
 
-    return function (config, deleteButton) {
+    return function (config                   , deleteButton                   ) {
         config.buttons = [
             {
                 text: $.mage.__('Cancel'),
@@ -47,7 +71,7 @@ define([
                 /**
                  * Default action on button click
                  */
-                click: function (event) { //eslint-disable-line no-unused-vars
+                click: function (               event          ) { //eslint-disable-line no-unused-vars
                     // $('body').trigger('processStart');
                     let removeUrl = url.build('rest/V1/airwallex/saved_cards/') + $(deleteButton).data('id');
 
@@ -55,9 +79,9 @@ define([
                         url: removeUrl,
                         method: 'DELETE',
                         success: (function() {
-                            $(deleteButton.form).trigger('submit');
+                            $(deleteButton.form                   ).trigger('submit');
                         }).bind(this),
-                        error: function(xhr, status, error) {
+                        error: function(xhr         , status         , error         ) {
                             $('body').trigger('processStop');
                             $('.modal-content div').html('');
                         }
