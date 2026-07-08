@@ -105,7 +105,7 @@ class PaymentMethodSchemeHelper
      * @param array $brands Card brands
      * @return array Formatted network names for Apple Pay
      */
-    private static function mapBrandsToApplePayNetworks(array $brands): array
+    public static function mapBrandsToApplePayNetworks(array $brands): array
     {
         $networks = [];
 
@@ -136,7 +136,7 @@ class PaymentMethodSchemeHelper
      * @param array $brands Card brands
      * @return array Formatted network names for Google Pay
      */
-    private static function mapBrandsToGooglePayNetworks(array $brands): array
+    public static function mapBrandsToGooglePayNetworks(array $brands): array
     {
         $networks = [];
         $unsupportedNetworks = ['UNIONPAY', 'MAESTRO', 'DINERS'];

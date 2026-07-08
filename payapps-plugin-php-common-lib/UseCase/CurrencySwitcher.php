@@ -121,12 +121,21 @@ class CurrencySwitcher
         return $this->cacheRemember(
             $cacheName,
             function () {
-                return (new Quote)->setPaymentCurrency($this->paymentCurrency)
+                return $this->createQuote()->setPaymentCurrency($this->paymentCurrency)
                     ->setTargetCurrency($this->targetCurrency)
                     ->setPaymentAmount($this->paymentAmount)
                     ->setType('currency_switcher')
                     ->send();
-            }
+            },
+            1800
         );
+    }
+
+    /**
+     * @return Quote
+     */
+    protected function createQuote(): Quote
+    {
+        return new Quote();
     }
 }

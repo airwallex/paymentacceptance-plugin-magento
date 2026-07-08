@@ -32,6 +32,7 @@ namespace Airwallex\Payments\Model\Traits;
 
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
 use Airwallex\PayappsPlugin\CommonLibrary\UseCase\CurrencySwitcher;
+use Airwallex\PayappsPlugin\CommonLibrary\UseCase\ConversionQuote as ConversionQuoteUseCase;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Helper\IntentHelper;
 use Airwallex\PayappsPlugin\CommonLibrary\UseCase\Config\CurrencySwitcherAvailableCurrencies;
@@ -106,6 +107,20 @@ trait HelperTrait
             ->setTargetCurrency($targetCurrency)
             ->setPaymentAmount($amount)
             ->get();
+    }
+
+    public function conversionQuote(string $merchantCurrency, string $shopperCurrency): string
+    {
+        $quote = ObjectManager::getInstance()->get(ConversionQuoteUseCase::class)
+            ->setMerchantCurrency($merchantCurrency)
+            ->setShopperCurrency($shopperCurrency)
+            ->get();
+        return json_encode([
+            'id' => $quote->getId(),
+            'merchant_currency' => $quote->getMerchantCurrency(),
+            'shopper_currency' => $quote->getShopperCurrency(),
+            'conversion_rate' => $quote->getConversionRate(),
+        ]);
     }
 
     public function convertToDisplayCurrency(float $amount, $rate, $reverse = false): float
@@ -603,6 +618,18 @@ trait HelperTrait
                     $this->checkCardDetail($paymentIntentFromApi, $order);
                 } catch (Exception $e) {
                     $this->logError('checkCardDetail failed: ' . $e->getMessage());
+                }
+            } else if (in_array($order->getStatus(), [Order::STATE_PENDING_PAYMENT, Order::STATE_NEW, 'pending'])) {
+                /** @var StructPaymentIntent $paymentIntent */
+                $paymentIntentFromApi = ObjectManager::getInstance()->get(RetrievePaymentIntent::class)->setPaymentIntentId($paymentIntentFromApi->getId())->send();
+                if ($paymentIntentFromApi->isAuthorized() || $paymentIntentFromApi->isCaptured()) {
+                    ObjectManager::getInstance()->get(IntentHelper::class)->setIntent($paymentIntentFromApi);
+                    $this->setTransactionId($order->getPayment(), $paymentIntentFromApi->getId());
+                    $order->setState(Order::STATE_PROCESSING)->setStatus(Order::STATE_PROCESSING);
+                    ObjectManager::getInstance()->get(OrderRepository::class)->save($order);
+                } else {
+                    $this->logInfo("Can not place order for quote $quoteId from $from");
+                    throw new Exception("invalid payment intent");
                 }
             }
 

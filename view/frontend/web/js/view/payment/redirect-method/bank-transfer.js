@@ -27,6 +27,32 @@
  * @copyright 2026 Airwallex
  * @license   https://opensource.org/licenses/MIT MIT License
  */
+                                                                         
+
+                                  
+                                                     
+ 
+
+                                    
+                                      
+ 
+
+                                   
+                                                              
+ 
+
+                                            
+
+/** `this` receiver shared by the redirect-method child renderers. */
+                                                            
+                 
+                               
+                                    
+                                                            
+                                                                  
+                       
+ 
+
 define([
     "Airwallex_Payments/js/view/payment/redirect-method",
     "ko",
@@ -34,7 +60,14 @@ define([
     'Magento_Checkout/js/model/quote',
     'Airwallex_Payments/js/view/payment/utils',
     'mage/translate'
-], function (Component, ko, $, quote, utils, $t) {
+], function (
+    Component                        ,
+    ko                ,
+    $              ,
+    quote                         ,
+    utils                          ,
+    $t             
+) {
     "use strict";
 
     return Component.extend({
@@ -43,25 +76,25 @@ define([
             template: "Airwallex_Payments/payment/redirect-method",
         },
 
-        async loadPayment() {
+        async loadPayment(                      ) {
             if (!this.isMethodChecked(this.code)) {
                 return;
             }
             this.hideYouPay();
 
             const container = $(`.${this.index} .awx-redirect-method-footer`);
-            const paymentData = window.checkoutConfig.payment.airwallex_payments;
+            const paymentData = window.checkoutConfig .payment .airwallex_payments ;
             const availableCurrencies = paymentData.available_currencies || [];
 
             if (availableCurrencies.length === 0) {
-                if (Object.values(paymentData.bank_transfer_support_country_to_currency_collection).indexOf(paymentData.quote_currency_code) !== -1) {
+                if (Object.values(paymentData.bank_transfer_support_country_to_currency_collection ).indexOf(paymentData.quote_currency_code ) !== -1) {
                     container.html('');
                     this.enableCheckoutButton(this.code);
                     return;
                 }
             }
 
-            if (availableCurrencies.indexOf(paymentData.quote_currency_code) === -1) {
+            if (availableCurrencies.indexOf(paymentData.quote_currency_code ) === -1) {
                 const msg = $t('Bank transfer is not available in this currency yet. Please change your currency to a %1compatible currency%2 or choose a different payment method.')
                     .replace("%1", "<a target='_blank' class='awx-compatible-country-link' href='https://www.airwallex.com/docs/payments__global__bank-transfer-beta'>")
                     .replace("%2", "</a>");
@@ -71,9 +104,9 @@ define([
             }
 
             let countryID = quote.billingAddress() ? quote.billingAddress().countryId : '';
-            let targetCurrency = paymentData.bank_transfer_support_country_to_currency_collection[countryID];
+            let targetCurrency = paymentData.bank_transfer_support_country_to_currency_collection [countryID];
 
-            if (targetCurrency === paymentData.quote_currency_code) {
+            if (targetCurrency === paymentData.quote_currency_code ) {
                 container.html('');
                 this.enableCheckoutButton(this.code);
                 return;
@@ -88,7 +121,7 @@ define([
             await this.showBankTransferCurrencies(expressData);
         },
 
-        async displayYouPay(html, expressData, targetCurrency, brand) {
+        async displayYouPay(                        html        , expressData     , targetCurrency        , brand        ) {
             const container = $(`.${this.index} .awx-redirect-method-footer`);
             const switchers = await this.switcher(expressData.quote_currency_code, targetCurrency, expressData.grand_total);
             container.html(html);
@@ -96,18 +129,18 @@ define([
             this.enableCheckoutButton(this.code);
         },
 
-        async showBankTransferCurrencies(expressData) {
+        async showBankTransferCurrencies(                        expressData     ) {
             const container = $(`.${this.index} .awx-redirect-method-footer`);
             let that = this;
-            const paymentData = window.checkoutConfig.payment.airwallex_payments;
-            const countryToCurrencyCollection = paymentData.bank_transfer_support_country_to_currency_collection;
+            const paymentData = window.checkoutConfig .payment .airwallex_payments ;
+            const countryToCurrencyCollection = paymentData.bank_transfer_support_country_to_currency_collection ;
             let selectedCurrency = localStorage.getItem(that.bankTransferCurrencyKey);
-            if (Object.values(countryToCurrencyCollection).indexOf(selectedCurrency) === -1) {
+            if (Object.values(countryToCurrencyCollection).indexOf(selectedCurrency ) === -1) {
                 localStorage.setItem(that.bankTransferCurrencyKey, "USD");
                 selectedCurrency = 'USD';
             }
 
-            const currencyToRegion = {
+            const currencyToRegion                         = {
                 USD: 'us',
                 SGD: 'sg',
                 EUR: 'eu',
@@ -126,7 +159,7 @@ define([
                     <div>
                         <div class="select">
                             <span style="font-weight: 700; color: black; display: flex; align-items: center;">
-                                <img class="flag" src="` + require.toUrl('Airwallex_Payments/assets/' + currencyToRegion[selectedCurrency] + '.svg') + `" alt=""> ` + selectedCurrency + `
+                                <img class="flag" src="` + require.toUrl('Airwallex_Payments/assets/' + currencyToRegion[selectedCurrency ] + '.svg') + `" alt=""> ` + selectedCurrency + `
                             </span>
                             <img src="` + require.toUrl('Airwallex_Payments/assets/select-arrow.svg') + `" alt="">
                         </div>
@@ -138,7 +171,7 @@ define([
                 <div style="margin-bottom: 8px;">Confirm your order and payment currency to receive the transfer instructions.</div>
             `;
 
-            if (selectedCurrency === paymentData.quote_currency_code) {
+            if (selectedCurrency === paymentData.quote_currency_code ) {
                 container.html(html);
                 this.hideYouPay();
                 this.enableCheckoutButton(this.code);
@@ -158,7 +191,7 @@ define([
                 }
             });
 
-            $('.airwallex_payments_bank_transfer .awx-bank-transfer-currencies ul li').click(async function () {
+            $('.airwallex_payments_bank_transfer .awx-bank-transfer-currencies ul li').click(async function (                 ) {
                 let $body = $('body');
                 $body.trigger('processStart');
                 localStorage.setItem(that.bankTransferCurrencyKey, $(this).data("value"));

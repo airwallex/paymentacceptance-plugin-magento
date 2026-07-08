@@ -32,7 +32,25 @@
  * See COPYING.txt for license details.
  */
 
-define([], function () {
+/** Called back with the verified token once a ReCaptcha resolves. */
+                                                 
+
+/** Initiates a ReCaptcha verification for a given id. */
+                                   
+
+/**
+ * The shared ReCaptcha registry singleton: maps `recaptchaId` -> token,
+ * trigger, and listener so other UI components can read tokens and drive
+ * verification.
+ */
+                             
+                                   
+                                               
+                                                  
+                                                           
+ 
+
+define([], function ()                    {
     'use strict';
 
     return {
@@ -60,7 +78,7 @@ define([], function () {
          * @param {String} id - ReCaptchaId
          * @param {Function} func - Will be called back with the token
          */
-        addListener: function (id, func) {
+        addListener: function (                         id        , func                   ) {
             if (this.tokens.hasOwnProperty(id)) {
                 func(this.tokens[id]);
             } else {

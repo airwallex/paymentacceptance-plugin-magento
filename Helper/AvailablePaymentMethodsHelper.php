@@ -182,6 +182,38 @@ class AvailablePaymentMethodsHelper
         return $logos;
     }
 
+    public function getRedirectMethodLogos(): array
+    {
+        $cacheName = 'awxRedirectMethodLogos';
+        $cached = $this->cache->load($cacheName);
+        if (!empty($cached)) {
+            $logos = json_decode($cached, true);
+            if (!empty($logos)) {
+                return $logos;
+            }
+        }
+        $logos = [];
+        try {
+            $paymentMethodTypes = $this->getAllPaymentMethodTypes();
+            /** @var PaymentMethodType $paymentMethodType */
+            foreach ($paymentMethodTypes as $paymentMethodType) {
+                if ($paymentMethodType->getName() === 'card') {
+                    continue;
+                }
+                $resources = $paymentMethodType->getResources();
+                $methodLogos = $resources['logos'] ?? [];
+                $url = $methodLogos['svg'] ?? ($methodLogos['png'] ?? '');
+                if ($url !== '') {
+                    $logos[$paymentMethodType->getName()] = $url;
+                }
+            }
+        } catch (Exception $e) {
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
+        }
+        $this->cache->save(json_encode($logos), $cacheName, [], 3600);
+        return $logos;
+    }
+
     /**
      * @throws Exception
      */

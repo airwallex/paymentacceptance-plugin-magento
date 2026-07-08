@@ -27,6 +27,32 @@
  * @copyright 2026 Airwallex
  * @license   https://opensource.org/licenses/MIT MIT License
  */
+                                                                         
+
+                                  
+                                                     
+ 
+
+                                    
+                                      
+ 
+
+                                   
+                                                              
+ 
+
+                                            
+
+/** `this` receiver shared by the redirect-method child renderers. */
+                                                            
+                 
+                               
+                                    
+                                                            
+                                                                  
+                       
+ 
+
 define([
     "Airwallex_Payments/js/view/payment/redirect-method",
     "ko",
@@ -34,7 +60,14 @@ define([
     'Magento_Checkout/js/model/quote',
     'Airwallex_Payments/js/view/payment/utils',
     'mage/translate'
-], function (Component, ko, $, quote, utils, $t) {
+], function (
+    Component                        ,
+    ko                ,
+    $              ,
+    quote                         ,
+    utils                          ,
+    $t             
+) {
     "use strict";
 
     return Component.extend({
@@ -43,7 +76,7 @@ define([
             template: "Airwallex_Payments/payment/redirect-method",
         },
 
-        async loadPayment() {
+        async loadPayment(                      ) {
             if (!this.isMethodChecked(this.code)) {
                 return;
             }
@@ -51,8 +84,8 @@ define([
 
             const container = $(`.${this.index} .awx-redirect-method-footer`);
 
-            const paymentData = window.checkoutConfig.payment.airwallex_payments;
-            if (Object.keys(paymentData.klarna_support_countries).indexOf(quote.billingAddress().countryId) === -1) {
+            const paymentData = window.checkoutConfig .payment .airwallex_payments ;
+            if (Object.keys(paymentData.klarna_support_countries ).indexOf(quote.billingAddress().countryId) === -1) {
                 const msg = $t('Klarna is not available in your country. Please change your billing address to a %1compatible country%2 or choose a different payment method.')
                     .replace('%1', "<a target='_blank' class='awx-compatible-country-link' href='https://help.airwallex.com/hc/en-gb/articles/9514119772047-What-countries-can-I-use-Klarna-in'>")
                     .replace('%2', "</a>");
@@ -61,18 +94,18 @@ define([
                 return;
             }
 
-            const targetCurrency = paymentData.klarna_support_countries[quote.billingAddress().countryId];
-            if (paymentData.quote_currency_code === targetCurrency) {
+            const targetCurrency = paymentData.klarna_support_countries [quote.billingAddress().countryId];
+            if (paymentData.quote_currency_code  === targetCurrency) {
                 container.html('');
                 this.enableCheckoutButton(this.code);
                 return;
             }
 
             const availableCurrencies = paymentData.available_currencies || [];
-            if (availableCurrencies.indexOf(paymentData.quote_currency_code) === -1) {
+            if (availableCurrencies.indexOf(paymentData.quote_currency_code ) === -1) {
                 const msg = $t('%1 is not available in %2 for your billing country. Please use a different payment method to complete your purchase.')
                     .replace('%1', 'Klarna')
-                    .replace('%2', paymentData.quote_currency_code);
+                    .replace('%2', paymentData.quote_currency_code );
                 container.html(utils.awxAlert(msg));
                 this.disableCheckoutButton(this.code);
                 return;

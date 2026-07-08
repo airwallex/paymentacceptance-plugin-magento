@@ -110,4 +110,14 @@ interface ServiceInterface
      * @throws Exception
      */
     public function currencySwitcher(string $paymentCurrency, string $targetCurrency, string $amount): string;
+
+    /**
+     * Conversion quote (MCP)
+     *
+     * @param string $merchantCurrency
+     * @param string $shopperCurrency
+     * @return string
+     * @throws Exception
+     */
+    public function conversionQuote(string $merchantCurrency, string $shopperCurrency): string;
 }

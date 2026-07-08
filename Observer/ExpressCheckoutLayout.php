@@ -60,15 +60,13 @@ class ExpressCheckoutLayout implements ObserverInterface
         $enabledAreas = $this->configuration->expressDisplayArea();
 
         $isCartPage = $fullActionName === 'checkout_cart_index';
-        $isProductPage = $fullActionName === 'catalog_product_view';
         $isCheckoutPage = $fullActionName === 'checkout_index_index';
 
         $isCartPageEnabled = strpos($enabledAreas, 'cart_page') !== false;
-        $isProductPageEnabled = strpos($enabledAreas, 'product_page') !== false;
         $isMinicartEnabled = strpos($enabledAreas, 'minicart') !== false;
         $isCheckoutPageEnabled = strpos($enabledAreas, 'checkout_page') !== false;
 
-        $shouldSkipMinicart = ($isCartPage && $isCartPageEnabled) || ($isProductPage && $isProductPageEnabled);
+        $shouldSkipMinicart = $isCartPage && $isCartPageEnabled;
 
         $layoutUpdate = $observer->getLayout()->getUpdate();
 

@@ -34,13 +34,40 @@
 
 // jscs:disable jsDoc
 
+                                  
+                                                     
+ 
+
+/**
+ * The subset of the shared ReCaptcha registry singleton this renderer touches
+ * (`Airwallex_Payments/js/view/payment/recaptcha/webapiReCaptchaRegistry`).
+ */
+                                   
+                                   
+                                         
+                                                        
+ 
+
+/**
+ * `this` receiver for this renderer's methods. The `getReCaptchaId` /
+ * `getIsInvisibleRecaptcha` accessors come from the Magento
+ * `Magento_ReCaptchaFrontendUi/js/reCaptcha` base component.
+ */
+                                   
+                         
+                        
+                             
+                                       
+                                           
+ 
+
 /* global grecaptcha */
 define(
     [
         'Magento_ReCaptchaFrontendUi/js/reCaptcha',
         'Airwallex_Payments/js/view/payment/recaptcha/webapiReCaptchaRegistry',
     ],
-    function (Component, registry) {
+    function (Component                        , registry                         ) {
         'use strict';
 
         return Component.extend({
@@ -53,7 +80,7 @@ define(
              *
              * @param {String} token
              */
-            reCaptchaCallback: function (token) {
+            reCaptchaCallback: function (                               token        ) {
                 //Make the token retrievable in other UI components.
                 registry.tokens[this.getReCaptchaId()] = token;
 
@@ -68,9 +95,9 @@ define(
              * @param {Object} parentForm
              * @param {String} widgetId
              */
-            initParentForm: function (parentForm, widgetId) {
+            initParentForm: function (                               parentForm         , widgetId        ) {
                 var self = this,
-                    trigger;
+                    trigger            ;
 
                 if (this.getIsInvisibleRecaptcha()) {
                     trigger = function () {
@@ -85,7 +112,7 @@ define(
                 if (this.autoTrigger) {
                     //Validate ReCaptcha when initiated
                     trigger();
-                    registry.triggers[this.getReCaptchaId()] = new Function();
+                    registry.triggers[this.getReCaptchaId()] = new Function()              ;
                 } else {
                     registry.triggers[this.getReCaptchaId()] = trigger;
                 }

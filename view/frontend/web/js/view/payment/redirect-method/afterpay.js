@@ -27,6 +27,32 @@
  * @copyright 2026 Airwallex
  * @license   https://opensource.org/licenses/MIT MIT License
  */
+                                                                         
+
+                                  
+                                                     
+ 
+
+                                    
+                                      
+ 
+
+                                   
+                                                              
+ 
+
+                                            
+
+/** `this` receiver shared by the redirect-method child renderers. */
+                                                            
+                 
+                               
+                                    
+                                                            
+                                                                  
+                       
+ 
+
 define([
     "Airwallex_Payments/js/view/payment/redirect-method",
     "ko",
@@ -34,7 +60,14 @@ define([
     'Magento_Checkout/js/model/quote',
     'Airwallex_Payments/js/view/payment/utils',
     'mage/translate'
-], function (Component, ko, $, quote, utils, $t) {
+], function (
+    Component                        ,
+    ko                ,
+    $              ,
+    quote                         ,
+    utils                          ,
+    $t             
+) {
     "use strict";
 
     return Component.extend({
@@ -43,7 +76,7 @@ define([
             template: "Airwallex_Payments/payment/redirect-method",
         },
 
-        async loadPayment() {
+        async loadPayment(                      ) {
             if (!this.isMethodChecked(this.code)) {
                 return;
             }
@@ -53,9 +86,9 @@ define([
             const container = $(`.${this.index} .awx-redirect-method-footer`);
 
             const entity = await this.fetchEntity();
-            const paymentData = window.checkoutConfig.payment.airwallex_payments;
-            const entityToCurrency = paymentData.afterpay_support_entity_to_currency;
-            const countryToCurrency = paymentData.afterpay_support_countries;
+            const paymentData = window.checkoutConfig .payment .airwallex_payments ;
+            const entityToCurrency = paymentData.afterpay_support_entity_to_currency ;
+            const countryToCurrency = paymentData.afterpay_support_countries ;
             const quoteCountryId = quote.billingAddress() ? quote.billingAddress().countryId : '';
             localStorage.setItem(this.afterpayCountryKey, '');
 
@@ -68,29 +101,29 @@ define([
             const availableCurrencies = paymentData.available_currencies || [];
 
             if (!availableCurrencies.length) {
-                if (entityToCurrency[entity].indexOf(paymentData.quote_currency_code) !== -1) {
+                if (entityToCurrency[entity].indexOf(paymentData.quote_currency_code ) !== -1) {
                     $(container).html('');
                     this.enableCheckoutButton(this.code);
                     return;
                 }
                 const msg = $t('%1 is not available in %2 for your billing country. Please use a different payment method to complete your purchase.')
                     .replace('%1', 'Afterpay')
-                    .replace('%2', paymentData.quote_currency_code);
+                    .replace('%2', paymentData.quote_currency_code );
                 container.html(utils.awxAlert(msg));
                 this.disableCheckoutButton(this.code);
                 return;
             }
 
-            if (entityToCurrency[entity].indexOf(paymentData.quote_currency_code) !== -1 && (entity !== 'AIRWALLEX_HK' || (countryToCurrency[quoteCountryId] === paymentData.quote_currency_code && entity === 'AIRWALLEX_HK'))) {
+            if (entityToCurrency[entity].indexOf(paymentData.quote_currency_code ) !== -1 && (entity !== 'AIRWALLEX_HK' || (countryToCurrency[quoteCountryId] === paymentData.quote_currency_code  && entity === 'AIRWALLEX_HK'))) {
                 $(container).html('');
                 this.enableCheckoutButton(this.code);
                 return;
             }
 
-            if (availableCurrencies.indexOf(paymentData.quote_currency_code) === -1) {
+            if (availableCurrencies.indexOf(paymentData.quote_currency_code ) === -1) {
                 const msg = $t('%1 is not available in %2 for your billing country. Please use a different payment method to complete your purchase.')
                     .replace('%1', 'Afterpay')
-                    .replace('%2', paymentData.quote_currency_code);
+                    .replace('%2', paymentData.quote_currency_code );
                 container.html(utils.awxAlert(msg));
                 this.disableCheckoutButton(this.code);
                 return;
@@ -120,10 +153,10 @@ define([
             await this.showAfterpayCountries(expressData);
         },
 
-        async showAfterpayCountries(expressData) {
+        async showAfterpayCountries(                        expressData     ) {
             let that = this;
 
-            const paymentData = window.checkoutConfig.payment.airwallex_payments;
+            const paymentData = window.checkoutConfig .payment .airwallex_payments ;
             const container = $(`.${this.index} .awx-redirect-method-footer`);
 
             let html = `
@@ -148,14 +181,14 @@ define([
                 </div>
             `;
 
-            const countryToCurrency = paymentData.afterpay_support_countries;
+            const countryToCurrency = paymentData.afterpay_support_countries ;
             let country = localStorage.getItem(this.afterpayCountryKey);
             if (!country || !countryToCurrency[country]) {
                 container.html(html);
                 this.disableCheckoutButton(this.code);
             } else {
                 const targetCurrency = countryToCurrency[country];
-                if (targetCurrency === paymentData.quote_currency_code) {
+                if (targetCurrency === paymentData.quote_currency_code ) {
                     container.html(html);
                     this.hideYouPay();
                     this.enableCheckoutButton(this.code);
@@ -166,7 +199,7 @@ define([
 
             let $li = $(".awx-selector-container li");
             let $input = $(".awx-selector-container input");
-            $li.each(function () {
+            $li.each(function (                 ) {
                 let country = localStorage.getItem(that.afterpayCountryKey);
                 if ($(this).data("value") === country) {
                     $input.val($(this).html());
@@ -177,7 +210,7 @@ define([
                 $(".awx-selector-container .countries").fadeIn(300);
                 let country = localStorage.getItem(that.afterpayCountryKey);
                 if (country) {
-                    $(".awx-selector-container li").each(function () {
+                    $(".awx-selector-container li").each(function (                 ) {
                         $(this).removeClass("selected");
                         if ($(this).data("value") === country) {
                             $(this).addClass("selected");
@@ -190,7 +223,7 @@ define([
             $input.off('blur').on('blur', function () {
                 $(".awx-selector-container .countries").fadeOut(300);
             });
-            $li.off('click').on('click', function () {
+            $li.off('click').on('click', function (                 ) {
                 let $body = $('body');
                 $body.trigger('processStart');
                 localStorage.setItem(that.afterpayCountryKey, $(this).data("value"));

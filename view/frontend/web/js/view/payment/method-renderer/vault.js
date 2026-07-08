@@ -28,6 +28,37 @@
  * @license   https://opensource.org/licenses/MIT MIT License
  */
 /*browser:true*/
+                                                                                          
+                                                               
+
+                                  
+                                                     
+ 
+
+                                                     
+
+                      
+                               
+                                         
+ 
+
+                                
+                                                                              
+                                                     
+ 
+
+                       
+                                                  
+                                                                       
+ 
+
+/** `this` receiver for the vault renderer's methods. */
+                                                        
+                    
+                                                                  
+                    
+ 
+
 define([
     'ko',
     'jquery',
@@ -36,19 +67,19 @@ define([
     'Airwallex_Payments/js/view/payment/utils',
     'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler'
 ], function (
-    ko,
-    $,
-    VaultComponent,
-    quote,
-    utils,
-    addressHandler
+    ko                ,
+    $              ,
+    VaultComponent                        ,
+    quote            ,
+    utils             ,
+    addressHandler                      
 ) {
     'use strict';
 
     return VaultComponent.extend({
         validationError: ko.observable(),
         paymentMethodId: ko.observable(),
-        autoCapture: !!window.checkoutConfig.payment.airwallex_payments.cc_auto_capture,
+        autoCapture: !!window.checkoutConfig .payment .airwallex_payments .cc_auto_capture,
         cvcElement: undefined,
         cvcDetail: undefined,
         id: '',
@@ -60,7 +91,7 @@ define([
         /**
          * @returns {exports}
          */
-        initObservable: function () {
+        initObservable: function (                   ) {
             this._super().observe(['active']);
             return this;
         },
@@ -70,7 +101,7 @@ define([
          *
          * @returns {boolean}
          */
-        isActive: function () {
+        isActive: function (                   ) {
             let active = this.getId() === this.isChecked();
 
             this.active(active);
@@ -91,7 +122,7 @@ define([
          *
          * @returns {String}
          */
-        getMaskedCard: function () {
+        getMaskedCard: function (                   ) {
             return this.details.maskedCC;
         },
 
@@ -100,7 +131,7 @@ define([
          *
          * @returns {String}
          */
-        getExpirationDate: function () {
+        getExpirationDate: function (                   ) {
             return this.details.expirationDate;
         },
 
@@ -109,7 +140,7 @@ define([
          *
          * @returns {String}
          */
-        getCardType: function () {
+        getCardType: function (                   ) {
             return this.details.type;
         },
 
@@ -118,14 +149,14 @@ define([
          *
          * @returns {String}
          */
-        getIcons: function (type) {
+        getIcons: function (type        ) {
             if (type.toLowerCase() === 'union pay') {
-                let vi = window.checkoutConfig.payment.ccform.icons['VI'];
+                let vi = window.checkoutConfig .payment .ccform .icons['VI'];
                 let ret = JSON.parse(JSON.stringify(vi));
                 ret.url = ret.url.replace('vi.png', 'un.png');
                 return ret;
             }
-            for (const [name, obj] of Object.entries(window.checkoutConfig.payment.ccform.icons)) {
+            for (const [name, obj] of Object.entries(window.checkoutConfig .payment .ccform .icons)) {
                 if ('amex' === type.toLowerCase()) {
                     type = 'AE';
                     break
@@ -135,8 +166,8 @@ define([
                     break;
                 }
             }
-            return window.checkoutConfig.payment.ccform.icons.hasOwnProperty(type) ?
-                window.checkoutConfig.payment.ccform.icons[type]
+            return window.checkoutConfig .payment .ccform .icons.hasOwnProperty(type) ?
+                window.checkoutConfig .payment .ccform .icons[type]
                 : false;
         },
 
@@ -147,16 +178,16 @@ define([
             return addressHandler.intentConfirmBillingAddressFromOfficial;
         },
 
-        isAirwallexCustomerIdSame() {
-            return this.details.customer_id === window.checkoutConfig.payment.airwallex_payments.airwallex_customer_id;
+        isAirwallexCustomerIdSame(                   ) {
+            return this.details.customer_id === window.checkoutConfig .payment .airwallex_payments .airwallex_customer_id;
         },
 
-        initCvcForm: async function (id, type) {
+        initCvcForm: async function (                     id        , type        ) {
             this.id = id;
             $('body').trigger('processStart');
             if (this.cvcElement) this.cvcElement.destroy();
             Airwallex.init({
-                env: window.checkoutConfig.payment.airwallex_payments.mode,
+                env: window.checkoutConfig .payment .airwallex_payments .mode,
                 origin: window.location.origin,
             });
             if (this.cvcDetail) this.cvcDetail.complete = false;
@@ -177,7 +208,7 @@ define([
             })
         },
 
-        async placeOrder(data, event) {
+        async placeOrder(                     data          , event        ) {
             const self = this;
             this.validationError('');
 

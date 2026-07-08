@@ -27,23 +27,113 @@
  * @copyright 2026 Airwallex
  * @license   https://opensource.org/licenses/MIT MIT License
  */
+                      
+                                
+ 
+
+                          
+         
+                    
+                        
+                                    
+                            
+                                        
+                        
+ 
+
+/** Fields shared by the Google / Apple address payloads `city`/`postcode` read. */
+                       
+                        
+                                
+                        
+                      
+                     
+ 
+
+/** A Google Pay address payload. */
+                                             
+                 
+                      
+                      
+                      
+                         
+ 
+
+/** An Apple Pay contact payload. */
+                                            
+                            
+                       
+                        
+                         
+ 
+
+                             
+                                   
+                                                                   
+                   
+ 
+
+                            
+                                  
+                                 
+ 
+
+                          
+                         
+                          
+ 
+
+                          
+                        
+                         
+                          
+                             
+ 
+
+/** The Magento official billing-address shape passed by the card / vault renderers. */
+                                  
+                  
+                       
+                        
+                      
+                    
+                               
+                       
+                      
+                   
+                       
+ 
+
+/** The address-handler singleton (`this` receiver for its methods). */
+                                
+                                          
+                              
+                                                   
+                                                  
+                                                     
+                                                   
+                                                                   
+                                                              
+                                                                            
+ 
+
 define([
     'mage/url',
     'mage/storage',
 ], function (
-    urlBuilder,
-    storage,
+    urlBuilder            ,
+    storage                ,
 ) {
     'use strict';
 
     return {
-        selectedMethod: {},
-        regionId: "",
-        intentConfirmBillingAddressFromGoogle: {},
-        intentConfirmBillingAddressFromApple: {},
-        intentConfirmBillingAddressFromOfficial: {},
+        selectedMethod: {}                         ,
+        regionId: ""                   ,
+        intentConfirmBillingAddressFromGoogle: {}           ,
+        intentConfirmBillingAddressFromApple: {}           ,
+        intentConfirmBillingAddressFromOfficial: {}           ,
 
-        postBillingAddress(payload, isLoggedIn, cartId) {
+        postBillingAddress(payload         , isLoggedIn         , cartId        ) {
             let url = 'rest/V1/carts/mine/billing-address';
             if (!isLoggedIn) {
                 url = 'rest/V1/guest-carts/' + cartId + '/billing-address';
@@ -53,7 +143,7 @@ define([
             );
         },
 
-        postShippingInformation(payload, isLoggedIn, cartId) {
+        postShippingInformation(payload         , isLoggedIn         , cartId        ) {
             let url = 'rest/V1/carts/mine/shipping-information';
             if (!isLoggedIn) {
                 url = 'rest/V1/guest-carts/' + cartId + '/shipping-information';
@@ -63,7 +153,7 @@ define([
             );
         },
 
-        getIntermediateShippingAddress(addr, from) {
+        getIntermediateShippingAddress(                            addr               , from         ) {
             return {
                 "region": addr.administrativeArea || '',
                 "country_id": addr.countryCode,
@@ -72,7 +162,7 @@ define([
             };
         },
 
-        getBillingAddressFromGoogle(addr) {
+        getBillingAddressFromGoogle(                            addr               ) {
             let names = addr.name.split(' ');
             return {
                 countryId: addr.countryCode,
@@ -87,7 +177,7 @@ define([
             };
         },
 
-        getBillingAddressFromApple(addr, phone) {
+        getBillingAddressFromApple(                            addr              , phone         ) {
             return {
                 countryId: addr.countryCode,
                 region: addr.administrativeArea,
@@ -101,7 +191,7 @@ define([
             };
         },
 
-        constructAddressInformationFromGoogle(data) {
+        constructAddressInformationFromGoogle(                            data                   ) {
             let names = data.shippingAddress.name.split(' ') || [];
             let firstname = data.shippingAddress.name ? names[0] : '';
             let lastname = names.length > 1 ? names[names.length - 1] : firstname;
@@ -127,7 +217,7 @@ define([
             };
         },
 
-        constructAddressInformationFromApple(data) {
+        constructAddressInformationFromApple(                            data                  ) {
             return {
                 "addressInformation": {
                     "shipping_address": {
@@ -149,7 +239,7 @@ define([
             };
         },
 
-        city(addr, type) {
+        city(addr             , type         ) {
             if (addr.locality) return addr.locality;
             if (['sg', 'singapore'].indexOf(addr.countryCode.toLowerCase()) !== -1) {
                 return 'Singapore';
@@ -159,14 +249,14 @@ define([
             return addr.countryCode;
         },
 
-        postcode(addr, type) {
+        postcode(addr             , type         ) {
             if (type === 'google') {
                 return addr.postalCode || '00000';
             }
             return addr.postalCode;
         },
 
-        setIntentConfirmBillingAddressFromGoogle(data) {
+        setIntentConfirmBillingAddressFromGoogle(                            data                   ) {
             let addr = data.paymentMethodData.info.billingAddress;
             let names = addr.name.split(' ');
             this.intentConfirmBillingAddressFromGoogle = {
@@ -184,7 +274,7 @@ define([
             };
         },
 
-        setIntentConfirmBillingAddressFromApple(addr, email) {
+        setIntentConfirmBillingAddressFromApple(                            addr              , email         ) {
             this.intentConfirmBillingAddressFromApple = {
                 address: {
                     city: this.city(addr),
@@ -200,7 +290,7 @@ define([
             };
         },
 
-        setIntentConfirmBillingAddressFromOfficial(billingAddress) {
+        setIntentConfirmBillingAddressFromOfficial(                            billingAddress                        ) {
             this.intentConfirmBillingAddressFromOfficial = {
                 address: {
                     city: billingAddress.city,
@@ -216,11 +306,15 @@ define([
             };
         },
 
-        formatShippingMethodsToGoogle(methods, selectedMethod) {
+        formatShippingMethodsToGoogle(methods                  , selectedMethod                ) {
+            // Google Pay shipping options have no dedicated price field, so the caller
+            // pre-formats `amount` (currency-aware, via utils.convertToAwxAmount) and we
+            // append it to the label, e.g. "Fixed $10.00".
             const shippingOptions = methods.map(addr => {
+                const amount = addr.amount != null && addr.amount !== '' ? String(addr.amount) : '';
                 return {
                     id: addr.method_code,
-                    label: addr.method_title,
+                    label: amount ? `${addr.method_title} ${amount}` : addr.method_title,
                     description: addr.carrier_title,
                 };
             });
@@ -231,7 +325,7 @@ define([
             };
         },
 
-        formatShippingMethodsToApple(methods) {
+        formatShippingMethodsToApple(methods                  ) {
             return methods.map(addr => {
                 return {
                     identifier: addr.method_code,

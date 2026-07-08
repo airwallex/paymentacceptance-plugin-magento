@@ -315,7 +315,7 @@ class Service implements ServiceInterface
 
         $cartId = $quote->getId() ?? 0;
         try {
-            $maskCartId = $this->quoteIdToMaskedQuoteId->execute($cartId);
+            $maskCartId = $cartId ? $this->quoteIdToMaskedQuoteId->execute($cartId) : '';
         } catch (NoSuchEntityException $e) {
             $this->logError(__METHOD__ . ': ' . $e->getMessage());
             $maskCartId = '';
@@ -449,19 +449,14 @@ class Service implements ServiceInterface
             $storeId = $this->storeManager->getStore()->getId();
             $product = $this->productRepository->getById($productId, false, $storeId);
 
-            $groupedProductIds = [];
-            if (!empty($params['super_group']) && is_array($params['super_group'])) {
-                $groupedProductSelections = $params['super_group'];
-                $groupedProductIds = array_keys($groupedProductSelections);
-            }
-
-            foreach ($quote->getAllItems() as $item) {
-                if ($item->getProductId() == $productId || in_array($item->getProductId(), $groupedProductIds)) {
-                    $this->checkoutHelper->getQuote()->removeItem($item->getId());
-                }
-            }
+            $this->checkoutHelper->getQuote()->removeAllItems();
 
             $this->checkoutHelper->getQuote()->addProduct($product, new DataObject($params));
+
+            // Express checkout supplies only a partial shipping address (country/region/postcode)
+            // until payment is authorized; skip core address validation so re-collecting the
+            // freshly-cleared quote doesn't fail on the still-empty name/street/phone fields.
+            $quote->getShippingAddress()->setShouldIgnoreValidation(true);
 
             if (!empty($related)) {
                 $productIds = explode(',', $related);

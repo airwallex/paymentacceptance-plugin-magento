@@ -1,9 +1,25 @@
+/**
+ * The Magento customer-data section storage singleton
+ * (`Magento_Customer/js/customer-data`). Only the members this module touches
+ * are typed here.
+ */
+                               
+                                                   
+                                             
+                                                               
+ 
+
+/** Config injected by the success-page `.phtml` for this storefront hook. */
+                                      
+                                 
+ 
+
 define([
     'Magento_Customer/js/customer-data'
-], function (customerData) {
+], function (customerData                     ) {
     'use strict';
 
-    return function (config) {
+    return function (config                                    ) {
         if (!config || !config.isAirwallexPayment) {
             return;
         }

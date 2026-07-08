@@ -18,6 +18,8 @@ class Create extends AbstractApi
 
     private $order;
 
+    private $deviceData = [];
+
     /**
      * @inheritDoc
      */
@@ -99,13 +101,107 @@ class Create extends AbstractApi
     }
 
     /**
+     * Explicitly provided device data. Values set here take precedence over the
+     * data automatically derived from the current request in initializePostParams().
+     *
      * @param array $deviceData
      *
      * @return Create
      */
     public function setDeviceData(array $deviceData): Create
     {
-        return $this->setParam('device_data', $deviceData);
+        $this->deviceData = $deviceData;
+        return $this;
+    }
+
+    /**
+     * Build client device information for risk analysis, derived from the current request.
+     * Caller-provided values (via setDeviceData) override the derived defaults.
+     *
+     * @return array
+     */
+    private function buildDeviceData(): array
+    {
+        $deviceData = [
+            'browser' => [
+                'java_enabled'       => false,
+                'javascript_enabled' => true,
+            ],
+        ];
+
+        $userAgent = trim((string)($_SERVER['HTTP_USER_AGENT'] ?? ''));
+        if ($userAgent !== '') {
+            $deviceData['browser']['user_agent'] = $userAgent;
+        }
+
+        $acceptHeader = trim((string)($_SERVER['HTTP_ACCEPT'] ?? ''));
+        if ($acceptHeader !== '') {
+            $deviceData['accept_header'] = $acceptHeader;
+        }
+
+        $ipAddress = $this->getClientIpAddress();
+        if ($ipAddress !== '') {
+            $deviceData['ip_address'] = $ipAddress;
+        }
+
+        $language = $this->getClientLanguage();
+        if ($language !== '') {
+            $deviceData['language'] = $language;
+        }
+
+        if (!empty($this->deviceData)) {
+            // Merge caller-provided browser data without dropping derived keys.
+            if (isset($this->deviceData['browser']) && is_array($this->deviceData['browser'])) {
+                $deviceData['browser'] = array_merge($deviceData['browser'], $this->deviceData['browser']);
+            }
+            $deviceData = array_merge($deviceData, array_diff_key($this->deviceData, ['browser' => null]));
+        }
+
+        return $deviceData;
+    }
+
+    /**
+     * Resolve the public client IP address from the current request.
+     *
+     * @return string
+     */
+    private function getClientIpAddress(): string
+    {
+        $forwardedFor = trim((string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
+        if ($forwardedFor !== '') {
+            $clientIp = trim(explode(',', $forwardedFor)[0]);
+            if (filter_var($clientIp, FILTER_VALIDATE_IP)) {
+                return $clientIp;
+            }
+        }
+
+        foreach (['HTTP_CLIENT_IP', 'REMOTE_ADDR'] as $serverKey) {
+            $candidateIp = trim((string)($_SERVER[$serverKey] ?? ''));
+            if ($candidateIp !== '' && filter_var($candidateIp, FILTER_VALIDATE_IP)) {
+                return $candidateIp;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Resolve the preferred client language from the Accept-Language header.
+     *
+     * @return string
+     */
+    private function getClientLanguage(): string
+    {
+        $acceptLanguage = trim((string)($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? ''));
+        if ($acceptLanguage === '') {
+            return '';
+        }
+
+        $preferredLanguage = trim(explode(',', $acceptLanguage)[0]);
+        // Drop any quality value, e.g. "en-US;q=0.9".
+        $preferredLanguage = trim(explode(';', $preferredLanguage)[0]);
+
+        return $preferredLanguage;
     }
 
     /**
@@ -332,6 +428,8 @@ class Create extends AbstractApi
 
             $this->setParam('order', $this->order);
         }
+
+        $this->setParam('device_data', $this->buildDeviceData());
 
         parent::initializePostParams();
     }
