@@ -1,0 +1,9 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: "payment-plugin-magento-public"
+spec:
+  type: application
+  lifecycle: experimental
+  owner: devops/productivity
+
