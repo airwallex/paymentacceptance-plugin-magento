@@ -152,11 +152,11 @@
                 let env = document.querySelector(envSelector).value;
                 let baseRedirectUrl = '<?= $block->escapeJs($block->getUrl('airwallex/configuration/connectionFlowRedirectUrl')) ?>';
                 let redirectUrl = `${baseRedirectUrl}?target_url=${btoa(location.href)}&env=${env}`;
-                let awxUrl = env === 'prod' ? 'https://www.airwallex.com/' : 'https://demo.airwallex.com/';
+                let awxUrl = env === 'prod' ? 'https://www.airwallex.com/' : 'https://www.sandbox.airwallex.com/';
                 const connectedAccountId = account[`${env}_account_id`] || '';
                 const params = new URLSearchParams({
                     platform: 'magento',
-                    origin: location.href,
+                    origin: window.location.origin,
                     returnUrl: redirectUrl,
                     requestId: uuid(),
                     connectedAccountId: connectedAccountId,

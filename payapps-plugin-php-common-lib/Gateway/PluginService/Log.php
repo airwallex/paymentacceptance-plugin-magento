@@ -17,7 +17,7 @@ class Log extends AbstractApi
     /**
      * @var string
      */
-    const DEMO_BASE_URL = 'https://o11y-demo.airwallex.com/';
+    const SANDBOX_BASE_URL = 'https://o11y.sandbox.airwallex.com/';
 
     /**
      * @var string
@@ -145,7 +145,7 @@ class Log extends AbstractApi
                 'sessionId' => self::getSessionId(),
                 'appVersion' => Init::getInstance()->get('plugin_version'),
                 'platform' => $this->getClientPlatform(),
-                'env' => Init::getInstance()->get('env') === 'demo' ? 'demo' : 'prod',
+                'env' => Init::getInstance()->get('env') === 'prod' ? 'prod' : 'sandbox',
             ]
         ]);
     }

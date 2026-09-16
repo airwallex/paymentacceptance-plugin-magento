@@ -50,7 +50,7 @@ class All
         $all = [];
         $maxPage = 100;
         do {
-            $getList = (new GetPaymentConsentList())
+            $getList = $this->createGetList()
                 ->setCustomerId($this->customerId)
                 ->setNextTriggeredBy($this->triggeredBy)
                 ->setPage($page)
@@ -64,5 +64,13 @@ class All
             $page++;
         } while ($page < $maxPage && $getList->hasMore());
         return $all;
+    }
+
+    /**
+     * @return GetPaymentConsentList
+     */
+    protected function createGetList(): GetPaymentConsentList
+    {
+        return new GetPaymentConsentList();
     }
 }

@@ -6,12 +6,12 @@
         <policy id="script-src">
             <values>
                 <value id="checkout_airwallex" type="host">checkout.airwallex.com</value>
-                <value id="checkout_demo_airwallex" type="host">checkout-demo.airwallex.com</value>
+                <value id="checkout_sandbox_airwallex" type="host">checkout.sandbox.airwallex.com</value>
                 <value id="metrix" type="host">h.online-metrix.net/</value>
-                <value id="static_demo_airwallex" type="host">static-demo.airwallex.com</value>
+                <value id="static_sandbox_airwallex" type="host">static.sandbox.airwallex.com</value>
                 <value id="static_airwallex" type="host">static.airwallex.com</value>
                 <value id="cdn_scripts_signifyd" type="host">cdn-scripts.signifyd.com</value>
-                <value id="bws_demo_airwallex" type="host">bws-demo.airwallex.com</value>
+                <value id="bws_sandbox_airwallex" type="host">bws.sandbox.airwallex.com</value>
                 <value id="bws_airwallex" type="host">bws.airwallex.com</value>
                 <value id="script_imgs_signifyd_com" type="host">imgs.signifyd.com</value>
                 <value id="allow-online-metrix" type="host">h64.online-metrix.net</value>
@@ -25,13 +25,13 @@
         <policy id="connect-src">
             <values>
                 <value id="checkout_airwallex" type="host">checkout.airwallex.com</value>
-                <value id="checkout_demo_airwallex" type="host">checkout-demo.airwallex.com</value>
+                <value id="checkout_sandbox_airwallex" type="host">checkout.sandbox.airwallex.com</value>
                 <value id="metrix" type="host">h.online-metrix.net/</value>
-                <value id="bws_demo_airwallex_default" type="host">bws-demo.airwallex.com</value>
+                <value id="bws_sandbox_airwallex_default" type="host">bws.sandbox.airwallex.com</value>
                 <value id="bws_airwallex_default" type="host">bws.airwallex.com</value>
-                <value id="api_demo_airwallex_default" type="host">api-demo.airwallex.com</value>
+                <value id="api_sandbox_airwallex_default" type="host">api.sandbox.airwallex.com</value>
                 <value id="api_airwallex_default" type="host">api.airwallex.com</value>
-                <value id="o11y_demo_airwallex_default" type="host">o11y-demo.airwallex.com</value>
+                <value id="o11y_sandbox_airwallex_default" type="host">o11y.sandbox.airwallex.com</value>
                 <value id="o11y_airwallex_default" type="host">o11y.airwallex.com</value>
                 <value id="signifyd-clear-png" type="host">imgs.signifyd.com</value>
                 <value id="airwallex" type="host">airwallex.com</value>
@@ -43,11 +43,11 @@
         <policy id="frame-src">
             <values>
                 <value id="airwallex-api" type="host">checkout.airwallex.com</value>
-                <value id="airwallex-demo-api" type="host">checkout-demo.airwallex.com</value>
+                <value id="airwallex-sandbox-api" type="host">checkout.sandbox.airwallex.com</value>
                 <value id="metrix" type="host">h.online-metrix.net/</value>
-                <value id="static-demo-airwallex-com" type="host">static-demo.airwallex.com</value>
-                <value id="pci-api-demo-airwallex" type="host">pci-api-demo.airwallex.com</value>
-                <value id="demo-pacybsmock-airwallex" type="host">demo-pacybsmock.airwallex.com</value>
+                <value id="static-sandbox-airwallex-com" type="host">static.sandbox.airwallex.com</value>
+                <value id="pci-api-sandbox-airwallex" type="host">pci-api.sandbox.airwallex.com</value>
+                <value id="sandbox-pacybsmock-airwallex" type="host">pacybsmock.sandbox.airwallex.com</value>
                 <value id="signifyd-clear-com" type="host">imgs.signifyd.com</value>
                 <value id="airwallex" type="host">airwallex.com</value>
                 <value id="general_airwallex" type="host">*.airwallex.com</value>
@@ -61,7 +61,7 @@
                 <value id="metrix" type="host">*.online-metrix.net/</value>
                 <value id="checkout_airwallex" type="host">checkout.airwallex.com</value>
                 <value id="imgs_signifyd_com" type="host">imgs.signifyd.com</value>
-                <value id="checkout_demo_airwallex" type="host">checkout-demo.airwallex.com</value>
+                <value id="checkout_sandbox_airwallex" type="host">checkout.sandbox.airwallex.com</value>
                 <value id="airwallex" type="host">airwallex.com</value>
                 <value id="general_airwallex" type="host">*.airwallex.com</value>
                 <value id="google_pay_sdk_1" type="host">google.com</value>

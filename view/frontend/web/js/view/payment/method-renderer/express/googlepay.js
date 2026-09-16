@@ -27,80 +27,8 @@
  * @copyright 2026 Airwallex
  * @license   https://opensource.org/licenses/MIT MIT License
  */
-                                                         
-                                                                  
-                                                                                         
-
-                       
-                             
-                              
-                          
-                        
-                                        
-                                       
-                                                   
-                                                                              
-                                                  
-                                                                               
-                                                                             
-                                                         
-                                                                                          
-                                                            
-                                              
-                                                                   
-                                                        
-                                                 
-                           
-                                                                  
-                               
- 
-
-                                
-                                                                  
-                                                                  
-                                                                  
-                                                                                                
-                                                                  
-                                                              
-                                                                  
-                                                              
-                                                                  
-                                                              
-                                                                                                     
-                                                                                                                             
- 
-
 /** Options built by `getOptions` then extended by `getRequestOptions`. */
-                                   
-                 
-                        
-                       
-                           
-                                    
-                                                                               
-                                           
-                         
-                                  
-                               
-                                      
-                                                                 
-                                     
-                       
-                                                    
-                            
-                                                                      
-                            
-      
-                                                                            
-                                                       
-                           
- 
-
 /** `this` receiver for the googlepay module's methods (the returned object). */
-                                                 
-                  
- 
-
 define([
     'jquery',
     'Airwallex_Payments/js/view/payment/utils',
@@ -111,14 +39,12 @@ define([
     addressHandler                      ,
 ) {
     'use strict';
-
     return {
         elements: {},
         expressData: {},
         paymentConfig: {},
         methods: [],
         selectedMethod: {},
-
         create(                     that                     ) {
             let element = Airwallex.createElement('googlePayButton', this.getRequestOptions(true)                                             );
             this.elements[that.from] = element;
@@ -132,11 +58,9 @@ define([
             this.attachEvents(that, element);
             utils.loadRecaptcha(that.isShowRecaptcha);
         },
-
         confirmIntent(                     from        , params                         ) {
             return this.elements[from].confirmIntent(params);
         },
-
         destroy(                     from        ) {
             if (this.elements[from]) {
                 utils.detachHeightGuard(this.elements[from]);
@@ -144,13 +68,10 @@ define([
                 delete this.elements[from];
             }
         },
-
         attachEvents(                     that                     , element                  ) {
             let updateQuoteByShipment = async (event     ) => {
                 await utils.addToCart(that);
-
                 let addr = addressHandler.getIntermediateShippingAddress(event.detail.intermediatePaymentData.shippingAddress, 'google');
-
                 try {
                     let methodId = "";
                     if (event.detail.intermediatePaymentData.shippingOptionData) {
@@ -160,7 +81,6 @@ define([
                 } catch (e) {
                     utils.error(e);
                 }
-
                 let options = this.getRequestOptions();
                 if (utils.isRequireShippingOption()) {
                     const currency = $('[property="product:price:currency"]').attr("content") || this.expressData.quote_currency_code || '';
@@ -179,17 +99,13 @@ define([
                 }
                 element.update(options);
             };
-
             element.on('click', () => {
                 if (utils.isProductPage()) {
                     $('#btn-minicart-close').click();
                 }
             });
-
             element.on('shippingAddressChange', updateQuoteByShipment);
-
             element.on('shippingMethodChange', updateQuoteByShipment);
-
             element.on('authorized', async (event     ) => {
                 let data = event.detail.paymentData;
                 that.setGuestEmail(data.email);
@@ -211,7 +127,6 @@ define([
                 }
             });
         },
-
         getRequestOptions(                     initial          = false)                          {
             let paymentDataRequest = this.getOptions()                           ;
             paymentDataRequest.callbackIntents = ['PAYMENT_AUTHORIZATION'];
@@ -222,12 +137,10 @@ define([
                     phoneNumberRequired: this.paymentConfig.is_express_phone_required ,
                 };
             }
-
             if (utils.isRequireShippingOption()) {
                 paymentDataRequest.callbackIntents.push('SHIPPING_OPTION');
                 paymentDataRequest.shippingOptionRequired = true;
             }
-
             const showZero = initial && utils.isProductPage();
             const transactionInfo = {
                 amount: {
@@ -237,10 +150,8 @@ define([
                 countryCode: this.paymentConfig.country_code,
                 displayItems: showZero ? [] : this.getDisplayItems(),
             };
-
             return Object.assign(paymentDataRequest, transactionInfo);
         },
-
         getOptions(                   )                          {
             return {
                 mode: 'payment',
@@ -259,7 +170,6 @@ define([
                 allowedCardNetworks: this.getSupportedNetworks(this.paymentConfig.allowed_card_networks .googlepay)
             };
         },
-
         getSupportedNetworks(supportBrands          )           {
             let brands = supportBrands.map(function (brand) {
                 return brand.toUpperCase();
@@ -268,7 +178,6 @@ define([
             });
             return brands;
         },
-
         getDisplayItems(                   )                                 {
             let res                                 = [];
             for (let key in this.expressData) {

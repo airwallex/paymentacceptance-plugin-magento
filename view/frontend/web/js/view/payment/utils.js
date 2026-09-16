@@ -27,141 +27,15 @@
  * @copyright 2026 Airwallex
  * @license   https://opensource.org/licenses/MIT MIT License
  */
-             
-                  
-                       
-              
-                       
-                     
-                             
-                            
-                       
-                         
-                                                                                            
-                                                            
-
 /**
  * Structural views of the Magento platform singletons this module receives as
  * AMD dependencies. They describe only the members the source touches; the real
  * implementations are Magento core / RequireJS modules and are erased at runtime
  * (the `import type` block above carries no runtime cost).
  */
-                      
-                                
- 
-
-                          
-                                                                  
-                                                                                                              
-                                                                  
-                                                                                                                                         
- 
-
-                     
-                          
-                      
- 
-
-                                                                                   
-
-                                                           
-
-                           
-                        
-                      
-                            
- 
-
-                                                    
-
-                                    
-                                   
-                                         
-                                                                     
- 
-
-                               
-                                              
-                                         
-                                                     
- 
-
-                         
-                          
- 
-
-                           
-                                                                                                    
-                                             
- 
-
-                          
-                                                                                                                             
- 
-
-                                     
-                    
-                            
- 
-
 /** The card/vault renderer instance passed to `pay` / `preverification`. */
-                               
-                
-                          
-                                                
-                                  
-                                            
-                                   
-                                     
-                                  
-                                            
- 
-
 /** The Magento checkout quote model (subset used here). */
-                      
-                        
-                         
-                              
-                                              
- 
-
 /** The express renderer context passed to `addToCart`. */
-                          
-                  
-                                           
- 
-
-                                       
-                       
-                            
-                           
- 
-
-                                
-                   
-                                                 
-                                                       
- 
-
-                             
-                    
-                  
-                                        
-                   
-                              
-                             
-                             
- 
-
-                                                  
-
-                          
-                                                                  
-                                           
-                        
-                                                                   
- 
-
 define([
     'mage/url',
     'jquery',
@@ -192,7 +66,6 @@ define([
     recaptchaRegistry                           
 ) {
     'use strict';
-
     return {
         productFormSelector: "#product_addtocart_form",
         guestEmailSelector: "#customer-email",
@@ -208,12 +81,10 @@ define([
         recaptchaId: 'recaptcha-checkout-place-order',
         expressRecaptchaId: 'express-recaptcha-checkout-place-order',
         agreementSelector: '.airwallex-express-checkout .checkout-agreements input[type="checkbox"]',
-
         getRecaptchaId() {
             if (this.isRecaptchaShared()) return this.recaptchaId;
             return $('.payment-method._active .g-recaptcha').attr('id') || '';
         },
-
         clearDataAfterPay(response               , customerData                     ) {
             const clearData = {
                 'selectedShippingAddress': null,
@@ -225,19 +96,16 @@ define([
                 'billingAddressFromData': null,
                 'newCustomerBillingAddress': null
             };
-
             if (response && response.responseType !== 'error') {
                 customerData.set('checkout-data', clearData);
                 customerData.invalidate(['cart']);
                 // customerData.reload(['cart'], true);
             }
         },
-
         getDiscount(subtotal        , subtotal_with_discount        ) {
             let diff = subtotal - subtotal_with_discount;
             return diff.toFixed(2);
         },
-
         attachHeightGuard(element                , type        ) {
             if (!element || element._awxHeightGuard) {
                 return;
@@ -259,18 +127,15 @@ define([
             window.addEventListener('message', listener);
             element._awxHeightGuard = listener;
         },
-
         detachHeightGuard(element                ) {
             if (element && element._awxHeightGuard) {
                 window.removeEventListener('message', element._awxHeightGuard);
                 delete element._awxHeightGuard;
             }
         },
-
         formatCurrency(v                 ) {
             return parseFloat(v          ).toFixed(2);
         },
-
         isSameBillingAddress(addr1                           , addr2                           ) {
             if (!addr1 && !addr2) {
                 return true;
@@ -278,7 +143,6 @@ define([
             if (!addr1 || !addr2) {
                 return false;
             }
-
             const keys = ['countryId', 'regionId', 'region', 'city', 'postcode', 'street'];
             for (let i = 0; i < keys.length; i++) {
                 const key = keys[i];
@@ -296,23 +160,18 @@ define([
             }
             return true;
         },
-
         isCartEmpty() {
             return !parseInt(this.expressData.items_qty          );
         },
-
         isProductPage() {
             return !!$(this.productFormSelector).length;
         },
-
         isCartPage() {
             return !!$(this.cartPageIdentitySelector).length;
         },
-
         isCheckoutPage() {
             return !!$(this.checkoutPageIdentitySelector).length;
         },
-
         checkProductForm() {
             let formSelector = $(this.productFormSelector);
             if (formSelector.length === 0 || !formSelector.validate) {
@@ -320,7 +179,6 @@ define([
             }
             return $(formSelector).validate().checkForm();
         },
-
         validateProductOptions() {
             let maskSelector = this.productButtonMaskSelector;
             if (this.checkProductForm()) {
@@ -330,7 +188,6 @@ define([
                 $(maskSelector).show();
             }
         },
-
         showLoginForm(e       ) {
             e.preventDefault();
             popup.showModal();
@@ -342,17 +199,13 @@ define([
                 });
             }
         },
-
         validateAgreements: function (selector        ) {
             let checkoutConfig = window.checkoutConfig,
                 agreementsConfig = checkoutConfig ? checkoutConfig.checkoutAgreements : {}                            ;
-
             let isValid = true;
-
             if (!agreementsConfig .isEnabled || $(selector).length === 0) {
                 return true;
             }
-
             $(selector).each(function (index        , element             ) {
                 if (!$.validator.validateSingleElement(element, {
                     errorElement: 'div',
@@ -361,10 +214,8 @@ define([
                     isValid = false;
                 }
             });
-
             return isValid;
         },
-
         checkAgreements() {
             if (this.allAgreementsCheck()) {
                 $(this.buttonMaskAgreementSelector).hide();
@@ -372,7 +223,6 @@ define([
                 $(this.buttonMaskAgreementSelector).show();
             }
         },
-
         allAgreementsCheck() {
             let status = true;
             $                  (this.agreementSelector).each(function (                      ) {
@@ -383,7 +233,6 @@ define([
             });
             return status;
         },
-
         showAgreements() {
             if (!this.isCheckoutPage()) return;
             let agreementsConfig = window.checkoutConfig .checkoutAgreements || {};
@@ -392,7 +241,6 @@ define([
                 return;
             }
         },
-
         initCheckoutPageExpressCheckoutAgreement() {
             if (this.isCheckoutPage()) {
                 let agreementsConfig = window.checkoutConfig .checkoutAgreements || {};
@@ -411,7 +259,6 @@ define([
                 });
             }
         },
-
         initCheckoutPageExpressCheckoutClick() {
             this.initCheckoutPageExpressCheckoutAgreement();
             if (this.isCheckoutPage() && !this.isLoggedIn() && this.expressData.is_virtual) {
@@ -426,7 +273,6 @@ define([
                 });
             }
         },
-
         checkGuestEmailInput() {
             if ($(this.guestEmailSelector).closest('form').validate().checkForm()) {
                 $(this.buttonMaskSelector).hide();
@@ -434,7 +280,6 @@ define([
                 $(this.buttonMaskSelector).show();
             }
         },
-
         initProductPageFormClickEvents(from        ) {
             if (from !== 'product_page') {
                 return;
@@ -456,12 +301,10 @@ define([
                 });
             }
         },
-
         loadRecaptcha(isShowRecaptcha                          ) {
             if (this.isRecaptchaShared()) {
                 return;
             }
-
             if (this.paymentConfig.is_recaptcha_enabled && !$('#' + this.expressRecaptchaId).length) {
                 window.isShowAwxGrecaptcha = true;
                 isShowRecaptcha(true);
@@ -477,32 +320,26 @@ define([
                 }
             }
         },
-
         isRecaptchaShared() {
             if (this.isCartPage()) return false;
             if (!window.checkoutConfig) return false;
             return window.checkoutConfig.payment .airwallex_payments .is_recaptcha_shared;
         },
-
         isRecaptchaInvisible() {
             return !!(this.paymentConfig && this.paymentConfig.recaptcha_type && this.paymentConfig.recaptcha_type !== 'recaptcha');
         },
-
         isSetActiveInProductPage() {
             return this.paymentConfig.display_area .indexOf('product_page') !== -1;
         },
-
         isSetActiveInCartPage() {
             return this.paymentConfig.display_area .indexOf('cart_page') !== -1;
         },
-
         isFromMinicartAndShouldNotShow(from        ) {
             if (from !== 'minicart') {
                 return false;
             }
             return this.isCartPage() && this.isSetActiveInCartPage();
         },
-
         isRequireShippingOption() {
             if (this.isProductPage()) {
                 if (this.isCartEmpty()) {
@@ -512,24 +349,20 @@ define([
             }
             return this.isRequireShippingAddress();
         },
-
         async getSavedCards()                              {
             let url = urlBuilder.build('rest/V1/airwallex/saved_cards');
             return storage.get(url, undefined, 'application/json', {});
         },
-
         async getRegionId(country        , region        )                            {
             let url = urlBuilder.build('rest/V1/airwallex/region_id?country=' + country + '&region=' + region);
             return storage.get(url, undefined, 'application/json', {});
         },
-
         async conversionQuote(merchantCurrency        , shopperCurrency        )                                   {
             const url = urlBuilder.build('rest/V1/airwallex/conversion-quote');
             const body = JSON.stringify({ merchantCurrency: merchantCurrency, shopperCurrency: shopperCurrency });
             const response = await storage.post(url, body, true, 'application/json', {});
             return typeof response === 'string' ? JSON.parse(response) : response;
         },
-
         isRequireShippingAddress() {
             if (this.isProductPage()) {
                 return true;
@@ -539,7 +372,6 @@ define([
             }
             return !this.expressData.is_virtual;
         },
-
         postOptions(data                                                                 , url        ) {
             let formData = new FormData();
             if (Array.isArray(data)) {
@@ -551,7 +383,6 @@ define([
                     formData.append(k, data[k]);
                 }
             }
-
             return {
                 url,
                 data: formData,
@@ -560,13 +391,11 @@ define([
                 type: 'POST',
             };
         },
-
         addToCartOptions() {
             let arr = $(this.productFormSelector).serializeArray();
             let url = urlBuilder.build('rest/V1/airwallex/payments/add-to-cart');
             return this.postOptions(arr, url);
         },
-
         async addToCart(that                ) {
             if (that.from === 'minicart') {
                 return;
@@ -582,15 +411,12 @@ define([
                 customerData.reload(['cart'], true);
             }
         },
-
         getCartId() {
             return this.isLoggedIn() ? this.expressData.cart_id : this.expressData.mask_cart_id;
         },
-
         error(response               ) {
             let modalSelector = $('#awx-modal');
             modal({title: 'Error'}, modalSelector);
-
             $('body').trigger('processStop');
             let errorMessage = $.mage.__(response.message          );
             if (response.responseText) {
@@ -599,22 +425,18 @@ define([
             if (response.responseJSON) {
                 errorMessage = $.mage.__(response.responseJSON.message          );
             }
-
             $("#awx-modal .modal-body-content").html(errorMessage);
             modalSelector.modal('openModal');
         },
-
         redirectToSuccess() {
             window.location.replace(urlBuilder.build('checkout/onepage/success/'));
         },
-
         isLoggedIn() {
             if (!this.isCheckoutPage()) {
                 return !!this.expressData.customer_id;
             }
             return customer.isLoggedIn();
         },
-
         placeOrderUrl() {
             let serviceUrl = urlBuilder.build('rest/V1/airwallex/payments/guest-place-order');
             if (this.isLoggedIn()) {
@@ -622,7 +444,6 @@ define([
             }
             return serviceUrl;
         },
-
         awxAlert(msg        ) {
             return `
                 <div class="awx-alert">
@@ -633,7 +454,6 @@ define([
                 </div>
             `;
         },
-
         getQueryParam(param        ) {
             const query = window.location.search.substring(1);
             const vars = query.split('&');
@@ -645,7 +465,32 @@ define([
             }
             return null;
         },
-
+        watchPaymentConfirmation(
+            intentId        ,
+            onSuccess                                             ,
+            onError                           ,
+            state         
+        ) {
+            let requestUrl = urlBuilder.build('rest/V1/airwallex/payments/intent?intent_id=' + encodeURIComponent(intentId));
+            if (state) {
+                requestUrl += '&state=' + encodeURIComponent(state);
+            }
+            const timer = setInterval(async () => {
+                try {
+                    const intentResult = await storage.get(requestUrl, undefined, 'application/json', {});
+                    const response = JSON.parse(intentResult)                             ;
+                    if (response.paid && response.is_order_handled_success) {
+                        clearInterval(timer);
+                        onSuccess(response);
+                    }
+                } catch (error) {
+                    if (onError) {
+                        onError(error);
+                    }
+                }
+            }, 5000);
+            return timer;
+        },
         async getIntent(payload                   , headers                          = {})                              {
             if (!this.isLoggedIn()) {
                 if (!payload.email) {
@@ -676,7 +521,6 @@ define([
             }
             return intentResponse;
         },
-
         async placeOrder(payload                   , intentResponse                    , headers                          = {}) {
             payload.intent_id = intentResponse.intent_id;
             payload.paymentMethod.additional_data.intent_id = intentResponse.intent_id;
@@ -694,24 +538,20 @@ define([
                 }
                 throw e;
             }
-
             if (endResult.response_type === 'error') {
                 throw new Error(endResult.message);
             }
             return endResult;
         },
-
         getAgreementIds() {
             let agreementForm = $('.payment-method._active div[data-role=checkout-agreements] input');
             let agreementData = agreementForm.serializeArray();
             let agreementIds           = [];
-
             agreementData.forEach(function (item) {
                 agreementIds.push(item.value);
             });
             return agreementIds;
         },
-
         postPaymentInformation(payload         , isLoggedIn         , cartId        ) {
             let url = 'rest/V1/carts/mine/set-payment-information';
             if (!isLoggedIn) {
@@ -721,7 +561,6 @@ define([
                 urlBuilder.build(url), JSON.stringify(payload), undefined, 'application/json', {}
             );
         },
-
         async preverification(from        , payload                   , self                     , quote            ) {
             if (!window.checkoutConfig .payment .airwallex_payments .is_pre_verification_enabled) return;
             let paymentMethodId = '';
@@ -757,10 +596,8 @@ define([
             } else if (from === 'vault') {
                 paymentMethodId = self.paymentMethodId();
             }
-
             payload.paymentMethodId = paymentMethodId;
         },
-
         async sendBillingAddress(self                     , quote            , from = "") {
             if (from !== 'vault') {
                 await addressHandler.postBillingAddress({
@@ -790,7 +627,6 @@ define([
                         street: cardBilling.address.street.split(', '),
                         postcode: cardBilling.address.postcode
                     };
-
                     billing.regionId = await this.getRegionId(cardBilling.address.country_code, cardBilling.address.state);
                     await addressHandler.postBillingAddress({
                         'cartId': quote.getQuoteId(),
@@ -800,14 +636,12 @@ define([
                 }
             }
         },
-
         isRecaptchaEnabled() {
             if (this.isCheckoutPage()) {
                 return window.checkoutConfig .payment .airwallex_payments .is_recaptcha_enabled;
             }
             return this.paymentConfig.is_recaptcha_enabled;
         },
-
         async setRecaptchaToken(payload                   , id        ) {
             if (this.isRecaptchaEnabled()) {
                 if (id === this.expressRecaptchaId) {
@@ -845,10 +679,8 @@ define([
                 }
             }
         },
-
         async pay(self                     , from        , quote            ) {
             $('body').trigger('processStart');
-
             const payload                    = {
                 cartId: quote.getQuoteId(),
                 from: from,
@@ -860,24 +692,18 @@ define([
                     },
                 },
             };
-
             if (!this.isLoggedIn()) {
                 payload.email = quote.guestEmail;
             }
-
             let headers = {};
             _.each(placeOrderHooks.requestModifiers, function (modifier) {
                 modifier(headers, payload);
             });
-
             payload.intent_id = null;
-
             if (from === 'card' && self.isSaveCardSelected() && self.getCustomerId()) {
                 payload.from = 'card_with_saved';
             }
-
             await this.setRecaptchaToken(payload, this.getRecaptchaId());
-
             try {
                 await this.sendBillingAddress(self, quote, from);
                 await this.preverification(from, payload, self, quote);
@@ -903,7 +729,6 @@ define([
                         if (self.isSaveCardSelected() && self.getCustomerId()) {
                             let requestUrl = urlBuilder.build('rest/V1/airwallex/generate_client_secret');
                             let res = await storage.get(requestUrl, undefined, 'application/json', {});
-
                             await Airwallex.createPaymentConsent({
                                 intent_id: intentResponse.intent_id,
                                 customer_id: self.getCustomerId(),
@@ -943,12 +768,10 @@ define([
                 $('body').trigger('processStop');
                 return;
             }
-
             _.each(placeOrderHooks.afterRequestListeners, function (listener) {
                 listener();
             });
         },
-
         showYouPay(switchers                          , $t                         ) {
             switchers = switchers || {}                            ;
             $(".totals.charge").hide();
@@ -961,10 +784,8 @@ define([
                     $(".table-totals tbody").append('<tr class="awx-you-pay"></tr>');
                 }
             }
-
             let formattedTargetAmount = this.convertToAwxAmount(switchers.target_amount, switchers.target_currency);
             let formattedClientRate = switchers.client_rate;
-
             $(youPayElement).html(
                 '<th class="mark" scope="row" style="padding-top: 33px;">' +
                     '<span style="font-size: 1.8rem; font-weight: 600;">' + $t('You Pay') + '</strong>' +
@@ -983,12 +804,10 @@ define([
             );
             $(youPayElement).show();
         },
-
         hideYouPay() {
             $('.awx-you-pay').remove();
             $(".totals.charge").show();
         },
-
         buildSwitcherCurrencies(baseCurrency        , availableCurrencies           )           {
             const base = (baseCurrency || '').toUpperCase();
             if (!base) {
@@ -1006,26 +825,21 @@ define([
             });
             return ordered.length > 1 ? ordered : [];
         },
-
         getIsEUCountry(countryCode        )          {
             const euCountryCodes = window.checkoutConfig?.payment?.airwallex_payments?.eu_country_codes || [];
             return euCountryCodes.includes((countryCode || '').toUpperCase());
         },
-
         getCountryCodeByCurrency(currency        , billingCountryCode         )                     {
             const currencyToCountry = window.checkoutConfig?.payment?.airwallex_payments?.currency_to_country || {};
             const upper = (currency || '').toUpperCase();
             const fallback = currencyToCountry[upper] || undefined;
-
             if (upper !== 'EUR' || !billingCountryCode) {
                 return fallback;
             }
-
             const billingCountry = billingCountryCode.toUpperCase();
             const hasFlagAsset = Object.values(currencyToCountry).includes(billingCountry);
             return this.getIsEUCountry(billingCountry) && hasFlagAsset ? billingCountry : fallback;
         },
-
         renderCurrencySwitcher(
             containerSelector        ,
             currencies          ,
@@ -1042,14 +856,11 @@ define([
                 $container.empty().hide();
                 return;
             }
-
             const template = document.getElementById('awx-currency-switcher-template')                              ;
             if (!template) {
                 return;
             }
-
             const current = (currentCurrency || currencies[0]).toUpperCase();
-
             let displayNames                                                      = null;
             try {
                 const IntlAny = (window                                                                                                                                ).Intl;
@@ -1068,11 +879,8 @@ define([
                 }
                 return code;
             };
-
             const sorted = currencies.slice().sort((a, b) => a.localeCompare(b));
-
             const neutralCountries = new Set(['TW']);
-
             const flagUrl = (code        )                => {
                 const upper = (code || '').toUpperCase();
                 let flag                = null;
@@ -1082,9 +890,7 @@ define([
                 }
                 return flag ? require.toUrl('Airwallex_Payments/assets/flags/' + flag + '.svg') : null;
             };
-
             const escape = (s        )         => $('<div/>').text(s).html();
-
             const rowHtml = (currency        )         => {
                 const flag = flagUrl(currency);
                 const flagImg = flag
@@ -1098,18 +904,14 @@ define([
                     '</li>'
                 );
             };
-
             $container.html(template.innerHTML).show();
-
             const $trigger = $container.find('.awx-currency-switcher-trigger');
             const $panel = $container.find('.awx-currency-switcher-panel');
             const $searchInput = $container.find('.awx-currency-switcher-search-input');
             const $list = $container.find('.awx-currency-switcher-list');
-
             $trigger.text($t('Pay in another currency'));
             $searchInput.attr('placeholder', $t('Type a currency'));
             $list.html(sorted.map(rowHtml).join(''));
-
             const markSelected = (code        ) => {
                 $container.find('.awx-currency-switcher-item').each(function (                 ) {
                     $(this).toggleClass('selected', String($(this).data('value')) === code);
@@ -1117,7 +919,6 @@ define([
             };
             markSelected(current);
             $container.data('current', current);
-
             const filterList = (query        ) => {
                 const q = (query || '').trim().toLowerCase();
                 $container.find('.awx-currency-switcher-item').each(function (                 ) {
@@ -1131,7 +932,6 @@ define([
                     $item.toggle(code.indexOf(q) !== -1 || name.indexOf(q) !== -1);
                 });
             };
-
             $trigger.off('click.awxSwitcher').on('click.awxSwitcher', function (e              ) {
                 e.preventDefault();
                 const willOpen = $panel[0].style.display === 'none';
@@ -1142,11 +942,9 @@ define([
                     setTimeout(() => $searchInput.trigger('focus'), 0);
                 }
             });
-
             $searchInput.off('input.awxSwitcher').on('input.awxSwitcher', function (                      ) {
                 filterList(this.value);
             });
-
             $list.off('click.awxSwitcher').on('click.awxSwitcher', '.awx-currency-switcher-item', function (                 ) {
                 const selected = String($(this).data('value'));
                 $container.data('current', selected);
@@ -1154,7 +952,6 @@ define([
                 $panel[0].style.display = 'none';
                 onChange(selected);
             });
-
             $(document).off('click.awxSwitcher-' + containerSelector).on('click.awxSwitcher-' + containerSelector, function (e         ) {
                 if ($panel[0].style.display === 'none') {
                     return;
@@ -1165,7 +962,6 @@ define([
                 }
             });
         },
-
         renderCheckoutCurrencySwitcher(
             currencies          ,
             currentCurrency        ,
@@ -1181,7 +977,6 @@ define([
                 this.removeCheckoutCurrencySwitcher();
                 return;
             }
-
             let $row = $('.awx-currency-switcher-row');
             if (!$row.length) {
                 const rowHtml =
@@ -1197,7 +992,6 @@ define([
                     $tbody.append(rowHtml);
                 }
             }
-
             this.renderCurrencySwitcher(
                 '#airwallex-apm-currency-switcher-checkout',
                 currencies,
@@ -1207,11 +1001,9 @@ define([
                 $t
             );
         },
-
         removeCheckoutCurrencySwitcher()       {
             $('.awx-currency-switcher-row').remove();
         },
-
         setSelectedCurrency(containerSelector        , currency        )       {
             if (!currency) {
                 return;
@@ -1226,11 +1018,9 @@ define([
                 $(this).toggleClass('selected', String($(this).data('value')) === target);
             });
         },
-
         customizedCurrencyOptions(currency        )                         {
             // HUF, IDR, MGA, TWD should have 0 decimal places, different from the ISO 4217 standards
             let zeroDecimalCurrencies = ['IDR', 'HUF', 'MGA', 'TWD'];
-
             if (zeroDecimalCurrencies.indexOf(currency.toUpperCase()) !== -1) {
                 return {
                     maximumFractionDigits: 0,
@@ -1239,7 +1029,6 @@ define([
             }
             return {};
         },
-
         getCurrencySign(currencyCode        )         {
             try {
                 let formatter = new Intl.NumberFormat('en-US', {
@@ -1260,32 +1049,27 @@ define([
             }
             return currencyCode;
         },
-
         convertToAwxAmount(amount                 , currencyCode        ) {
             let customOptions = this.customizedCurrencyOptions(currencyCode);
             let formatterOptions                          = {
                 style: 'currency',
                 currency: currencyCode
             };
-
             // Merge customOptions into formatterOptions
             for (let key in customOptions) {
                 if (customOptions.hasOwnProperty(key)) {
                     formatterOptions[key] = customOptions[key];
                 }
             }
-
             let formatter = new Intl.NumberFormat('en-US', formatterOptions                            );
             let parts = formatter.formatToParts(Number(amount));
             let numberParts = [];
-
             for (let i = 0; i < parts.length; i++) {
                 let part = parts[i];
                 if (part.type === 'integer' || part.type === 'decimal' || part.type === 'fraction') {
                     numberParts.push(part.value);
                 }
             }
-
             return numberParts.join('');
         }
     };

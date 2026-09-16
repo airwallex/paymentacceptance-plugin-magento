@@ -164,7 +164,7 @@ class ConfirmAfterpay
      */
     public function send(): StructPaymentIntent
     {
-        $request = (new PaymentIntentConfirm());
+        $request = $this->createPaymentIntentConfirm();
         if ($this->customerId) {
             $request->setCustomerId($this->customerId);
         }
@@ -204,5 +204,13 @@ class ConfirmAfterpay
             $request->setReturnUrl($this->returnUrl);
         }
         return $request->send();
+    }
+
+    /**
+     * @return PaymentIntentConfirm
+     */
+    protected function createPaymentIntentConfirm(): PaymentIntentConfirm
+    {
+        return new PaymentIntentConfirm();
     }
 }

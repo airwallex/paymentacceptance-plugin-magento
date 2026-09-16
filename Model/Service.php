@@ -33,8 +33,10 @@ namespace Airwallex\Payments\Model;
 use Airwallex\PayappsPlugin\CommonLibrary\Exception\RequestException;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentMethodType as StructPaymentMethodType;
 use Airwallex\Payments\Api\ServiceInterface;
+use Airwallex\Payments\Exception\SigningKeyMissingException;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\CommonLibraryInit;
+use Airwallex\Payments\Model\Config\Source\Mode;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\Config\ApplePay\StartPaymentSession as ApplePayStartPaymentSession;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
@@ -253,38 +255,48 @@ class Service implements ServiceInterface
      * Get intent
      *
      * @param string $intentId
+     * @param string $state Signed return-state token
      * @return string
      * @throws GuzzleException
      * @throws InputException
      * @throws NoSuchEntityException
      * @throws JsonException
      */
-    public function intent(string $intentId): string
+    public function intent(string $intentId, string $state = ''): string
     {
         $data = [
             'paid' => false,
             'is_order_handled_success' => false,
         ];
         try {
+            $intentRecord = $this->paymentIntentRepository->getByIntentId($intentId);
+            if (!$this->isIntentRequestAuthorized($intentRecord, $state)) {
+                $this->logError(__METHOD__ . ': Payment intent does not belong to the checkout session.');
+                return json_encode($data);
+            }
+
             /** @var StructPaymentIntent $paymentIntentFromApi */
             $paymentIntentFromApi = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
             $data['paid'] = $paymentIntentFromApi->isAuthorized() || $paymentIntentFromApi->isCaptured();
+        } catch (SigningKeyMissingException $e) {
+            throw $e;
         } catch (Exception $e) {
             $this->logError(__METHOD__ . ': ' . $e->getMessage());
             return json_encode($data);
         }
-        if (!$data['paid'] ) {
+        if (!$data['paid']) {
             return json_encode($data);
         }
-        $intentRecord = $this->paymentIntentRepository->getByIntentId($intentId);
-        $quote = $this->quoteRepository->get($intentRecord->getQuoteId());
+
+        try {
+            $quote = $this->quoteRepository->get((int) $intentRecord->getQuoteId());
+        } catch (Exception $e) {
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
+            $quote = null;
+        }
         if ($quote && $quote->getId()) {
             try {
-                if ($this->configuration->isOrderBeforePayment()) {
-                    $this->changeOrderStatus($paymentIntentFromApi, $intentRecord->getOrderId(), $quote, __METHOD__);
-                } else {
-                    $this->placeOrder($quote->getPayment(), $paymentIntentFromApi, $quote, __METHOD__);
-                }
+                $this->completePaymentIfSuccessful($paymentIntentFromApi, $intentRecord, $quote, __METHOD__);
             } catch (Exception $e) {
                 RemoteLog::error(__METHOD__ . ': ' . $e->getMessage(), 'onOrderConfirmationError');
                 $this->logError(__METHOD__ . ': ' . $e->getMessage());
@@ -302,6 +314,26 @@ class Service implements ServiceInterface
         }
         $data['is_order_handled_success'] = !empty($order) && $order->getStatus() !== Order::STATE_PENDING_PAYMENT;
         return json_encode($data);
+    }
+
+    /**
+     * Confirm the intent belongs to the current checkout session or a valid signed state
+     *
+     * @param mixed $intentRecord
+     * @param string $state
+     * @return bool
+     */
+    private function isIntentRequestAuthorized($intentRecord, string $state): bool
+    {
+        $quote = $this->checkoutHelper->getQuote();
+        if ($quote && $quote->getId()
+            && (int) $quote->getId() === (int) $intentRecord->getQuoteId()
+            && $this->validateQuoteOwnership($quote)
+        ) {
+            return true;
+        }
+
+        return $this->validateIntentStateAccess($intentRecord, $state);
     }
 
     /**
@@ -364,7 +396,7 @@ class Service implements ServiceInterface
     private function settings(): array
     {
         return [
-            'mode' => $this->configuration->getMode(),
+            'mode' => Mode::normalizeApiEnv($this->configuration->getMode()),
             'checkout' => $this->configuration->getCheckout(),
             'express_seller_name' => $this->configuration->getExpressSellerName(),
             'is_express_active' => $this->configuration->isExpressActive(),
@@ -383,6 +415,11 @@ class Service implements ServiceInterface
         ];
     }
 
+    /**
+     * Get allowed card networks for express checkout wallets
+     *
+     * @return array
+     */
     public function getAllowedCardNetworks(): array
     {
         try {
@@ -619,6 +656,13 @@ class Service implements ServiceInterface
         return '{"type": "success"}';
     }
 
+    /**
+     * Format address validation errors for the frontend
+     *
+     * @param mixed $errors
+     * @param string $type
+     * @return string
+     */
     private function errorAboutAddress($errors, $type)
     {
         $error = '';

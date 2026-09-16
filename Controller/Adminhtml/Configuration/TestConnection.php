@@ -34,6 +34,7 @@ use Airwallex\PayappsPlugin\CommonLibrary\Configuration\Init;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\Authentication;
 use Airwallex\Payments\CommonLibraryInit;
 use Airwallex\Payments\Helper\Configuration;
+use Airwallex\Payments\Model\Config\Source\Mode;
 use Exception;
 use Magento\Backend\App\Action;
 use Magento\Backend\App\Action\Context;
@@ -123,9 +124,11 @@ class TestConnection extends Action
         $originalApiKey = $this->configuration->getApiKey();
 
         try {
-            // Temporarily update CommonLibrary config with test credentials
+            // Temporarily update CommonLibrary config with test credentials.
+            // The request env is the legacy storage identifier ('demo'/'prod');
+            // the Common Library expects the normalized 'sandbox'/'prod'.
             Init::getInstance()->updateConfig([
-                'env' => $env,
+                'env' => Mode::normalizeApiEnv($env),
                 'client_id' => $clientId,
                 'api_key' => $apiKey,
             ]);
@@ -151,7 +154,7 @@ class TestConnection extends Action
             ]);
         } finally {
             Init::getInstance()->updateConfig([
-                'env' => $originalEnv,
+                'env' => Mode::normalizeApiEnv($originalEnv),
                 'client_id' => $originalClientId,
                 'api_key' => $originalApiKey,
             ]);

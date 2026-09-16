@@ -37,6 +37,7 @@ use Airwallex\PayappsPlugin\CommonLibrary\Exception\RequestException;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\Payments\Api\PaymentConsentsInterface;
 use Airwallex\Payments\Helper\Configuration;
+use Airwallex\Payments\Model\Config\Source\Mode;
 use Airwallex\Payments\Model\Methods\RedirectMethod;
 use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\RedirectMethod as RedirectMethodConfiguration;
 use Airwallex\PayappsPlugin\CommonLibrary\Util\CurrencyHelper;
@@ -142,7 +143,7 @@ class ConfigProvider implements ConfigProviderInterface
             $config = [
                 'payment' => [
                     'airwallex_payments' => [
-                        'mode' => $this->configuration->getMode(),
+                        'mode' => Mode::normalizeApiEnv($this->configuration->getMode()),
                         'cc_auto_capture' => $this->configuration->isAutoCapture('card'),
                         'is_recaptcha_enabled' => $this->isReCaptchaEnabled(),
                         'recaptcha_type' => $this->configuration->recaptchaType(),

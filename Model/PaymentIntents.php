@@ -90,6 +90,9 @@ class PaymentIntents
     private OrderResourceInterface $orderResource;
     private RetrievePaymentIntent $retrievePaymentIntent;
 
+    /**
+     * Constructor
+     */
     public function __construct(
         PaymentConsentsInterface $paymentConsents,
         CreatePaymentIntent      $createPaymentIntent,
@@ -124,12 +127,11 @@ class PaymentIntents
     {
         $isOrder = $model instanceof Order;
 
-        $uri = 'airwallex/redirect';
-        if (!$isOrder) {
-            $uri .= '?id=' . $model->getId() . '&type=quote';
-        } else {
-            $uri .= '?id=' . $model->getId() . '&type=order';
-        }
+        $entityId = (int) $model->getId();
+        $scope = $isOrder ? ReturnState::SCOPE_ORDER : ReturnState::SCOPE_QUOTE;
+        $uri = 'airwallex/redirect?id=' . $entityId
+            . '&type=' . ($isOrder ? ReturnState::SCOPE_ORDER : ReturnState::SCOPE_QUOTE)
+            . '&state=' . urlencode($this->generateReturnState($scope, $entityId));
 
         if (!$isOrder && !$model->getReservedOrderId()) {
             $model->reserveOrderId();
@@ -243,6 +245,13 @@ class PaymentIntents
         return $paymentIntentFromApi;
     }
 
+    /**
+     * Check whether a new PaymentIntent must be created
+     *
+     * @param Quote|Order $model
+     * @param PaymentIntent $paymentIntent
+     * @return bool
+     */
     public function isRequiredToGenerateIntent($model, PaymentIntent $paymentIntent): bool
     {
         if ($model instanceof Order) {
@@ -279,6 +288,12 @@ class PaymentIntents
         return false;
     }
 
+    /**
+     * Normalize product lines for intent reuse comparison
+     *
+     * @param array $products
+     * @return string
+     */
     public function getProductsForCompare($products): string
     {
         $filteredData = array_map(function ($item) {
@@ -298,6 +313,12 @@ class PaymentIntents
         return json_encode($filteredData);
     }
 
+    /**
+     * Normalize a billing address for intent reuse comparison
+     *
+     * @param mixed $billing
+     * @return string
+     */
     public function getBillingAddressForCompare($billing): string
     {
         $billing = $billing ?? []; 

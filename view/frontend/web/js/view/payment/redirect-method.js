@@ -27,85 +27,7 @@
  * @copyright 2026 Airwallex
  * @license   https://opensource.org/licenses/MIT MIT License
  */
-                                                                      
-
-                                  
-                                                     
- 
-
-                      
-                                
- 
-
-                       
-                                                                  
-                                                                                                              
-                                                                  
-                                                                                                                                 
- 
-
-                               
-                                      
-                                                          
-                       
-                                               
-                               
-                                                                             
-                              
-                          
-                                                                  
-                                                                                
-                                                                            
- 
-
-                                
-                        
- 
-
-                                   
-                    
- 
-
-                                
-                                                                                                  
- 
-
-                      
-                                                          
-                                                              
-                                                                  
-                                    
-                                  
-                               
- 
-
-                                            
-
-                                     
-                            
-                    
-                       
-                                                 
-                                                         
-      
-                          
- 
-
 /** `this` receiver for the redirect renderer's methods. */
-                                                            
-                 
-                           
-                           
-                            
-                               
-                                    
-                                    
-                            
-                                                                                 
-                                                                  
-                       
- 
-
 define([
     'Magento_Checkout/js/view/payment/default',
     'jquery',
@@ -132,7 +54,6 @@ define([
     $t             
 ) {
     'use strict';
-
     return Component.extend({
         defaults: {
             code: 'redirect',
@@ -148,7 +69,6 @@ define([
             chosenCurrencyKeyPrefix: 'airwallex_chosen_currency_in_',
             entity: '',
         },
-
         async loadPayment(                      ) {
             const billingTip = $t('Confirm your billing address to use %1')
                 .replace('%1', this.getDisplayName(this.index));
@@ -158,37 +78,28 @@ define([
                 <div class="awx-billing-confirm-tip">${billingTip}</div>
                 <div class="awx-qrcode-tip">${qrcodeTip}</div>
             `);
-
             if (!this.isMethodChecked(this.index)) {
                 return;
             }
-
             this.hideYouPay();
-
             const currentPaymentMethodCode = quote.paymentMethod().method.replace('airwallex_payments_', '');
-
             const container = $(`.${this.index} .awx-redirect-method-footer`);
-
             this.entity = await this.fetchEntity();
             const paymentData = window.checkoutConfig .payment .airwallex_payments ;
             const entityToCurrency = paymentData.redirect_method_entity_to_currency [currentPaymentMethodCode];
             const countryToCurrency = paymentData.redirect_method_country_to_currency ;
             const billingCountry = quote.billingAddress() ? quote.billingAddress().countryId : '';
-
             if (!entityToCurrency || !entityToCurrency[this.entity]) {
                 console.warn('Invalid merchant entity:');
                 this.enableCheckoutButton(this.index);
                 return;
             }
-
             const availableCurrencies = paymentData.available_currencies || [];
-
             if (entityToCurrency[this.entity].indexOf(paymentData.quote_currency_code ) !== -1) {
                 $(container).html('');
                 this.enableCheckoutButton(this.index);
                 return;
             }
-
             if (!availableCurrencies.length) {
                 const msg = $t('%1 is not available in %2 for your billing country. Please use a different payment method to complete your purchase.')
                     .replace('%1', this.getDisplayName(this.index))
@@ -197,7 +108,6 @@ define([
                 this.disableCheckoutButton(this.index);
                 return;
             }
-
             if (availableCurrencies.indexOf(paymentData.quote_currency_code ) === -1) {
                 const msg = $t('%1 is not available in %2 for your billing country. Please use a different payment method to complete your purchase.')
                     .replace('%1', this.getDisplayName(this.index))
@@ -206,9 +116,7 @@ define([
                 this.disableCheckoutButton(this.index);
                 return;
             }
-
             const expressData = await this.fetchExpressData();
-
             let targetCurrency;
             if (countryToCurrency[billingCountry]) {
                 targetCurrency = countryToCurrency[billingCountry];
@@ -218,32 +126,25 @@ define([
                     localStorage.setItem(this.chosenCurrencyKeyPrefix + this.index, '');
                 }
             }
-
             if (!targetCurrency && entityToCurrency[this.entity].length === 1) {
                 targetCurrency = paymentData.redirect_method_default_currency [currentPaymentMethodCode];
                 localStorage.setItem(this.chosenCurrencyKeyPrefix + this.index, targetCurrency);
             }
-
             if (targetCurrency) {
                 await this.displaySwitcher('', expressData, targetCurrency, this.getDisplayName(this.index));
                 return;
             }
-
             await this.showCurrencies(expressData);
         },
-
         async showCurrencies(                        expressData     ) {
             let that = this;
-
             const paymentData = window.checkoutConfig .payment .airwallex_payments ;
             const currentPaymentMethodCode = quote.paymentMethod().method.replace('airwallex_payments_', '');
             const entityToCurrency = paymentData.redirect_method_entity_to_currency [currentPaymentMethodCode];
             const selectableCurrencies = entityToCurrency[this.entity];
-
             const currencyItemsHtml = selectableCurrencies
                 .map(currency => `<li data-value="${currency}">${currency}</li>`)
                 .join('');
-
             const html = `
                   <div class="awx-selector-container">
                     <div style="margin-bottom: 10px;">Payment currency</div>
@@ -260,16 +161,12 @@ define([
                     </div>
                   </div>
                 `;
-
             let chosenCurrency = localStorage.getItem(this.chosenCurrencyKeyPrefix + this.index);
-
             if (!chosenCurrency || selectableCurrencies.indexOf(chosenCurrency) === -1) {
                 chosenCurrency = paymentData.redirect_method_default_currency [currentPaymentMethodCode];
                 localStorage.setItem(this.chosenCurrencyKeyPrefix + this.index, chosenCurrency);
             }
-
             await this.displaySwitcher(html, expressData, chosenCurrency, that.getDisplayName(that.index));
-
             let chosenCurrenciesList = $(".awx-selector-container li");
             let $chosenCurrencyInput = $(".awx-selector-container input");
             chosenCurrenciesList.each(function (                 ) {
@@ -303,36 +200,29 @@ define([
                 $body.trigger('processStop');
             });
         },
-
         initialize(                      ) {
             this._super();
-
             if (!window.awxCardElement && Airwallex) {
                 window.awxCardElement = Airwallex.createElement('card');
             }
-
             quote.billingAddress.subscribe((newValue) => {
                 this.renderPayment(newValue, 'billingAddress');
             });
-
             quote.paymentMethod.subscribe((newValue) => {
                 this.hideYouPay();
                 this.renderPayment(newValue, 'paymentMethod');
             });
-
             quote.totals.subscribe((newValue) => {
                 this.renderPayment(newValue, 'totals');
             });
-
             let intentId = utils.getQueryParam('intent_id');
             if (intentId) {
                 if (!window['awx_handling_intent_' + intentId]) {
                     window['awx_handling_intent_' + intentId] = true;
-                    this.watchPaymentConfirmation(intentId);
+                    this.watchPaymentConfirmation(intentId, utils.getQueryParam('state'));
                 }
             }
         },
-
         async renderPayment(                        data     , type        ) {
             $(".awx-redirect-method-footer").show();
             if (type === 'totals') {
@@ -354,16 +244,13 @@ define([
                 }
                 this.billingAddress = data;
             }
-
             if (!this.isMethodChecked(this.index)) {
                 return;
             }
-
             if (!quote.billingAddress()) {
                 this.disableCheckoutButton(quote.paymentMethod().method);
                 return;
             }
-
             if (this.code !== 'redirect') {
                 if (window['awx_rendering_' + this.code]) {
                     return;
@@ -373,56 +260,44 @@ define([
                     window['awx_rendering_' + this.code] = false;
                 }, 300);
             }
-
             await this.callWithCatch(() => this.loadPayment());
         },
-
         getDisplayName(name        ) {
             return window.checkoutConfig .payment .airwallex_payments .redirect_method_display_names [name];
         },
-
         getMethodLogo(                      ) {
             const config = window.checkoutConfig .payment .airwallex_payments ;
             const logos = config.redirect_method_logos || {};
             const name = (this.index || this.code || '').replace('airwallex_payments_', '');
             return logos[name] || '';
         },
-
         hasMethodLogo(                      ) {
             return !!this.getMethodLogo();
         },
-
         toggleCheckoutButton(                        method        , isEnable         ) {
             if (!this.isMethodChecked(method)) {
                 return;
             }
-
             $('.' + method + ' .checkout').toggleClass('disabled', !isEnable);
         },
-
         enableCheckoutButton(                        method        ) {
             this.toggleCheckoutButton(method, true);
         },
-
         disableCheckoutButton(                        method        ) {
             this.toggleCheckoutButton(method, false);
         },
-
         switcherTip(targetCurrency        , brand        ) {
             return $t('%1 We have converted the currency to %2 so you can use %3')
                 .replace('%1', '<span class="currency-switcher-tip">')
                 .replace('%2', targetCurrency)
                 .replace('%3', brand + ".</span>");
         },
-
         showYouPay(switchers          = {}) {
             utils.showYouPay(switchers, $t);
         },
-
         hideYouPay() {
             utils.hideYouPay();
         },
-
         hideBillingAddress() {
             const code = quote.paymentMethod().method;
             $('.' + code + ' button.editing').show();
@@ -431,7 +306,6 @@ define([
             let refreshSelector = "#" + code + '-button span';
             $(refreshSelector).text($t('Refresh QR code'));
         },
-
         showBillingAddress(                      ) {
             const code = quote.paymentMethod().method;
             $('.' + code + ' button.editing').hide();
@@ -442,14 +316,12 @@ define([
             let refreshSelector = "#" + code + '-button span';
             $(refreshSelector).text($t('Confirm'));
         },
-
         isMethodChecked(method        ) {
             if (!quote.paymentMethod() || !quote.paymentMethod().method) {
                 return false;
             }
             return quote.paymentMethod().method === method;
         },
-
         async callWithCatch(                        fn               ) {
             let $body = $('body');
             $body.trigger('processStart');
@@ -471,12 +343,10 @@ define([
             }
             $body.trigger('processStop');
         },
-
         async placeOrder(                        data          , event        ) {
             if (event) {
                 event.preventDefault();
             }
-
             if (this.validate() && additionalValidators.validate()) {
                 if (this.code === 'redirect') {
                     $('.' + quote.paymentMethod().method + ' .awx-alert').remove();
@@ -484,10 +354,8 @@ define([
                 await this.callWithCatch(() => this._placeOrder());
                 return true;
             }
-
             return false;
         },
-
         async _placeOrder(                      ) {
             let device_id                = '';
             if (document.getElementById('airwallex-fraud-api')) {
@@ -522,23 +390,18 @@ define([
                     }
                 },
             };
-
             await utils.setRecaptchaToken(payload, utils.getRecaptchaId());
-
             if (!utils.isLoggedIn()) {
                 payload.email = quote.guestEmail;
             }
-
             await addressHandler.postBillingAddress({
                 'cartId': quote.getQuoteId(),
                 'address': quote.billingAddress()
             }, utils.isLoggedIn(), quote.getQuoteId());
-
             let intentResponse = await utils.getIntent(payload, {});
             this.renderQrcode(intentResponse);
-            this.watchPaymentConfirmation(intentResponse.intent_id);
+            this.watchPaymentConfirmation(intentResponse.intent_id, intentResponse.state);
         },
-
         renderQrcode(                        intentResponse     ) {
             let $body = $('body');
             let nextAction = JSON.parse(intentResponse.next_action);
@@ -581,35 +444,24 @@ define([
                     $('html, body').animate({
                         scrollTop: scrollToPosition
                     }, 'slow');
-
                     window.addEventListener('resize', setHeight);
                     $body.trigger('processStop');
                 });
             }
         },
-
-        watchPaymentConfirmation(                        intent_id        ) {
+        watchPaymentConfirmation(                        intent_id        , state                ) {
             if (this.timer) {
                 clearInterval(this.timer);
                 this.timer = null;
             }
-
-            this.timer = setInterval(async () => {
-                try {
-                    const intentResult = await this.getIntent(intent_id);
-                    let intentResponse = JSON.parse(intentResult);
-                    if (intentResponse.paid && intentResponse.is_order_handled_success) {
-                        clearInterval(this.timer );
-                        this.timer = null;
-                        utils.clearDataAfterPay(intentResponse, customerData);
-                        redirectOnSuccessAction.execute();
-                    }
-                } catch (err) {
-                    console.error('Error while polling payment intent:', err);
-                }
-            }, 5000);
+            this.timer = utils.watchPaymentConfirmation(intent_id, (intentResponse) => {
+                this.timer = null;
+                utils.clearDataAfterPay(intentResponse, customerData);
+                redirectOnSuccessAction.execute();
+            }, (error) => {
+                console.error('Error while polling payment intent:', error);
+            }, state || undefined);
         },
-
         async displaySwitcher(                        html        , expressData     , targetCurrency        , brand        ) {
             const container = $(`.${this.index} .awx-redirect-method-footer`);
             const switchers = await this.switcher(expressData.quote_currency_code, targetCurrency, expressData.grand_total);
@@ -617,12 +469,13 @@ define([
             this.showYouPay(switchers);
             this.enableCheckoutButton(this.index);
         },
-
-        async getIntent(intentId        ) {
-            const requestUrl = urlBuilder.build('rest/V1/airwallex/payments/intent?intent_id=' + intentId);
+        async getIntent(intentId        , state                ) {
+            let requestUrl = urlBuilder.build('rest/V1/airwallex/payments/intent?intent_id=' + intentId);
+            if (state) {
+                requestUrl += '&state=' + encodeURIComponent(state);
+            }
             return await storage.get(requestUrl, undefined, 'application/json', {});
         },
-
         async switcher(payment_currency        , target_currency        , amount        ) {
             const requestUrl = urlBuilder.build('rest/V1/airwallex/currency/switcher');
             const res = await storage.post(requestUrl, JSON.stringify({
@@ -632,13 +485,11 @@ define([
             }), undefined, 'application/json', {});
             return JSON.parse(res);
         },
-
         async fetchExpressData() {
             const url = urlBuilder.build('rest/V1/airwallex/payments/express-data');
             const resp = await storage.get(url, undefined, 'application/json', {});
             return JSON.parse(resp);
         },
-
         async fetchEntity() {
             const accountUrl = urlBuilder.build('rest/V1/airwallex/account');
             const accountResp = await storage.get(accountUrl, undefined, 'application/json', {});

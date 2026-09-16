@@ -45,8 +45,10 @@ use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentMethod as StructPaymentM
 use Airwallex\Payments\Model\Methods\AbstractMethod;
 use Airwallex\Payments\Model\Methods\CardMethod;
 use Airwallex\Payments\Model\Methods\Vault;
+use Airwallex\Payments\Exception\SigningKeyMissingException;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Airwallex\Payments\Model\ResourceModel\PaymentIntent;
+use Airwallex\Payments\Model\ReturnState;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
@@ -101,6 +103,14 @@ trait HelperTrait
         ]);
     }
 
+    /**
+     * Get currency switcher quote from Airwallex
+     *
+     * @param string $paymentCurrency
+     * @param string $targetCurrency
+     * @param string $amount
+     * @return StructQuote
+     */
     public function getCurrencySwitcher(string $paymentCurrency, string $targetCurrency, string $amount): StructQuote
     {
         return ObjectManager::getInstance()->get(CurrencySwitcher::class)->setPaymentCurrency($paymentCurrency)
@@ -109,6 +119,13 @@ trait HelperTrait
             ->get();
     }
 
+    /**
+     * Get MCP conversion quote
+     *
+     * @param string $merchantCurrency
+     * @param string $shopperCurrency
+     * @return string
+     */
     public function conversionQuote(string $merchantCurrency, string $shopperCurrency): string
     {
         $quote = ObjectManager::getInstance()->get(ConversionQuoteUseCase::class)
@@ -123,6 +140,14 @@ trait HelperTrait
         ]);
     }
 
+    /**
+     * Convert an amount using a client rate
+     *
+     * @param float $amount
+     * @param mixed $rate
+     * @param bool $reverse
+     * @return float
+     */
     public function convertToDisplayCurrency(float $amount, $rate, $reverse = false): float
     {
         if (empty($rate)) {
@@ -144,6 +169,15 @@ trait HelperTrait
         $payment->setIsTransactionClosed(false);
     }
 
+    /**
+     * Convert a display amount to base currency and cap at the original base total
+     *
+     * @param float $amount
+     * @param float $rate
+     * @param float $amountMax
+     * @param float $baseAmountMax
+     * @return float
+     */
     public function getBaseAmount(float $amount, float $rate, float $amountMax, float $baseAmountMax): float
     {
         $baseAmount = $this->convertToDisplayCurrency($amount, $rate, true);
@@ -153,6 +187,12 @@ trait HelperTrait
         return $baseAmount;
     }
 
+    /**
+     * Convert an Airwallex card brand to Magento CC type
+     *
+     * @param string $type
+     * @return string
+     */
     public function convertCcType(string $type): string
     {
         if (strtolower($type) === 'jcb') {
@@ -179,11 +219,24 @@ trait HelperTrait
         return strtolower($type);
     }
 
+    /**
+     * Compare two monetary amounts with Magento-scale tolerance
+     *
+     * @param float $a
+     * @param float $b
+     * @return bool
+     */
     public function isAmountEqual(float $a, float $b): bool
     {
         return abs($a - $b) < 0.01;
     }
 
+    /**
+     * Check whether a payment method code is a redirect APM constant
+     *
+     * @param mixed $string
+     * @return bool
+     */
     public function isRedirectMethodConstant($string): bool
     {
         $reflectionClass = new ReflectionClass('Airwallex\Payments\Model\Methods\RedirectMethod');
@@ -299,16 +352,34 @@ trait HelperTrait
         return $order;
     }
 
+    /**
+     * Cache key for a capture request
+     *
+     * @param string $intentId
+     * @return string
+     */
     public function captureCacheName(string $intentId): string
     {
         return $intentId . '_capture';
     }
 
+    /**
+     * Cache key for a refund request
+     *
+     * @param string $intentId
+     * @return string
+     */
     public function refundCacheName(string $intentId): string
     {
         return $intentId . '_refund';
     }
 
+    /**
+     * Cache key for a cancel request
+     *
+     * @param string $intentId
+     * @return string
+     */
     public function cancelCacheName(string $intentId): string
     {
         return $intentId . '_cancel';
@@ -406,6 +477,12 @@ trait HelperTrait
         }
     }
 
+    /**
+     * Encode an error payload for frontend consumption
+     *
+     * @param mixed $message
+     * @return string
+     */
     protected function error($message)
     {
         return json_encode([
@@ -414,6 +491,13 @@ trait HelperTrait
         ]);
     }
 
+    /**
+     * Append AVS/CVC verification details to the order comments
+     *
+     * @param Order $order
+     * @param StructPaymentIntent $paymentIntentFromApi
+     * @return void
+     */
     protected function addAVSResultToOrder(Order $order, StructPaymentIntent $paymentIntentFromApi)
     {
         $histories = $order->getStatusHistories();
@@ -457,11 +541,25 @@ trait HelperTrait
             ->save();
     }
 
+    /**
+     * Format the order grand total for comments
+     *
+     * @param Order $order
+     * @return string
+     */
     public function totalPriceForComment(Order $order): string
     {
         return $this->priceForComment($order->getGrandTotal(), $order->getBaseGrandTotal(), $order);
     }
 
+    /**
+     * Format a price pair for order comments
+     *
+     * @param mixed $price
+     * @param mixed $basePrice
+     * @param Order $order
+     * @return string
+     */
     public function priceForComment($price, $basePrice, $order): string
     {
         $formatPrice = $order->formatPrice($price);
@@ -538,6 +636,41 @@ trait HelperTrait
         }
     }
 
+    /**
+     * Complete an order only when Airwallex reports an authoritative paid status.
+     *
+     * @param StructPaymentIntent $paymentIntentFromApi
+     * @param mixed $paymentIntentRecord
+     * @param Quote $quote
+     * @param string $from
+     * @return bool
+     * @throws Exception
+     */
+    public function completePaymentIfSuccessful(
+        StructPaymentIntent $paymentIntentFromApi,
+        $paymentIntentRecord,
+        Quote $quote,
+        string $from
+    ): bool {
+        if (!$paymentIntentFromApi->isAuthorized() && !$paymentIntentFromApi->isCaptured()) {
+            return false;
+        }
+
+        if ($this->isOrderBeforePayment()) {
+            $this->changeOrderStatus($paymentIntentFromApi, $paymentIntentRecord->getOrderId(), $quote, $from);
+        } else {
+            $this->placeOrder($quote->getPayment(), $paymentIntentFromApi, $quote, $from);
+        }
+
+        return true;
+    }
+
+    /**
+     * Deactivate a quote after payment is complete
+     *
+     * @param Quote $quote
+     * @return void
+     */
     public function deactivateQuote(Quote $quote)
     {
         if (!empty($quote) && $quote->getIsActive()) {
@@ -546,6 +679,12 @@ trait HelperTrait
         }
     }
 
+    /**
+     * Load a fresh order instance by id
+     *
+     * @param int $orderId
+     * @return Order
+     */
     public function getFreshOrder(int $orderId)
     {
         $order = ObjectManager::getInstance()->get(OrderFactory::class)->create();
@@ -645,6 +784,13 @@ trait HelperTrait
         }
     }
 
+    /**
+     * Persist Magento checkout success session values
+     *
+     * @param mixed $quoteId
+     * @param Order $order
+     * @return void
+     */
     public function setCheckoutSuccess($quoteId, $order)
     {
         $checkoutHelper = ObjectManager::getInstance()->get(Data::class);
@@ -664,6 +810,13 @@ trait HelperTrait
         return str_replace(AbstractMethod::PAYMENT_PREFIX, '', $code);
     }
 
+    /**
+     * Build Magento referrer data type for an Airwallex request
+     *
+     * @param mixed $paymentMethod
+     * @param string $from
+     * @return string
+     */
     public function getReferrerDataType($paymentMethod, $from = '')
     {
         $code = $this->getPaymentMethodCode($paymentMethod->getMethod());
@@ -683,11 +836,22 @@ trait HelperTrait
         return 'magento';
     }
 
+    /**
+     * Check whether the mini-feature plugin is present
+     *
+     * @return bool
+     */
     public function isMiniPluginExists(): bool
     {
         return file_exists('../app/code/airwallex/paymentacceptance-minifeature-magento-admin-card/Model/CompanyConsents.php');
     }
 
+    /**
+     * Get currency code from a quote or order
+     *
+     * @param Quote|Order $model
+     * @return string
+     */
     public function getCurrencyCode($model)
     {
         if ($model instanceof Quote) {
@@ -705,27 +869,56 @@ trait HelperTrait
         return ObjectManager::getInstance()->get(CurrencySwitcherAvailableCurrencies::class)->get();
     }
 
+    /**
+     * Check whether Magento places the order before capturing payment
+     *
+     * @return bool
+     */
     public function isOrderBeforePayment(): bool
     {
         return ObjectManager::getInstance()->get(Configuration::class)->isOrderBeforePayment();
     }
 
+    /**
+     * Strip Magento payment method prefix from a method code
+     *
+     * @param string $code
+     * @return string
+     */
     public function trimPaymentMethodCode(string $code): string
     {
         $code = str_replace(AbstractMethod::PAYMENT_PREFIX, '', $code);
         return str_replace('airwallex_cc_', '', $code);
     }
 
+    /**
+     * Write an error log entry
+     *
+     * @param string $message
+     * @return void
+     */
     public function logError(string $message)
     {
         ObjectManager::getInstance()->get(LoggerInterface::class)->error($message);
     }
 
+    /**
+     * Write a debug log entry
+     *
+     * @param string $message
+     * @return void
+     */
     public function logInfo(string $message)
     {
         ObjectManager::getInstance()->get(LoggerInterface::class)->debug($message);
     }
 
+    /**
+     * Resolve a numeric quote id from a masked or numeric identifier
+     *
+     * @param mixed $quoteId
+     * @return int
+     */
     public function resolveQuoteId($quoteId): int
     {
         if (is_numeric($quoteId)) {
@@ -735,6 +928,14 @@ trait HelperTrait
         return ObjectManager::getInstance()->get(MaskedQuoteIdToQuoteIdInterface::class)->execute($quoteId);
     }
 
+    /**
+     * Validate that a quote belongs to the current customer or checkout session
+     *
+     * @param mixed $quote
+     * @param mixed $customerSession
+     * @param mixed $checkoutSession
+     * @return bool
+     */
     public function validateQuoteOwnership($quote, $customerSession = null, $checkoutSession = null): bool
     {
         $customerSession = $customerSession ?: ObjectManager::getInstance()->get(CustomerSession::class);
@@ -753,7 +954,15 @@ trait HelperTrait
         return true;
     }
 
-    public function validateOrderOwnership($order, $customerSession = null): bool
+    /**
+     * Validate that an order belongs to the current customer or checkout session
+     *
+     * @param mixed $order
+     * @param mixed $customerSession
+     * @param mixed $checkoutSession
+     * @return bool
+     */
+    public function validateOrderOwnership($order, $customerSession = null, $checkoutSession = null): bool
     {
         $customerSession = $customerSession ?: ObjectManager::getInstance()->get(CustomerSession::class);
 
@@ -766,9 +975,181 @@ trait HelperTrait
             return false;
         }
 
+        $checkoutSession = $checkoutSession ?: ObjectManager::getInstance()->get(CheckoutSession::class);
+        $sessionOrderId = (int) $checkoutSession->getLastOrderId();
+        $sessionQuoteId = (int) $checkoutSession->getLastQuoteId();
+        if ((int) $order->getId() !== $sessionOrderId
+            || (int) $order->getQuoteId() !== $sessionQuoteId
+        ) {
+            $this->logError(
+                "Guest order {$order->getId()} is not in current checkout session. "
+                . "Session order: {$sessionOrderId}; session quote: {$sessionQuoteId}"
+            );
+            return false;
+        }
+
         return true;
     }
 
+    /**
+     * Get the signed return-state service
+     *
+     * @return ReturnState
+     */
+    public function returnState(): ReturnState
+    {
+        return ObjectManager::getInstance()->get(ReturnState::class);
+    }
+
+    /**
+     * Generate a signed return-state token, or an empty string on failure
+     *
+     * @param string $scope
+     * @param int $id
+     * @param int $ttl
+     * @return string
+     */
+    public function generateReturnState(string $scope, int $id, int $ttl = ReturnState::RETURN_TTL): string
+    {
+        try {
+            if (!$this->returnState()->isConfigured()) {
+                $this->logError('Cannot generate signed return state: crypt/key is not configured.');
+                return '';
+            }
+
+            return $this->returnState()->generate($scope, $id, $ttl);
+        } catch (Exception $e) {
+            $this->logError('Unable to generate signed return state: ' . $e->getMessage());
+            return '';
+        }
+    }
+
+    /**
+     * Validate a signed return-state token for a scope and entity id
+     *
+     * @param string $state
+     * @param string $scope
+     * @param int $id
+     * @param ReturnState|null $returnState
+     * @return bool
+     */
+    public function validateReturnState(string $state, string $scope, int $id, $returnState = null): bool
+    {
+        if ($id <= 0) {
+            return false;
+        }
+
+        $returnState = $returnState ?: $this->returnState();
+        if (!$returnState->isConfigured()) {
+            throw new SigningKeyMissingException();
+        }
+
+        if ($state === '') {
+            return false;
+        }
+
+        return $returnState->validate($state, $scope, $id);
+    }
+
+    /**
+     * Allow order access via session ownership or a valid signed state
+     *
+     * @param mixed $order
+     * @param string $state
+     * @param ReturnState|null $returnState
+     * @return bool
+     */
+    public function validateOrderAccess($order, string $state, $returnState = null): bool
+    {
+        if ($this->validateOrderOwnership($order)) {
+            return true;
+        }
+
+        if (!$order || !$order->getId()) {
+            return false;
+        }
+
+        return $this->validateReturnState(
+            $state,
+            ReturnState::SCOPE_ORDER,
+            (int) $order->getId(),
+            $returnState
+        );
+    }
+
+    /**
+     * Allow quote access via session ownership or a valid signed state
+     *
+     * @param mixed $quote
+     * @param string $state
+     * @param ReturnState|null $returnState
+     * @return bool
+     */
+    public function validateQuoteAccess($quote, string $state, $returnState = null): bool
+    {
+        if ($this->validateQuoteOwnership($quote)) {
+            return true;
+        }
+
+        if (!$quote || !$quote->getId()) {
+            return false;
+        }
+
+        return $this->validateReturnState(
+            $state,
+            ReturnState::SCOPE_QUOTE,
+            (int) $quote->getId(),
+            $returnState
+        );
+    }
+
+    /**
+     * Allow intent access via a signed state for the related order or quote
+     *
+     * @param mixed $intentRecord
+     * @param string $state
+     * @param ReturnState|null $returnState
+     * @return bool
+     */
+    public function validateIntentStateAccess($intentRecord, string $state, $returnState = null): bool
+    {
+        if (!$intentRecord) {
+            return false;
+        }
+
+        if ((int) $intentRecord->getOrderId() > 0
+            && $this->validateReturnState(
+                $state,
+                ReturnState::SCOPE_ORDER,
+                (int) $intentRecord->getOrderId(),
+                $returnState
+            )
+        ) {
+            return true;
+        }
+
+        if ((int) $intentRecord->getQuoteId() > 0
+            && $this->validateReturnState(
+                $state,
+                ReturnState::SCOPE_QUOTE,
+                (int) $intentRecord->getQuoteId(),
+                $returnState
+            )
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Validate that an entity belongs to the given customer
+     *
+     * @param mixed $entity
+     * @param mixed $customerId
+     * @param string $entityType
+     * @return bool
+     */
     private function validateCustomerOwnership($entity, $customerId, $entityType): bool
     {
         if ($entity->getCustomerId() != $customerId) {
@@ -778,6 +1159,11 @@ trait HelperTrait
         return true;
     }
 
+    /**
+     * Build plugin metadata for Airwallex requests
+     *
+     * @return array
+     */
     protected function getMetadata(): array
     {
         $productMetadata = ObjectManager::getInstance()->get(ProductMetadataInterface::class);
