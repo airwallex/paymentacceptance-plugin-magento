@@ -28,37 +28,7 @@
  * @license   https://opensource.org/licenses/MIT MIT License
  */
 /*browser:true*/
-                                                                                          
-                                                               
-
-                                  
-                                                     
- 
-
-                                                     
-
-                      
-                               
-                                         
- 
-
-                                
-                                                                              
-                                                     
- 
-
-                       
-                                                  
-                                                                       
- 
-
 /** `this` receiver for the vault renderer's methods. */
-                                                        
-                    
-                                                                  
-                    
- 
-
 define([
     'ko',
     'jquery',
@@ -75,7 +45,6 @@ define([
     addressHandler                      
 ) {
     'use strict';
-
     return VaultComponent.extend({
         validationError: ko.observable(),
         paymentMethodId: ko.observable(),
@@ -87,7 +56,6 @@ define([
             active: false,
             template: 'Airwallex_Payments/payment/vault',
         },
-
         /**
          * @returns {exports}
          */
@@ -95,7 +63,6 @@ define([
             this._super().observe(['active']);
             return this;
         },
-
         /**
          * Is payment option active?
          *
@@ -103,11 +70,9 @@ define([
          */
         isActive: function (                   ) {
             let active = this.getId() === this.isChecked();
-
             this.active(active);
             return active;
         },
-
         /**
          * Return the payment method code.
          *
@@ -116,7 +81,6 @@ define([
         getCode: function () {
             return 'airwallex_cc_vault';
         },
-
         /**
          * Get last 4 digits of card
          *
@@ -125,7 +89,6 @@ define([
         getMaskedCard: function (                   ) {
             return this.details.maskedCC;
         },
-
         /**
          * Get expiration date
          *
@@ -134,7 +97,6 @@ define([
         getExpirationDate: function (                   ) {
             return this.details.expirationDate;
         },
-
         /**
          * Get card type
          *
@@ -143,7 +105,6 @@ define([
         getCardType: function (                   ) {
             return this.details.type;
         },
-
         /**
          * Get card icons
          *
@@ -170,24 +131,24 @@ define([
                 window.checkoutConfig .payment .ccform .icons[type]
                 : false;
         },
-
         getBillingInformation: function () {
             const billingAddress = quote.billingAddress();
             billingAddress.email = quote.guestEmail;
             addressHandler.setIntentConfirmBillingAddressFromOfficial(billingAddress);
             return addressHandler.intentConfirmBillingAddressFromOfficial;
         },
-
         isAirwallexCustomerIdSame(                   ) {
             return this.details.customer_id === window.checkoutConfig .payment .airwallex_payments .airwallex_customer_id;
         },
-
         initCvcForm: async function (                     id        , type        ) {
             this.id = id;
             $('body').trigger('processStart');
             if (this.cvcElement) this.cvcElement.destroy();
+            // The pinned components-sdk only understands 'demo' for the sandbox
+            // environment, so map the plugin env to the value the SDK accepts.
+            const mode = window.checkoutConfig .payment .airwallex_payments .mode;
             Airwallex.init({
-                env: window.checkoutConfig .payment .airwallex_payments .mode,
+                env: (mode === 'sandbox' || mode === 'demo') ? 'demo' : 'prod',
                 origin: window.location.origin,
             });
             if (this.cvcDetail) this.cvcDetail.complete = false;
@@ -207,24 +168,19 @@ define([
                 }
             })
         },
-
         async placeOrder(                     data          , event        ) {
             const self = this;
             this.validationError('');
-
             if (event) {
                 event.preventDefault();
             }
-
             if (!this.cvcDetail || !this.cvcDetail.complete) {
                 this.validationError($.mage.__('Card Verification Code is incomplete.'));
                 return
             }
-
             if (!utils.validateAgreements('.payment-method._active .checkout-agreements input[type="checkbox"]')) {
                 return;
             }
-
             await utils.pay(self, 'vault', quote);
         }
     });

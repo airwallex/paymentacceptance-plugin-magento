@@ -102,7 +102,7 @@ class EnableExpressCheckout extends Action
 
     private function methodInactiveTip($type): string
     {
-        $link = "<a href='https://demo.airwallex.com/app/acquiring/payment-methods/other-pms'
+        $link = "<a href='https://www.sandbox.airwallex.com/app/acquiring/payment-methods/other-pms'
                     style='color: red; font-weight: 600; text-decoration: underline;' target='_blank'>Airwallex</a>";
         return 'You have not activated ' . $type . ' as a payment method.
                  Please go to ' . $link . ' to activate ' . $type . ' before try again.';
@@ -110,7 +110,7 @@ class EnableExpressCheckout extends Action
 
     private function fileUploadFailedTip(): string
     {
-        $link = "<a href='https://demo.airwallex.com/app/acquiring/settings/apple-pay/add-domain'
+        $link = "<a href='https://www.sandbox.airwallex.com/app/acquiring/settings/apple-pay/add-domain'
                     style='color: red; font-weight: 600; text-decoration: underline;' target='_blank'>download the file</a>";
         return 'We could not add the domain file to your server. Please ' . $link . ' and host it on your
             site at the following path: &lt;&lt;DOMAIN_NAME&gt;&gt;/.well-known/apple-developer-merchantid-domain-association';
@@ -194,7 +194,7 @@ class EnableExpressCheckout extends Action
             return $resultJson;
         }
 
-        $link = "<a href='https://demo.airwallex.com/app/acquiring/settings/apple-pay/add-domain'
+        $link = "<a href='https://www.sandbox.airwallex.com/app/acquiring/settings/apple-pay/add-domain'
                     style='color: red; font-weight: 600; text-decoration: underline;' target='_blank'>Airwallex</a>";
         $tip = "We could not register your domain. Please go to $link to specify the domain names that you’ll register with Apple before trying again.";
         $resultJson->setData($this->error($tip));

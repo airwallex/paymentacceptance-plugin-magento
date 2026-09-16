@@ -137,13 +137,45 @@ class PlaceOrderResponse extends DataObject implements PlaceOrderResponseInterfa
         return $this->setData(PlaceOrderResponseInterface::DATA_KEY_ORDER_ID, $orderId);
     }
 
+    /**
+     * Get element options as JSON string
+     *
+     * @return string|null
+     */
     public function getElementOptions(): ?string
     {
         return $this->getData(PlaceOrderResponseInterface::DATA_KEY_ELEMENT_OPTIONS);
     }
 
+    /**
+     * Set element options as JSON string
+     *
+     * @param string|null $elementOptions
+     * @return PlaceOrderResponse
+     */
     public function setElementOptions(?string $elementOptions = null): PlaceOrderResponse
     {
         return $this->setData(PlaceOrderResponseInterface::DATA_KEY_ELEMENT_OPTIONS, $elementOptions);
+    }
+
+    /**
+     * Get signed return-state token
+     *
+     * @return string|null
+     */
+    public function getState(): ?string
+    {
+        return $this->getData(PlaceOrderResponseInterface::DATA_KEY_STATE);
+    }
+
+    /**
+     * Set signed return-state token
+     *
+     * @param string|null $state
+     * @return PlaceOrderResponse
+     */
+    public function setState(?string $state = null): PlaceOrderResponse
+    {
+        return $this->setData(PlaceOrderResponseInterface::DATA_KEY_STATE, $state);
     }
 }

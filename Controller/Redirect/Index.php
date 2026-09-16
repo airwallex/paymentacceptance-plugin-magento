@@ -30,8 +30,6 @@
  */
 namespace Airwallex\Payments\Controller\Redirect;
 
-use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
-use Airwallex\Payments\Api\Data\PaymentIntentInterface;
 use Airwallex\Payments\CommonLibraryInit;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Exception;
@@ -45,7 +43,10 @@ use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\UrlInterface;
+use Magento\Quote\Api\CartRepositoryInterface;
+use Airwallex\Payments\Exception\SigningKeyMissingException;
 use Airwallex\Payments\Model\PaymentIntentRepository;
+use Airwallex\Payments\Model\ReturnState;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Log as RemoteLog;
 
@@ -57,15 +58,29 @@ class Index implements HttpGetActionInterface
     public RequestInterface $request;
     public Data $checkoutData;
     public PaymentIntentRepository $paymentIntentRepository;
+    public CartRepositoryInterface $quoteRepository;
     public RetrievePaymentIntent $retrievePaymentIntent;
     private UrlInterface $url;
     private CommonLibraryInit $commonLibraryInit;
 
+    /**
+     * Constructor
+     *
+     * @param ResponseHttp $response
+     * @param RequestInterface $request
+     * @param Data $checkoutData
+     * @param PaymentIntentRepository $paymentIntentRepository
+     * @param CartRepositoryInterface $quoteRepository
+     * @param RetrievePaymentIntent $retrievePaymentIntent
+     * @param UrlInterface $url
+     * @param CommonLibraryInit $commonLibraryInit
+     */
     public function __construct(
         ResponseHttp $response,
         RequestInterface $request,
         Data $checkoutData,
         PaymentIntentRepository $paymentIntentRepository,
+        CartRepositoryInterface $quoteRepository,
         RetrievePaymentIntent $retrievePaymentIntent,
         UrlInterface $url,
         CommonLibraryInit $commonLibraryInit
@@ -74,6 +89,7 @@ class Index implements HttpGetActionInterface
         $this->request = $request;
         $this->checkoutData = $checkoutData;
         $this->paymentIntentRepository = $paymentIntentRepository;
+        $this->quoteRepository = $quoteRepository;
         $this->retrievePaymentIntent = $retrievePaymentIntent;
         $this->url = $url;
         $commonLibraryInit->exec();
@@ -89,32 +105,26 @@ class Index implements HttpGetActionInterface
      */
     public function execute(): ResponseHttp
     {
-        $result = $this->request->getParam('awx_return_result');
+        $result = (string) $this->request->getParam('awx_return_result');
         $entityId = $this->request->getParam('id');
-        $from = $this->request->getParam('from');
-        $entityType = $this->request->getParam('type');
+        $from = (string) $this->request->getParam('from');
+        $entityType = (string) $this->request->getParam('type');
+        $state = (string) $this->request->getParam('state');
 
         if ($from === 'card') {
-            $entityId = $this->resolveQuoteId($entityId);
-            $paymentIntent = $this->paymentIntentRepository->getByQuoteId($entityId);
-            $order = $this->paymentIntentRepository->getOrder($paymentIntent->getIntentId());
-            $this->setCheckoutSuccess($entityId, $order);
-            return $this->redirect('checkout/onepage/success');
+            return $this->handleCardReturn($entityId);
         }
 
-        if (!empty($result) && $result !== 'success') {
+        if ($result !== '' && $result !== 'success') {
             return $this->redirect('checkout#payment');
         }
 
-        if ($entityType === 'quote') {
-            $entityId = $this->resolveQuoteId($entityId);
-            $paymentIntent = $this->paymentIntentRepository->getByQuoteId($entityId);
-        } else {
-            $paymentIntent = $this->paymentIntentRepository->getByOrderId($entityId);
-        }
-
-        if (empty($paymentIntent) || empty($paymentIntent->getIntentId())) {
-            $this->logError("Payment Intent for quote $entityId doesn't exist.");
+        try {
+            [$paymentIntent, $quote] = $this->getAuthorizedPaymentContext($entityType, $entityId, $state);
+        } catch (SigningKeyMissingException $e) {
+            throw $e;
+        } catch (Exception $e) {
+            $this->logError('Invalid payment return context: ' . $e->getMessage());
             return $this->redirect('checkout#payment');
         }
 
@@ -125,41 +135,114 @@ class Index implements HttpGetActionInterface
             return $this->redirect('checkout#payment');
         }
 
-        $quote = $this->checkoutData->getQuote();
-        if (empty($quote) || empty($quote->getId())) {
-            $paymentIntent = $this->paymentIntentRepository->getByQuoteId($paymentIntent->getQuoteId());
-            $order = $this->paymentIntentRepository->getOrder($paymentIntent->getIntentId());
-            $this->setCheckoutSuccess($paymentIntent->getQuoteId(), $order);
-            return $this->redirect('checkout/onepage/success');
-        }
-
-        if ($paymentIntentFromApi->isAuthorized() || $paymentIntentFromApi->isCaptured()) {
-            if ($this->isOrderBeforePayment()) {
-                $this->changeOrderStatus($paymentIntentFromApi, $paymentIntent->getOrderId(), $quote, __METHOD__);
-            } else {
-                $this->placeOrder($quote->getPayment(), $paymentIntentFromApi, $quote, __METHOD__);
+        try {
+            if ($this->completePaymentIfSuccessful($paymentIntentFromApi, $paymentIntent, $quote, __METHOD__)) {
+                return $this->redirect('checkout/onepage/success');
             }
-            return $this->redirect('checkout/onepage/success');
+        } catch (Exception $e) {
+            RemoteLog::error(__METHOD__ . ': ' . $e->getMessage(), 'onOrderConfirmationError');
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
         }
 
-        if ($result === 'success') {
-            if ($this->isOrderBeforePayment()) {
-                $this->deactivateQuote($quote);
-                $order = $this->getFreshOrder($entityId);
-            } else {
-                $paymentIntentFromApi->setStatus(PaymentIntentInterface::INTENT_STATUS_SUCCEEDED);
-                $this->placeOrder($quote->getPayment(), $paymentIntentFromApi, $quote, __METHOD__);
-                $intentRecord = $this->paymentIntentRepository->getByIntentId($paymentIntent->getIntentId());
-                $order = $this->getFreshOrder($intentRecord->getOrderId());
-            }
-            $this->setCheckoutSuccess($paymentIntent->getQuoteId(), $order);
-            return $this->redirect('checkout/onepage/success');
-        }
+        $scope = $entityType === ReturnState::SCOPE_ORDER ? ReturnState::SCOPE_ORDER : ReturnState::SCOPE_QUOTE;
+        $entityKey = $scope === ReturnState::SCOPE_ORDER ? (int) $entityId : (int) $quote->getId();
+        $pollState = $this->generateReturnState($scope, $entityKey);
 
-        $redirectUrl = $result ? 'checkout#payment' : 'checkout/?from=RedirectIndex&intent_id=' . $paymentIntent->getIntentId() . '#payment';
+        $redirectUrl = 'checkout/?from=RedirectIndex&intent_id=' . urlencode($paymentIntent->getIntentId())
+            . '&state=' . urlencode($pollState) . '#payment';
         return $this->redirect($redirectUrl);
     }
 
+    
+    /**
+     * Complete a card payment return when the shopper is still in checkout session
+     *
+     * @param mixed $entityId
+     * @return ResponseHttp
+     */
+    private function handleCardReturn($entityId): ResponseHttp
+    {
+        try {
+            $quoteId = $this->resolveQuoteId($entityId);
+            $paymentIntent = $this->paymentIntentRepository->getByQuoteId($quoteId);
+            if (!$paymentIntent || !$paymentIntent->getIntentId()) {
+                throw new InputException(__('Invalid payment return context.'));
+            }
+
+            $order = $this->paymentIntentRepository->getOrder($paymentIntent->getIntentId());
+            if (!$order || !$order->getId()
+                || (int) $order->getQuoteId() !== $quoteId
+                || !$this->validateOrderOwnership($order)
+            ) {
+                throw new NoSuchEntityException(__('The order does not exist.'));
+            }
+
+            $paymentIntentFromApi = $this->retrievePaymentIntent
+                ->setPaymentIntentId($paymentIntent->getIntentId())
+                ->send();
+            $this->checkIntent($paymentIntentFromApi, $order);
+
+            $this->setCheckoutSuccess($quoteId, $order);
+            return $this->redirect('checkout/onepage/success');
+        } catch (Exception $e) {
+            $this->logError('Unable to process card return: ' . $e->getMessage());
+            return $this->redirect('checkout#payment');
+        }
+    }
+
+    /**
+     * Load and authorize the payment intent and quote for a return redirect
+     *
+     * @param string $entityType
+     * @param mixed $entityId
+     * @param string $state
+     * @return array
+     */
+    private function getAuthorizedPaymentContext(string $entityType, $entityId, string $state): array
+    {
+        if (!in_array($entityType, ['quote', 'order'], true)) {
+            throw new InputException(__('Invalid payment entity type.'));
+        }
+
+        if ($entityType === 'quote') {
+            $entityId = $this->resolveQuoteId($entityId);
+            $quote = $this->quoteRepository->get($entityId);
+            if (!$quote || !$quote->getId() || !$this->validateQuoteAccess($quote, $state)) {
+                throw new InputException(__('Invalid checkout session.'));
+            }
+
+            $paymentIntent = $this->paymentIntentRepository->getByQuoteId($entityId);
+        } else {
+            if (!is_numeric($entityId)) {
+                throw new InputException(__('Invalid order id.'));
+            }
+            $paymentIntent = $this->paymentIntentRepository->getByOrderId((int) $entityId);
+            $order = $this->getFreshOrder((int) $entityId);
+            if (!$order || !$order->getId()
+                || !$this->validateOrderAccess($order, $state)
+            ) {
+                throw new InputException(__('Invalid order.'));
+            }
+
+            $quote = $this->quoteRepository->get((int) $order->getQuoteId());
+        }
+
+        if (!$quote || !$quote->getId()
+            || !$paymentIntent || !$paymentIntent->getIntentId()
+            || (int) $paymentIntent->getQuoteId() !== (int) $quote->getId()
+        ) {
+            throw new NoSuchEntityException(__('The payment intent does not exist.'));
+        }
+
+        return [$paymentIntent, $quote];
+    }
+
+    /**
+     * Redirect the shopper to a Magento URL
+     *
+     * @param string $url
+     * @return ResponseHttp
+     */
     public function redirect($url): ResponseHttp
     {
         $redirectUrl = $this->url->getUrl($url);

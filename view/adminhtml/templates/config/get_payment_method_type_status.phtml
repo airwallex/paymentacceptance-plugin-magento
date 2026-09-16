@@ -92,7 +92,7 @@ use Magento\Framework\View\Element\AbstractBlock;
                                                     sprintf(
                                                         '%s is not activated for this account. Please go to <a href="%s" target="_blank" class="awx-deactivate-link">Airwallex to activate %s</a> before trying again.',
                                                         '${paymentMethodName}',
-                                                        'https://demo.airwallex.com/app/acquiring/payment-methods/other-pms',
+                                                        'https://www.sandbox.airwallex.com/app/acquiring/payment-methods/other-pms',
                                                         '${paymentMethodName}',
                                                     ),
                                                     ['a']
@@ -102,7 +102,7 @@ use Magento\Framework\View\Element\AbstractBlock;
                                     </div>
                                 `;
                                 if (document.querySelector('[name="groups[airwallex_payments][groups][basic][fields][mode][value]"]').value === 'prod') {
-                                    tip = tip.replace('demo.airwallex', 'www.airwallex');
+                                    tip = tip.replace('www.sandbox.airwallex', 'www.airwallex');
                                 }
                                 $warningContainer.html(tip);
                                 jQuery(this).val('0').trigger('change');

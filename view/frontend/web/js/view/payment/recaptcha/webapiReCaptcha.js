@@ -31,36 +31,16 @@
  * Copyright © Magento, Inc. All rights reserved.
  * See COPYING.txt for license details.
  */
-
 // jscs:disable jsDoc
-
-                                  
-                                                     
- 
-
 /**
  * The subset of the shared ReCaptcha registry singleton this renderer touches
  * (`Airwallex_Payments/js/view/payment/recaptcha/webapiReCaptchaRegistry`).
  */
-                                   
-                                   
-                                         
-                                                        
- 
-
 /**
  * `this` receiver for this renderer's methods. The `getReCaptchaId` /
  * `getIsInvisibleRecaptcha` accessors come from the Magento
  * `Magento_ReCaptchaFrontendUi/js/reCaptcha` base component.
  */
-                                   
-                         
-                        
-                             
-                                       
-                                           
- 
-
 /* global grecaptcha */
 define(
     [
@@ -69,12 +49,10 @@ define(
     ],
     function (Component                        , registry                         ) {
         'use strict';
-
         return Component.extend({
             defaults: {
                 autoTrigger: false
             },
-
             /**
              * Provide the token to the registry.
              *
@@ -83,12 +61,10 @@ define(
             reCaptchaCallback: function (                               token        ) {
                 //Make the token retrievable in other UI components.
                 registry.tokens[this.getReCaptchaId()] = token;
-
                 if (typeof registry._listeners[this.getReCaptchaId()] !== 'undefined') {
                     registry._listeners[this.getReCaptchaId()](token);
                 }
             },
-
             /**
              * Register this ReCaptcha.
              *
@@ -98,7 +74,6 @@ define(
             initParentForm: function (                               parentForm         , widgetId        ) {
                 var self = this,
                     trigger            ;
-
                 if (this.getIsInvisibleRecaptcha()) {
                     trigger = function () {
                         grecaptcha.execute(widgetId);
@@ -108,7 +83,6 @@ define(
                         self.reCaptchaCallback(grecaptcha.getResponse(widgetId));
                     };
                 }
-
                 if (this.autoTrigger) {
                     //Validate ReCaptcha when initiated
                     trigger();

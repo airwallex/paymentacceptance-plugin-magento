@@ -28,29 +28,12 @@
  * @license   https://opensource.org/licenses/MIT MIT License
  */
 /** Builds a store-relative URL into an absolute one (`mage/url`). */
-                      
-                                
- 
-
 /** A single button descriptor consumed by the Magento modal config. */
-                       
-                 
-                  
-                                      
- 
-
 /**
  * The modal config object the caller passes in; this module appends the
  * Cancel/Delete buttons before handing it to `modalToggle`.
  */
-                             
-                            
-                           
- 
-
 /** `Magento_Ui/js/modal/modalToggle` — wires a modal to the trigger element. */
-                                                                                        
-
 define([
     'jquery',
     'Magento_Ui/js/modal/modalToggle',
@@ -58,7 +41,6 @@ define([
     'mage/translate',
 ], function ($              , modalToggle             , url            ) {
     'use strict';
-
     return function (config                   , deleteButton                   ) {
         config.buttons = [
             {
@@ -67,14 +49,12 @@ define([
             }, {
                 text: $.mage.__('Delete'),
                 class: 'action primary',
-
                 /**
                  * Default action on button click
                  */
                 click: function (               event          ) { //eslint-disable-line no-unused-vars
                     // $('body').trigger('processStart');
                     let removeUrl = url.build('rest/V1/airwallex/saved_cards/') + $(deleteButton).data('id');
-
                     $.ajax({
                         url: removeUrl,
                         method: 'DELETE',
@@ -89,7 +69,6 @@ define([
                 }
             }
         ];
-
         modalToggle(config, deleteButton);
     };
 });

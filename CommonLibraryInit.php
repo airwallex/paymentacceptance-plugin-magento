@@ -33,6 +33,7 @@ namespace Airwallex\Payments;
 use Airwallex\PayappsPlugin\CommonLibrary\Configuration\Init;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Model\CacheService;
+use Airwallex\Payments\Model\Config\Source\Mode;
 use Magento\Framework\App\ProductMetadataInterface;
 use Magento\Framework\Module\ModuleListInterface;
 use Airwallex\PayappsPlugin\CommonLibrary\Cache\CacheManager;
@@ -57,7 +58,7 @@ class CommonLibraryInit
     public function exec()
     {
         Init::getInstance([
-            'env' => $this->configuration->getMode(),
+            'env' => Mode::normalizeApiEnv($this->configuration->getMode()),
             'client_id' => $this->configuration->getClientId(),
             'api_key' => $this->configuration->getApiKey(),
             'plugin_type' => 'magento',

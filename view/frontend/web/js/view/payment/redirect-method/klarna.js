@@ -27,32 +27,7 @@
  * @copyright 2026 Airwallex
  * @license   https://opensource.org/licenses/MIT MIT License
  */
-                                                                         
-
-                                  
-                                                     
- 
-
-                                    
-                                      
- 
-
-                                   
-                                                              
- 
-
-                                            
-
 /** `this` receiver shared by the redirect-method child renderers. */
-                                                            
-                 
-                               
-                                    
-                                                            
-                                                                  
-                       
- 
-
 define([
     "Airwallex_Payments/js/view/payment/redirect-method",
     "ko",
@@ -69,21 +44,17 @@ define([
     $t             
 ) {
     "use strict";
-
     return Component.extend({
         defaults: {
             code: 'airwallex_payments_klarna',
             template: "Airwallex_Payments/payment/redirect-method",
         },
-
         async loadPayment(                      ) {
             if (!this.isMethodChecked(this.code)) {
                 return;
             }
             this.hideYouPay();
-
             const container = $(`.${this.index} .awx-redirect-method-footer`);
-
             const paymentData = window.checkoutConfig .payment .airwallex_payments ;
             if (Object.keys(paymentData.klarna_support_countries ).indexOf(quote.billingAddress().countryId) === -1) {
                 const msg = $t('Klarna is not available in your country. Please change your billing address to a %1compatible country%2 or choose a different payment method.')
@@ -93,14 +64,12 @@ define([
                 this.disableCheckoutButton(this.code);
                 return;
             }
-
             const targetCurrency = paymentData.klarna_support_countries [quote.billingAddress().countryId];
             if (paymentData.quote_currency_code  === targetCurrency) {
                 container.html('');
                 this.enableCheckoutButton(this.code);
                 return;
             }
-
             const availableCurrencies = paymentData.available_currencies || [];
             if (availableCurrencies.indexOf(paymentData.quote_currency_code ) === -1) {
                 const msg = $t('%1 is not available in %2 for your billing country. Please use a different payment method to complete your purchase.')
@@ -118,7 +87,6 @@ define([
                 this.disableCheckoutButton(this.code);
                 return;
             }
-
             const expressData = await this.fetchExpressData();
             await this.displaySwitcher('', expressData, targetCurrency, 'Klarna');
         },

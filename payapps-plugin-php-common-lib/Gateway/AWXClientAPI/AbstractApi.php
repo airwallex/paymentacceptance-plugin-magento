@@ -30,7 +30,7 @@ abstract class AbstractApi
     /**
      * @var string
      */
-    const DEMO_BASE_URL = 'https://api-demo.airwallex.com/api/v1/';
+    const SANDBOX_BASE_URL = 'https://api.sandbox.airwallex.com/api/v1/';
 
     /**
      * @var string
@@ -171,7 +171,7 @@ abstract class AbstractApi
             $clientConfig['defaults'] = ['timeout' => static::TIMEOUT];
         }
 
-        $client = new \GuzzleHttp\Client($clientConfig);
+        $client = $this->createHttpClient($clientConfig);
 
         $options = [
             'headers' => array_merge($this->getHeaders(), [
@@ -205,6 +205,16 @@ abstract class AbstractApi
         $this->checkResponse((string)$response->getBody(), $response->getStatusCode());
         
         return $this->parseResponse($response);
+    }
+
+    /**
+     * @param array $config
+     *
+     * @return \GuzzleHttp\Client
+     */
+    protected function createHttpClient(array $config): \GuzzleHttp\Client
+    {
+        return new \GuzzleHttp\Client($config);
     }
 
     /**
@@ -289,8 +299,8 @@ abstract class AbstractApi
         if ($env === 'staging') {
             return static::STAGING_BASE_URL;
         }
-        if ($env === 'demo') {
-            return static::DEMO_BASE_URL;
+        if ($env === 'sandbox') {
+            return static::SANDBOX_BASE_URL;
         }
         return static::PRODUCTION_BASE_URL;
     }

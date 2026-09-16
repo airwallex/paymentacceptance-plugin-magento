@@ -30,7 +30,7 @@ class CurrencySwitcherAvailableCurrencies
         $page = 0;
         $all = [];
         $maxPage = 100;
-        $getCurrenciesRequest = new GetAvailableCurrencies();
+        $getCurrenciesRequest = $this->createGetAvailableCurrencies();
         do {
             $getList = $getCurrenciesRequest->setPage($page)->send();
             foreach ($getList->getItems() as $items) {
@@ -44,5 +44,13 @@ class CurrencySwitcherAvailableCurrencies
             }
         }
         return [];
+    }
+
+    /**
+     * @return GetAvailableCurrencies
+     */
+    protected function createGetAvailableCurrencies(): GetAvailableCurrencies
+    {
+        return new GetAvailableCurrencies();
     }
 }

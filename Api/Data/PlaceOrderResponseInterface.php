@@ -39,6 +39,7 @@ interface PlaceOrderResponseInterface
     public const DATA_KEY_ORDER_ID = 'order_id';
     public const DATA_KEY_MESSAGE = 'message';
     public const DATA_KEY_ELEMENT_OPTIONS = 'element_options';
+    public const DATA_KEY_STATE = 'state';
 
     /**
      * @return string|null
@@ -120,4 +121,19 @@ interface PlaceOrderResponseInterface
      * @return $this
      */
     public function setElementOptions(?string $elementOptions = null): PlaceOrderResponseInterface;
+
+    /**
+     * Get signed return-state token
+     *
+     * @return string|null
+     */
+    public function getState(): ?string;
+
+    /**
+     * Set signed return-state token
+     *
+     * @param string|null $state
+     * @return $this
+     */
+    public function setState(?string $state = null): PlaceOrderResponseInterface;
 }

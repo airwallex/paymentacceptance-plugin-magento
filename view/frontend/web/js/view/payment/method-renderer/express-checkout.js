@@ -27,100 +27,13 @@
  * @copyright 2026 Airwallex
  * @license   https://opensource.org/licenses/MIT MIT License
  */
-                                                                                                           
-
-                                  
-                                                     
- 
-
-                      
-                                
- 
-
-                       
-                                                                  
-                                                                                                              
- 
-
-                               
-                                                                                      
- 
-
 /** `utils.postOptions(...)` return: aFormData-based POST settings bag. */
-                             
-                
-                   
-                         
-                         
-                 
- 
-
-                       
-                             
-                              
-                                               
-                                                          
-                          
-                        
-                               
-                                 
-                        
-                               
-                                                                                    
-                                                               
-                                                                                                    
-                                                                  
-                                                                            
-                                                                  
-                                                                                                  
-                                                       
-                                                 
-                                                                  
-                                                                  
-                                                                  
-                               
- 
-
-                                
-                              
- 
-
 /** `this` receiver for the express renderer's methods. */
-                                                            
-                                 
-                                                                              
-                                                                              
-                                                                            
-                                                                           
-                             
-                               
-                                                                        
-                                                                                
-                                                                                  
-                                
-                            
-                                                                                 
-                                                                  
-                       
- 
-
 /**
  * The mutable `payload` object built in `placeOrder`. It is mutated in place
  * (`email`, `paymentMethod.extension_attributes.agreement_ids`) exactly as the
  * original JS did, so it carries an index signature rather than a frozen shape.
  */
-                                    
-                   
-                 
-                    
-                                   
-                                                 
-                                                                          
-      
-                   
-                           
- 
-
 define(
     [
         'jquery',
@@ -134,7 +47,6 @@ define(
         'Airwallex_Payments/js/view/payment/method-renderer/express/googlepay',
         'Airwallex_Payments/js/view/payment/method-renderer/express/applepay',
     ],
-
     function (
         $              ,
         ko                ,
@@ -148,7 +60,6 @@ define(
         applepay                ,
     ) {
         'use strict';
-
         return Component.extend({
             code: 'airwallex_payments_express',
             defaults: {
@@ -161,19 +72,15 @@ define(
                 guestEmail: "",
                 amount: 0
             },
-
             setGuestEmail(                       email        ) {
                 this.guestEmail = email;
             },
-
             expressDataObjects(                     )        {
                 return [this, utils, applepay, googlepay];
             },
-
             methodsObjects(                     )        {
                 return [addressHandler, applepay, googlepay];
             },
-
             async fetchExpressData(                     ) {
                 let url = urlBuilder.build('rest/V1/airwallex/payments/express-data');
                 if (utils.isProductPage()) {
@@ -184,7 +91,6 @@ define(
                 this.updateExpressData(obj);
                 this.updatePaymentConfig(obj.settings);
             },
-
             async postAddress(                       address         , methodId = "") {
                 let url = urlBuilder.build('rest/V1/airwallex/payments/post-address');
                 let postOptions = utils.postOptions(address, url);
@@ -192,51 +98,42 @@ define(
                     postOptions.data.append('methodId', methodId);
                 }
                 let resp = await $.ajax(postOptions                                  );
-
                 let obj = JSON.parse(resp);
                 if (obj.type && obj.type === 'error') {
                     throw new Error(obj.message);
                 }
-
                 this.updateExpressData(obj.quote_data);
                 this.updateMethods(obj.methods, obj.selected_method);
                 addressHandler.regionId = obj.region_id || 0;
                 return obj;
             },
-
             updateExpressData(                       expressData         ) {
                 this.expressDataObjects().forEach(o => {
                     Object.assign(o.expressData, expressData);
                 });
             },
-
             updatePaymentConfig(                       paymentConfig         ) {
                 this.expressDataObjects().forEach(o => {
                     o.paymentConfig = paymentConfig;
                 });
             },
-
             updateMethods(                       methods         , selectedMethod         ) {
                 this.methodsObjects().forEach(o => {
                     o.methods = methods;
                     o.selectedMethod = selectedMethod;
                 });
             },
-
             initMinicartClickEvents(                     ) {
                 if (!$(this.showMinicartSelector).length) {
                     return;
                 }
-
                 if (this.from !== 'minicart' || utils.isFromMinicartAndShouldNotShow(this.from)) {
                     return;
                 }
-
                 if (this.minicartEventsBound) {
                     return;
                 }
                 this.minicartEventsBound = true;
-
                 let recreatePays = async (force         ) => {
                     if (!$(this.showMinicartSelector).hasClass('active')) {
                         return;
@@ -244,7 +141,6 @@ define(
                     if (this.minicartCreated && !force) {
                         return;
                     }
-
                     this.destroyElement('minicart');
                     await this.fetchExpressData();
                     if (utils.isCartEmpty(this.expressData)) {
@@ -254,7 +150,6 @@ define(
                     this.createPays();
                     this.minicartCreated = true;
                 };
-
                 let cartData = customerData.get('cart');
                 cartData.subscribe(() => {
                     this.minicartCreated = false;
@@ -262,46 +157,38 @@ define(
                 }, this);
                 $(this.showMinicartSelector).off('click.awxExpress').on('click.awxExpress', () => recreatePays(false));
             },
-
             async initialize(                     ) {
                 this._super();
-
                 this.isShow = ko.observable(false);
                 this.buttonSort = ko.observableArray        ([]);
-
                 await this.fetchExpressData();
-
                 if (!this.paymentConfig.is_express_active || this.paymentConfig.display_area .indexOf(this.from) === -1) {
                     return;
                 }
-
                 if (utils.isFromMinicartAndShouldNotShow(this.from)) {
                     return;
                 }
-
                 this.paymentConfig.express_button_sort .sort().forEach((v        ) => {
                     this.buttonSort.push(v);
                 });
-
+                // The pinned components-sdk only understands 'demo' for the
+                // sandbox environment, so map the plugin env to the SDK value.
+                const mode = this.paymentConfig.mode;
                 Airwallex.init({
-                    env: this.paymentConfig.mode,
+                    env: (mode === 'sandbox' || mode === 'demo') ? 'demo' : 'prod',
                     origin: window.location.origin,
                 });
-
                 this.isShow(true);
             },
-
             async loadPayment(                     ) {
                 this.initMinicartClickEvents();
                 utils.initProductPageFormClickEvents(this.from);
                 this.initHashPaymentEvent();
                 utils.initCheckoutPageExpressCheckoutClick();
-
                 if (this.from === 'minicart') {
                     return;
                 }
                 this.createPays();
-
                 if (utils.isCheckoutPage()) {
                     let quote = require('Magento_Checkout/js/model/quote');
                     quote.totals.subscribe(async (newValue     ) => {
@@ -310,7 +197,6 @@ define(
                         if (!old) {
                             return;
                         }
-
                         if (Math.abs(old - this.amount) >= 0.0001) {
                             $('body').trigger('processStart');
                             this.destroyElement();
@@ -321,7 +207,6 @@ define(
                     });
                 }
             },
-
             initHashPaymentEvent(                     ) {
                 if (this.from === 'product_page') {
                     return;
@@ -335,7 +220,6 @@ define(
                     }
                 });
             },
-
             destroyElement(                       from         ) {
                 from = from || this.from;
                 if (this.isGooglePayActive()) {
@@ -345,22 +229,18 @@ define(
                     applepay.destroy(from);
                 }
             },
-
             isGooglePayActive(                     ) {
                 return this.paymentConfig.checkout .indexOf('google_pay') !== -1;
             },
-
             isApplePayActive(                     ) {
                 return this.paymentConfig.checkout .indexOf('apple_pay') !== -1;
             },
-
             deviceSupportApplePay(                     ) {
                 const APPLE_PAY_VERSION = 4;
                 return 'ApplePaySession' in window && ApplePaySession.supportsVersion && ApplePaySession.canMakePayments &&
                     ApplePaySession.supportsVersion(APPLE_PAY_VERSION) &&
                     ApplePaySession.canMakePayments()
             },
-
             createPays(                     ) {
                 if (this.isGooglePayActive()) {
                     googlepay.create(this);
@@ -369,12 +249,10 @@ define(
                     applepay.create(this);
                 }
             },
-
             async validateAddresses(                     ) {
                 let url = urlBuilder.build('rest/V1/airwallex/payments/validate-addresses');
                 return storage.get(url, undefined, 'application/json', {});
             },
-
             placeOrder(                       pay        ) {
                 $('body').trigger('processStart');
                 const payload                           = {
@@ -385,7 +263,6 @@ define(
                     },
                     from: pay
                 };
-
                 (new Promise(async (resolve, reject) => {
                     try {
                         let resp = await this.validateAddresses();
@@ -393,17 +270,14 @@ define(
                         if (obj.type && obj.type === 'error') {
                             throw new Error(obj.message);
                         }
-
                         let id = utils.isRecaptchaShared() ? utils.recaptchaId : utils.expressRecaptchaId;
                         await utils.setRecaptchaToken(payload, id);
-
                         if (!utils.isLoggedIn()) {
                             payload.email = utils.isCheckoutPage() ? $(utils.guestEmailSelector).val()           : this.guestEmail;
                             if (!payload.email) {
                                 throw new Error('Email is required!');
                             }
                         }
-
                         // if (!utils.isCheckoutPage()) {
                         if (!payload.paymentMethod.extension_attributes) {
                             payload.paymentMethod.extension_attributes = {};
@@ -416,16 +290,12 @@ define(
                             }
                         }
                         // }
-
                         await utils.postPaymentInformation(payload, utils.isLoggedIn(), utils.getCartId());
-
                         let intentResponse = await utils.getIntent(payload, {});
                         if (!intentResponse) return;
-
                         const params                          = {};
                         params.id = intentResponse.intent_id;
                         params.client_secret = intentResponse.client_secret;
-
                         try {
                             await eval(pay).confirmIntent(this.from, params);
                         } catch (error) {
@@ -433,9 +303,7 @@ define(
                                 throw error;
                             }
                         }
-
                         let endResult = await utils.placeOrder(payload, intentResponse, {});
-
                         resolve(endResult);
                     } catch (e) {
                         this.destroyElement();
@@ -444,7 +312,6 @@ define(
                     }
                 })).then(response => {
                     utils.clearDataAfterPay(response, customerData);
-
                     window.location.replace(urlBuilder.build('checkout/onepage/success/'));
                 }).catch(
                     utils.error.bind(utils)

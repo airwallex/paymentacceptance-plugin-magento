@@ -48,9 +48,10 @@ interface ServiceInterface
      * Get intent
      *
      * @param string $intentId
+     * @param string $state Signed return-state token
      * @return string
      */
-    public function intent(string $intentId): string;
+    public function intent(string $intentId, string $state = ''): string;
 
     /**
      * Add to cart

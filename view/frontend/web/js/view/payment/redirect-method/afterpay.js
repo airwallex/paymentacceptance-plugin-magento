@@ -27,32 +27,7 @@
  * @copyright 2026 Airwallex
  * @license   https://opensource.org/licenses/MIT MIT License
  */
-                                                                         
-
-                                  
-                                                     
- 
-
-                                    
-                                      
- 
-
-                                   
-                                                              
- 
-
-                                            
-
 /** `this` receiver shared by the redirect-method child renderers. */
-                                                            
-                 
-                               
-                                    
-                                                            
-                                                                  
-                       
- 
-
 define([
     "Airwallex_Payments/js/view/payment/redirect-method",
     "ko",
@@ -69,37 +44,29 @@ define([
     $t             
 ) {
     "use strict";
-
     return Component.extend({
         defaults: {
             code: 'airwallex_payments_afterpay',
             template: "Airwallex_Payments/payment/redirect-method",
         },
-
         async loadPayment(                      ) {
             if (!this.isMethodChecked(this.code)) {
                 return;
             }
-
             this.hideYouPay();
-
             const container = $(`.${this.index} .awx-redirect-method-footer`);
-
             const entity = await this.fetchEntity();
             const paymentData = window.checkoutConfig .payment .airwallex_payments ;
             const entityToCurrency = paymentData.afterpay_support_entity_to_currency ;
             const countryToCurrency = paymentData.afterpay_support_countries ;
             const quoteCountryId = quote.billingAddress() ? quote.billingAddress().countryId : '';
             localStorage.setItem(this.afterpayCountryKey, '');
-
             if (!entityToCurrency[entity]) {
                 console.warn('Invalid merchant entity:');
                 this.enableCheckoutButton(this.code);
                 return;
             }
-
             const availableCurrencies = paymentData.available_currencies || [];
-
             if (!availableCurrencies.length) {
                 if (entityToCurrency[entity].indexOf(paymentData.quote_currency_code ) !== -1) {
                     $(container).html('');
@@ -113,13 +80,11 @@ define([
                 this.disableCheckoutButton(this.code);
                 return;
             }
-
             if (entityToCurrency[entity].indexOf(paymentData.quote_currency_code ) !== -1 && (entity !== 'AIRWALLEX_HK' || (countryToCurrency[quoteCountryId] === paymentData.quote_currency_code  && entity === 'AIRWALLEX_HK'))) {
                 $(container).html('');
                 this.enableCheckoutButton(this.code);
                 return;
             }
-
             if (availableCurrencies.indexOf(paymentData.quote_currency_code ) === -1) {
                 const msg = $t('%1 is not available in %2 for your billing country. Please use a different payment method to complete your purchase.')
                     .replace('%1', 'Afterpay')
@@ -128,9 +93,7 @@ define([
                 this.disableCheckoutButton(this.code);
                 return;
             }
-
             const expressData = await this.fetchExpressData();
-
             let targetCurrency;
             if (countryToCurrency[quoteCountryId]) {
                 targetCurrency = countryToCurrency[quoteCountryId];
@@ -140,25 +103,19 @@ define([
                     targetCurrency = '';
                 }
             }
-
             if (!targetCurrency && entityToCurrency[entity].length === 1) {
                 targetCurrency = entityToCurrency[entity][0];
             }
-
             if (targetCurrency) {
                 await this.displaySwitcher('', expressData, targetCurrency, 'Afterpay');
                 return;
             }
-
             await this.showAfterpayCountries(expressData);
         },
-
         async showAfterpayCountries(                        expressData     ) {
             let that = this;
-
             const paymentData = window.checkoutConfig .payment .airwallex_payments ;
             const container = $(`.${this.index} .awx-redirect-method-footer`);
-
             let html = `
                 <div style="font-weight: 700;">` + $t('Choose your Afterpay account region') + `</div>
                 <div style="margin: 10px 0;">` + $t('If you don’t have an account yet, choose the region that you will create your account from.') + `</div>
@@ -180,7 +137,6 @@ define([
                     </div>
                 </div>
             `;
-
             const countryToCurrency = paymentData.afterpay_support_countries ;
             let country = localStorage.getItem(this.afterpayCountryKey);
             if (!country || !countryToCurrency[country]) {
@@ -196,7 +152,6 @@ define([
                     await this.displaySwitcher(html, expressData, targetCurrency, 'Afterpay');
                 }
             }
-
             let $li = $(".awx-selector-container li");
             let $input = $(".awx-selector-container input");
             $li.each(function (                 ) {

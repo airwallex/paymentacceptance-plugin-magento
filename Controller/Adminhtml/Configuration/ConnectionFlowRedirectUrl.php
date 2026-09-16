@@ -99,6 +99,42 @@ class ConnectionFlowRedirectUrl extends Action
         return $origin;
     }
 
+    public function resolveSafeTargetUrl($encodedTargetUrl): string
+    {
+        $baseUrl = $this->storeManager->getStore()->getBaseUrl(UrlInterface::URL_TYPE_WEB);
+
+        if (!is_string($encodedTargetUrl) || $encodedTargetUrl === '') {
+            return $baseUrl;
+        }
+
+        $decoded = base64_decode($encodedTargetUrl, true);
+        if ($decoded === false) {
+            return $baseUrl;
+        }
+
+        // Reject control characters to prevent header (CRLF) injection.
+        if (preg_match('/[\x00-\x1f\x7f]/', $decoded)) {
+            return $baseUrl;
+        }
+
+        $parsed = parse_url($decoded);
+        if ($parsed === false || empty($parsed['scheme']) || empty($parsed['host'])) {
+            return $baseUrl;
+        }
+
+        if (!in_array(strtolower($parsed['scheme']), ['http', 'https'], true)) {
+            return $baseUrl;
+        }
+
+        // Only allow redirects back to this store's own host (no open redirect).
+        $baseHost = parse_url($baseUrl, PHP_URL_HOST);
+        if (empty($baseHost) || strcasecmp($parsed['host'], $baseHost) !== 0) {
+            return $baseUrl;
+        }
+
+        return $decoded;
+    }
+
     public function connection_failed()
     {
         $this->configWriter->save('airwallex/general/' . $this->request->getParam('env') . '_connection_flow', 'connection_failed');
@@ -117,12 +153,17 @@ class ConnectionFlowRedirectUrl extends Action
         }
         $resultJson = $this->resultJsonFactory->create();
         if (empty($this->request->getParam('code'))) {
-            header('Location: ' . base64_decode($this->request->getParam('target_url')));
+            header('Location: ' . $this->resolveSafeTargetUrl($this->request->getParam('target_url')));
             return $resultJson;
         }
+        // The token prefix stays "demo" so the connection callback
+        // (Controller\Settings\Index) can still resolve the stored sandbox mode,
+        // but the finalize request must target the sandbox domain.
         $environment = 'demo';
+        $host = 'www.sandbox.airwallex.com';
         if ($this->request->getParam('env') !== 'demo') {
             $environment = 'www';
+            $host = 'www.airwallex.com';
         }
         $platform = 'magento';
         $storeUrl = $this->storeManager->getStore()->getBaseUrl(UrlInterface::URL_TYPE_WEB);
@@ -135,7 +176,7 @@ class ConnectionFlowRedirectUrl extends Action
         $accessToken = gzdecode(base64_decode($this->request->getParam('code')));
         $requestId = $this->identityService->generateId();
 
-        $url = "https://$environment.airwallex.com/payment_app/plugin/api/v1/connection/finalize";
+        $url = "https://$host/payment_app/plugin/api/v1/connection/finalize";
         $data = [
             'platform' => $platform,
             'origin' => $this->getOriginFromUrl($baseUrl),
@@ -190,14 +231,14 @@ class ConnectionFlowRedirectUrl extends Action
             'message' => $message,
             'env' => $this->request->getParam('env'),
         ]), self::CONNECTION_FLOW_MESSAGE_CACHE_NAME, [], 60 * 60 * 24);
-        header('Location: ' . base64_decode($this->request->getParam('target_url')));
+        header('Location: ' . $this->resolveSafeTargetUrl($this->request->getParam('target_url')));
         return $resultJson;
     }
 
     public function success($message, $resultJson): Json
     {
         $this->context->getMessageManager()->addSuccessMessage($message);
-        header('Location: ' . base64_decode($this->request->getParam('target_url')));
+        header('Location: ' . $this->resolveSafeTargetUrl($this->request->getParam('target_url')));
         return $resultJson;
     }
 

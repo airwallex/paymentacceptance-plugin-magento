@@ -11,7 +11,9 @@ use Airwallex\Payments\CommonLibraryInit;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Psr\Log\LoggerInterface;
+use Airwallex\Payments\Exception\SigningKeyMissingException;
 use Airwallex\Payments\Helper\Configuration;
+use Airwallex\Payments\Model\ReturnState;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 
@@ -28,6 +30,20 @@ class Index implements HttpGetActionInterface
     protected Configuration $configuration;
     protected RetrievePaymentIntent $retrievePaymentIntent;
 
+    /**
+     * Constructor
+     *
+     * @param PageFactory $resultPageFactory
+     * @param RequestInterface $request
+     * @param PaymentIntentRepository $paymentIntentRepository
+     * @param RedirectFactory $redirectFactory
+     * @param OrderRepositoryInterface $orderRepository
+     * @param CartRepositoryInterface $quoteRepository
+     * @param LoggerInterface $logger
+     * @param Configuration $configuration
+     * @param RetrievePaymentIntent $retrievePaymentIntent
+     * @param CommonLibraryInit $commonLibraryInit
+     */
     public function __construct(
         PageFactory $resultPageFactory,
         RequestInterface $request,
@@ -52,6 +68,11 @@ class Index implements HttpGetActionInterface
         $commonLibraryInit->exec();
     }
 
+    /**
+     * Render the APM completion page when payment is still pending
+     *
+     * @return \Magento\Framework\View\Result\Page|\Magento\Framework\Controller\Result\Redirect
+     */
     public function execute()
     {
         $quoteId = $this->request->getParam('quote_id');
@@ -75,6 +96,8 @@ class Index implements HttpGetActionInterface
                 $this->logger->info("APM Index: Payment already successful for {$entityType} ID: {$entityId}");
                 return $this->redirectToSuccess($entityType, $entityId);
             }
+        } catch (SigningKeyMissingException $e) {
+            throw $e;
         } catch (\Exception $e) {
             $this->logger->error("APM Index: Error checking payment status: " . $e->getMessage());
             return $this->redirectToCart();
@@ -85,6 +108,13 @@ class Index implements HttpGetActionInterface
         return $resultPage;
     }
 
+    /**
+     * Validate payment data for an order or quote return
+     *
+     * @param string $entityType
+     * @param mixed $entityId
+     * @return array|null
+     */
     private function validateAndGetPaymentData(string $entityType, $entityId): ?array
     {
         if ($entityType === 'order') {
@@ -93,6 +123,12 @@ class Index implements HttpGetActionInterface
         return $this->validateQuotePayment($entityId);
     }
 
+    /**
+     * Validate an order-based APM return
+     *
+     * @param mixed $orderId
+     * @return array|null
+     */
     private function validateOrderPayment($orderId): ?array
     {
         $paymentIntentRecord = $this->paymentIntentRepository->getByOrderId($orderId);
@@ -102,7 +138,7 @@ class Index implements HttpGetActionInterface
         }
 
         $order = $this->orderRepository->get($orderId);
-        if (!$this->validateOrderOwnership($order)) {
+        if (!$this->validateOrderAccess($order, (string) $this->request->getParam('state'))) {
             return null;
         }
 
@@ -113,6 +149,12 @@ class Index implements HttpGetActionInterface
         ];
     }
 
+    /**
+     * Validate a quote-based APM return
+     *
+     * @param mixed $quoteId
+     * @return array|null
+     */
     private function validateQuotePayment($quoteId): ?array
     {
         $numericQuoteId = $this->resolveQuoteId($quoteId);
@@ -124,7 +166,7 @@ class Index implements HttpGetActionInterface
         }
 
         $quote = $this->quoteRepository->get($numericQuoteId);
-        if (!$this->validateQuoteOwnership($quote)) {
+        if (!$this->validateQuoteAccess($quote, (string) $this->request->getParam('state'))) {
             return null;
         }
 
@@ -135,17 +177,34 @@ class Index implements HttpGetActionInterface
         ];
     }
 
+    /**
+     * Redirect the shopper back to the cart
+     *
+     * @return \Magento\Framework\Controller\Result\Redirect
+     */
     private function redirectToCart()
     {
         return $this->redirectFactory->create()->setPath('checkout/cart');
     }
 
+    /**
+     * Redirect a completed APM payment through the payment-return controller
+     *
+     * @param string $entityType
+     * @param mixed $entityId
+     * @return \Magento\Framework\Controller\Result\Redirect
+     */
     private function redirectToSuccess(string $entityType, $entityId)
     {
         return $this->redirectFactory->create()->setPath('airwallex/redirect', [
             'awx_return_result' => 'success',
             'id' => $entityId,
-            'type' => $entityType
+            'type' => $entityType,
+            'intent_id' => $this->request->getParam('intent_id'),
+            'state' => $this->generateReturnState(
+                $entityType === 'order' ? ReturnState::SCOPE_ORDER : ReturnState::SCOPE_QUOTE,
+                $entityType === 'order' ? (int) $entityId : $this->resolveQuoteId($entityId)
+            )
         ]);
     }
 }

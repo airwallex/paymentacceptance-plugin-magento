@@ -57,7 +57,7 @@
                             if (response && response.responseJSON && response.responseJSON.type === 'error') {
                                 let tip = response.responseJSON.message;
                                 if (document.querySelector('[name="groups[airwallex_payments][groups][basic][fields][mode][value]"]').value === 'prod') {
-                                    tip = tip.replace('demo.airwallex', 'www.airwallex');
+                                    tip = tip.replace('www.sandbox.airwallex', 'www.airwallex');
                                 }
                                 tipElement.html(tip);
                             }

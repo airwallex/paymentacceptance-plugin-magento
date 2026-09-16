@@ -115,6 +115,9 @@ class OrderService implements OrderServiceInterface
     private RetrievePaymentIntent $retrievePaymentIntent;
     private ApmElementOptionsHelper $apmElementOptionsHelper;
 
+    /**
+     * Constructor
+     */
     public function __construct(
         PaymentConsentsInterface                   $paymentConsents,
         PaymentIntents                             $paymentIntents,
@@ -382,6 +385,13 @@ class OrderService implements OrderServiceInterface
         return $this->responseByRequestIntent($paymentMethodId, $intent, $paymentMethod, $model, $response, $email);
     }
 
+    /**
+     * Remember the current Airwallex payment method for later requests
+     *
+     * @param PaymentInterface $paymentMethod
+     * @param mixed $from
+     * @return void
+     */
     public function setCurrentPaymentMethod(PaymentInterface $paymentMethod, $from)
     {
         $method = $paymentMethod->getMethod();
@@ -515,6 +525,13 @@ class OrderService implements OrderServiceInterface
             && $this->paymentIntents->getProductsForCompare($this->getProducts($order)) === $this->paymentIntents->getProductsForCompare($this->getProducts($quote));
     }
 
+    /**
+     * Compare Magento quote and order address fields
+     *
+     * @param Address $quoteAddr
+     * @param OrderAddress $orderAddr
+     * @return bool
+     */
     public function isQuoteAddressSameAsOrderAddress(Address $quoteAddr, OrderAddress $orderAddr): bool
     {
         if ((string)$quoteAddr->getFirstname() !== (string)$orderAddr->getFirstname()) return false;
@@ -532,6 +549,13 @@ class OrderService implements OrderServiceInterface
         return true;
     }
 
+    /**
+     * Resolve the language code for Klarna or Afterpay
+     *
+     * @param mixed $countryCode
+     * @param mixed $method
+     * @return string
+     */
     private function getLanguageCode($countryCode, $method): string
     {
         if (!in_array($method, ['klarna', 'afterpay'], true)) return 'en';
@@ -757,10 +781,13 @@ class OrderService implements OrderServiceInterface
     {
         $this->appendPaymentMethodId($paymentMethodId, $intent->getId());
 
+        $scope = $model instanceof Order ? ReturnState::SCOPE_ORDER : ReturnState::SCOPE_QUOTE;
+
         $data = [
             'response_type' => 'confirmation_required',
             'intent_id' => $intent->getId(),
             'client_secret' => $intent->getClientSecret(),
+            'state' => $this->generateReturnState($scope, (int) $model->getId(), ReturnState::ENTRY_TTL),
         ];
 
         if ($paymentMethod->getMethod() === 'airwallex_payments_apm') {

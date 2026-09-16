@@ -31,28 +31,15 @@
  * Copyright © Magento, Inc. All rights reserved.
  * See COPYING.txt for license details.
  */
-
 /** Called back with the verified token once a ReCaptcha resolves. */
-                                                 
-
 /** Initiates a ReCaptcha verification for a given id. */
-                                   
-
 /**
  * The shared ReCaptcha registry singleton: maps `recaptchaId` -> token,
  * trigger, and listener so other UI components can read tokens and drive
  * verification.
  */
-                             
-                                   
-                                               
-                                                  
-                                                           
- 
-
 define([], function ()                    {
     'use strict';
-
     return {
         /**
          * recaptchaId: token map.
@@ -60,19 +47,16 @@ define([], function ()                    {
          * Tokens for already verified recaptcha.
          */
         tokens: {},
-
         /**
          * recaptchaId: triggerFn map.
          *
          * Call a trigger to initiate a recaptcha verification.
          */
         triggers: {},
-
         /**
          * recaptchaId: callback map
          */
         _listeners: {},
-
         /**
          * Add a listener to when the ReCaptcha finishes verification
          * @param {String} id - ReCaptchaId

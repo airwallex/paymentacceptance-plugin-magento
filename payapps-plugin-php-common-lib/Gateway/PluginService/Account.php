@@ -11,7 +11,7 @@ class Account extends AbstractApi
     /**
      * @var string
      */
-    const DEMO_BASE_URL = 'https://demo.airwallex.com/payment_app/plugin/api/v1/';
+    const SANDBOX_BASE_URL = 'https://www.sandbox.airwallex.com/payment_app/plugin/api/v1/';
 
     /**
      * @var string

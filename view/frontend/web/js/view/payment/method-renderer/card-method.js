@@ -28,54 +28,7 @@
  * @license   https://opensource.org/licenses/MIT MIT License
  */
 /* global Airwallex */
-                                                                     
-
-                                  
-                                                     
- 
-
-                         
-                          
- 
-
-                                
-                        
- 
-
-                                                     
-
-                      
-                               
-                                                
- 
-
-                                
-                                                                              
-                                                     
- 
-
-                       
-                                                                       
- 
-
-                             
-                       
- 
-
 /** `this` receiver for the card renderer's methods. */
-                                                    
-                               
-                               
-                            
-                                        
-                                        
-                                     
-                                                                  
-                                                                                 
-                                                                  
-                       
- 
-
 define(
     [
         'jquery',
@@ -104,7 +57,6 @@ define(
         addressHandler                      ,
     ) {
         'use strict';
-
         return Component.extend({
             code: 'airwallex_payments_card',
             type: 'card',
@@ -128,27 +80,27 @@ define(
                 family: 'AxLLCircular',
                 weight: 400,
             }],
-
             defaults: {
                 template: 'Airwallex_Payments/payment/card-method'
             },
-
             getCustomerId: function () {
                 if (!customer.isLoggedIn()) {
                     return null;
                 }
                 return window.checkoutConfig .payment .airwallex_payments .airwallex_customer_id;
             },
-
             loadPayment(                  ) {
+                // The pinned components-sdk only understands 'demo' for the
+                // sandbox environment, so map the plugin env ('sandbox'|'prod',
+                // legacy 'demo') to the value the SDK accepts.
+                const mode = window.checkoutConfig .payment .airwallex_payments .mode;
                 Airwallex.init({
-                    env: window.checkoutConfig .payment .airwallex_payments .mode,
+                    env: (mode === 'sandbox' || mode === 'demo') ? 'demo' : 'prod',
                     origin: window.location.origin,
                     fonts: this.fonts
                 });
                 this.initPayment();
             },
-
             getBillingInformation: function () {
                 const billingAddress = quote.billingAddress();
                 if (!billingAddress) {
@@ -158,19 +110,15 @@ define(
                 addressHandler.setIntentConfirmBillingAddressFromOfficial(billingAddress);
                 return addressHandler.intentConfirmBillingAddressFromOfficial;
             },
-
             showNumberError(                  ) {
                 return this.validationError() && !this.isNumberComplete();
             },
-
             showExpiryError(                  ) {
                 return this.validationError() && !this.isExpiryComplete();
             },
-
             showCvcError(                  ) {
                 return this.validationError() && !this.isCvcComplete();
             },
-
             initPayment: async function (                  ) {
                 let fontSize = window.checkoutConfig .payment .airwallex_payments .card_fontsize;
                 if (window.airwallex_card_fontsize) {
@@ -204,7 +152,6 @@ define(
                     },
                     placeholder: 'CVC'
                 });
-
                 for (let type of ['Number', 'Expiry', 'Cvc']) {
                     this['card' + type + 'Element'].mount(this['card' + type + 'Selector']);
                     this['card' + type + 'Element'].on('change', (event     ) => {
@@ -214,7 +161,6 @@ define(
                             this.validationError('');
                         }
                     });
-
                     this['card' + type + 'Element'].on('focus', () => {
                         this.validationError('');
                         $("#awx-card-" + type.toLowerCase()).addClass("awx-focus-input");
@@ -223,51 +169,41 @@ define(
                         $("#awx-card-" + type.toLowerCase()).removeClass("awx-focus-input");
                     });
                 }
-
                 this['cardNumberElement'] .on('change', (e     ) => {
                     if (e.detail.complete) {
                         this['cardExpiryElement'] .focus()
                     }
                 });
-
                 this['cardExpiryElement'] .on('change', (e     ) => {
                     if (e.detail.complete) {
                         this['cardCvcElement'] .focus()
                     }
                 });
-
                 this.cardNumberElement .on('ready', () => {
                     this.cardNumberElement .focus();
                 });
-
                 $('.airwallex-card-container .payment-method-title').click(() => {
                     this.cardNumberElement .focus();
                 });
             },
-
             initiateOrderPlacement: async function (                  ) {
                 const self = this;
-
                 if (!additionalValidators.validate()) {
                     return;
                 }
                 this.validationError('');
-
                 self.placeOrder();
             },
-
             isCardVaultActive() {
                 if (!customer.isLoggedIn() || !window.checkoutConfig .payment .airwallex_payments .airwallex_customer_id) return false;
                 return window.checkoutConfig .payment .airwallex_payments .is_card_vault_active;
             },
-
             isSaveCardSelected: function (                  ) {
                 if (!this.isCardVaultActive()) {
                     return false;
                 }
                 return $('#airwallex-payments-card-save').is(':checked');
             },
-
             async placeOrder(                  ) {
                 let self = this;
                 this.validationError('');
@@ -278,7 +214,6 @@ define(
                         this.validationError($.mage.__('Please complete your payment details.'));
                         return;
                     }
-
                     await utils.pay(self, 'card', quote);
                     return true;
                 }

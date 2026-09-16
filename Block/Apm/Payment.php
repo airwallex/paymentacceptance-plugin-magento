@@ -8,11 +8,14 @@ use Magento\Framework\App\RequestInterface;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
 use Airwallex\Payments\Helper\Configuration;
+use Airwallex\Payments\Model\Config\Source\Mode;
 use Airwallex\PayappsPlugin\CommonLibrary\Util\CurrencyHelper;
 use Magento\Sales\Model\OrderRepository;
 use Airwallex\Payments\CommonLibraryInit;
 use Magento\Quote\Api\CartRepositoryInterface;
+use Airwallex\Payments\Exception\SigningKeyMissingException;
 use Airwallex\Payments\Model\PaymentIntents;
+use Airwallex\Payments\Model\ReturnState;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
 use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
 use Airwallex\Payments\Model\Traits\HelperTrait;
@@ -34,6 +37,23 @@ class Payment extends Template
     protected PriceCurrencyInterface $priceCurrency;
     protected ApmElementOptionsHelper $apmElementOptionsHelper;
 
+    /**
+     * Constructor
+     *
+     * @param Context $context
+     * @param RequestInterface $request
+     * @param PaymentIntentRepository $paymentIntentRepository
+     * @param RetrievePaymentIntent $retrievePaymentIntent
+     * @param Configuration $configuration
+     * @param OrderRepository $orderRepository
+     * @param CartRepositoryInterface $quoteRepository
+     * @param PaymentIntents $paymentIntents
+     * @param AvailablePaymentMethodsHelper $availablePaymentMethodsHelper
+     * @param PriceCurrencyInterface $priceCurrency
+     * @param ApmElementOptionsHelper $apmElementOptionsHelper
+     * @param CommonLibraryInit $commonLibraryInit
+     * @param array $data
+     */
     public function __construct(
         Context $context,
         RequestInterface $request,
@@ -63,6 +83,11 @@ class Payment extends Template
         $commonLibraryInit->exec();
     }
 
+    /**
+     * Get frontend config for the APM completion page
+     *
+     * @return array|null
+     */
     public function getPaymentConfig()
     {
         try {
@@ -86,10 +111,16 @@ class Payment extends Template
                 ? $entity->getOrderCurrencyCode()
                 : $entity->getQuoteCurrencyCode();
 
+            $returnState = $this->generateReturnState(
+                $entityType === 'order' ? ReturnState::SCOPE_ORDER : ReturnState::SCOPE_QUOTE,
+                (int) $entityId
+            );
+
             $config = [
-                'env' => $this->configuration->getMode(),
+                'env' => Mode::normalizeApiEnv($this->configuration->getMode()),
                 'return_url' => $this->getUrl('airwallex/redirect', [
-                    '_query' => ['awx_return_result' => 'success', 'id' => $entityId, 'type' => $entityType]
+                    '_query' => ['awx_return_result' => 'success', 'id' => $entityId, 'type' => $entityType,
+                        'intent_id' => $paymentIntentRecord->getIntentId(), 'state' => $returnState]
                 ]),
                 $entityType . '_id' => $entityId,
                 'intent_base_currency' => $paymentIntent->getBaseCurrency() ?: $paymentIntent->getCurrency(),
@@ -108,12 +139,19 @@ class Payment extends Template
 
             $this->_logger->info("APM Payment config generated ({$entityType})");
             return $config;
+        } catch (SigningKeyMissingException $e) {
+            throw $e;
         } catch (\Exception $e) {
             $this->_logger->error('APM Payment: Error generating config - ' . $e->getMessage());
             return null;
         }
     }
 
+    /**
+     * Get order or quote totals for the APM completion page
+     *
+     * @return array|null
+     */
     public function getOrderDetails()
     {
         try {
@@ -135,12 +173,19 @@ class Payment extends Template
                 'items' => $this->formatItemsForDisplay($entity),
                 'shipping_description' => $entity->getShippingDescription()
             ];
+        } catch (SigningKeyMissingException $e) {
+            throw $e;
         } catch (\Exception $e) {
             $this->_logger->error('APM Payment: Error getting order details - ' . $e->getMessage());
             return null;
         }
     }
 
+    /**
+     * Load the authorized order or quote for the APM completion page
+     *
+     * @return array|null
+     */
     protected function loadEntity()
     {
         $orderId = $this->request->getParam('order_id');
@@ -152,11 +197,17 @@ class Payment extends Template
                 $this->_logger->error('APM Payment: Order ID is required');
                 return null;
             }
+            $order = $this->orderRepository->get($orderId);
+            $intentRecord = $this->paymentIntentRepository->getByOrderId($orderId);
+            if (!$this->validateOrderAccess($order, (string) $this->request->getParam('state'))) {
+                $this->_logger->error("APM Payment: Unauthorized order ID: {$orderId}");
+                return null;
+            }
             return [
-                'entity' => $this->orderRepository->get($orderId),
+                'entity' => $order,
                 'type' => 'order',
                 'id' => $orderId,
-                'intent_record' => $this->paymentIntentRepository->getByOrderId($orderId)
+                'intent_record' => $intentRecord
             ];
         }
 
@@ -165,14 +216,25 @@ class Payment extends Template
             return null;
         }
         $numericQuoteId = $this->resolveQuoteId($quoteId);
+        $quote = $this->quoteRepository->get($numericQuoteId);
+        if (!$this->validateQuoteAccess($quote, (string) $this->request->getParam('state'))) {
+            $this->_logger->error("APM Payment: Unauthorized quote ID: {$quoteId}");
+            return null;
+        }
         return [
-            'entity' => $this->quoteRepository->get($numericQuoteId),
+            'entity' => $quote,
             'type' => 'quote',
             'id' => $numericQuoteId,
             'intent_record' => $this->paymentIntentRepository->getByQuoteId($numericQuoteId)
         ];
     }
 
+    /**
+     * Format visible items for the APM completion page
+     *
+     * @param mixed $object
+     * @return array
+     */
     protected function formatItemsForDisplay($object)
     {
         $items = [];
@@ -189,6 +251,12 @@ class Payment extends Template
         return $items;
     }
 
+    /**
+     * Format a price for display
+     *
+     * @param mixed $price
+     * @return string
+     */
     public function formatPrice($price)
     {
         return $this->priceCurrency->format(
