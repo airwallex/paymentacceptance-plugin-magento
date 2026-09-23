@@ -1,0 +1,81 @@
+<?php
+/**
+ * Airwallex Payments for Magento
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 Airwallex
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * @author    Airwallex
+ * @copyright 2026 Airwallex
+ * @license   https://opensource.org/licenses/MIT MIT License
+ */
+?>
+<script>
+    require([
+            'jquery'
+        ],
+        function (jQuery) {
+            window.addEventListener('load', function () {
+                let type = '<?= $block->escapeHtml($this->type) ?>';
+                let payElement = jQuery('[name="groups[airwallex_payments][groups][card][groups][express][fields][' + type + '_pay_active][value]"]');
+                let tipElement = jQuery('#express-' + type + '-enable-tips');
+
+                let enablePayments = function () {
+                    tipElement.html("");
+                    let selectedValue = payElement.val();
+                    if (selectedValue === '0') {
+                        return;
+                    }
+                    jQuery('body').trigger('processStart');
+                    new Ajax.Request('<?= $block->escapeJs($block->getUrl('airwallex/configuration/EnableExpressCheckout')) ?>', {
+                        parameters: {"methods": type + '_pay'},
+                        type: "POST",
+                        loaderArea:     false,
+                        asynchronous:   true,
+                        onCreate() {
+                        },
+                        onSuccess(response) {
+                            if (response && response.responseJSON && response.responseJSON.type === 'error') {
+                                let tip = response.responseJSON.message;
+                                if (document.querySelector('[name="groups[airwallex_payments][groups][basic][fields][mode][value]"]').value === 'prod') {
+                                    tip = tip.replace('www.sandbox.airwallex', 'www.airwallex');
+                                }
+                                tipElement.html(tip);
+                            }
+                        },
+                        onFailure(xhr) {
+                        },
+                        onComplete() {
+                            jQuery('body').trigger('processStop');
+                        }
+                    });
+                };
+                payElement.on('change', enablePayments);
+                let activeSelector = '[name="groups[airwallex_payments][groups][card][groups][express][fields][active][value]"]';
+                jQuery(activeSelector).on('change', () => {
+                    if (jQuery(activeSelector).val() === '0') return;
+                    enablePayments();
+                });
+            });
+        });
+</script>
+<p id="express-<?= $block->escapeHtml($this->type) ?>-enable-tips" style="color: red; margin-top: 10px;"></p>

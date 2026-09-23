@@ -1,0 +1,73 @@
+/**
+ * Airwallex Payments for Magento
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 Airwallex
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * @author    Airwallex
+ * @copyright 2026 Airwallex
+ * @license   https://opensource.org/licenses/MIT MIT License
+ */
+/**
+ * Copyright © Magento, Inc. All rights reserved.
+ * See COPYING.txt for license details.
+ */
+/** Called back with the verified token once a ReCaptcha resolves. */
+/** Initiates a ReCaptcha verification for a given id. */
+/**
+ * The shared ReCaptcha registry singleton: maps `recaptchaId` -> token,
+ * trigger, and listener so other UI components can read tokens and drive
+ * verification.
+ */
+define([], function ()                    {
+    'use strict';
+    return {
+        /**
+         * recaptchaId: token map.
+         *
+         * Tokens for already verified recaptcha.
+         */
+        tokens: {},
+        /**
+         * recaptchaId: triggerFn map.
+         *
+         * Call a trigger to initiate a recaptcha verification.
+         */
+        triggers: {},
+        /**
+         * recaptchaId: callback map
+         */
+        _listeners: {},
+        /**
+         * Add a listener to when the ReCaptcha finishes verification
+         * @param {String} id - ReCaptchaId
+         * @param {Function} func - Will be called back with the token
+         */
+        addListener: function (                         id        , func                   ) {
+            if (this.tokens.hasOwnProperty(id)) {
+                func(this.tokens[id]);
+            } else {
+                this._listeners[id] = func;
+            }
+        }
+    };
+});

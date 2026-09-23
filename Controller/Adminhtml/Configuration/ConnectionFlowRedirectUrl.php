@@ -1,0 +1,254 @@
+<?php
+/**
+ * Airwallex Payments for Magento
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 Airwallex
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * @author    Airwallex
+ * @copyright 2026 Airwallex
+ * @license   https://opensource.org/licenses/MIT MIT License
+ */
+namespace Airwallex\Payments\Controller\Adminhtml\Configuration;
+
+use Airwallex\Payments\Helper\Configuration;
+use Exception;
+use Magento\Framework\DataObject\IdentityService;
+use Magento\Framework\Exception\LocalizedException;
+use Magento\Framework\Exception\NoSuchEntityException;
+use Magento\Framework\Math\Random;
+use Magento\Backend\App\Action;
+use Magento\Backend\App\Action\Context;
+use Magento\Framework\Controller\Result\Json;
+use Magento\Framework\Controller\Result\JsonFactory;
+use Magento\Framework\UrlInterface;
+use Magento\Store\Model\StoreManager;
+use Magento\Framework\App\CacheInterface;
+use Magento\Framework\App\RequestInterface;
+use Magento\Framework\App\Config\Storage\Writer;
+use Magento\Framework\App\Cache\Manager;
+
+class ConnectionFlowRedirectUrl extends Action
+{
+    public const CACHE_NAME = 'airwallex_update_settings_token';
+    public const CONNECTION_FLOW_MESSAGE_CACHE_NAME = 'airwallex_connection_flow_message';
+
+    protected JsonFactory $resultJsonFactory;
+    protected Context $context;
+    protected StoreManager $storeManager;
+    protected Random $random;
+    protected CacheInterface $cache;
+    protected RequestInterface $request;
+    protected Configuration $configuration;
+    protected Writer $configWriter;
+    protected IdentityService $identityService;
+    protected Manager $cacheManager;
+
+    public function __construct(
+        Context          $context,
+        JsonFactory      $resultJsonFactory,
+        StoreManager     $storeManager,
+        Random           $random,
+        CacheInterface   $cache,
+        RequestInterface $request,
+        Configuration    $configuration,
+        IdentityService  $identityService,
+        Manager          $cacheManager,
+        Writer           $configWriter
+    )
+    {
+        parent::__construct($context);
+        $this->resultJsonFactory = $resultJsonFactory;
+        $this->context = $context;
+        $this->storeManager = $storeManager;
+        $this->random = $random;
+        $this->cache = $cache;
+        $this->request = $request;
+        $this->configuration = $configuration;
+        $this->identityService = $identityService;
+        $this->cacheManager = $cacheManager;
+        $this->configWriter = $configWriter;
+    }
+
+    public function getOriginFromUrl($url): string
+    {
+        $parsedUrl = parse_url($url);
+        $origin = $parsedUrl['scheme'] . '://' . $parsedUrl['host'];
+        if (isset($parsedUrl['port'])) {
+            $origin .= ':' . $parsedUrl['port'];
+        }
+        return $origin;
+    }
+
+    public function resolveSafeTargetUrl($encodedTargetUrl): string
+    {
+        $baseUrl = $this->storeManager->getStore()->getBaseUrl(UrlInterface::URL_TYPE_WEB);
+
+        if (!is_string($encodedTargetUrl) || $encodedTargetUrl === '') {
+            return $baseUrl;
+        }
+
+        $decoded = base64_decode($encodedTargetUrl, true);
+        if ($decoded === false) {
+            return $baseUrl;
+        }
+
+        // Reject control characters to prevent header (CRLF) injection.
+        if (preg_match('/[\x00-\x1f\x7f]/', $decoded)) {
+            return $baseUrl;
+        }
+
+        $parsed = parse_url($decoded);
+        if ($parsed === false || empty($parsed['scheme']) || empty($parsed['host'])) {
+            return $baseUrl;
+        }
+
+        if (!in_array(strtolower($parsed['scheme']), ['http', 'https'], true)) {
+            return $baseUrl;
+        }
+
+        // Only allow redirects back to this store's own host (no open redirect).
+        $baseHost = parse_url($baseUrl, PHP_URL_HOST);
+        if (empty($baseHost) || strcasecmp($parsed['host'], $baseHost) !== 0) {
+            return $baseUrl;
+        }
+
+        return $decoded;
+    }
+
+    public function connection_failed()
+    {
+        $this->configWriter->save('airwallex/general/' . $this->request->getParam('env') . '_connection_flow', 'connection_failed');
+        $this->cacheManager->flush(['config']);
+    }
+
+    /**
+     * @return Json
+     * @throws NoSuchEntityException|LocalizedException
+     */
+    public function execute(): Json
+    {
+        if ($this->request->getParam('error') === 'connection_failed') {
+            $this->connection_failed();
+            return $this->error('We were unable to connect the Airwallex account as the business information of the account does not match this Magento store. You can still connect the account using its unique client ID and API key, or connect a different account.', $this->resultJsonFactory->create());
+        }
+        $resultJson = $this->resultJsonFactory->create();
+        if (empty($this->request->getParam('code'))) {
+            header('Location: ' . $this->resolveSafeTargetUrl($this->request->getParam('target_url')));
+            return $resultJson;
+        }
+        // The token prefix stays "demo" so the connection callback
+        // (Controller\Settings\Index) can still resolve the stored sandbox mode,
+        // but the finalize request must target the sandbox domain.
+        $environment = 'demo';
+        $host = 'www.sandbox.airwallex.com';
+        if ($this->request->getParam('env') !== 'demo') {
+            $environment = 'www';
+            $host = 'www.airwallex.com';
+        }
+        $platform = 'magento';
+        $storeUrl = $this->storeManager->getStore()->getBaseUrl(UrlInterface::URL_TYPE_WEB);
+        $baseUrl = trim($storeUrl, '/');
+        $webhookNotificationUrl = $baseUrl . '/airwallex/webhooks';
+        if (!function_exists('gzdecode')) {
+            return $this->error('Error: The gzdecode function is not available. Please make sure the zlib extension is enabled.', $resultJson);
+        }
+
+        $accessToken = gzdecode(base64_decode($this->request->getParam('code')));
+        $requestId = $this->identityService->generateId();
+
+        $url = "https://$host/payment_app/plugin/api/v1/connection/finalize";
+        $data = [
+            'platform' => $platform,
+            'origin' => $this->getOriginFromUrl($baseUrl),
+            'baseUrl' => $baseUrl,
+            'webhookNotificationUrl' => $webhookNotificationUrl,
+            'token' => $this->token($environment),
+            'requestId' => $requestId
+        ];
+
+        if (!function_exists('curl_init')) {
+            return $this->error('Error: Please make sure the curl extension is enabled.', $resultJson);
+        }
+
+        $options = [
+            'http' => [
+                'method' => 'POST',
+                'header' => [
+                    'Content-Type: application/json',
+                    'Authorization: Bearer ' . $accessToken,
+                ],
+                'content' => json_encode($data),
+                'ignore_errors' => true
+            ],
+        ];
+
+        $context = stream_context_create($options);
+        try {
+            $response = file_get_contents($url, false, $context);
+        } catch (Exception $e) {
+            $this->connection_failed();
+            return $this->error('Error: ' . $e->getMessage(), $resultJson);
+        }
+        if ($response === false) {
+            $this->connection_failed();
+            return $this->error('Error: Unable to fetch the URL. Please try again.', $resultJson);
+        }
+        $responseData = json_decode($response, true);
+
+        if (!empty($responseData['message']) && $responseData['message'] == 'OK') {
+            return $this->success('Your Airwallex plug-in is activated.
+            You can also manage which account is connected to your Magento store.', $resultJson);
+        }
+
+        $this->connection_failed();
+        return $this->error($responseData['error'], $resultJson);
+    }
+
+    public function error($message, $resultJson): Json
+    {
+        $this->cache->save(json_encode([
+            'type' => 'error',
+            'message' => $message,
+            'env' => $this->request->getParam('env'),
+        ]), self::CONNECTION_FLOW_MESSAGE_CACHE_NAME, [], 60 * 60 * 24);
+        header('Location: ' . $this->resolveSafeTargetUrl($this->request->getParam('target_url')));
+        return $resultJson;
+    }
+
+    public function success($message, $resultJson): Json
+    {
+        $this->context->getMessageManager()->addSuccessMessage($message);
+        header('Location: ' . $this->resolveSafeTargetUrl($this->request->getParam('target_url')));
+        return $resultJson;
+    }
+
+    /**
+     * @throws LocalizedException
+     */
+    public function token($environment): string
+    {
+        $token = $environment . '-' . $this->random->getRandomString(32);
+        $this->cache->save($token, self::CACHE_NAME, [], 60 * 60 * 24);
+        return $token;
+    }
+}

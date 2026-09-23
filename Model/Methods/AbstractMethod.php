@@ -1,0 +1,447 @@
+<?php
+/**
+ * Airwallex Payments for Magento
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 Airwallex
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * @author    Airwallex
+ * @copyright 2026 Airwallex
+ * @license   https://opensource.org/licenses/MIT MIT License
+ */
+namespace Airwallex\Payments\Model\Methods;
+
+use Airwallex\PayappsPlugin\CommonLibrary\Exception\RequestException;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
+use Airwallex\Payments\CommonLibraryInit;
+use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
+use Airwallex\Payments\Helper\CancelHelper;
+use Airwallex\Payments\Helper\Configuration;
+use Airwallex\Payments\Helper\IsOrderCreatedHelper;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Cancel as CancelPaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Capture as CapturePaymentIntent;
+use Airwallex\Payments\Model\PaymentIntentRepository;
+use Airwallex\Payments\Model\PaymentIntents;
+use Exception;
+use Magento\Checkout\Helper\Data as CheckoutData;
+use Magento\Framework\Event\ManagerInterface;
+use Magento\Framework\Exception\InputException;
+use Magento\Framework\Exception\LocalizedException;
+use Magento\Payment\Gateway\Command\CommandManagerInterface;
+use Magento\Payment\Gateway\Command\CommandPoolInterface;
+use Magento\Payment\Gateway\Config\ValueHandlerPoolInterface;
+use Magento\Payment\Gateway\Data\PaymentDataObjectFactory;
+use Magento\Payment\Gateway\Validator\ValidatorPoolInterface;
+use Magento\Payment\Model\InfoInterface;
+use Magento\Payment\Model\Method\Adapter;
+use Magento\Payment\Model\MethodInterface;
+use Magento\Quote\Api\Data\CartInterface;
+use Magento\Sales\Model\Order\Creditmemo;
+use Magento\Sales\Model\Order\Payment;
+use RuntimeException;
+use Airwallex\Payments\Model\Traits\HelperTrait;
+use Magento\Framework\App\CacheInterface;
+use Airwallex\Payments\Helper\IntentHelper;
+use Magento\Sales\Model\Order;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\Refund\Create as CreateRefund;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\Refund as StructRefund;
+
+/**
+ * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
+ * @SuppressWarnings(PHPMD.ExcessiveParameterList)
+ */
+abstract class AbstractMethod extends Adapter
+{
+    use HelperTrait;
+
+    public const PAYMENT_PREFIX = 'airwallex_payments_';
+    public const ADDITIONAL_DATA = ['intent_id', 'intent_status'];
+
+    /**
+     * @var CreateRefund
+     */
+    private CreateRefund $createRefund;
+
+    /**
+     * @var CapturePaymentIntent
+     */
+    protected CapturePaymentIntent $capturePaymentIntent;
+
+    /**
+     * @var PaymentIntentRepository
+     */
+    protected PaymentIntentRepository $paymentIntentRepository;
+
+    /**
+     * @var CancelPaymentIntent
+     */
+    private CancelPaymentIntent $cancelPaymentIntent;
+
+    /**
+     * @var CancelHelper
+     */
+    private CancelHelper $cancelHelper;
+
+    /**
+     * @var AvailablePaymentMethodsHelper
+     */
+    protected AvailablePaymentMethodsHelper $availablePaymentMethodsHelper;
+
+    /**
+     * @var CheckoutData
+     */
+    protected CheckoutData $checkoutHelper;
+
+    /**
+     * @var PaymentIntents
+     */
+    protected PaymentIntents $paymentIntents;
+
+    /**
+     * @var CacheInterface
+     */
+    protected CacheInterface $cache;
+
+    protected IsOrderCreatedHelper $isOrderCreatedHelper;
+    protected IntentHelper $intentHelper;
+    protected Configuration $configuration;
+    protected RetrievePaymentIntent  $retrievePaymentIntent;
+
+    /**
+     * Payment constructor.
+     *
+     * @param PaymentIntents $paymentIntents
+     * @param ManagerInterface $eventManager
+     * @param ValueHandlerPoolInterface $valueHandlerPool
+     * @param PaymentDataObjectFactory $paymentDataObjectFactory
+     * @param string $code
+     * @param string $formBlockType
+     * @param string $infoBlockType
+     * @param CreateRefund $createRefund
+     * @param CapturePaymentIntent $capturePaymentIntent
+     * @param CancelPaymentIntent $cancelPaymentIntent
+     * @param CheckoutData $checkoutHelper
+     * @param AvailablePaymentMethodsHelper $availablePaymentMethodsHelper
+     * @param CancelHelper $cancelHelper
+     * @param PaymentIntentRepository $paymentIntentRepository
+     * @param CacheInterface $cache
+     * @param IntentHelper $intentHelper
+     * @param IsOrderCreatedHelper $isOrderCreatedHelper
+     * @param Configuration $configuration
+     * @param RetrievePaymentIntent $retrievePaymentIntent
+     * @param CommonLibraryInit $commonLibraryInit
+     * @param CommandPoolInterface|null $commandPool
+     * @param ValidatorPoolInterface|null $validatorPool
+     * @param CommandManagerInterface|null $commandExecutor
+     */
+    public function __construct(
+        PaymentIntents                $paymentIntents,
+        ManagerInterface              $eventManager,
+        ValueHandlerPoolInterface     $valueHandlerPool,
+        PaymentDataObjectFactory      $paymentDataObjectFactory,
+        string                        $code,
+        string                        $formBlockType,
+        string                        $infoBlockType,
+        CreateRefund                  $createRefund,
+        CapturePaymentIntent          $capturePaymentIntent,
+        CancelPaymentIntent           $cancelPaymentIntent,
+        CheckoutData                  $checkoutHelper,
+        AvailablePaymentMethodsHelper $availablePaymentMethodsHelper,
+        CancelHelper                  $cancelHelper,
+        PaymentIntentRepository       $paymentIntentRepository,
+        CacheInterface                $cache,
+        IntentHelper                  $intentHelper,
+        IsOrderCreatedHelper          $isOrderCreatedHelper,
+        Configuration                 $configuration,
+        RetrievePaymentIntent         $retrievePaymentIntent,
+        CommonLibraryInit             $commonLibraryInit,
+        ?CommandPoolInterface         $commandPool = null,
+        ?ValidatorPoolInterface       $validatorPool = null,
+        ?CommandManagerInterface      $commandExecutor = null
+    )
+    {
+        parent::__construct(
+            $eventManager,
+            $valueHandlerPool,
+            $paymentDataObjectFactory,
+            $code,
+            $formBlockType,
+            $infoBlockType,
+            $commandPool,
+            $validatorPool,
+            $commandExecutor,
+        );
+        $this->paymentIntents = $paymentIntents;
+        $this->createRefund = $createRefund;
+        $this->capturePaymentIntent = $capturePaymentIntent;
+        $this->paymentIntentRepository = $paymentIntentRepository;
+        $this->cancelPaymentIntent = $cancelPaymentIntent;
+        $this->availablePaymentMethodsHelper = $availablePaymentMethodsHelper;
+        $this->cancelHelper = $cancelHelper;
+        $this->checkoutHelper = $checkoutHelper;
+        $this->cache = $cache;
+        $this->isOrderCreatedHelper = $isOrderCreatedHelper;
+        $this->intentHelper = $intentHelper;
+        $this->configuration = $configuration;
+        $this->retrievePaymentIntent = $retrievePaymentIntent;
+        $commonLibraryInit->exec();
+    }
+
+    /**
+     * @param InfoInterface $payment
+     * @param float $amount
+     *
+     * @return $this
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
+     */
+    public function authorize(InfoInterface $payment, $amount): self
+    {
+        if (!$this->configuration->isOrderBeforePayment()) {
+            $paymentIntent = $this->intentHelper->getIntent();
+            /** @var Payment $payment */
+            $this->setTransactionId($payment, $paymentIntent->getId());
+        }
+        return $this;
+    }
+
+
+    /**
+     * @param InfoInterface $payment
+     * @param float $amount
+     *
+     * @return self
+     * @throws InputException
+     * @throws LocalizedException
+     * @throws RequestException
+     */
+    public function capture(InfoInterface $payment, $amount): self
+    {
+        if ($amount <= 0) return $this;
+
+        $order = $payment->getOrder();
+        /** @var Order $order */
+        if ($order && $order->getId()) {
+            if ($order->getTotalPaid() > 0) {
+                throw new LocalizedException(__('This order has already been captured and cannot be captured again.'));
+            }
+            /** @var Payment $payment */
+            $intentId = $this->getIntentId($payment);
+        } else {
+            $paymentIntent = $this->intentHelper->getIntent();
+            /** @var Payment $payment */
+            $this->setTransactionId($payment, $paymentIntent->getId());
+            $intentId = $paymentIntent->getId();
+        }
+
+        try {
+            /** @var StructPaymentIntent $paymentIntent */
+            $paymentIntent = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
+        } catch (Exception $e) {
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
+            throw new LocalizedException(__('Something went wrong while trying to capture the payment.'));
+        }
+
+        if ($paymentIntent->isCaptured()) {
+            return $this;
+        }
+
+        $this->cache->save(true, $this->captureCacheName($intentId), [], 3600);
+        if (empty($order) || empty($order->getId())) {
+            $captureAmount = $paymentIntent->getAmount();
+        } else {
+            if ($order->getBaseGrandTotal() <= 0) {
+                throw new LocalizedException(__('The base grand total of the order must be greater than zero.'));
+            }
+
+            $captureAmount = $this->isAmountEqual($amount, $order->getBaseGrandTotal())
+                ? $paymentIntent->getAmount()
+                : $amount / $order->getBaseGrandTotal() * $paymentIntent->getAmount();
+        }
+        $decimal = PaymentIntents::CURRENCY_TO_DECIMAL[$paymentIntent->getCurrency()] ?? 2;
+        $this->capturePaymentIntent->setPaymentIntentId($intentId)->setAmount(round($captureAmount, $decimal))->send();
+        return $this;
+    }
+
+    /**
+     * @param InfoInterface $payment
+     *
+     * @return $this
+     * @throws InputException
+     * @throws LocalizedException
+     */
+    public function cancel(InfoInterface $payment): self
+    {
+        if ($this->cancelHelper->isWebhookCanceling()) {
+            return $this;
+        }
+
+        $intentId = $this->getIntentId($payment);
+        $this->cache->save(true, $this->cancelCacheName($intentId), [], 3600);
+        try {
+            $this->cancelPaymentIntent->setPaymentIntentId($intentId)->send();
+        } catch (Exception $e) {
+            if (strstr($e->getMessage(), 'CANCELLED')) {
+                return $this;
+            }
+            /** @var Payment $payment */
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
+            throw new RuntimeException(__($e->getMessage()));
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param InfoInterface $payment
+     * @param float $amount
+     *
+     * @return $this
+     * @throws Exception
+     */
+    public function refund(InfoInterface $payment, $amount): self
+    {
+        /** @var Payment $payment */
+        $credit = $payment->getCreditmemo();
+
+        $order = $payment->getOrder();
+
+        $intentId = $this->getIntentId($payment);
+
+        $this->cache->save(true, $this->refundCacheName($intentId), [], 3600);
+        try {
+            /** @var StructPaymentIntent $paymentIntent */
+            $paymentIntent = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
+            $record = $this->paymentIntentRepository->getByIntentId($intentId);
+            /** @var Creditmemo $credit */
+            if ($credit->getOrderCurrencyCode() === $paymentIntent->getCurrency()) {
+                $refundAmount = $credit->getGrandTotal();
+            } else {
+                $orderGrandTotal = $order->getGrandTotal();
+                if ($this->isAmountEqual($credit->getGrandTotal(), $order->getGrandTotal()) && $credit->getOrderCurrencyCode() === $order->getOrderCurrencyCode()) {
+                    $refundAmount = $paymentIntent->getAmount();
+                } else {
+                    $decimal = PaymentIntents::CURRENCY_TO_DECIMAL[$paymentIntent->getCurrency()] ?? 2;
+                    if ($orderGrandTotal <= 0) {
+                        throw new LocalizedException(__('The grand total of the order must be greater than zero.'));
+                    }
+                    $refundAmount = round($credit->getGrandTotal() / $orderGrandTotal * $paymentIntent->getAmount(), $decimal);
+                }
+            }
+            if ($refundAmount <= 0) {
+                throw new LocalizedException(__('The refund amount must be greater than zero.'));
+            }
+            $this->processBankTransfer($paymentIntent, $refundAmount);
+            try {
+                /** @var StructRefund $refundedObject */
+                $refundedObject = $this->createRefund->setPaymentIntentId($intentId)->setAmount($refundAmount)->send();
+            } catch (Exception $e) {
+                $this->logError(__METHOD__ . ': ' . $e->getMessage());
+                $this->cache->remove($this->refundCacheName($intentId));
+                throw new LocalizedException(__('Something went wrong while trying to process the refund.'));
+            }
+
+            $detail = $record->getDetail();
+            $detailArray = $detail ? json_decode($detail, true) : [];
+            if (empty($detailArray['refund_ids'])) {
+                $detailArray['refund_ids'] = [];
+            }
+            $detailArray['refund_ids'][] = $refundedObject->getId();
+            $this->paymentIntentRepository->updateDetail($record, json_encode($detailArray));
+        } catch (Exception $exception) {
+            $this->logError(__METHOD__ . $exception->getMessage());
+            throw new RuntimeException(__($exception->getMessage()));
+        }
+        return $this;
+    }
+
+    /**
+     * @throws LocalizedException
+     */
+    private function processBankTransfer(StructPaymentIntent $paymentIntent, $refundAmount): void
+    {
+        if ($paymentIntent->getCurrency() === 'USD'
+            && !empty($paymentIntent->getLatestPaymentAttempt()['payment_method']['type'])
+            && $paymentIntent->getLatestPaymentAttempt()['payment_method']['type'] === 'bank_transfer') {
+            if ($paymentIntent->getAmount() - $refundAmount >= 0.01) {
+                throw new LocalizedException(__('Partial refunds are supported for USD, but only after additional bank account details are collected from the customer.
+                    For more information, please refer to the following document: %1.', "https://www.airwallex.com/docs/payments__global__bank-transfer-beta#refunds"));
+            }
+        }
+    }
+
+    /**
+     * @param InfoInterface $payment
+     *
+     * @return $this
+     * @throws InputException
+     * @throws LocalizedException
+     */
+    public function void(InfoInterface $payment): self
+    {
+        return $this->cancel($payment);
+    }
+
+    /**
+     * @param CartInterface|null $quote
+     *
+     * @return bool
+     * @throws Exception
+     */
+    public function isAvailable(?CartInterface $quote = null): bool
+    {
+        return parent::isAvailable($quote) &&
+            $this->availablePaymentMethodsHelper->isAvailable($this->getPaymentMethodCode($this->getCode()));
+    }
+
+    /**
+     * @param $payment
+     * @return string
+     * @throws InputException
+     * @throws LocalizedException
+     */
+    protected function getIntentId($payment): string
+    {
+        /** @var Order $order */
+        $order = $payment->getOrder();
+        $paymentIntent = $this->paymentIntentRepository->getByOrderIncrementIdAndStoreId($order->getIncrementId(), $order->getStoreId());
+        if (!$paymentIntent || !$paymentIntent->getIntentId()) {
+            return $this->getInfoInstance()->getAdditionalInformation('intent_id') ?: '';
+        }
+        return $paymentIntent->getIntentId();
+    }
+
+    public function getConfigPaymentAction(): string
+    {
+        $paymentIntent = $this->intentHelper->getIntent();
+        if (empty($paymentIntent->getStatus())) {
+            return '';
+        }
+        if ($paymentIntent->isCaptured()) {
+            return MethodInterface::ACTION_AUTHORIZE_CAPTURE;
+        }
+        if ($paymentIntent->isAuthorized()) {
+            return MethodInterface::ACTION_AUTHORIZE;
+        }
+        return '';
+    }
+}

@@ -1,0 +1,237 @@
+/**
+ * Airwallex Payments for Magento
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 Airwallex
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * @author    Airwallex
+ * @copyright 2026 Airwallex
+ * @license   https://opensource.org/licenses/MIT MIT License
+ */
+/** Fields shared by the Google / Apple address payloads `city`/`postcode` read. */
+/** A Google Pay address payload. */
+/** An Apple Pay contact payload. */
+/** The Magento official billing-address shape passed by the card / vault renderers. */
+/** The address-handler singleton (`this` receiver for its methods). */
+define([
+    'mage/url',
+    'mage/storage',
+], function (
+    urlBuilder            ,
+    storage                ,
+) {
+    'use strict';
+    return {
+        selectedMethod: {}                         ,
+        regionId: ""                   ,
+        intentConfirmBillingAddressFromGoogle: {}           ,
+        intentConfirmBillingAddressFromApple: {}           ,
+        intentConfirmBillingAddressFromOfficial: {}           ,
+        postBillingAddress(payload         , isLoggedIn         , cartId        ) {
+            let url = 'rest/V1/carts/mine/billing-address';
+            if (!isLoggedIn) {
+                url = 'rest/V1/guest-carts/' + cartId + '/billing-address';
+            }
+            return storage.post(
+                urlBuilder.build(url), JSON.stringify(payload), undefined, 'application/json', {}
+            );
+        },
+        postShippingInformation(payload         , isLoggedIn         , cartId        ) {
+            let url = 'rest/V1/carts/mine/shipping-information';
+            if (!isLoggedIn) {
+                url = 'rest/V1/guest-carts/' + cartId + '/shipping-information';
+            }
+            return storage.post(
+                urlBuilder.build(url), JSON.stringify(payload), undefined, 'application/json', {}
+            );
+        },
+        getIntermediateShippingAddress(                            addr               , from         ) {
+            return {
+                "region": addr.administrativeArea || '',
+                "country_id": addr.countryCode,
+                "postcode": this.postcode(addr, from),
+                "city": this.city(addr, from)
+            };
+        },
+        getBillingAddressFromGoogle(                            addr               ) {
+            let names = addr.name.split(' ');
+            return {
+                countryId: addr.countryCode,
+                region: addr.administrativeArea,
+                regionId: 0,
+                street: [addr.address1 + ' ' + addr.address2 + ' ' + addr.address3],
+                telephone: addr.phoneNumber,
+                postcode: this.postcode(addr, 'google'),
+                city: this.city(addr, 'google'),
+                firstname: names[0],
+                lastname: names.length > 1 ? names[names.length - 1] : names[0],
+            };
+        },
+        getBillingAddressFromApple(                            addr              , phone         ) {
+            return {
+                countryId: addr.countryCode,
+                region: addr.administrativeArea,
+                regionId: 0,
+                street: addr.addressLines,
+                telephone: phone,
+                postcode: this.postcode(addr),
+                city: this.city(addr),
+                firstname: addr.givenName,
+                lastname: addr.familyName,
+            };
+        },
+        constructAddressInformationFromGoogle(                            data                   ) {
+            let names = data.shippingAddress.name.split(' ') || [];
+            let firstname = data.shippingAddress.name ? names[0] : '';
+            let lastname = names.length > 1 ? names[names.length - 1] : firstname;
+            return {
+                "addressInformation": {
+                    "shipping_address": {
+                        "countryId": data.shippingAddress.countryCode,
+                        "regionId": this.regionId || 0,
+                        "region": data.shippingAddress.administrativeArea,
+                        "street": [data.shippingAddress.address1 + ' ' + data.shippingAddress.address2 + ' ' + data.shippingAddress.address3],
+                        "telephone": data.shippingAddress.phoneNumber,
+                        "postcode": this.postcode(data.shippingAddress, 'google'),
+                        "city": this.city(data.shippingAddress, 'google'),
+                        firstname,
+                        lastname,
+                    },
+                    "billing_address": this.getBillingAddressFromGoogle(data.paymentMethodData.info.billingAddress),
+                    "shipping_method_code": this.selectedMethod ? this.selectedMethod.method_code : "",
+                    "shipping_carrier_code": this.selectedMethod ? this.selectedMethod.carrier_code : "",
+                    "extension_attributes": {}
+                }
+            };
+        },
+        constructAddressInformationFromApple(                            data                  ) {
+            return {
+                "addressInformation": {
+                    "shipping_address": {
+                        "countryId": data.shippingContact.countryCode,
+                        "regionId": this.regionId || 0,
+                        "region": data.shippingContact.administrativeArea,
+                        "street": data.shippingContact.addressLines,
+                        "telephone": data.shippingContact.phoneNumber,
+                        "postcode": this.postcode(data.shippingContact),
+                        "city": this.city(data.shippingContact),
+                        "firstname": data.shippingContact.givenName,
+                        "lastname": data.shippingContact.familyName,
+                    },
+                    "billing_address": this.getBillingAddressFromApple(data.billingContact, data.shippingContact.phoneNumber),
+                    "shipping_method_code": this.selectedMethod ? this.selectedMethod.method_code : "",
+                    "shipping_carrier_code": this.selectedMethod ? this.selectedMethod.carrier_code : "",
+                    "extension_attributes": {}
+                }
+            };
+        },
+        city(addr             , type         ) {
+            if (addr.locality) return addr.locality;
+            if (['sg', 'singapore'].indexOf(addr.countryCode.toLowerCase()) !== -1) {
+                return 'Singapore';
+            }
+            if (addr.administrativeArea) return addr.administrativeArea;
+            if (addr.country) return addr.country;
+            return addr.countryCode;
+        },
+        postcode(addr             , type         ) {
+            if (type === 'google') {
+                return addr.postalCode || '00000';
+            }
+            return addr.postalCode;
+        },
+        setIntentConfirmBillingAddressFromGoogle(                            data                   ) {
+            let addr = data.paymentMethodData.info.billingAddress;
+            let names = addr.name.split(' ');
+            this.intentConfirmBillingAddressFromGoogle = {
+                address: {
+                    city: this.city(addr, 'google'),
+                    country_code: addr.countryCode,
+                    postcode: this.postcode(addr, 'google'),
+                    state: addr.administrativeArea,
+                    street: [addr.address1 + ' ' + addr.address2 + ' ' + addr.address3],
+                },
+                first_name: names[0],
+                last_name: names.length > 1 ? names[names.length - 1] : names[0],
+                email: data.email,
+                phone_number: 'addr.phoneNumber'
+            };
+        },
+        setIntentConfirmBillingAddressFromApple(                            addr              , email         ) {
+            this.intentConfirmBillingAddressFromApple = {
+                address: {
+                    city: this.city(addr),
+                    country_code: addr.countryCode,
+                    postcode: this.postcode(addr),
+                    state: addr.administrativeArea,
+                    street: addr.addressLines,
+                },
+                first_name: addr.givenName,
+                last_name: addr.familyName,
+                email,
+                phone_number: 'addr.phoneNumber2'
+            };
+        },
+        setIntentConfirmBillingAddressFromOfficial(                            billingAddress                        ) {
+            this.intentConfirmBillingAddressFromOfficial = {
+                address: {
+                    city: billingAddress.city,
+                    country_code: billingAddress.countryId || billingAddress.country_id,
+                    postcode: billingAddress.postcode,
+                    state: billingAddress.region,
+                    street: Array.isArray(billingAddress.street) ? billingAddress.street.join(', ') : billingAddress.street
+                },
+                first_name: billingAddress.firstname,
+                last_name: billingAddress.lastname,
+                email: billingAddress.email,
+                phone_number: billingAddress.telephone
+            };
+        },
+        formatShippingMethodsToGoogle(methods                  , selectedMethod                ) {
+            // Google Pay shipping options have no dedicated price field, so the caller
+            // pre-formats `amount` (currency-aware, via utils.convertToAwxAmount) and we
+            // append it to the label, e.g. "Fixed $10.00".
+            const shippingOptions = methods.map(addr => {
+                const amount = addr.amount != null && addr.amount !== '' ? String(addr.amount) : '';
+                return {
+                    id: addr.method_code,
+                    label: amount ? `${addr.method_title} ${amount}` : addr.method_title,
+                    description: addr.carrier_title,
+                };
+            });
+            return {
+                shippingOptions,
+                defaultSelectedOptionId: selectedMethod.method_code
+            };
+        },
+        formatShippingMethodsToApple(methods                  ) {
+            return methods.map(addr => {
+                return {
+                    identifier: addr.method_code,
+                    label: addr.method_title,
+                    detail: addr.carrier_title,
+                    amount: addr.amount
+                };
+            });
+        },
+    };
+});
