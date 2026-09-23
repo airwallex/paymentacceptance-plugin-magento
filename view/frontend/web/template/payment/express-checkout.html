@@ -1,0 +1,40 @@
+<div class="airwallex-express-checkout airwallex" data-bind="if: isShow">
+    <div id="awx-modal">
+        <div class="modal-body-content"></div>
+    </div>
+
+
+    <div data-role="title" class="express-title" style="display: none;">
+        <!-- ko i18n: 'Express Checkout' --><!-- /ko -->
+    </div>
+
+    <div style="position: relative;">
+        <div class="aws-button-mask" data-bind="attr: {id: 'aws-button-mask-' + from}"></div>
+        <div class="aws-button-mask-for-login"></div>
+        <div class="aws-button-mask-for-agreement"></div>
+    
+        <div data-bind="foreach: buttonSort">
+            <div data-bind="attr: {class: 'awx-pay-' + $data}">
+                <div data-bind="attr: {id: 'awx-' + $data + '-pay-' + $parent.from}"></div>
+            </div>
+            <div style="height: 1px;"></div>
+        </div>
+    </div>
+
+
+    <div class="payment-method">
+        <div class="checkout-agreements checkout-agreements-block" style="display: none;">
+            <!-- ko foreach: getRegion('beforeMethods') -->
+                <!-- ko template: getTemplate() --><!-- /ko -->
+            <!--/ko-->
+        </div>
+    </div>
+
+    <div class="airwallex-recaptcha" data-bind="if: isShowRecaptcha">
+        <div id="express-recaptcha-checkout-place-order-wrapper">
+            <div class="g-recaptcha" id="express-recaptcha-checkout-place-order"></div>
+        </div>
+    </div>
+
+    <div data-bind="afterRender: loadPayment"></div>
+</div>

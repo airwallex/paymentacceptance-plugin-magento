@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+<include xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_include.xsd">
+    <group id="express" translate="label" type="text" sortOrder="311" showInDefault="1" showInWebsite="1" showInStore="1">
+        <depends>
+            <field id="active">1</field>
+        </depends>
+        <label>Express Checkout</label>
+        <comment><![CDATA[Apple Pay and Google Pay express checkout.]]></comment>
+        <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1">
+            <label>Enable</label>
+            <comment><![CDATA[Enable Express Checkout.]]></comment>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <config_path>payment/airwallex_payments_express/active</config_path>
+        </field>
+        <field id="apple_pay_active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1">
+            <label>Apple Pay</label>
+            <config_path>payment/airwallex_payments_express/apple_pay_active</config_path>
+            <source_model>Magento\Config\Model\Config\Source\Enabledisable</source_model>
+            <frontend_model>Airwallex\Payments\Model\Config\Adminhtml\ApplePayEnable</frontend_model>
+            <depends>
+                <field id="active">1</field>
+            </depends>
+        </field>
+        <field id="google_pay_active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1">
+            <label>Google Pay</label>
+            <config_path>payment/airwallex_payments_express/google_pay_active</config_path>
+            <source_model>Magento\Config\Model\Config\Source\Enabledisable</source_model>
+            <frontend_model>Airwallex\Payments\Model\Config\Adminhtml\GooglePayEnable</frontend_model>
+            <depends>
+                <field id="active">1</field>
+            </depends>
+        </field>
+        <field id="locations" translate="label" type="multiselect" sortOrder="5" showInDefault="1" showInWebsite="1"
+               showInStore="1">
+            <label>Show Button On</label>
+            <source_model>Airwallex\Payments\Model\Config\Source\Express\DisplayArea</source_model>
+            <config_path>payment/airwallex_payments_express/display_area</config_path>
+            <depends>
+                <field id="active">1</field>
+            </depends>
+        </field>
+        <field id="seller_name" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1"
+               showInStore="1">
+            <label>Store Name</label>
+            <comment>
+                <![CDATA[The store name your shoppers will see during payment.]]>
+            </comment>
+            <config_path>payment/airwallex_payments_express/seller_name</config_path>
+            <depends>
+                <field id="active">1</field>
+            </depends>
+        </field>
+        <field id="airwallex_payment_action" translate="label" type="select" sortOrder="30" showInDefault="1"
+               showInWebsite="0" showInStore="0">
+            <label>Capture Preferences</label>
+            <source_model>Airwallex\Payments\Model\Config\Source\PaymentAction</source_model>
+            <config_path>payment/airwallex_payments_express/airwallex_payment_action</config_path>
+            <depends>
+                <field id="active">1</field>
+            </depends>
+        </field>
+        <field id="button_theme" translate="label" type="select" sortOrder="31" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Button Theme</label>
+            <source_model>Airwallex\Payments\Model\Config\Source\Express\ButtonTheme</source_model>
+            <config_path>payment/airwallex_payments_express/theme</config_path>
+            <depends>
+                <field id="active">1</field>
+            </depends>
+      </field>
+        <field id="button_type" translate="label" type="select" sortOrder="32" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Call To Action</label>
+            <source_model>Airwallex\Payments\Model\Config\Source\Express\ButtonType</source_model>
+            <config_path>payment/airwallex_payments_express/calltoaction</config_path>
+            <depends>
+                <field id="active">1</field>
+            </depends>
+       </field>
+    </group>
+</include>

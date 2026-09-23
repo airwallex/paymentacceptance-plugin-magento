@@ -1,0 +1,167 @@
+<?xml version="1.0"?>
+
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Webapi:etc/webapi.xsd">
+    <route url="/V1/airwallex/payments/guest-place-order" method="POST">
+        <service class="Airwallex\Payments\Api\OrderServiceInterface" method="airwallexGuestPlaceOrder"/>
+        <resources>
+            <resource ref="anonymous"/>
+        </resources>
+    </route>
+
+    <route url="/V1/airwallex/payments/place-order" method="POST">
+        <service class="Airwallex\Payments\Api\OrderServiceInterface" method="airwallexPlaceOrder"/>
+        <resources>
+            <resource ref="self"/>
+        </resources>
+        <data>
+            <parameter name="cartId" force="true">%cart_id%</parameter>
+        </data>
+    </route>
+
+    <route url="/V1/airwallex/payments/express-data" method="GET">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="expressData"/>
+        <resources>
+            <resource ref="anonymous"/>
+        </resources>
+    </route>
+
+    <route url="/V1/airwallex/payments/intent" method="GET">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="intent"/>
+        <resources>
+            <resource ref="anonymous"/>
+        </resources>
+    </route>
+
+    <route url="/V1/airwallex/region_id" method="GET">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="regionId"/>
+        <resources>
+            <resource ref="anonymous"/>
+        </resources>
+    </route>
+
+    <route url="/V1/airwallex/payments/add-to-cart" method="POST">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="addToCart"/>
+        <resources>
+            <resource ref="anonymous"/>
+        </resources>
+    </route>
+
+    <route url="/V1/airwallex/payments/post-address" method="POST">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="postAddress"/>
+        <resources>
+            <resource ref="anonymous"/>
+        </resources>
+    </route>
+
+    <route url="/V1/airwallex/payments/validate-merchant" method="POST">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="validateMerchant"/>
+        <resources>
+            <resource ref="anonymous"/>
+        </resources>
+    </route>
+
+    <route url="/V1/airwallex/payments/validate-addresses" method="GET">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="validateAddresses"/>
+        <resources>
+            <resource ref="anonymous"/>
+        </resources>
+    </route>
+
+    <route url="/V1/airwallex/saved_cards" method="GET">
+        <service class="Airwallex\Payments\Api\PaymentConsentsInterface" method="getSavedCards"/>
+        <resources>
+            <resource ref="self"/>
+        </resources>
+        <data>
+            <parameter name="customerId" force="true">%customer_id%</parameter>
+        </data>
+    </route>
+
+    <route url="/V1/airwallex/saved_cards/:paymentConsentId" method="DELETE">
+        <service class="Airwallex\Payments\Api\PaymentConsentsInterface" method="disablePaymentConsent"/>
+        <resources>
+            <resource ref="self"/>
+        </resources>
+        <data>
+            <parameter name="customerId" force="true">%customer_id%</parameter>
+        </data>
+    </route>
+
+    <route url="/V1/airwallex/customer/create" method="POST">
+        <service class="Airwallex\Payments\Api\PaymentConsentsInterface" method="createAirwallexCustomerById"/>
+        <resources>
+            <resource ref="self"/>
+        </resources>
+        <data>
+            <parameter name="customerId" force="true">%customer_id%</parameter>
+        </data>
+    </route>
+
+    <route url="/V1/airwallex/saved_payments" method="GET">
+        <service class="Airwallex\Payments\Api\PaymentConsentsInterface" method="getSavedCards"/>
+        <resources>
+            <resource ref="self"/>
+        </resources>
+        <data>
+            <parameter name="customerId" force="true">%customer_id%</parameter>
+        </data>
+    </route>
+
+    <route url="/V1/airwallex/saved_payments/:paymentConsentId" method="DELETE">
+        <service class="Airwallex\Payments\Api\PaymentConsentsInterface" method="disablePaymentConsent"/>
+        <resources>
+            <resource ref="self"/>
+        </resources>
+        <data>
+            <parameter name="customerId" force="true">%customer_id%</parameter>
+        </data>
+    </route>
+
+    <route url="/V1/airwallex/sync_vault" method="POST">
+        <service class="Airwallex\Payments\Api\PaymentConsentsInterface" method="syncVault"/>
+        <resources>
+            <resource ref="self"/>
+        </resources>
+        <data>
+            <parameter name="customerId" force="true">%customer_id%</parameter>
+        </data>
+    </route>
+
+    <route url="/V1/airwallex/generate_client_secret" method="GET">
+        <service class="Airwallex\Payments\Api\PaymentConsentsInterface" method="generateClientSecret"/>
+        <resources>
+            <resource ref="self"/>
+        </resources>
+        <data>
+            <parameter name="customerId" force="true">%customer_id%</parameter>
+        </data>
+    </route>
+
+    <route url="/V1/airwallex/guest/generate_client_secret" method="GET">
+        <service class="Airwallex\Payments\Api\PaymentConsentsInterface" method="guestGenerateClientSecret"/>
+        <resources>
+            <resource ref="anonymous"/>
+        </resources>
+    </route>
+
+    <route url="/V1/airwallex/account" method="GET">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="account"/>
+        <resources>
+            <resource ref="anonymous"/>
+        </resources>
+    </route>
+
+    <route url="/V1/airwallex/currency/switcher" method="POST">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="currencySwitcher"/>
+        <resources>
+            <resource ref="anonymous"/>
+        </resources>
+    </route>
+
+    <route url="/V1/airwallex/conversion-quote" method="POST">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="conversionQuote"/>
+        <resources>
+            <resource ref="anonymous"/>
+        </resources>
+    </route>
+</routes>

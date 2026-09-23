@@ -1,0 +1,92 @@
+<?xml version="1.0"?>
+
+<csp_whitelist xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Csp/etc/csp_whitelist.xsd">
+    <policies>
+        <policy id="script-src">
+            <values>
+                <value id="checkout_airwallex" type="host">checkout.airwallex.com</value>
+                <value id="checkout_sandbox_airwallex" type="host">checkout.sandbox.airwallex.com</value>
+                <value id="metrix" type="host">h.online-metrix.net/</value>
+                <value id="static_sandbox_airwallex" type="host">static.sandbox.airwallex.com</value>
+                <value id="static_airwallex" type="host">static.airwallex.com</value>
+                <value id="cdn_scripts_signifyd" type="host">cdn-scripts.signifyd.com</value>
+                <value id="bws_sandbox_airwallex" type="host">bws.sandbox.airwallex.com</value>
+                <value id="bws_airwallex" type="host">bws.airwallex.com</value>
+                <value id="script_imgs_signifyd_com" type="host">imgs.signifyd.com</value>
+                <value id="allow-online-metrix" type="host">h64.online-metrix.net</value>
+                <value id="airwallex" type="host">airwallex.com</value>
+                <value id="general_airwallex" type="host">*.airwallex.com</value>
+                <value id="google_pay_sdk_1" type="host">google.com</value>
+                <value id="google_pay_sdk_2" type="host">*.google.com</value>
+                <value id="apple_pay_sdk" type="host">*.cdn-apple.com</value>
+            </values>
+        </policy>
+        <policy id="connect-src">
+            <values>
+                <value id="checkout_airwallex" type="host">checkout.airwallex.com</value>
+                <value id="checkout_sandbox_airwallex" type="host">checkout.sandbox.airwallex.com</value>
+                <value id="metrix" type="host">h.online-metrix.net/</value>
+                <value id="bws_sandbox_airwallex_default" type="host">bws.sandbox.airwallex.com</value>
+                <value id="bws_airwallex_default" type="host">bws.airwallex.com</value>
+                <value id="api_sandbox_airwallex_default" type="host">api.sandbox.airwallex.com</value>
+                <value id="api_airwallex_default" type="host">api.airwallex.com</value>
+                <value id="o11y_sandbox_airwallex_default" type="host">o11y.sandbox.airwallex.com</value>
+                <value id="o11y_airwallex_default" type="host">o11y.airwallex.com</value>
+                <value id="signifyd-clear-png" type="host">imgs.signifyd.com</value>
+                <value id="airwallex" type="host">airwallex.com</value>
+                <value id="general_airwallex" type="host">*.airwallex.com</value>
+                <value id="google_pay_sdk_1" type="host">google.com</value>
+                <value id="google_pay_sdk_2" type="host">*.google.com</value>
+            </values>
+        </policy>
+        <policy id="frame-src">
+            <values>
+                <value id="airwallex-api" type="host">checkout.airwallex.com</value>
+                <value id="airwallex-sandbox-api" type="host">checkout.sandbox.airwallex.com</value>
+                <value id="metrix" type="host">h.online-metrix.net/</value>
+                <value id="static-sandbox-airwallex-com" type="host">static.sandbox.airwallex.com</value>
+                <value id="pci-api-sandbox-airwallex" type="host">pci-api.sandbox.airwallex.com</value>
+                <value id="sandbox-pacybsmock-airwallex" type="host">pacybsmock.sandbox.airwallex.com</value>
+                <value id="signifyd-clear-com" type="host">imgs.signifyd.com</value>
+                <value id="airwallex" type="host">airwallex.com</value>
+                <value id="general_airwallex" type="host">*.airwallex.com</value>
+                <value id="google_pay_sdk_1" type="host">google.com</value>
+                <value id="google_pay_sdk_2" type="host">*.google.com</value>
+                <value id="apple_pay_sdk" type="host">*.cdn-apple.com</value>
+            </values>
+        </policy>
+        <policy id="img-src">
+            <values>
+                <value id="metrix" type="host">*.online-metrix.net/</value>
+                <value id="checkout_airwallex" type="host">checkout.airwallex.com</value>
+                <value id="imgs_signifyd_com" type="host">imgs.signifyd.com</value>
+                <value id="checkout_sandbox_airwallex" type="host">checkout.sandbox.airwallex.com</value>
+                <value id="airwallex" type="host">airwallex.com</value>
+                <value id="general_airwallex" type="host">*.airwallex.com</value>
+                <value id="google_pay_sdk_1" type="host">google.com</value>
+                <value id="google_pay_sdk_2" type="host">*.google.com</value>
+            </values>
+        </policy>
+        <policy id="form-action">
+            <values>
+                <value id="airwallex" type="host">airwallex.com</value>
+                <value id="general_airwallex" type="host">*.airwallex.com</value>
+                <value id="google_pay_sdk_1" type="host">google.com</value>
+                <value id="google_pay_sdk_2" type="host">*.google.com</value>
+            </values>
+        </policy>
+        <policy id="child-src">
+            <values>
+                <value id="airwallex" type="host">airwallex.com</value>
+                <value id="general_airwallex" type="host">*.airwallex.com</value>
+            </values>
+        </policy>
+        <policy id="default-src">
+            <values>
+                <value id="airwallex" type="host">airwallex.com</value>
+                <value id="general_airwallex" type="host">*.airwallex.com</value>
+            </values>
+        </policy>
+    </policies>
+</csp_whitelist>

@@ -1,0 +1,58 @@
+<?php
+/**
+ * Airwallex Payments for Magento
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 Airwallex
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * @author    Airwallex
+ * @copyright 2026 Airwallex
+ * @license   https://opensource.org/licenses/MIT MIT License
+ */
+?>
+<div style="margin: 20px 0">
+    Choose whether to create an order before or after payment confirmation.
+    By default, you should use “<span style='font-weight: 800'>Order first, then Payment confirmation</span>”.
+    We <span style='font-weight: 800'>do not recommend</span> switching to “Payment first, then Order creation”,
+    as it may result in confirmed payments without corresponding orders.
+</div>
+<div class="awx-disable-bank-transfer-tip" style="display: none; color: red;">
+    Bank transfer has been automatically disabled because it requires longer processing times,
+    which may lead to order creation failures with your selected option.
+</div>
+
+<script>
+    require([
+            'jquery'
+        ],
+        function (jQuery) {
+            let toggleDisableBankTransferTip = function () {
+                if (jQuery('select[name="groups[airwallex_payments][groups][basic][groups][order][fields][order_payment_sequence][value]"]').val() === 'payment_before_order') {
+                    jQuery('.awx-disable-bank-transfer-tip').show();
+                } else {
+                    jQuery('.awx-disable-bank-transfer-tip').hide();
+                }
+            };
+            jQuery(document).on('change', 'select[name="groups[airwallex_payments][groups][basic][groups][order][fields][order_payment_sequence][value]"]', toggleDisableBankTransferTip);
+            toggleDisableBankTransferTip();
+        });
+</script>

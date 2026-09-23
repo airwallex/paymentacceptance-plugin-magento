@@ -1,0 +1,25 @@
+.airwallex-admin-config .heading {
+    background: url('../img/airwallex_logo.svg') no-repeat 0 50% / 18rem auto;
+    padding-left: 20rem;
+}
+
+.airwallex-admin-config .button-container {
+    float: right;
+}
+
+.airwallex-admin-config::after {
+    content: '';
+    clear: both;
+    display: table;
+}
+
+#payment_us_airwallex_payments {
+    float: left;
+    width: 100%;
+}
+
+.awx-deactivate-link {
+    color: #D91807;
+    font-weight: 600;
+    text-decoration: underline;
+}
