@@ -1,0 +1,71 @@
+<?xml version="1.0"?>
+
+<include xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_include.xsd">
+    <group id="card" translate="label" type="text" sortOrder="1" showInDefault="1" showInWebsite="1" showInStore="1">
+        <label>Credit Card</label>
+        <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1">
+            <label>Enable Credit Card</label>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <config_path>payment/airwallex_payments_card/active</config_path>
+        </field>
+        <field id="vault_active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1">
+            <label>Allow shoppers to save cards</label>
+            <comment><![CDATA[This will allow shoppers to save cards for future purchases on your store.]]></comment>
+            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+            <config_path>payment/airwallex_payments_card/vault_active</config_path>
+        </field>
+        <field id="title" translate="label comment" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Title</label>
+            <comment><![CDATA[This is the payment method title used at the checkout page.]]></comment>
+            <config_path>payment/airwallex_payments_card/title</config_path>
+        </field>
+        <field id="airwallex_payment_action" translate="label" type="select" sortOrder="30" showInDefault="1" showInWebsite="0" showInStore="0">
+            <label>Capture Preferences</label>
+            <source_model>Airwallex\Payments\Model\Config\Source\PaymentAction</source_model>
+            <config_path>payment/airwallex_payments_card/airwallex_payment_action</config_path>
+        </field>
+        <field id="allowspecific" translate="label" type="allowspecific" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Payment From Applicable Countries</label>
+            <source_model>Magento\Payment\Model\Config\Source\Allspecificcountries</source_model>
+            <config_path>payment/airwallex_payments_card/allowspecific</config_path>
+        </field>
+        <field id="specificcountry" translate="label comment" type="multiselect" sortOrder="60" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Display Payment Method For</label>
+            <comment><![CDATA[Select the countries and currencies for which Airwallex is available at the checkout.]]></comment>
+            <source_model>Magento\Directory\Model\Config\Source\Country</source_model>
+            <config_path>payment/airwallex_payments_card/specificcountry</config_path>
+            <depends>
+                <field id="allowspecific">1</field>
+            </depends>
+        </field>
+        <field id="max_width" translate="label" type="text" sortOrder="61" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Input Field Size</label>
+            <config_path>payment/airwallex_payments_card/max_width</config_path>
+            <comment>
+                <![CDATA[This determines the maximum width of the credit card input field. Set a width between 320 - 1,000px.]]>
+            </comment>
+        </field>
+        <field id="fontsize" translate="label" type="text" sortOrder="62" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Font Size</label>
+            <config_path>payment/airwallex_payments_card/fontsize</config_path>
+            <comment>
+                <![CDATA[This determines how large or small the text will appear within the input field. Set a font size between 12 to 20px.]]>
+            </comment>
+        </field>
+<!--        <field id="preverification" translate="label" type="select" sortOrder="63" showInDefault="1" showInWebsite="1">-->
+<!--            <label>Pre Verfication</label>-->
+<!--            <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>-->
+<!--            <config_path>payment/airwallex_payments_card/preverification</config_path>-->
+<!--            <comment>-->
+<!--                 <![CDATA[If you enable this option, we will provide the necessary card information before payment, allowing you to integrate with third-party risk control systems. For more details, please refer to this <a href='https://baidu.com'>document</a>.]]>-->
+<!--            </comment>-->
+<!--        </field>-->
+        <field id="sort_order" translate="label" type="text" sortOrder="210" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Sort Order</label>
+            <comment>Adjust this to move the payment method above or below other payment methods.</comment>
+            <frontend_class>validate-number</frontend_class>
+            <config_path>payment/airwallex_payments_card/sort_order</config_path>
+        </field>
+        <include path="Airwallex_Payments::system/express.xml"/>
+    </group>
+</include>

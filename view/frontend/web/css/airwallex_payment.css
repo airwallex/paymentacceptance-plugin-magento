@@ -1,0 +1,726 @@
+.airwallex-card {
+    border-radius: 5px;
+    padding: 5px 10px;
+    box-shadow: #E8EAED 0 0 0 1px;
+    min-height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+.airwallex-card.error {
+    box-shadow: red 0 0 0 2px;
+}
+
+.airwallex-error {
+    margin-top: 15px;
+    color: red;
+}
+
+.awx-danger {
+    color: red;
+    font-weight: bold;
+}
+
+.switcher-tip {
+    display: flex;
+    align-items: center;
+    justify-content: right;
+}
+
+.switcher-tip div {
+    font-size: 12px;
+    margin-left: 6px;
+}
+
+.amount .awx-amount {
+    font-weight: 600;
+    font-size: 1.8rem;
+    margin-top: 3px;
+}
+
+#threeDs {
+    z-index: 2147483647 !important;
+}
+
+#threeDsChallenge {
+    z-index: 2147483647 !important;
+}
+
+.express-title {
+    font-weight: 300;
+    font-size: 2.6rem;
+    color: #333333;
+    margin-bottom: 15px;
+}
+
+.minicart-awx-express {
+    margin: 0 10px 15px
+}
+
+.aws-button-mask,
+.aws-button-mask-for-login,
+.aws-button-mask-for-agreement {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    opacity: 0;
+    display: none;
+    cursor: pointer;
+}
+
+.airwallex-express-checkout {
+    position: relative;
+}
+
+#co-payment-form .airwallex-express-checkout {
+    margin-bottom: 30px;
+}
+
+#minicart-content-wrapper .airwallex-express-checkout {
+    margin: 0 10px 15px;
+}
+
+.airwallex-express-checkout .express-title {
+    display: none;
+}
+
+#co-payment-form .airwallex-express-checkout .express-title {
+    display: block;
+}
+
+@media screen and (min-width: 768px) {
+    @media (min-width: 769px), print {
+        .box-tocart .airwallex-express-checkout {
+            margin-bottom: 15px;
+            width: 49%;
+            min-width: 240px;
+        }
+    }
+}
+
+#airwallex-payments-saved-card-list {
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.airwallex-payments-saved-card-item {
+    border-top: 1px solid gray;
+    cursor: pointer;
+    width: 100%;
+    padding: 10px 3px;
+}
+
+.airwallex-payments-saved-card-item label {
+    width: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.airwallex-payments-saved-card-item span {
+    display: inline-block;
+    padding: 0 5px;
+    flex-grow: 0;
+}
+
+.airwallex-payments-saved-card-item span.brand {
+    flex-grow: 1;
+}
+
+.airwallex-payments-saved-card-item span.last4 {
+    font-family: 'Courier New', Courier, monospace;
+}
+
+#airwallex-payments-card-save {
+    cursor: pointer;
+}
+
+.airwallex-payments-saved-card-item img {
+    height: 25px;
+    border: 1px solid lightgrey;
+    border-radius: 3px;
+}
+
+.awx-vault.airwallex-cvc {
+    border: 1px solid #c2c2c2;
+    width: 33px;
+    height: 29px;
+    padding: 0 10px;
+    margin-bottom: 5px;
+    box-sizing: content-box;
+}
+
+.cvc-airwallex.label:after {
+    content: '*';
+    color: #e02b27;
+    font-size: 1.8rem;
+    margin: 0 0 0 5px;
+}
+
+.cvc-airwallex span {
+    font-weight: 600;
+}
+
+.awx-icon-wrapper {
+    display: inline-block;
+    width: 48px;
+    height: 48px;
+    line-height: 48px;
+    vertical-align: middle;
+}
+
+.save-card-input {
+    margin-top: 13px;
+    margin-bottom: 15px;
+}
+
+#my-orders-table .card-type {
+    height: 48px;
+    width: auto;
+}
+
+#awx-card-number {
+    margin-bottom: 12px;
+}
+
+.airwallex-express-checkout {
+    margin-top: 10px;
+}
+
+.table-credit-cards td {
+    vertical-align: middle;
+}
+
+.airwallex .checkout-agreement {
+    align-items: center;
+}
+
+.airwallex .checkout-agreements-block .checkout-agreement.field {
+    margin-top: 5px;
+    margin-bottom: 0;
+}
+
+.airwallex input[type="checkbox"] {
+    margin-top: -5px;
+}
+
+.qrcode-payment {
+    display: none;
+    justify-content: center;
+}
+
+.qrcode-payment .qrcode {
+    border: 1px solid darkgrey;
+    padding: 10px;
+    margin: 10px;
+}
+
+.qrcode-payment .iframe {
+    width: 100%;
+}
+
+.qrcode-payment iframe {
+    width: 100%;
+    border: none;
+}
+
+.awx-split-card-container {
+    color: #00112c;
+    font-size: .81em;
+    font-weight: 400;
+    line-height: 13px;
+    max-width: 380px;
+}
+
+.awx-txt {
+    height: 15px;
+    padding-bottom: 5px;
+}
+
+.airwallex-card {
+    width: 100%;
+}
+
+.awx-card-actions-toolbar {
+    margin-top: 15px;
+}
+
+.payment-method.airwallex-payments .g-recaptcha {
+    margin-bottom: 20px;
+}
+
+.airwallex-payments .field-error, div.mage-error {
+    margin-top: 0;
+}
+
+.airwallex .field-error, div.mage-error {
+    margin-top: 0;
+}
+
+.awx-focus-input {
+    box-shadow: #612fff 0 0 0 2px;
+}
+
+.awx-billing-confirm-tip {
+    font-style: normal;
+    font-weight: 700;
+    font-size: 14px;
+    line-height: 18px;
+    color: #1A1D21;
+    margin-bottom: 10px;
+}
+
+.awx-qrcode-tip {
+    font-style: normal;
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 22px;
+    color: #42474D;
+    margin-top: 5px;
+    margin-bottom: 12px;
+}
+
+.checkout-payment-method .airwallex-payments .billing-address-same-as-shipping-block {
+    display: flex;
+}
+
+.checkout-payment-method .airwallex-payments input[type="checkbox"] {
+    top: 0;
+    margin-top: 0;
+}
+
+.awx-redirect-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+@media (max-width: 768px) {
+    .awx-redirect-buttons {
+        display: block;
+    }
+
+    .awx-redirect-buttons .editing {
+        line-height: 2.2rem;
+        padding: 14px 17px;
+        font-size: 1.8rem;
+    }
+}
+
+.awx-redirect-buttons .editing {
+    background: white;
+    border: 1px solid #E8EAED;
+    color: #1979c3;
+}
+
+.awx-alert {
+    border: 1px solid rgba(255, 119, 109, 1);
+    border-radius: 5px;
+    background: rgba(255, 239, 239, 1);
+    display: flex;
+    padding: 12px 16px;
+    margin-top: 10px;
+}
+
+.awx-alert .icon {
+    padding: 10px 10px 10px 0;
+    display: flex;
+    align-items: center;
+}
+
+.awx-alert .body {
+    text-align: justify;
+    color: rgba(66, 71, 77, 1);
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 21px;
+    display: flex;
+    align-items: center;
+}
+
+#countryModal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border: 1px solid #ccc;
+    z-index: 1000;
+}
+
+#modalOverlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 500;
+}
+
+.awx-selector-container {
+    width: 328px;
+    position: relative;
+}
+
+.input-icon {
+    display: flex;
+    justify-content: center;
+    position: absolute;
+    right: 0;
+    width: 50px;
+    padding-top: 17px;
+    padding-bottom: 17px;
+    cursor: pointer;
+}
+
+.input-icon svg {
+    margin-right: 20px;
+}
+
+.awx-selector-container {
+    border-color: rgba(232, 234, 237, 1);
+    z-index: 99;
+    background-color: white;
+    margin-bottom: 15px;
+}
+
+.awx-selector-container input {
+    height: 40px;
+    padding: 8px 16px 8px 16px;
+    border-radius: 5px;
+    box-sizing: border-box;
+    background: rgba(250, 250, 251, 1);
+    border: 1px solid rgba(232, 234, 237, 1);
+}
+
+.awx-selector-container input::placeholder {
+    color: rgba(135, 142, 153, 1);
+}
+
+.awx-selector-container input:focus {
+    outline: none;
+    border: 1px solid #612fff;
+    box-shadow: #612fff 0 0 0 1px;
+}
+
+.awx-selector-container ul {
+    padding-inline-start: 0;
+    padding-right: 13px;
+}
+
+.awx-selector-container li {
+    list-style: none;
+    padding: 10px 8px;
+    margin: 12px 8px;
+    border-radius: 5px;
+}
+
+.awx-selector-container li:hover {
+    color: #622ef7;
+    background: #f0effe;
+}
+
+.awx-selector-container .countries {
+    border: 1px solid rgba(232, 234, 237, 1);
+    box-shadow: 0 2px 16px 0 rgba(0, 0, 0, 0.12);
+    border-radius: 5px;
+    margin-top: 10px;
+    position: absolute;
+    z-index: 5;
+    width: 100%;
+    background: white;
+}
+
+.awx-selector-container li.selected {
+    background-image: url(data:image/svg+xml;utf8,%3Csvg%20width%3D%2212%22%20height%3D%2210%22%20viewBox%3D%220%200%2012%2010%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20clip-rule%3D%22evenodd%22%20d%3D%22M2.99529%208.98128L0.520413%206.50641C0.032258%206.01825%200.032258%205.2268%200.520413%204.73864C1.00857%204.25048%201.80002%204.25048%202.28818%204.73864L3.87917%206.32963L9.7128%200.495999C10.201%200.00784397%2010.9924%200.00784397%2011.4806%200.495999C11.9687%200.984155%2011.9687%201.77561%2011.4806%202.26377L4.76305%208.98128C4.2749%209.46944%203.48344%209.46944%202.99529%208.98128Z%22%20fill%3D%22%2368707A%22%2F%3E%3C%2Fsvg%3E);
+    background-size: 12px;
+    background-repeat: no-repeat;
+    background-position: right;
+}
+
+.airwallex_payments_bank_transfer .awx-bank-transfer-currencies img.flag {
+    height: 20px;
+    margin-right: 8px;
+}
+
+.airwallex_payments_bank_transfer .awx-bank-transfer-currencies ul {
+    border-radius: 5px;
+    padding: 2px 0;
+    box-shadow: 0 2px 16px 0 rgba(0, 0, 0, 0.12);
+    margin-bottom: 14px;
+    position: absolute;
+    max-width: 375px;
+    background: white;
+    width: 100%;
+}
+
+.airwallex_payments_bank_transfer .awx-bank-transfer-currencies li {
+    display: flex;
+    align-items: center;
+    font-weight: 700;
+    cursor: pointer;
+    margin: 0;
+}
+
+.airwallex_payments_bank_transfer .awx-bank-transfer-currencies li div:hover {
+    color: rgb(97, 47, 255);
+    background: #f0effe;
+
+}
+
+.airwallex_payments_bank_transfer .awx-bank-transfer-currencies li div {
+    width: 100%;
+    padding: 10px 5px;
+    margin: 5px 5px;
+    display: flex;
+    align-items: center;
+    border-radius: 5px;
+}
+
+.airwallex_payments_bank_transfer .awx-bank-transfer-currencies .select {
+    padding: 8px 16px;
+    border: 1px solid rgba(232, 234, 237, 1);
+    border-radius: 5px;
+    color: rgba(135, 142, 153, 1);
+    font-weight: 400;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 10px 0;
+}
+
+.airwallex_payments_bank_transfer .awx-bank-transfer-currencies {
+    max-width: 375px;
+    position: relative;
+}
+
+.airwallex-payments .awx-link {
+    color: rgba(66, 71, 77, 1);
+    font-weight: 800;
+    text-decoration: underline;
+}
+
+.currency-switcher-tip {
+    color: rgba(26, 29, 33, 1);
+    display: inline-block;
+    font-weight: 600;
+}
+
+.airwallex_payments_bank_transfer .currency-switcher-tip {
+    margin-bottom: 15px;
+}
+
+.awx-compatible-country-link {
+    color: rgba(66, 71, 77, 1);
+    font-weight: 800;
+    text-decoration: underline;
+}
+
+.awx-compatible-country-link:visited {
+    color: rgba(66, 71, 77, 1);
+}
+
+.airwallex-apm-container {
+    margin-top: 15px;
+}
+
+.airwallex-apm-description {
+    margin-bottom: 15px;
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.airwallex-apm-element-container {
+    padding: 15px 0;
+}
+
+.airwallex-apm-placeholder {
+    padding: 20px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.airwallex-apm-placeholder p {
+    margin: 0;
+    color: #6c757d;
+}
+
+.airwallex-apm-loading {
+    text-align: center;
+    padding: 30px;
+    color: #6c757d;
+}
+
+#airwallex-apm-error {
+    margin-top: 15px;
+    padding: 10px 15px;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    color: #721c24;
+}
+
+#airwallex-apm-error .error-text {
+    margin: 0;
+}
+
+.airwallex_payments_apm .checkout {
+    margin-top: 15px;
+}
+
+.airwallex_payments_apm .airwallex-payment-method-logos {
+    display: inline-flex;
+    gap: 8px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.airwallex_payments_apm .airwallex-payment-logo {
+    max-height: 20px;
+    width: auto;
+    object-fit: contain;
+}
+
+.airwallex-payments .payment-method-title .label {
+    display: inline-flex;
+    align-items: center;
+}
+
+.airwallex-payments .airwallex-payment-method-logos {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 8px;
+}
+
+.airwallex-payments .airwallex-payment-method-logos .airwallex-payment-logo {
+    height: 20px;
+    width: auto;
+    object-fit: contain;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.awx-currency-switcher-row td {
+    padding: 15px 0 0;
+}
+
+.awx-apm-currency-switcher {
+    width: 100%;
+}
+
+.awx-currency-switcher-trigger-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+}
+
+.awx-currency-switcher-trigger {
+    color: #612fff;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.awx-currency-switcher-trigger:hover,
+.awx-currency-switcher-trigger:focus {
+    color: #612fff;
+    outline: none;
+    text-decoration: none;
+    background: transparent;
+}
+
+.awx-currency-switcher-panel {
+    border: 1px solid rgba(232, 234, 237, 1);
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 2px 16px 0 rgba(0, 0, 0, 0.08);
+    padding: 12px;
+    max-height: 320px;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+}
+
+.awx-currency-switcher-search {
+    margin-bottom: 8px;
+}
+
+.awx-currency-switcher-search-input {
+    width: 100%;
+    height: 36px;
+    padding: 8px 12px;
+    border: 1px solid rgba(232, 234, 237, 1);
+    border-radius: 5px;
+    background: rgba(250, 250, 251, 1);
+    box-sizing: border-box;
+    font-size: 14px;
+}
+
+.awx-currency-switcher-search-input:focus {
+    outline: none;
+    border-color: #612fff;
+    box-shadow: 0 0 0 1px #612fff;
+}
+
+.awx-currency-switcher-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.awx-currency-switcher-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    color: rgba(26, 29, 33, 1);
+}
+
+.awx-currency-switcher-item:hover {
+    background: #f6f5ff;
+}
+
+.awx-currency-switcher-item.selected {
+    background: #efecff;
+}
+
+.awx-currency-switcher-flag {
+    width: 22px;
+    height: 16px;
+    flex-shrink: 0;
+    display: inline-block;
+    border-radius: 2px;
+    object-fit: cover;
+}
+
+.awx-currency-switcher-flag--placeholder {
+    background: #e8eaed;
+}
+
+.awx-currency-switcher-code {
+    font-weight: 700;
+    min-width: 40px;
+}
+
+.awx-currency-switcher-name {
+    color: rgba(66, 71, 77, 1);
+    font-weight: 400;
+}

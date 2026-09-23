@@ -1,0 +1,120 @@
+<?php
+/**
+ * Airwallex Payments for Magento
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 Airwallex
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * @author    Airwallex
+ * @copyright 2026 Airwallex
+ * @license   https://opensource.org/licenses/MIT MIT License
+ */
+
+use Magento\Framework\View\Element\Template;
+use Magento\Vault\Api\Data\PaymentTokenInterface;
+use Magento\Vault\Block\CardRendererInterface;
+
+/** @var CardRendererInterface|Template $block */
+
+$ccNumberView = $block->getNumberLast4Digits();
+$brand = $block->getBrand();
+$cardCustomerId = $block->cardCustomerId();
+$currentCustomerId = $block->currentCustomerId();
+?>
+<?php if ($cardCustomerId === $currentCustomerId && $block->getStatus() === 'VERIFIED') {?>
+<tr>
+    <td data-th="<?= $block->escapeHtml(__('Card Number')) ?>" class="col card-number">
+        <span><?= $block->escapeHtml(__('ending')) ?></span> <?= /* @noEscape */ $ccNumberView ?>
+    </td>
+    <td data-th="<?= $block->escapeHtml(__('Expiration Date')) ?>" class="col card-expire">
+        <?= $block->escapeHtml($block->getExpDate()) ?>
+    </td>
+    <td data-th="<?= $block->escapeHtml(__('Type')) ?>" class="col card-type">
+        <img alt="icon" src="<?= /* @noEscape */ $block->getIconUrl() ?>"
+             width="<?= /* @noEscape */ $block->getIconWidth() ?>"
+             height="<?= /* @noEscape */ $block->getIconHeight() ?>"
+        >
+    </td>
+    <td data-th="<?= $block->escapeHtml(__('Actions')) ?>" class="col actions">
+        <form id="form-<?= $block->escapeHtml($block->getToken()->getGatewayToken()) ?>"
+            class="form"
+            action="<?= $block->escapeHtml($block->getUrl('vault/cards/deleteaction')) ?>"
+            method="post"
+            >
+            <?= $block->getBlockHtml('formkey') ?>
+            <input
+                name="<?= /* @noEscape */ PaymentTokenInterface::PUBLIC_HASH ?>"
+                value="<?= /* @noEscape */ $block->getToken()->getPublicHash() ?>"
+                type="hidden"/>
+            <button type="button" id="delete-<?= $block->escapeHtml($block->getToken()->getGatewayToken()) ?>" class="action delete">
+                <span><?= $block->escapeHtml(__('Delete')) ?></span>
+            </button>
+        </form>
+    </td>
+</tr>
+<?php } ?>
+<script type="text/javascript">
+    require([
+        'jquery',
+        'mage/url'
+    ], function ($, url) {
+        $(document).ready(function() {
+            let id = '<?= $block->escapeHtml($block->getToken()->getGatewayToken()) ?>';
+            $(document).on('click', '#delete-' + id, function (event) {
+                event.preventDefault();
+                $.mage.confirm({
+                    title: $.mage.__('Delete saved card'),
+                    buttons: [{
+                        text: $.mage.__('Delete'),
+                        class: 'action-primary action-accept',
+                        click: function() {
+                            $('body').trigger('processStart');
+                            this.closeModal(event, true);
+                            let removeUrl = url.build('rest/V1/airwallex/saved_cards/') + id;
+
+                            $.ajax({
+                                url: removeUrl,
+                                method: 'DELETE',
+                                success: (function() {
+                                    $('#form-' + id).trigger('submit');
+                                }).bind(this),
+                                error: function() {
+                                    $('body').trigger('processStop');
+                                    $('.modal-content div').html('');
+                                }
+                            });
+                        }
+                    }, {
+                        text: $.mage.__('Cancel'),
+                        click: function(event) {
+                            this.closeModal(event, true);
+                            $('.modal-content div').html('');
+                        }
+                    }]
+                });
+                let msg = 'You are deleting your saved <?=$block->escapeHtml($brand)?> card ending in <?=$block->escapeHtml($ccNumberView)?>.';
+                $('.modal-content div').html($.mage.__(msg));
+
+            });
+        });
+    });
+</script>

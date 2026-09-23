@@ -1,0 +1,94 @@
+/**
+ * Airwallex Payments for Magento
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 Airwallex
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * @author    Airwallex
+ * @copyright 2026 Airwallex
+ * @license   https://opensource.org/licenses/MIT MIT License
+ */
+/** `this` receiver shared by the redirect-method child renderers. */
+define([
+    "Airwallex_Payments/js/view/payment/redirect-method",
+    "ko",
+    "jquery",
+    'Magento_Checkout/js/model/quote',
+    'Airwallex_Payments/js/view/payment/utils',
+    'mage/translate'
+], function (
+    Component                        ,
+    ko                ,
+    $              ,
+    quote                         ,
+    utils                          ,
+    $t             
+) {
+    "use strict";
+    return Component.extend({
+        defaults: {
+            code: 'airwallex_payments_klarna',
+            template: "Airwallex_Payments/payment/redirect-method",
+        },
+        async loadPayment(                      ) {
+            if (!this.isMethodChecked(this.code)) {
+                return;
+            }
+            this.hideYouPay();
+            const container = $(`.${this.index} .awx-redirect-method-footer`);
+            const paymentData = window.checkoutConfig .payment .airwallex_payments ;
+            if (Object.keys(paymentData.klarna_support_countries ).indexOf(quote.billingAddress().countryId) === -1) {
+                const msg = $t('Klarna is not available in your country. Please change your billing address to a %1compatible country%2 or choose a different payment method.')
+                    .replace('%1', "<a target='_blank' class='awx-compatible-country-link' href='https://help.airwallex.com/hc/en-gb/articles/9514119772047-What-countries-can-I-use-Klarna-in'>")
+                    .replace('%2', "</a>");
+                container.html(utils.awxAlert(msg));
+                this.disableCheckoutButton(this.code);
+                return;
+            }
+            const targetCurrency = paymentData.klarna_support_countries [quote.billingAddress().countryId];
+            if (paymentData.quote_currency_code  === targetCurrency) {
+                container.html('');
+                this.enableCheckoutButton(this.code);
+                return;
+            }
+            const availableCurrencies = paymentData.available_currencies || [];
+            if (availableCurrencies.indexOf(paymentData.quote_currency_code ) === -1) {
+                const msg = $t('%1 is not available in %2 for your billing country. Please use a different payment method to complete your purchase.')
+                    .replace('%1', 'Klarna')
+                    .replace('%2', paymentData.quote_currency_code );
+                container.html(utils.awxAlert(msg));
+                this.disableCheckoutButton(this.code);
+                return;
+            }
+            if (availableCurrencies.indexOf(targetCurrency) === -1) {
+                const msg = $t('%1 is not available in %2 for your billing country. Please use a different payment method to complete your purchase.')
+                    .replace('%1', 'Klarna')
+                    .replace('%2', targetCurrency);
+                container.html(utils.awxAlert(msg));
+                this.disableCheckoutButton(this.code);
+                return;
+            }
+            const expressData = await this.fetchExpressData();
+            await this.displaySwitcher('', expressData, targetCurrency, 'Klarna');
+        },
+    });
+});

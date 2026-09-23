@@ -1,0 +1,87 @@
+<?php
+/**
+ * Airwallex Payments for Magento
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 Airwallex
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * @author    Airwallex
+ * @copyright 2026 Airwallex
+ * @license   https://opensource.org/licenses/MIT MIT License
+ */
+namespace Airwallex\Payments\Model\Client\Request\PaymentIntents;
+
+use Airwallex\Payments\Model\Client\AbstractClient;
+use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
+use JsonException;
+use Psr\Http\Message\ResponseInterface;
+
+class Capture extends AbstractClient implements BearerAuthenticationInterface
+{
+    /**
+     * @var string
+     */
+    private string $paymentIntentId;
+
+    /**
+     * @param string $id
+     *
+     * @return $this
+     */
+    public function setPaymentIntentId(string $id): self
+    {
+        $this->paymentIntentId = $id;
+
+        return $this;
+    }
+
+    /**
+     * @param float $amount
+     *
+     * @return Capture
+     */
+    public function setInformation(float $amount): self
+    {
+        return $this->setParams([
+            'amount' => $amount,
+        ]);
+    }
+
+    /**
+     * @return string
+     */
+    protected function getUri(): string
+    {
+        return 'pa/payment_intents/' . $this->paymentIntentId . '/capture';
+    }
+
+    /**
+     * @param ResponseInterface $response
+     *
+     * @return object
+     * @throws JsonException
+     */
+    protected function parseResponse(ResponseInterface $response): object
+    {
+        return $this->parseJson($response);
+    }
+}

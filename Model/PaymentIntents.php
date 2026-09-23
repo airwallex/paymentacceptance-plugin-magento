@@ -1,0 +1,354 @@
+<?php
+/**
+ * Airwallex Payments for Magento
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 Airwallex
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * @author    Airwallex
+ * @copyright 2026 Airwallex
+ * @license   https://opensource.org/licenses/MIT MIT License
+ */
+namespace Airwallex\Payments\Model;
+
+use Airwallex\PayappsPlugin\CommonLibrary\Exception\RequestException;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
+use Airwallex\Payments\Admin\Cards\Api\CompanyConsentsInterface;
+use Airwallex\Payments\Api\PaymentConsentsInterface;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Create as CreatePaymentIntent;
+use Airwallex\Payments\Model\Methods\KlarnaMethod;
+use Airwallex\Payments\Model\Traits\HelperTrait;
+use GuzzleHttp\Exception\GuzzleException;
+use Magento\Checkout\Model\Session;
+use Magento\Framework\Exception\AlreadyExistsException;
+use Magento\Framework\Exception\InputException;
+use Magento\Framework\Exception\LocalizedException;
+use Magento\Framework\UrlInterface;
+use Magento\Quote\Api\Data\PaymentInterface;
+use Magento\Quote\Model\QuoteRepository;
+use Exception;
+use JsonException;
+use Magento\Framework\App\ObjectManager;
+use Magento\Sales\Model\Order;
+use Magento\Sales\Model\OrderFactory;
+use Magento\Sales\Model\Spi\OrderResourceInterface;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Log as RemoteLog;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\UrlHelper;
+
+class PaymentIntents
+{
+    use HelperTrait;
+
+    const CURRENCY_TO_DECIMAL = [
+        "AED" => 2, "ALL" => 2, "AMD" => 2, "AOA" => 2, "ARS" => 2, "AUD" => 2, "AWG" => 2, "AZN" => 2,
+        "BAM" => 2, "BBD" => 2, "BDT" => 2, "BGN" => 2, "BHD" => 3, "BMD" => 2, "BND" => 2, "BOB" => 2,
+        "BRL" => 2, "BSD" => 2, "BWP" => 2, "BYN" => 2, "BZD" => 2, "CAD" => 2, "CHF" => 2, "CLP" => 0,
+        "CNH" => 2, "CNY" => 2, "COP" => 2, "CRC" => 2, "CUP" => 2, "CVE" => 2, "CZK" => 2, "DJF" => 0,
+        "DKK" => 2, "DOP" => 2, "DZD" => 2, "EGP" => 2, "ETB" => 2, "EUR" => 2, "FJD" => 2, "FKP" => 2,
+        "GBP" => 2, "GEL" => 2, "GHS" => 2, "GIP" => 2, "GMD" => 2, "GNF" => 0, "GTQ" => 2, "GYD" => 2,
+        "HKD" => 2, "HNL" => 2, "HTG" => 2, "HUF" => 2, "IDR" => 2, "ILS" => 2, "INR" => 2, "IQD" => 3,
+        "ISK" => 0, "JMD" => 2, "JOD" => 3, "JPY" => 0, "KES" => 2, "KGS" => 2, "KHR" => 2, "KMF" => 0,
+        "KRW" => 0, "KWD" => 3, "KYD" => 2, "KZT" => 2, "LAK" => 2, "LBP" => 2, "LKR" => 2, "LYD" => 3,
+        "MAD" => 2, "MDL" => 2, "MKD" => 2, "MMK" => 2, "MNT" => 2, "MOP" => 2, "MRU" => 2, "MUR" => 2,
+        "MVR" => 2, "MWK" => 2, "MXN" => 2, "MYR" => 2, "MZN" => 2, "NAD" => 2, "NGN" => 2, "NIO" => 2,
+        "NOK" => 2, "NPR" => 2, "NZD" => 2, "OMR" => 3, "PAB" => 2, "PEN" => 2, "PGK" => 2, "PHP" => 2,
+        "PKR" => 2, "PLN" => 2, "PYG" => 0, "QAR" => 2, "RON" => 2, "RSD" => 2, "RUB" => 2, "RWF" => 0,
+        "SAR" => 2, "SBD" => 2, "SCR" => 2, "SEK" => 2, "SGD" => 2, "SHP" => 2, "SLE" => 2, "SOS" => 2,
+        "SRD" => 2, "STN" => 2, "SVC" => 2, "SZL" => 2, "THB" => 2, "TND" => 3, "TOP" => 2, "TRY" => 2,
+        "TTD" => 2, "TWD" => 2, "TZS" => 2, "UAH" => 2, "UGX" => 0, "USD" => 2, "UYU" => 2, "UZS" => 2,
+        "VEF" => 2, "VND" => 0, "VUV" => 0, "WST" => 2, "XAF" => 0, "XCG" => 2, "XCD" => 2, "XOF" => 0,
+        "XPF" => 0, "YER" => 2, "ZAR" => 2, "ZMW" => 2
+    ];
+
+    protected PaymentConsentsInterface $paymentConsents;
+    private CreatePaymentIntent $createPaymentIntent;
+    private Session $checkoutSession;
+    private QuoteRepository $quoteRepository;
+    private UrlInterface $urlInterface;
+    private PaymentIntentRepository $paymentIntentRepository;
+    private OrderFactory $orderFactory;
+    private OrderResourceInterface $orderResource;
+    private RetrievePaymentIntent $retrievePaymentIntent;
+
+    /**
+     * Constructor
+     */
+    public function __construct(
+        PaymentConsentsInterface $paymentConsents,
+        CreatePaymentIntent      $createPaymentIntent,
+        Session                  $checkoutSession,
+        QuoteRepository          $quoteRepository,
+        UrlInterface             $urlInterface,
+        PaymentIntentRepository  $paymentIntentRepository,
+        OrderFactory             $orderFactory,
+        OrderResourceInterface   $orderResource,
+        RetrievePaymentIntent    $retrievePaymentIntent
+    )
+    {
+        $this->paymentConsents = $paymentConsents;
+        $this->createPaymentIntent = $createPaymentIntent;
+        $this->checkoutSession = $checkoutSession;
+        $this->quoteRepository = $quoteRepository;
+        $this->urlInterface = $urlInterface;
+        $this->paymentIntentRepository = $paymentIntentRepository;
+        $this->orderFactory = $orderFactory;
+        $this->orderResource = $orderResource;
+        $this->retrievePaymentIntent = $retrievePaymentIntent;
+    }
+
+    /**
+     * @throws Exception
+     * @throws AlreadyExistsException
+     * @throws GuzzleException
+     * @throws JsonException
+     * @throws LocalizedException
+     */
+    public function createIntent($model, string $phone, string $email, string $from, PaymentInterface $paymentMethod): StructPaymentIntent
+    {
+        $isOrder = $model instanceof Order;
+
+        $entityId = (int) $model->getId();
+        $scope = $isOrder ? ReturnState::SCOPE_ORDER : ReturnState::SCOPE_QUOTE;
+        $uri = 'airwallex/redirect?id=' . $entityId
+            . '&type=' . ($isOrder ? ReturnState::SCOPE_ORDER : ReturnState::SCOPE_QUOTE)
+            . '&state=' . urlencode($this->generateReturnState($scope, $entityId));
+
+        if (!$isOrder && !$model->getReservedOrderId()) {
+            $model->reserveOrderId();
+            $this->quoteRepository->save($model);
+        }
+
+        $products = $this->getProducts($model);
+        if ($paymentMethod->getMethod() === KlarnaMethod::CODE) {
+            $products[] = [
+                'code' => 0,
+                'name' => 'Other Fees',
+                'quantity' => 1,
+                'sku' => '',
+                'unit_price' => $model->getGrandTotal(),
+            ];
+        }
+        $merchantOrderId = $isOrder ? $model->getIncrementId() : $model->getReservedOrderId();
+        $createPaymentIntentRequest = $this->createPaymentIntent
+            ->setMetadata($this->getMetadata())
+            ->setReferrerDataType($this->getReferrerDataType($paymentMethod, $from))
+            ->setOrder([
+                'products' => $products,
+                'shipping' => $this->getShippingAddress($model)
+            ])
+            ->setAmount(round($model->getGrandTotal(), PaymentIntents::CURRENCY_TO_DECIMAL[$this->getCurrencyCode($model)] ?? 2))
+            ->setCurrency($this->getCurrencyCode($model))
+            ->setMerchantOrderId($merchantOrderId)
+            ->setReturnUrl(trim($this->urlInterface->getUrl($uri), '/'));
+
+        // Report the store origin (scheme + host) where the customer completes
+        // the transaction as the root-level merchant_website_url (Mastercard
+        // AN 6022). Prefer the browser origin the front-end sends in
+        // additional_data; fall back to the configured store base URL (e.g.
+        // for admin/API-created orders). Only sent when a valid origin resolves.
+        $additionalData = $paymentMethod->getAdditionalData() ?? [];
+        $clientOrigin = $additionalData['merchant_website_url'] ?? '';
+        $merchantWebsiteUrl = UrlHelper::toOrigin((string) $clientOrigin);
+        if ($merchantWebsiteUrl === '') {
+            $merchantWebsiteUrl = UrlHelper::toOrigin((string) $this->urlInterface->getBaseUrl());
+        }
+        if ($merchantWebsiteUrl !== '') {
+            $createPaymentIntentRequest->setMerchantWebsiteUrl($merchantWebsiteUrl);
+        }
+
+        try {
+            $uid = $isOrder ? $model->getCustomerId() : ($model->getCustomer() ? $model->getCustomer()->getId() : null);
+            if ($this->isMiniPluginExists() && $from === 'card_with_saved' && $uid) {
+                $superId = ObjectManager::getInstance()->get(CompanyConsentsInterface::class)->getSuperId($uid);
+                $airwallexCustomerId = $this->paymentConsents->getAirwallexCustomerIdInDB($superId);
+                $intent = $createPaymentIntentRequest->setCustomerId($airwallexCustomerId)->send();
+            } else {
+                $customer = [];
+                if (!empty($email)) $customer['email'] = $email;
+                if (!empty($phone)) $customer['phone_number'] = $phone;
+                $intent = $createPaymentIntentRequest->setCustomer($customer)->send();
+            }
+        } catch (Exception $e) {
+            RemoteLog::error( $e->getMessage(), RemoteLog::ON_PAYMENT_CREATION_ERROR);
+            throw $e;
+        }
+
+        $products = $this->getProducts($model);
+        $shipping = $this->getShippingAddress($model);
+        $billing = $this->getBillingAddress($model);
+        $agreementIds = $paymentMethod->getExtensionAttributes()->getAgreementIds();
+        $agreement = $agreementIds ? json_encode($agreementIds) : "[]";
+
+        $this->paymentIntentRepository->save(
+            $isOrder ? $model->getIncrementId() : $model->getReservedOrderId(),
+            $intent->getId(),
+            $this->getCurrencyCode($model),
+            $model->getGrandTotal(),
+            $isOrder ? $model->getId() : 0,
+            $isOrder ? $model->getQuoteId() : $model->getId(),
+            $isOrder ? $model->getStore()->getId() : $model->getStoreId(),
+            json_encode(compact('products', 'shipping', 'billing', 'email', 'uid', 'from', 'agreement')),
+            json_encode([$paymentMethod->getMethod()]),
+        );
+
+        return $this->retrievePaymentIntent->setPaymentIntentId($intent->getId())->send();
+    }
+
+    /**
+     * @param $model
+     * @param string $phone
+     * @param string $email
+     * @param string $from
+     * @param PaymentInterface $paymentMethod
+     * @return StructPaymentIntent
+     * @throws AlreadyExistsException
+     * @throws GuzzleException
+     * @throws InputException
+     * @throws JsonException
+     * @throws LocalizedException
+     * @throws RequestException
+     */
+    public function getIntent($model, string $phone, string $email, string $from, PaymentInterface $paymentMethod): StructPaymentIntent
+    {
+        $isOrder = $model instanceof Order;
+        if ($isOrder) {
+            $paymentIntent = $this->paymentIntentRepository->getByOrderId($model->getId());
+        } else {
+            $paymentIntent = $this->paymentIntentRepository->getByQuoteId($model->getId());
+        }
+
+        $isPaymentChanged = $this->paymentIntentRepository->lastMethodCode($paymentIntent) !== $paymentMethod->getMethod();
+        if (!$paymentIntent || $this->isRequiredToGenerateIntent($model, $paymentIntent) || $isPaymentChanged) {
+            return $this->createIntent($model, $phone, $email, $from, $paymentMethod);
+        }
+
+        $this->paymentIntentRepository->appendMethodCode($paymentIntent, $paymentMethod->getMethod());
+
+        try {
+            /** @var StructPaymentIntent $paymentIntentFromApi */
+            $paymentIntentFromApi = $this->retrievePaymentIntent->setPaymentIntentId($paymentIntent->getIntentId())->send();
+        } catch (Exception $e) {
+            $error = json_decode($e->getMessage(), true);
+            if (is_array($error) && isset($error['code']) && $error['code'] === AbstractApi::ERROR_RESOURCE_NOT_FOUND) {
+                return $this->createIntent($model, $phone, $email, $from, $paymentMethod);
+            }
+            throw $e;
+        }
+        if (!$paymentIntentFromApi->getId()) {
+            return $this->createIntent($model, $phone, $email, $from, $paymentMethod);
+        }
+        return $paymentIntentFromApi;
+    }
+
+    /**
+     * Check whether a new PaymentIntent must be created
+     *
+     * @param Quote|Order $model
+     * @param PaymentIntent $paymentIntent
+     * @return bool
+     */
+    public function isRequiredToGenerateIntent($model, PaymentIntent $paymentIntent): bool
+    {
+        if ($model instanceof Order) {
+            $freshOrder = $this->orderFactory->create();
+            $this->orderResource->load($freshOrder, $model->getId());
+            if ($model->getStatus() !== Order::STATE_PENDING_PAYMENT) {
+                return true;
+            }
+        }
+
+        if ($this->getCurrencyCode($model) !== $paymentIntent->getCurrencyCode()) {
+            return true;
+        }
+
+        if (!$this->isAmountEqual($model->getGrandTotal(), $paymentIntent->getGrandTotal())) {
+            return true;
+        }
+
+        if (!$paymentIntent->getDetail()) return true;
+        $detail = json_decode($paymentIntent->getDetail(), true);
+        if (empty($detail['products'])) return true;
+
+        $products = $this->getProducts($model);
+        if ($this->getProductsForCompare($products) !== $this->getProductsForCompare($detail['products'])) {
+            return true;
+        }
+
+        $currentBilling = $this->getBillingAddress($model);
+        $cachedBilling = $detail['billing'] ?? [];
+        if ($this->getBillingAddressForCompare($currentBilling) !== $this->getBillingAddressForCompare($cachedBilling)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Normalize product lines for intent reuse comparison
+     *
+     * @param array $products
+     * @return string
+     */
+    public function getProductsForCompare($products): string
+    {
+        $filteredData = array_map(function ($item) {
+            return [
+                'code' => $item['code'] ?? '',
+                'sku' => $item['sku'] ?? '',
+                'quantity' => $item['quantity'] ?? 0
+            ];
+        }, $products);
+
+        usort($filteredData, function ($a, $b) {
+            if ($a['code'] === $b['code']) {
+                return $a['sku'] <=> $b['sku'];
+            }
+            return $a['code'] <=> $b['code'];
+        });
+        return json_encode($filteredData);
+    }
+
+    /**
+     * Normalize a billing address for intent reuse comparison
+     *
+     * @param mixed $billing
+     * @return string
+     */
+    public function getBillingAddressForCompare($billing): string
+    {
+        $billing = $billing ?? []; 
+        $filteredData = [
+            'first_name' => $billing['first_name'] ?? '',
+            'last_name' => $billing['last_name'] ?? '',
+            'email' => $billing['email'] ?? '',
+            'phone_number' => $billing['phone_number'] ?? '',
+            'country_code' => $billing['address']['country_code'] ?? '',
+            'state' => $billing['address']['state'] ?? '',
+            'city' => $billing['address']['city'] ?? '',
+            'street' => $billing['address']['street'] ?? '',
+            'postcode' => $billing['address']['postcode'] ?? '',
+        ];
+        return json_encode($filteredData);
+    }
+}

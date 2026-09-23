@@ -1,0 +1,9 @@
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <referenceContainer name="content">
+            <referenceBlock name="vault.cards.list">
+                <block class="Airwallex\Payments\Block\Customer\CardRenderer" name="airwallex.card.renderer" template="Airwallex_Payments::customer/credit_card.phtml"/>
+            </referenceBlock>
+        </referenceContainer>
+    </body>
+</page>

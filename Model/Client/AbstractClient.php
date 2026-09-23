@@ -1,0 +1,345 @@
+<?php
+/**
+ * Airwallex Payments for Magento
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 Airwallex
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * @author    Airwallex
+ * @copyright 2026 Airwallex
+ * @license   https://opensource.org/licenses/MIT MIT License
+ */
+namespace Airwallex\Payments\Model\Client;
+
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
+use Airwallex\Payments\Helper\AuthenticationHelper;
+use Airwallex\Payments\Helper\Configuration;
+use Airwallex\Payments\Logger\Guzzle\RequestLogger;
+use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
+use Airwallex\Payments\Model\Methods\RedirectMethod;
+use Exception;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
+use JsonException;
+use Magento\Framework\App\CacheInterface;
+use Magento\Framework\App\ProductMetadataInterface;
+use Magento\Framework\DataObject\IdentityService;
+use Magento\Framework\Module\ModuleListInterface;
+use Psr\Http\Message\ResponseInterface;
+use Magento\Checkout\Helper\Data as CheckoutData;
+
+abstract class AbstractClient
+{
+    public const NOT_FOUND = '404 not found';
+    protected const JSON_DECODE_DEPTH = 512;
+    protected const SUCCESS_STATUS_START = 200;
+    protected const SUCCESS_STATUS_END = 299;
+    protected const AUTHENTICATION_FAILED = 401;
+    protected const TIME_OUT = 30;
+    protected const DEFAULT_HEADER = [
+        'Content-Type' => 'application/json',
+        'region' => 'string'
+    ];
+
+    protected CacheInterface $cache;
+
+    /**
+     * @var AuthenticationHelper
+     */
+    protected AuthenticationHelper $authenticationHelper;
+
+    /**
+     * @var IdentityService
+     */
+    private IdentityService $identityService;
+
+    /**
+     * @var RequestLogger
+     */
+    protected RequestLogger $requestLogger;
+
+    /**
+     * @var Configuration
+     */
+    protected Configuration $configuration;
+
+    /**
+     * @var ProductMetadataInterface
+     */
+    protected ProductMetadataInterface $productMetadata;
+
+    /**
+     * @var ModuleListInterface
+     */
+    protected ModuleListInterface $moduleList;
+
+    /**
+     * @var CheckoutData
+     */
+    protected CheckoutData $checkoutData;
+
+    /**
+     * @var array
+     */
+    private array $params = [];
+
+    /**
+     * AbstractClient constructor.
+     *
+     * @param AuthenticationHelper $authenticationHelper
+     * @param IdentityService $identityService
+     * @param RequestLogger $requestLogger
+     * @param Configuration $configuration
+     * @param ProductMetadataInterface $productMetadata
+     * @param ModuleListInterface $moduleList
+     * @param CheckoutData $checkoutData
+     * @param CacheInterface $cache
+     */
+    public function __construct(
+        AuthenticationHelper       $authenticationHelper,
+        IdentityService            $identityService,
+        RequestLogger              $requestLogger,
+        Configuration              $configuration,
+        ProductMetadataInterface   $productMetadata,
+        ModuleListInterface        $moduleList,
+        CheckoutData               $checkoutData,
+        CacheInterface             $cache
+    )
+    {
+        $this->authenticationHelper = $authenticationHelper;
+        $this->identityService = $identityService;
+        $this->requestLogger = $requestLogger;
+        $this->configuration = $configuration;
+        $this->productMetadata = $productMetadata;
+        $this->moduleList = $moduleList;
+        $this->checkoutData = $checkoutData;
+        $this->cache = $cache;
+    }
+
+    /**
+     * @return mixed
+     * @throws GuzzleException
+     * @throws JsonException
+     * @throws RequestException
+     * @throws Exception
+     */
+    public function send()
+    {
+        $data = [
+            'base_uri' => $this->getBaseUrl(),
+            'timeout' => self::TIME_OUT,
+        ];
+        if ($this->getMethod() !== 'GET') {
+            $data['handler'] = $this->requestLogger->getStack();
+        }
+        $client = new Client($data);
+
+        $request = $this->createRequest($client);
+        $statusCode = $request->getStatusCode();
+
+        // If authorization fails on first try, clear token from cache and try again.
+        if ($statusCode === self::AUTHENTICATION_FAILED) {
+            $this->authenticationHelper->clearToken();
+            $request = $this->createRequest($client);
+            $statusCode = $request->getStatusCode();
+        }
+
+        // If still invalid response, process error.
+        if (!($statusCode >= self::SUCCESS_STATUS_START && $statusCode < self::SUCCESS_STATUS_END)) {
+            $response = $this->parseJson($request);
+            if ($statusCode === 404) {
+                throw new RequestException(self::NOT_FOUND);
+            }
+            // throw new RequestException($response->message);
+        }
+
+        return $this->parseResponse($request);
+    }
+
+    protected function getBaseUrl(): string
+    {
+        return $this->configuration->getApiUrl();
+    }
+
+    /**
+     * @param array $params
+     *
+     * @return $this
+     */
+    protected function setParams(array $params): AbstractClient
+    {
+        $this->params = array_merge($this->params, $params);
+
+        return $this;
+    }
+
+    /**
+     * @param string $name
+     * @param string $value
+     *
+     * @return $this
+     */
+    protected function setParam(string $name, string $value): AbstractClient
+    {
+        $this->params[$name] = $value;
+
+        return $this;
+    }
+
+    protected function unsetParam(string $name): AbstractClient
+    {
+        unset($this->params[$name]);
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    protected function getMethod(): string
+    {
+        return 'POST';
+    }
+
+    /**
+     * @param ResponseInterface $request
+     *
+     * @return object
+     * @throws JsonException
+     */
+    protected function parseJson(ResponseInterface $request): object
+    {
+        return json_decode((string)$request->getBody(), false, self::JSON_DECODE_DEPTH, JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * Get options to create request.
+     *
+     * @return array
+     * @throws GuzzleException
+     */
+    protected function getRequestOptions(): array
+    {
+        return [
+            'headers' => array_merge(self::DEFAULT_HEADER, $this->getHeaders()),
+            'http_errors' => false
+        ];
+    }
+
+    /**
+     * @return array
+     * @throws GuzzleException
+     */
+    protected function getHeaders(): array
+    {
+        $header = [];
+
+        if ($this instanceof BearerAuthenticationInterface) {
+            $header['Authorization'] = 'Bearer ' . $this->authenticationHelper->getBearerToken();
+            $header['x-api-version'] = AbstractApi::X_API_VERSION;
+            $header['x-awx-internal-domain'] = 'payapps';
+        }
+
+        return $header;
+    }
+
+    /**
+     * Get information about Magento version executing the request.
+     *
+     * @return array
+     */
+    protected function getReferrerData(): array
+    {
+        return [
+            'type' => 'magento',
+            'version' => $this->moduleList->getOne(Configuration::MODULE_NAME)['setup_version']
+        ];
+    }
+
+    /**
+     * Get information about versions executing the request.
+     *
+     * @return array
+     */
+    protected function getMetadata(): array
+    {
+        $metadata = [
+            'php_version' => phpversion(),
+            'magento_version' => $this->productMetadata->getVersion(),
+            'plugin_version' => $this->moduleList->getOne(Configuration::MODULE_NAME)['setup_version'],
+            'is_card_active' => $this->configuration->isCardActive() ?? false,
+            'is_card_auto_capture' => $this->configuration->isAutoCapture('card') ?? false,
+            'is_card_vault_active' => $this->configuration->isCardVaultActive() ?? false,
+            'is_express_active' => $this->configuration->isExpressActive() ?? false,
+            'is_express_auto_capture' => $this->configuration->isAutoCapture('express') ?? false,
+            'express_display_area' => $this->configuration->expressDisplayArea() ?? '',
+            'is_request_logger_enable' => $this->configuration->isRequestLoggerEnable() ?? false,
+            'express_checkout' => $this->configuration->getCheckout() ?? '',
+            'is_order_before_payment' => $this->configuration->isOrderBeforePayment(),
+            'host' => $_SERVER['HTTP_HOST'] ?? '',
+        ];
+
+        foreach (array_keys(RedirectMethod::displayNames()) as $paymentMethod) {
+            $paymentMethod = str_replace(RedirectMethod::PAYMENT_PREFIX, '', $paymentMethod);
+            $metadata['is_' . $paymentMethod . '_active'] = $this->configuration->isMethodActive($paymentMethod);
+        }
+
+        return $metadata;
+    }
+
+    /**
+     * Create request to Airwallex.
+     *
+     * @param Client $client
+     * @return ResponseInterface
+     * @throws GuzzleException
+     */
+    protected function createRequest(Client $client): ResponseInterface
+    {
+        $method = $this->getMethod();
+        $options = $this->getRequestOptions();
+
+        if ($method === 'POST') {
+            $this->params['request_id'] = $this->identityService->generateId();
+            $this->params['referrer_data'] = $this->getReferrerData();
+            $this->params['metadata'] = $this->getMetadata();
+            $options['json'] = $this->params;
+        }
+
+        if ($method === 'GET') {
+            $options['query'] = $this->params;
+        }
+
+        return $client->request($this->getMethod(), $this->getUri(), $options);
+    }
+
+    /**
+     * @return string
+     */
+    abstract protected function getUri(): string;
+
+    /**
+     * @param ResponseInterface $response
+     * @return mixed
+     */
+    abstract protected function parseResponse(ResponseInterface $response);
+}
