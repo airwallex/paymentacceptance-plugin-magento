@@ -54,6 +54,7 @@ use Magento\Sales\Model\Spi\OrderResourceInterface;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Log as RemoteLog;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\UrlHelper;
 
 class PaymentIntents
 {
@@ -160,6 +161,21 @@ class PaymentIntents
             ->setCurrency($this->getCurrencyCode($model))
             ->setMerchantOrderId($merchantOrderId)
             ->setReturnUrl(trim($this->urlInterface->getUrl($uri), '/'));
+
+        // Report the store origin (scheme + host) where the customer completes
+        // the transaction as the root-level merchant_website_url (Mastercard
+        // AN 6022). Prefer the browser origin the front-end sends in
+        // additional_data; fall back to the configured store base URL (e.g.
+        // for admin/API-created orders). Only sent when a valid origin resolves.
+        $additionalData = $paymentMethod->getAdditionalData() ?? [];
+        $clientOrigin = $additionalData['merchant_website_url'] ?? '';
+        $merchantWebsiteUrl = UrlHelper::toOrigin((string) $clientOrigin);
+        if ($merchantWebsiteUrl === '') {
+            $merchantWebsiteUrl = UrlHelper::toOrigin((string) $this->urlInterface->getBaseUrl());
+        }
+        if ($merchantWebsiteUrl !== '') {
+            $createPaymentIntentRequest->setMerchantWebsiteUrl($merchantWebsiteUrl);
+        }
 
         try {
             $uid = $isOrder ? $model->getCustomerId() : ($model->getCustomer() ? $model->getCustomer()->getId() : null);

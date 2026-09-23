@@ -503,6 +503,10 @@ define([
             if (!payload.cartId) {
                 throw new Error('Cart ID is required!');
             }
+            // Report the store origin (scheme + host) where the customer is
+            // completing this transaction as merchant_website_url, for
+            // Mastercard AN 6022 compliance. Sent on Payment Intent create.
+            payload.paymentMethod.additional_data.merchant_website_url = window.location.origin + '/';
             let intentResponse = {}                      ;
             try {
                 intentResponse = await storage.post(

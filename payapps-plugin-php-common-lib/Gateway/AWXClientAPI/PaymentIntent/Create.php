@@ -235,6 +235,16 @@ class Create extends AbstractApi
     }
 
     /**
+     * @param string $merchantWebsiteUrl
+     *
+     * @return Create
+     */
+    public function setMerchantWebsiteUrl(string $merchantWebsiteUrl): Create
+    {
+        return $this->setParam('merchant_website_url', $merchantWebsiteUrl);
+    }
+
+    /**
      * @param array $order
      *
      * @return Create
