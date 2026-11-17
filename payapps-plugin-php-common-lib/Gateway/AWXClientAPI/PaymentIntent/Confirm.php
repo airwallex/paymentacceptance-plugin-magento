@@ -6,6 +6,7 @@ use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\DataSanitizationTrait;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent;
 use Airwallex\PayappsPlugin\CommonLibrary\Util\StringHelper;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\UrlHelper;
 
 class Confirm extends AbstractApi
 {
@@ -43,7 +44,7 @@ class Confirm extends AbstractApi
      */
     protected function getUri(): string
     {
-        return 'pa/payment_intents/' . $this->id . '/confirm';
+        return 'pa/payment_intents/' . UrlHelper::pathSegment($this->id) . '/confirm';
     }
 
     /**

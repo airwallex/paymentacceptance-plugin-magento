@@ -40,8 +40,10 @@ use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\Customer\Create a
 use Airwallex\PayappsPlugin\CommonLibrary\UseCase\PaymentConsent\All as AllPaymentConsents;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentConsent\Retrieve as RetrievePaymentConsent;
 use Airwallex\Payments\Helper\AvailablePaymentMethodsHelper;
+use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use GuzzleHttp\Exception\GuzzleException;
+use Magento\Checkout\Model\Session as CheckoutSession;
 use Magento\Customer\Api\CustomerRepositoryInterface;
 use Magento\Customer\Api\Data\CustomerInterface;
 use Magento\Framework\App\Config\ScopeConfigInterface;
@@ -80,6 +82,9 @@ class PaymentConsents implements PaymentConsentsInterface
 
     public const KEY_AIRWALLEX_CUSTOMER_ID = 'airwallex_customer_id';
 
+    private CheckoutRequestGuard $checkoutRequestGuard;
+    private Configuration $configuration;
+    private CheckoutSession $checkoutSession;
     private CreateCustomer $createCustomer;
     private AllPaymentConsents $paymentConsentList;
     private CustomerRepositoryInterface $customerRepository;
@@ -124,9 +129,15 @@ class PaymentConsents implements PaymentConsentsInterface
         IndexerRegistry                      $indexerRegistry,
         AvailablePaymentMethodsHelper        $availablePaymentMethodsHelper,
         SavedPaymentResponseInterfaceFactory $savedPaymentResponseFactory,
-        CommonLibraryInit                    $commonLibraryInit
+        CommonLibraryInit                    $commonLibraryInit,
+        CheckoutRequestGuard                 $checkoutRequestGuard,
+        Configuration                        $configuration,
+        CheckoutSession                      $checkoutSession
     )
     {
+        $this->checkoutRequestGuard = $checkoutRequestGuard;
+        $this->configuration = $configuration;
+        $this->checkoutSession = $checkoutSession;
         $this->createCustomer = $createCustomer;
         $this->paymentConsentList = $paymentConsentList;
         $this->customerRepository = $customerRepository;
@@ -404,15 +415,16 @@ class PaymentConsents implements PaymentConsentsInterface
      */
     public function getAirwallexCustomerIdInDB(?int $customerId): string
     {
-        if (!$customerId) return "";
-        $customer = $this->customerRepository->getById($customerId);
-        $airwallexCustomerIdAttribute = $customer->getCustomAttribute(self::KEY_AIRWALLEX_CUSTOMER_ID);
-
-        $airwallexCustomerId = '';
-        if ($airwallexCustomerIdAttribute && $airwallexCustomerIdAttribute->getValue()) {
-            $airwallexCustomerId = $airwallexCustomerIdAttribute->getValue();
+        if (!$customerId) {
+            return '';
         }
-        return $airwallexCustomerId;
+        $customer = $this->customerFactory->create();
+        $this->customerResource->load($customer, $customerId);
+        if (!$customer->getId()) {
+            throw NoSuchEntityException::singleField('id', $customerId);
+        }
+        $airwallexCustomerId = $customer->getData(self::KEY_AIRWALLEX_CUSTOMER_ID);
+        return is_string($airwallexCustomerId) ? $airwallexCustomerId : '';
     }
 
     /**
@@ -433,17 +445,34 @@ class PaymentConsents implements PaymentConsentsInterface
         $tokens = $this->tokenManagement->getVisibleAvailableTokens($customerId);
         $dbCards = [];
         foreach ($tokens as $token) {
+            if ($token->getPaymentMethodCode() !== Vault::CODE) {
+                continue;
+            }
             $detail = $token->getTokenDetails();
-            $arr = json_decode($detail, true);
-            $tokenAirwallexCustomerId = $arr['customer_id'] ?? '';
+            $arr = $detail ? json_decode($detail, true) : [];
+            $tokenAirwallexCustomerId = is_array($arr) ? ($arr['customer_id'] ?? '') : '';
             if (empty($cloudCards[$token->getGatewayToken()]) && $tokenAirwallexCustomerId === $airwallexCustomerId) {
                 $this->tokenRepository->delete($token);
                 continue;
             }
 
-            $dbCards[$token->getGatewayToken()] = true;
+            if ($tokenAirwallexCustomerId === $airwallexCustomerId) {
+                $dbCards[$token->getGatewayToken()] = $token;
+            }
         }
 
+        // Include expired or hidden rows from vault_payment_token so we never
+        // re-insert a duplicate (payment_method_code, customer_id, gateway_token).
+        $existingTokens = $this->tokenManagement->getListByCustomerId($customerId);
+        foreach ($existingTokens as $existingToken) {
+            if ($existingToken->getPaymentMethodCode() !== Vault::CODE) {
+                continue;
+            }
+            $gatewayToken = $existingToken->getGatewayToken();
+            if (!isset($dbCards[$gatewayToken])) {
+                $dbCards[$gatewayToken] = $existingToken;
+            }
+        }
 
         $code = Vault::CODE;
         $type = 'card';
@@ -451,6 +480,19 @@ class PaymentConsents implements PaymentConsentsInterface
         $cloudCardsTokens = [];
         foreach ($cloudCards as $index => $cloudCard) {
             $cloudCardsTokens[$index] = true;
+            $details = json_encode([
+                'type' => $cloudCard['card_brand'],
+                'icon' => $cloudCard['card_icon'],
+                'status' => PaymentConsents::STATUS_VERIFIED,
+                'id' => $index,
+                'customer_id' => $airwallexCustomerId,
+                'maskedCC' => $cloudCard['card_last_four'],
+                'expirationDate' => $cloudCard['card_expiry_month'] . '/' . $cloudCard['card_expiry_year'],
+            ]);
+            $expiresAt = $this->cardExpirationTimestamp(
+                (string) $cloudCard['card_expiry_year'],
+                (string) $cloudCard['card_expiry_month']
+            );
             if (empty($dbCards[$index])) {
                 $token = $this->tokenFactory->create();
                 $token->setCustomerId($customerId);
@@ -458,28 +500,26 @@ class PaymentConsents implements PaymentConsentsInterface
                 $token->setPaymentMethodCode($code);
                 $token->setType($type);
                 $token->setGatewayToken($index);
-                $details = json_encode([
-                    'type' => $cloudCard['card_brand'],
-                    'icon' => $cloudCard['card_icon'],
-                    'status' => PaymentConsents::STATUS_VERIFIED,
-                    'id' => $index,
-                    'customer_id' => $airwallexCustomerId,
-                    'maskedCC' => $cloudCard['card_last_four'],
-                    'expirationDate' => $cloudCard['card_expiry_month'] . '/' . $cloudCard['card_expiry_year'],
-                ]);
                 $token->setTokenDetails($details);
                 $hash = $this->encryptor->getHash($customerId . $code . $type . $details);
                 $token->setPublicHash($hash);
-                $token->setExpiresAt(
-                    sprintf(
-                        '%s-%s-01 00:00:00',
-                        $cloudCard['card_expiry_year'],
-                        $cloudCard['card_expiry_month']
-                    )
-                );
+                $token->setExpiresAt($expiresAt);
                 try {
                     $this->tokenRepository->save($token);
                 } catch (Exception $e) {
+                }
+            } else {
+                $existingToken = $dbCards[$index];
+                $existingDetail = $existingToken->getTokenDetails();
+                $existingArr = $existingDetail ? json_decode($existingDetail, true) : [];
+                $existingCustomerId = is_array($existingArr) ? ($existingArr['customer_id'] ?? '') : '';
+                if ($existingCustomerId === '' || $existingCustomerId === $airwallexCustomerId) {
+                    $existingToken->setTokenDetails($details);
+                    $existingToken->setExpiresAt($expiresAt);
+                    try {
+                        $this->tokenRepository->save($existingToken);
+                    } catch (Exception $e) {
+                    }
                 }
             }
         }
@@ -487,9 +527,16 @@ class PaymentConsents implements PaymentConsentsInterface
         $allTokens = $this->tokenManagement->getListByCustomerId($customerId);
         /** @var PaymentTokenInterface $token */
         foreach ($allTokens as $token) {
+            if ($token->getPaymentMethodCode() !== Vault::CODE) {
+                continue;
+            }
             $detail = $token->getTokenDetails();
             if (!$detail) continue;
             $arr = json_decode($detail, true);
+            if (!is_array($arr)) continue;
+            if (($arr['customer_id'] ?? '') !== $airwallexCustomerId) {
+                continue;
+            }
             if (!empty($cloudCardsTokens[$token->getGatewayToken()])) {
                 if (!empty($arr['status']) && $arr['status'] === PaymentConsents::STATUS_VERIFIED) {
                     continue;
@@ -507,6 +554,34 @@ class PaymentConsents implements PaymentConsentsInterface
         }
 
         return true;
+    }
+
+    private function cardExpirationTimestamp(string $year, string $month): string
+    {
+        $yearInt = (int) trim($year);
+        if ($yearInt > 0 && $yearInt < 100) {
+            $yearInt += 2000;
+        }
+        if ($yearInt < 1970) {
+            $yearInt = 1970;
+        }
+        $monthInt = max(1, min(12, (int) trim($month)));
+        $utc = new \DateTimeZone('UTC');
+        $expDate = new \DateTime(
+            sprintf('%04d-%02d-01 00:00:00', $yearInt, $monthInt),
+            $utc
+        );
+        $expDate->add(new \DateInterval('P1M'));
+        $maxTimestamp = new \DateTime('2038-01-01 00:00:00', $utc);
+        if ($expDate > $maxTimestamp) {
+            $expDate = $maxTimestamp;
+        }
+        $minTimestamp = new \DateTime('1970-01-02 00:00:00', $utc);
+        if ($expDate < $minTimestamp) {
+            $expDate = $minTimestamp;
+        }
+
+        return $expDate->format('Y-m-d 00:00:00');
     }
 
     /**
@@ -544,14 +619,29 @@ class PaymentConsents implements PaymentConsentsInterface
      */
     public function guestGenerateClientSecret(): ClientSecretResponseInterface
     {
+        $store = $this->storeManager->getStore();
+        $quote = $this->checkoutSession->getQuote();
+        $sessionId = $this->checkoutSession->getSessionId();
+        if (!$this->configuration->isPreVerificationEnabled() || !$sessionId
+            || !(int) $quote->getId() || !(bool) $quote->getIsActive() || (int) $quote->getItemsCount() < 1
+            || (int) $quote->getId() !== (int) $this->checkoutSession->getQuoteId()
+            || (int) $quote->getStoreId() !== (int) $store->getId() || (int) $quote->getCustomerId() > 0
+        ) {
+            throw new LocalizedException(__('Pre-verification is not enabled or guest checkout session is invalid.'));
+        }
+        $this->checkoutRequestGuard->limit('guest_client_secret', (int) $store->getId(), 30);
+        $scope = implode(':', [$sessionId, $quote->getId(), $store->getId(),
+            $this->configuration->getMode(), $this->configuration->getClientId(), $this->configuration->getAccount()]);
+        $customerId = $this->checkoutRequestGuard->guestCustomer($scope, function (): string {
+            return $this->createCustomer->setCustomerId(0)->send()->getId();
+        });
+        /** @var StructCustomerClientSecret $secret */
+        $secret = $this->retrieveCustomerClientSecret->setCustomerId($customerId)->send();
         $response = $this->clientSecretResponseFactory->create();
-
-        /** @var StructCustomer $airwallexCustomer */
-        $airwallexCustomer = $this->createCustomer->setCustomerId(0)->send();
-
         $response->setData([
-            ClientSecretResponseInterface::DATA_KEY_CLIENT_SECRET => $airwallexCustomer->getClientSecret(),
-            ClientSecretResponseInterface::DATA_KEY_CUSTOMER_ID => $airwallexCustomer->getId(),
+            ClientSecretResponseInterface::DATA_KEY_CLIENT_SECRET => $secret->getClientSecret(),
+            ClientSecretResponseInterface::DATA_KEY_CUSTOMER_ID => $customerId,
+            ClientSecretResponseInterface::DATA_KEY_EXPIRED_TIME => $secret->getExpiredTime(),
         ]);
         return $response;
     }

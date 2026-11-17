@@ -4,6 +4,7 @@ namespace Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\Customer;
 
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\CustomerClientSecret;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\UrlHelper;
 
 class GenerateClientSecret extends AbstractApi
 {
@@ -25,7 +26,7 @@ class GenerateClientSecret extends AbstractApi
      */
     protected function getUri(): string
     {
-        return 'pa/customers/' . $this->customerId . '/generate_client_secret';
+        return 'pa/customers/' . UrlHelper::pathSegment($this->customerId) . '/generate_client_secret';
     }
 
     /**

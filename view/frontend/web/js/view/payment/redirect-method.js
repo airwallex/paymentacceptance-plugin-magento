@@ -31,9 +31,11 @@
 define([
     'Magento_Checkout/js/view/payment/default',
     'jquery',
+    'ko',
     'mage/url',
     'mage/storage',
     'Airwallex_Payments/js/view/payment/utils',
+    'Airwallex_Payments/js/view/payment/tracking',
     'Magento_Checkout/js/model/payment/additional-validators',
     'Magento_Checkout/js/action/redirect-on-success',
     'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
@@ -43,9 +45,12 @@ define([
 ], function (
     Component                        ,
     $              ,
+    ko                ,
     urlBuilder            ,
     storage             ,
     utils                     ,
+    tracking   
+     ,
     additionalValidators                      ,
     redirectOnSuccessAction                         ,
     addressHandler                      ,
@@ -68,30 +73,44 @@ define([
             isTotalUpdated: false,
             chosenCurrencyKeyPrefix: 'airwallex_chosen_currency_in_',
             entity: '',
+            renderVersion: 0,
+            renderQueued: false,
+            isSubmitting: false,
+            isDisposed: false,
+        },
+        beginRender(                      ) {
+            ++this.renderVersion;
+            this.disableCheckoutButton(this.index);
+            return this.renderVersion;
+        },
+        isRenderCurrent(                        version        ) {
+            return version === this.renderVersion && this.isMethodChecked(this.index) && !!quote.billingAddress();
         },
         async loadPayment(                      ) {
             const billingTip = $t('Confirm your billing address to use %1')
                 .replace('%1', this.getDisplayName(this.index));
             const qrcodeTip = $t('You will be shown the %1 QR code upon confirmation')
                 .replace('%1', this.getDisplayName(this.index));
-            $(`.${this.index} .awx-billing-address-header`).html(`
-                <div class="awx-billing-confirm-tip">${billingTip}</div>
-                <div class="awx-qrcode-tip">${qrcodeTip}</div>
-            `);
+            $(`.${this.index} .awx-billing-address-header`).empty().append(
+                $('<div class="awx-billing-confirm-tip"></div>').text(billingTip),
+                $('<div class="awx-qrcode-tip"></div>').text(qrcodeTip)
+            );
             if (!this.isMethodChecked(this.index)) {
                 return;
             }
+            const version = this.beginRender();
             this.hideYouPay();
+            localStorage.removeItem(this.chosenCurrencyKeyPrefix + this.index);
             const currentPaymentMethodCode = quote.paymentMethod().method.replace('airwallex_payments_', '');
             const container = $(`.${this.index} .awx-redirect-method-footer`);
             this.entity = await this.fetchEntity();
+            if (!this.isRenderCurrent(version)) return;
             const paymentData = window.checkoutConfig .payment .airwallex_payments ;
             const entityToCurrency = paymentData.redirect_method_entity_to_currency [currentPaymentMethodCode];
             const countryToCurrency = paymentData.redirect_method_country_to_currency ;
             const billingCountry = quote.billingAddress() ? quote.billingAddress().countryId : '';
             if (!entityToCurrency || !entityToCurrency[this.entity]) {
-                console.warn('Invalid merchant entity:');
-                this.enableCheckoutButton(this.index);
+                this.showUnavailableCurrencyAlert(container, this.index, this.getDisplayName(this.index), paymentData.quote_currency_code );
                 return;
             }
             const availableCurrencies = paymentData.available_currencies || [];
@@ -100,23 +119,17 @@ define([
                 this.enableCheckoutButton(this.index);
                 return;
             }
-            if (!availableCurrencies.length) {
-                const msg = $t('%1 is not available in %2 for your billing country. Please use a different payment method to complete your purchase.')
-                    .replace('%1', this.getDisplayName(this.index))
-                    .replace('%2', paymentData.quote_currency_code );
-                container.html(utils.awxAlert(msg));
-                this.disableCheckoutButton(this.index);
-                return;
-            }
-            if (availableCurrencies.indexOf(paymentData.quote_currency_code ) === -1) {
-                const msg = $t('%1 is not available in %2 for your billing country. Please use a different payment method to complete your purchase.')
-                    .replace('%1', this.getDisplayName(this.index))
-                    .replace('%2', paymentData.quote_currency_code );
-                container.html(utils.awxAlert(msg));
-                this.disableCheckoutButton(this.index);
+            if (!availableCurrencies.length || availableCurrencies.indexOf(paymentData.quote_currency_code ) === -1) {
+                this.showUnavailableCurrencyAlert(
+                    container,
+                    this.index,
+                    this.getDisplayName(this.index),
+                    paymentData.quote_currency_code 
+                );
                 return;
             }
             const expressData = await this.fetchExpressData();
+            if (!this.isRenderCurrent(version)) return;
             let targetCurrency;
             if (countryToCurrency[billingCountry]) {
                 targetCurrency = countryToCurrency[billingCountry];
@@ -137,13 +150,14 @@ define([
             await this.showCurrencies(expressData);
         },
         async showCurrencies(                        expressData     ) {
+            const version = this.renderVersion;
             let that = this;
             const paymentData = window.checkoutConfig .payment .airwallex_payments ;
             const currentPaymentMethodCode = quote.paymentMethod().method.replace('airwallex_payments_', '');
             const entityToCurrency = paymentData.redirect_method_entity_to_currency [currentPaymentMethodCode];
             const selectableCurrencies = entityToCurrency[this.entity];
             const currencyItemsHtml = selectableCurrencies
-                .map(currency => `<li data-value="${currency}">${currency}</li>`)
+                .map(currency => `<li data-value="${this.escapeHtml(currency)}">${this.escapeHtml(currency)}</li>`)
                 .join('');
             const html = `
                   <div class="awx-selector-container">
@@ -167,19 +181,21 @@ define([
                 localStorage.setItem(this.chosenCurrencyKeyPrefix + this.index, chosenCurrency);
             }
             await this.displaySwitcher(html, expressData, chosenCurrency, that.getDisplayName(that.index));
-            let chosenCurrenciesList = $(".awx-selector-container li");
-            let $chosenCurrencyInput = $(".awx-selector-container input");
+            const container = $(`.${this.index} .awx-redirect-method-footer`);
+            if (!this.isRenderCurrent(version)) return;
+            let chosenCurrenciesList = container.find('.awx-selector-container li');
+            let $chosenCurrencyInput = container.find('.awx-selector-container input');
             chosenCurrenciesList.each(function (                 ) {
                 if ($(this).data("value") === chosenCurrency) {
-                    $chosenCurrencyInput.val($(this).html());
+                    $chosenCurrencyInput.val($(this).text());
                     that.enableCheckoutButton(that.index);
                 }
             });
             let showCurrencies = function () {
-                $(".awx-selector-container .countries").fadeIn(300);
+                container.find('.awx-selector-container .countries').fadeIn(300);
                 let country = localStorage.getItem(that.chosenCurrencyKeyPrefix + that.index);
                 if (country) {
-                    $(".awx-selector-container li").each(function (                 ) {
+                    container.find('.awx-selector-container li').each(function (                 ) {
                         $(this).removeClass("selected");
                         if ($(this).data("value") === country) {
                             $(this).addClass("selected");
@@ -188,33 +204,33 @@ define([
                 }
             };
             $chosenCurrencyInput.off('focus').on('focus', showCurrencies);
-            $('.awx-selector-container .input-icon').off('click').on('click', showCurrencies);
+            container.find('.awx-selector-container .input-icon').off('click').on('click', showCurrencies);
             $chosenCurrencyInput.off('blur').on('blur', function () {
-                $(".awx-selector-container .countries").fadeOut(300);
+                container.find('.awx-selector-container .countries').fadeOut(300);
             });
             chosenCurrenciesList.off('click').on('click', function (                 ) {
-                let $body = $('body');
-                $body.trigger('processStart');
-                localStorage.setItem(that.chosenCurrencyKeyPrefix + that.index, $(this).data("value"));
-                that.showCurrencies(expressData);
-                $body.trigger('processStop');
+                void that.selectCurrency(that.chosenCurrencyKeyPrefix + that.index, $(this).data("value"), () => that.showCurrencies(expressData));
             });
         },
         initialize(                      ) {
             this._super();
+            this.checkoutSubscriptions = [];
+            this.billingAddress = ko.toJS(quote.billingAddress());
             if (!window.awxCardElement && Airwallex) {
                 window.awxCardElement = Airwallex.createElement('card');
             }
-            quote.billingAddress.subscribe((newValue) => {
+            this.checkoutSubscriptions.push(quote.billingAddress.subscribe((newValue) => {
                 this.renderPayment(newValue, 'billingAddress');
-            });
-            quote.paymentMethod.subscribe((newValue) => {
+            }));
+            this.checkoutSubscriptions.push(quote.paymentMethod.subscribe((newValue) => {
+                ++this.renderVersion;
+                if (!newValue || newValue.method !== this.index) return;
                 this.hideYouPay();
                 this.renderPayment(newValue, 'paymentMethod');
-            });
-            quote.totals.subscribe((newValue) => {
+            }));
+            this.checkoutSubscriptions.push(quote.totals.subscribe((newValue) => {
                 this.renderPayment(newValue, 'totals');
-            });
+            }));
             let intentId = utils.getQueryParam('intent_id');
             if (intentId) {
                 if (!window['awx_handling_intent_' + intentId]) {
@@ -222,10 +238,28 @@ define([
                     this.watchPaymentConfirmation(intentId, utils.getQueryParam('state'));
                 }
             }
+            this.trackActiveMethod();
+        },
+        destroy(                      ) {
+            this.isDisposed = true;
+            ++this.renderVersion;
+            this.checkoutSubscriptions?.forEach((subscription                      ) => subscription.dispose());
+            return this._super();
+        },
+        funnelMethod(                      ) {
+            return String(this.index).replace('airwallex_payments_', '').replace('airwallex_cc_', '');
+        },
+        trackActiveMethod(                      ) {
+            if (!this.isMethodChecked(this.index)) {
+                return;
+            }
+            const paymentMethod = this.funnelMethod();
+            tracking.trackRendered(paymentMethod);
+            tracking.trackMethodSelected(paymentMethod);
         },
         async renderPayment(                        data     , type        ) {
-            $(".awx-redirect-method-footer").show();
             if (type === 'totals') {
+                if (!data) return;
                 if (Math.abs(this.grandTotal - data.grand_total) < 0.0001) {
                     return;
                 }
@@ -242,25 +276,30 @@ define([
                 if (data && JSON.stringify(this.billingAddress) === JSON.stringify(data)) {
                     return;
                 }
-                this.billingAddress = data;
+                this.billingAddress = ko.toJS(data);
+                this.selectedAfterpayCountry = null;
             }
             if (!this.isMethodChecked(this.index)) {
                 return;
             }
+            ++this.renderVersion;
             if (!quote.billingAddress()) {
-                this.disableCheckoutButton(quote.paymentMethod().method);
+                this.disableCheckoutButton(this.index);
                 return;
             }
-            if (this.code !== 'redirect') {
-                if (window['awx_rendering_' + this.code]) {
-                    return;
-                }
-                window['awx_rendering_' + this.code] = true;
-                setTimeout(() => {
-                    window['awx_rendering_' + this.code] = false;
-                }, 300);
-            }
-            await this.callWithCatch(() => this.loadPayment());
+            this.disableCheckoutButton(this.index);
+            if (this.renderQueued) return;
+            this.renderQueued = true;
+            ko.tasks.schedule(() => {
+                this.renderQueued = false;
+                if (!this.isMethodChecked(this.index) || !quote.billingAddress()) return;
+                $(`.${this.index} .awx-redirect-method-footer`).show();
+                this.trackActiveMethod();
+                void this.callWithCatch(() => this.loadPayment(), false);
+            });
+        },
+        onPaymentContainerRendered(                      ) {
+            void this.renderPayment(null, 'render');
         },
         getDisplayName(name        ) {
             return window.checkoutConfig .payment .airwallex_payments .redirect_method_display_names [name];
@@ -278,7 +317,7 @@ define([
             if (!this.isMethodChecked(method)) {
                 return;
             }
-            $('.' + method + ' .checkout').toggleClass('disabled', !isEnable);
+            $('.' + method + ' .checkout').toggleClass('disabled', !isEnable).prop('disabled', !isEnable);
         },
         enableCheckoutButton(                        method        ) {
             this.toggleCheckoutButton(method, true);
@@ -286,14 +325,29 @@ define([
         disableCheckoutButton(                        method        ) {
             this.toggleCheckoutButton(method, false);
         },
-        switcherTip(targetCurrency        , brand        ) {
-            return $t('%1 We have converted the currency to %2 so you can use %3')
-                .replace('%1', '<span class="currency-switcher-tip">')
-                .replace('%2', targetCurrency)
-                .replace('%3', brand + ".</span>");
+        escapeHtml(value         )         {
+            return $('<div/>').text(String(value ?? '')).html();
         },
-        showYouPay(switchers          = {}) {
-            utils.showYouPay(switchers, $t);
+        showUnavailableCurrencyAlert(
+            container        ,
+            method        ,
+            brand        ,
+            currency        
+        ) {
+            const msg = this.escapeHtml($t('%1 is not available in %2 for your billing country. Please use a different payment method to complete your purchase.'))
+                .replace('%1', this.escapeHtml(brand))
+                .replace('%2', this.escapeHtml(currency));
+            container.html(utils.awxAlert(msg));
+            this.disableCheckoutButton(method);
+        },
+        switcherTip(                        targetCurrency        , brand        ) {
+            return this.escapeHtml($t('%1 We have converted the currency to %2 so you can use %3'))
+                .replace('%1', '<span class="currency-switcher-tip">')
+                .replace('%2', this.escapeHtml(targetCurrency))
+                .replace('%3', this.escapeHtml(brand) + ".</span>");
+        },
+        showYouPay(                        switchers          = {}) {
+            if (this.isMethodChecked(this.index)) utils.showYouPay(switchers, $t);
         },
         hideYouPay() {
             utils.hideYouPay();
@@ -316,47 +370,73 @@ define([
             let refreshSelector = "#" + code + '-button span';
             $(refreshSelector).text($t('Confirm'));
         },
-        isMethodChecked(method        ) {
-            if (!quote.paymentMethod() || !quote.paymentMethod().method) {
+        isMethodChecked(                        method        ) {
+            if (this.isDisposed || !quote.paymentMethod() || !quote.paymentMethod().method) {
                 return false;
             }
             return quote.paymentMethod().method === method;
         },
-        async callWithCatch(                        fn               ) {
-            let $body = $('body');
+        async selectCurrency(                        key        , selected        , render                                       ) {
+            const pending = this.currencySelection;
+            const previous = pending?.key === key && pending.version === this.renderVersion ? pending.previous : localStorage.getItem(key);
+            const version = this.beginRender();
+            this.currencySelection = { key, previous, version };
+            await this.callWithCatch(async () => {
+                localStorage.setItem(key, selected);
+                try {
+                    await render(version);
+                } catch (e) {
+                    if (!this.isRenderCurrent(version)) return;
+                    if (previous === null) localStorage.removeItem(key);
+                    else localStorage.setItem(key, previous);
+                    throw e;
+                } finally {
+                    if (this.currencySelection?.version === version) this.currencySelection = null;
+                }
+            }, !!previous);
+        },
+        async callWithCatch(                        fn               , enableOnError = true) {
+            let version = this.renderVersion;
+            const $body = $('body');
             $body.trigger('processStart');
             try {
-                await fn();
+                const result = fn();
+                version = this.renderVersion;
+                await result;
             } catch (e     ) {
-                const container = $(`.` + quote.paymentMethod().method + ` .awx-redirect-method-footer`);
-                let msg = $t('Something went wrong while processing your request. Please try again.');
-                if (e && e.responseJSON && e.responseJSON.message) {
-                    msg = e.responseJSON.message;
-                }
+                if (!this.isRenderCurrent(version)) return;
+                const container = $(`.${this.index} .awx-redirect-method-footer`);
+                const msg = e?.responseJSON?.message || e?.message || $t('Something went wrong while processing your request. Please try again.');
                 console.error('Error during payment processing:', e);
-                let $errorElem = $('.' + quote.paymentMethod().method + ' .awx-alert');
-                if ($errorElem.length) {
-                    $errorElem.remove();
-                }
-                container.append(utils.awxAlert(msg));
-                this.enableCheckoutButton(this.index);
+                const paymentMethod = this.funnelMethod();
+                tracking.useSession(paymentMethod);
+                tracking.track(tracking.EVENTS.FAILED, { payment_method: paymentMethod, error_reason: msg });
+                container.find('.awx-alert').remove();
+                container.append(utils.awxAlert(this.escapeHtml(msg)));
+                this.toggleCheckoutButton(this.index, enableOnError);
+            } finally {
+                $body.trigger('processStop');
             }
-            $body.trigger('processStop');
         },
         async placeOrder(                        data          , event        ) {
-            if (event) {
-                event.preventDefault();
-            }
-            if (this.validate() && additionalValidators.validate()) {
-                if (this.code === 'redirect') {
-                    $('.' + quote.paymentMethod().method + ' .awx-alert').remove();
-                }
+            if (event) event.preventDefault();
+            if (this.isSubmitting || !this.isMethodChecked(this.index) || $(`.${this.index} .checkout`).hasClass('disabled')) return false;
+            if (!this.validate() || !additionalValidators.validate()) return false;
+            this.isSubmitting = true;
+            const version = this.renderVersion;
+            this.disableCheckoutButton(this.index);
+            try {
                 await this.callWithCatch(() => this._placeOrder());
                 return true;
+            } finally {
+                this.isSubmitting = false;
+                if (this.isRenderCurrent(version)) this.enableCheckoutButton(this.index);
             }
-            return false;
         },
         async _placeOrder(                      ) {
+            const paymentMethod = this.funnelMethod();
+            tracking.useSession(paymentMethod);
+            tracking.track(tracking.EVENTS.SUBMITTED, { payment_method: paymentMethod });
             let device_id                = '';
             if (document.getElementById('airwallex-fraud-api')) {
                 device_id = document.getElementById('airwallex-fraud-api') .getAttribute('data-order-session-id');
@@ -364,7 +444,7 @@ define([
             const payload                            = {
                 cartId: quote.getQuoteId(),
                 paymentMethod: {
-                    method: quote.paymentMethod().method,
+                    method: this.index,
                     additional_data: {
                         "afterpay_country": localStorage.getItem(this.afterpayCountryKey),
                         "bank_transfer_currency": localStorage.getItem(this.bankTransferCurrencyKey),
@@ -391,6 +471,7 @@ define([
                 },
             };
             await utils.setRecaptchaToken(payload, utils.getRecaptchaId());
+            if (!this.isMethodChecked(this.index)) return;
             if (!utils.isLoggedIn()) {
                 payload.email = quote.guestEmail;
             }
@@ -398,7 +479,10 @@ define([
                 'cartId': quote.getQuoteId(),
                 'address': quote.billingAddress()
             }, utils.isLoggedIn(), quote.getQuoteId());
+            if (!this.isMethodChecked(this.index)) return;
             let intentResponse = await utils.getIntent(payload, {});
+            if (utils.completeRecoveredOrder(intentResponse)) return;
+            if (!this.isMethodChecked(this.index)) return;
             this.renderQrcode(intentResponse);
             this.watchPaymentConfirmation(intentResponse.intent_id, intentResponse.state);
         },
@@ -421,7 +505,7 @@ define([
                 $body.trigger('processStop');
             } else {
                 $(this.iframeSelector).show();
-                $(this.iframeSelector).html(`<iframe src="${nextAction.url}"></iframe>`);
+                $(this.iframeSelector).empty().append($('<iframe></iframe>').attr('src', nextAction.url));
                 const iframeElement = $(this.iframeSelector).find('iframe');
                 let iframeSelector = this.iframeSelector;
                 let setHeight = function () {
@@ -463,8 +547,10 @@ define([
             }, state || undefined);
         },
         async displaySwitcher(                        html        , expressData     , targetCurrency        , brand        ) {
+            const version = this.renderVersion;
             const container = $(`.${this.index} .awx-redirect-method-footer`);
             const switchers = await this.switcher(expressData.quote_currency_code, targetCurrency, expressData.grand_total);
+            if (!this.isRenderCurrent(version)) return;
             container.html(html + this.switcherTip(targetCurrency, brand));
             this.showYouPay(switchers);
             this.enableCheckoutButton(this.index);
@@ -477,18 +563,21 @@ define([
             return await storage.get(requestUrl, undefined, 'application/json', {});
         },
         async switcher(payment_currency        , target_currency        , amount        ) {
-            const requestUrl = urlBuilder.build('rest/V1/airwallex/currency/switcher');
-            const res = await storage.post(requestUrl, JSON.stringify({
-                'payment_currency': payment_currency,
-                'target_currency': target_currency,
-                'amount': amount,
-            }), undefined, 'application/json', {});
-            return JSON.parse(res);
+            const quoteResp = await utils.conversionQuote(payment_currency, target_currency);
+            const rate = Number(quoteResp.conversion_rate);
+            return {
+                id: quoteResp.id,
+                payment_currency: payment_currency,
+                target_currency: target_currency,
+                payment_amount: amount,
+                target_amount: Number(amount) * rate,
+                client_rate: quoteResp.conversion_rate,
+            };
         },
         async fetchExpressData() {
             const url = urlBuilder.build('rest/V1/airwallex/payments/express-data');
             const resp = await storage.get(url, undefined, 'application/json', {});
-            return JSON.parse(resp);
+            return typeof resp === 'string' ? JSON.parse(resp) : resp;
         },
         async fetchEntity() {
             const accountUrl = urlBuilder.build('rest/V1/airwallex/account');

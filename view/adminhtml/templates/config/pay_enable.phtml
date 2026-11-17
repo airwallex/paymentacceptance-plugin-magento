@@ -55,11 +55,27 @@
                         },
                         onSuccess(response) {
                             if (response && response.responseJSON && response.responseJSON.type === 'error') {
-                                let tip = response.responseJSON.message;
+                                let tip = String(response.responseJSON.message || '');
                                 if (document.querySelector('[name="groups[airwallex_payments][groups][basic][fields][mode][value]"]').value === 'prod') {
                                     tip = tip.replace('www.sandbox.airwallex', 'www.airwallex');
                                 }
-                                tipElement.html(tip);
+                                tipElement.empty();
+                                let linkMatch = tip.match(/^(.*?)<a\s+href=['"](https:\/\/www\.(?:sandbox\.)?airwallex\.com\/[^'"]+)['"][^>]*>([^<]+)<\/a>(.*)$/s);
+                                if (linkMatch) {
+                                    tipElement.append(document.createTextNode(linkMatch[1]));
+                                    tipElement.append(
+                                        jQuery('<a/>', {
+                                            href: linkMatch[2],
+                                            target: '_blank',
+                                            rel: 'noopener noreferrer',
+                                            text: linkMatch[3],
+                                            style: 'color: red; font-weight: 600; text-decoration: underline;'
+                                        })
+                                    );
+                                    tipElement.append(document.createTextNode(linkMatch[4].replace(/&lt;/g, '<').replace(/&gt;/g, '>')));
+                                } else {
+                                    tipElement.text(tip);
+                                }
                             }
                         },
                         onFailure(xhr) {

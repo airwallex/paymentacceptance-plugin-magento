@@ -34,6 +34,7 @@ use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\Afterp
 use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\Klarna;
 use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\BankTransfer;
 use Airwallex\PayappsPlugin\CommonLibrary\Exception\RequestException;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Log as RemoteLog;
 use Airwallex\Payments\Model\Methods\BankTransfer as BankTransferMethod;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
@@ -82,6 +83,7 @@ use Magento\Quote\Model\Quote\Address;
 use Magento\Sales\Model\Order\Address as OrderAddress;
 use Magento\Quote\Model\QuoteIdToMaskedQuoteIdInterface;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Update as UpdatePaymentIntent;
 use Detection\MobileDetect;
 use Airwallex\Payments\Helper\ApmElementOptionsHelper;
 
@@ -113,6 +115,7 @@ class OrderService implements OrderServiceInterface
     private QuoteIdToMaskedQuoteIdInterface $quoteIdToMaskedQuoteId;
     private UrlInterface $url;
     private RetrievePaymentIntent $retrievePaymentIntent;
+    private UpdatePaymentIntent $updatePaymentIntent;
     private ApmElementOptionsHelper $apmElementOptionsHelper;
 
     /**
@@ -143,7 +146,8 @@ class OrderService implements OrderServiceInterface
         QuoteIdToMaskedQuoteIdInterface            $quoteIdToMaskedQuoteId,
         UrlInterface                               $url,
         RetrievePaymentIntent                      $retrievePaymentIntent,
-        ApmElementOptionsHelper                    $apmElementOptionsHelper
+        ApmElementOptionsHelper                    $apmElementOptionsHelper,
+        UpdatePaymentIntent                       $updatePaymentIntent
     )
     {
         $this->paymentConsents = $paymentConsents;
@@ -169,6 +173,7 @@ class OrderService implements OrderServiceInterface
         $this->quoteIdToMaskedQuoteId = $quoteIdToMaskedQuoteId;
         $this->url = $url;
         $this->retrievePaymentIntent = $retrievePaymentIntent;
+        $this->updatePaymentIntent = $updatePaymentIntent;
         $this->apmElementOptionsHelper = $apmElementOptionsHelper;
         $commonLibraryInit->exec();
     }
@@ -201,7 +206,7 @@ class OrderService implements OrderServiceInterface
         ?string          $from = ''
     ): PlaceOrderResponseInterface
     {
-        return $this->savePaymentOrPlaceOrder($cartId, $paymentMethod, $billingAddress, $intentId, $email, $paymentMethodId, $from);
+        return $this->savePaymentOrPlaceOrder($cartId, $paymentMethod, $billingAddress, $intentId, $email, $paymentMethodId, $from, true);
     }
 
     /**
@@ -258,6 +263,14 @@ class OrderService implements OrderServiceInterface
         }
     }
 
+    private function assertAirwallexPaymentMethod(PaymentInterface $paymentMethod): void
+    {
+        $method = (string) $paymentMethod->getMethod();
+        if (!preg_match('/^airwallex_[A-Za-z0-9_]+$/D', $method)) {
+            throw new LocalizedException(__('The requested Payment Method is not available.'));
+        }
+    }
+
     /**
      * @throws CouldNotSaveException
      * @throws LocalizedException
@@ -273,12 +286,14 @@ class OrderService implements OrderServiceInterface
         ?string          $intentId = '',
         ?string          $email = '',
         ?string          $paymentMethodId = '',
-        ?string          $from = ''
+        ?string          $from = '',
+        bool             $isGuest = false
     ): PlaceOrderResponseInterface
     {
         try {
             /** @var PlaceOrderResponse $response */
             $response = $this->placeOrderResponseFactory->create();
+            $requestCartId = trim($cartId);
             $quote = $this->checkoutHelper->getQuote();
             $cartId = $quote->getId();
             if (empty($cartId)) {
@@ -286,15 +301,46 @@ class OrderService implements OrderServiceInterface
                     throw new LocalizedException(__('Cart cannot be empty.'));
                 }
                 $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
+                if (!$this->isDeactivatedIntentQuoteAuthorized($paymentIntent, $requestCartId)
+                    || $paymentIntent->getOrderId() <= 0
+                ) {
+                    throw new LocalizedException(__('Invalid payment intent.'));
+                }
+                $order = $this->paymentIntentRepository->getOrder($intentId);
+                if (!$order || $order->isCanceled() || ($isGuest && $order->getCustomerId())) {
+                    throw new LocalizedException(__('Order is missing or canceled.'));
+                }
+                $paymentIntentFromApi = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
+                if (!$paymentIntentFromApi->isAuthorized() && !$paymentIntentFromApi->isCaptured()) {
+                    throw new LocalizedException(__('Payment has not completed.'));
+                }
+                $this->setCheckoutSuccess($paymentIntent->getQuoteId(), $order);
+                $this->syncVaultIfRequested(
+                    $from,
+                    (int) ($order->getCustomerId() ?: ($quote->getCustomer() ? $quote->getCustomer()->getId() : 0))
+                );
                 return $response->setData([
                     'response_type' => 'success',
                     'order_id' => $paymentIntent->getOrderId()
                 ]);
             }
-            if (!$quote->getCustomer()->getId()) {
+            $customerId = (int) ($quote->getCustomerId() ?: ($quote->getCustomer() ? $quote->getCustomer()->getId() : 0));
+            if (($isGuest && $customerId > 0)
+                || !$this->validateQuoteOwnership($quote)
+                || $requestCartId === ''
+                || ($isGuest && is_numeric($requestCartId))
+                || $this->resolveQuoteId($requestCartId) !== (int) $cartId
+            ) {
+                throw new LocalizedException(__('Checkout session is invalid.'));
+            }
+            if (!$customerId) {
                 $cartId = $this->quoteIdToMaskedQuoteId->execute($cartId);
             }
 
+            if (!$intentId && $this->completePaidCheckout($quote, $response)) {
+                return $response;
+            }
+            $this->assertAirwallexPaymentMethod($paymentMethod);
             $this->checkAgreements($quote, $paymentMethod, $cartId, $email);
 
             if (!$intentId) {
@@ -305,8 +351,12 @@ class OrderService implements OrderServiceInterface
                 return $this->orderThenIntent($quote, $cartId, $paymentMethod, $billingAddress, $email, $paymentMethodId, $from, $response);
             }
 
+            $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
+            if (!$this->isIntentOwnedByQuote($paymentIntent, $quote, $requestCartId)) {
+                throw new LocalizedException(__('Invalid payment intent.'));
+            }
+
             try {
-                $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
                 $paymentIntentFromApi = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
 
                 if ($this->configuration->isOrderBeforePayment()) {
@@ -337,14 +387,10 @@ class OrderService implements OrderServiceInterface
                 ]);
             }
 
-            if ($this->configuration->isCardVaultActive() && $from === 'card_with_saved') {
-                try {
-                    $this->paymentConsents->syncVault($quote->getCustomer()->getId());
-                } catch (Exception $e) {
-                    $this->logError(__METHOD__ . ': ' . $e->getMessage());
-                    RemoteLog::error(__METHOD__ . ': ' . $e->getMessage(), 'onSyncSaveCardError');
-                }
-            }
+            $this->syncVaultIfRequested(
+                $from,
+                (int) ($quote->getCustomer() ? $quote->getCustomer()->getId() : 0)
+            );
         } catch (Exception | Error $e) {
             RemoteLog::error('OrderService exception: ' . $e->getMessage(), 'onCallFunctionSavePaymentOrPlaceOrderError');
             throw new LocalizedException(__($e->getMessage()));
@@ -355,6 +401,56 @@ class OrderService implements OrderServiceInterface
             'response_type' => 'success',
             'order_id' => $paymentIntent->getOrderId()
         ]);
+    }
+
+    private function completePaidCheckout(Quote $quote, PlaceOrderResponse $response, ?StructPaymentIntent $intent = null): bool
+    {
+        $record = $intent ? $this->paymentIntentRepository->getByIntentId($intent->getId())
+            : $this->paymentIntentRepository->getByQuoteId((int) $quote->getId());
+        if (!$record || (int) $record->getStoreId() !== (int) $quote->getStoreId()
+            || !$this->isIntentOwnedByQuote($record, $quote)
+        ) {
+            return false;
+        }
+        try {
+            $intent = $intent ?: $this->retrievePaymentIntent->setPaymentIntentId($record->getIntentId())->send();
+        } catch (Exception $e) {
+            $error = json_decode($e->getMessage(), true);
+            if (is_array($error) && ($error['code'] ?? '') === AbstractApi::ERROR_RESOURCE_NOT_FOUND) {
+                return false;
+            }
+            throw $e;
+        }
+        if ($intent->getId() !== $record->getIntentId() || !$this->paymentIntents->canCompleteIntent($quote, $intent)) {
+            return false;
+        }
+        $order = $this->paymentIntentRepository->getOrder($intent->getId());
+        if ($order && ($order->isCanceled() || !$this->paymentIntents->canCompleteIntent($order, $intent))) {
+            return false;
+        }
+        if ($order) {
+            $this->changeOrderStatus($intent, (int) $order->getId(), $quote, __METHOD__);
+        } else {
+            $quote->getPayment()->setMethod($this->paymentIntentRepository->lastMethodCode($record));
+            $this->placeOrder($quote->getPayment(), $intent, $quote, __METHOD__);
+            $order = $this->paymentIntentRepository->getOrder($intent->getId());
+        }
+        $response->setData(['response_type' => 'success', 'intent_id' => $intent->getId(), 'order_id' => $order->getId()]);
+        return true;
+    }
+
+    private function syncVaultIfRequested(?string $from, int $customerId): void
+    {
+        if ($customerId <= 0 || !$this->configuration->isCardVaultActive() || $from !== 'card_with_saved') {
+            return;
+        }
+
+        try {
+            $this->paymentConsents->syncVault($customerId);
+        } catch (Exception $e) {
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
+            RemoteLog::error(__METHOD__ . ': ' . $e->getMessage(), 'onSyncSaveCardError');
+        }
     }
 
     /**
@@ -375,6 +471,7 @@ class OrderService implements OrderServiceInterface
      */
     public function requestIntent($model, PaymentInterface $paymentMethod, ?string $email, ?string $paymentMethodId, ?string $from, PlaceOrderResponse $response): PlaceOrderResponse
     {
+        $this->assertAirwallexPaymentMethod($paymentMethod);
         $this->setCurrentPaymentMethod($paymentMethod, $from);
 
         $quote = $this->checkoutHelper->getQuote();
@@ -421,6 +518,7 @@ class OrderService implements OrderServiceInterface
      */
     public function orderThenIntent(Quote $quote, string $cartId, PaymentInterface $paymentMethod, ?AddressInterface $billingAddress, ?string $email, ?string $paymentMethodId, ?string $from, PlaceOrderResponse $response): PlaceOrderResponse
     {
+        $this->assertAirwallexPaymentMethod($paymentMethod);
         $order = $this->getOrderByQuote($quote);
 
         if ($order->getStatus() !== Order::STATE_PENDING_PAYMENT
@@ -520,7 +618,7 @@ class OrderService implements OrderServiceInterface
         }
 
         return $order->getId()
-            && $this->isAmountEqual($order->getGrandTotal(), $quote->getGrandTotal())
+            && $this->isAmountEqual($order->getGrandTotal(), $quote->getGrandTotal(), (string)$order->getOrderCurrencyCode())
             && $order->getOrderCurrencyCode() === $quote->getQuoteCurrencyCode()
             && $this->paymentIntents->getProductsForCompare($this->getProducts($order)) === $this->paymentIntents->getProductsForCompare($this->getProducts($quote));
     }
@@ -607,26 +705,33 @@ class OrderService implements OrderServiceInterface
 
         $currentPaymentMethodCode = $paymentMethod->getMethod();
 
-        $cacheName = $currentPaymentMethodCode . '-qrcode-' . $intent->getId();
+        $cacheName = $currentPaymentMethodCode . '-mcp-qrcode-' . $intent->getId();
         if (!empty($_SERVER['HTTP_USER_AGENT'])) {
             $cacheName .= '-' . hash('sha256', $_SERVER['HTTP_USER_AGENT']);
         }
         try {
-            $currencySwitcherData = $this->switchCurrency($intent, $paymentMethod, $address);
+            $conversionQuoteData = $this->switchCurrency($paymentIntentFromApi, $paymentMethod, $address);
         } catch (Exception | Error $e) {
             $this->logError(__METHOD__ . ': ' . $e->getMessage());
             throw new LocalizedException(__($e->getMessage()));
         }
-        if (!empty($currencySwitcherData['quote_id'])) {
-            $cacheName .= '-' . $currencySwitcherData['quote_id'];
+        $cacheName .= '-' . ($conversionQuoteData['target_currency'] ?? $paymentIntentFromApi->getCurrency());
+        if (!empty($conversionQuoteData['quote_id'])) {
+            $cacheName .= '-' . $conversionQuoteData['quote_id'];
         }
-        if (!$returnUrl = $this->cache->load($cacheName)) {
+        $canReuseNextAction = empty($conversionQuoteData['target_currency'])
+            || ($paymentIntentFromApi->getCurrency() === $conversionQuoteData['target_currency']
+                && $paymentIntentFromApi->getConversionQuoteId() === ($conversionQuoteData['quote_id'] ?? null));
+        if (!$canReuseNextAction || !$returnUrl = $this->cache->load($cacheName)) {
             try {
-                $confirmRequest = $this->confirmPaymentIntent->setPaymentIntentId($intent->getId());
-                if (!empty($currencySwitcherData['target_currency'])) {
-                    $confirmRequest = $confirmRequest->setCurrencySwitcher($currencySwitcherData['target_currency'], $currencySwitcherData['quote_id']);
+                if (!empty($conversionQuoteData['target_currency'])) {
+                    $paymentIntentFromApi = $this->updatePaymentIntent
+                        ->setPaymentIntentId($paymentIntentFromApi->getId())
+                        ->setConversionQuoteId($conversionQuoteData['quote_id'] ?? null)
+                        ->send();
                 }
-                $confirmRequest = $this->setConfirmPaymentMethod($confirmRequest, $address, $intent, $email, $currencySwitcherData, $paymentMethod);
+                $confirmRequest = $this->confirmPaymentIntent->setPaymentIntentId($paymentIntentFromApi->getId());
+                $confirmRequest = $this->setConfirmPaymentMethod($confirmRequest, $address, $paymentIntentFromApi, $email, $conversionQuoteData, $paymentMethod);
                 $confirmedPaymentIntent = $confirmRequest
                     ->setMetadata($this->getMetadata())
                     ->setReferrerDataType($this->getReferrerDataType($paymentMethod))
@@ -635,7 +740,14 @@ class OrderService implements OrderServiceInterface
                 throw new LocalizedException(__($exception->getMessage()));
             }
 
-            $returnUrl = json_encode($confirmedPaymentIntent->getNextAction());
+            $nextAction = $confirmedPaymentIntent->getNextAction();
+            $sessionId = PaymentFlowLog::sessionIdFromPayment($paymentMethod);
+            PaymentFlowLog::paymentConfirmed(
+                $sessionId,
+                (string) $intent->getId(),
+                PaymentFlowLog::paymentMethodName($paymentMethod)
+            );
+            $returnUrl = json_encode($nextAction);
             $this->cache->save($returnUrl, $cacheName, [], 300);
         }
         return $returnUrl;
@@ -651,7 +763,7 @@ class OrderService implements OrderServiceInterface
         $baseCurrency = $intent->getBaseCurrency() ?: $intent->getCurrency();
         $availableCurrencies = $this->getAvailableCurrencies();
         if (empty($availableCurrencies)) {
-            return [];
+            return $baseCurrency !== $intent->getCurrency() ? ['target_currency' => $baseCurrency] : [];
         }
         $billingCountry = !empty($address) ? $address->getCountryId() : '';
         $currentPaymentMethodCode = $paymentMethod->getMethod();
@@ -670,24 +782,16 @@ class OrderService implements OrderServiceInterface
             $entity = $this->account() ? $this->account()->getOwningEntity() : '';
             $entityCurrencies = Afterpay::SUPPORTED_ENTITY_TO_CURRENCIES[$entity] ?? [];
             if (empty($entityCurrencies)) {
-                return [];
+                throw new LocalizedException(__('Afterpay is not available for this merchant entity.'));
             }
 
+            $afterpayCountry = ($paymentMethod->getAdditionalData() ?? [])['afterpay_country'] ?? '';
             if (count($entityCurrencies) === 1) {
                 $targetCurrency = $entityCurrencies[0];
             } else {
-                if (!empty(Afterpay::SUPPORTED_COUNTRY_TO_CURRENCY[$billingCountry])
-                    && in_array(Afterpay::SUPPORTED_COUNTRY_TO_CURRENCY[$billingCountry], $entityCurrencies, true)) {
-                    $targetCurrency = Afterpay::SUPPORTED_COUNTRY_TO_CURRENCY[$billingCountry];
-                } else {
-                    if (empty($paymentMethod->getAdditionalData())) {
-                        return [];
-                    }
-                    $afterpayCountry = $paymentMethod->getAdditionalData()['afterpay_country'] ?? '';
-                    if (empty($afterpayCountry)) {
-                        return [];
-                    }
-                    $targetCurrency = Afterpay::SUPPORTED_COUNTRY_TO_CURRENCY[$afterpayCountry] ?? '';
+                $targetCurrency = Afterpay::SUPPORTED_COUNTRY_TO_CURRENCY[$afterpayCountry ?: $billingCountry] ?? '';
+                if (!in_array($targetCurrency, $entityCurrencies, true)) {
+                    throw new LocalizedException(__('The selected Afterpay account region is not supported.'));
                 }
             }
             if ($baseCurrency === $targetCurrency) {
@@ -697,12 +801,12 @@ class OrderService implements OrderServiceInterface
             }
             $brand = 'Afterpay';
         } elseif ($currentPaymentMethodCode === BankTransferMethod::CODE) {
-            $targetCurrency = "";
-            if (isset(BankTransfer::SUPPORTED_COUNTRY_TO_CURRENCY[$billingCountry])) {
-                $targetCurrency = BankTransfer::SUPPORTED_COUNTRY_TO_CURRENCY[$billingCountry];
+            $targetCurrency = ($paymentMethod->getAdditionalData() ?? [])['bank_transfer_currency'] ?? '';
+            if (empty($targetCurrency)) {
+                $targetCurrency = BankTransfer::SUPPORTED_COUNTRY_TO_CURRENCY[$billingCountry] ?? '';
             }
-            if (empty($targetCurrency) && !empty($paymentMethod->getAdditionalData())) {
-                $targetCurrency = $paymentMethod->getAdditionalData()['bank_transfer_currency'] ?? '';
+            if (!in_array($targetCurrency, BankTransfer::SUPPORTED_COUNTRY_TO_CURRENCY, true)) {
+                throw new LocalizedException(__('The selected bank transfer currency is not supported.'));
             }
             if ($baseCurrency === $targetCurrency) {
                 return $baseCurrency !== $intent->getCurrency() ? [
@@ -753,13 +857,13 @@ class OrderService implements OrderServiceInterface
         if (!in_array($targetCurrency, $availableCurrencies, true) || !in_array($baseCurrency, $availableCurrencies, true)) {
             throw new LocalizedException(__('%1 is not available in your country. Please change your billing address to a compatible country or choose a different payment method.', $brand));
         }
-        $switcher = $this->getCurrencySwitcher($baseCurrency, $targetCurrency, $baseAmount);
+        $switcher = $this->getConversionQuote($baseCurrency, $targetCurrency);
         if (empty($switcher) || empty($switcher->getId())) {
             throw new LocalizedException(__($brand . ' is not available in your country. Please change your billing address to a compatible country or choose a different payment method.'));
         }
         return [
             'quote_id' => $switcher->getId(),
-            'target_currency' => $switcher->getTargetCurrency(),
+            'target_currency' => $switcher->getShopperCurrency(),
         ];
     }
 
@@ -779,6 +883,9 @@ class OrderService implements OrderServiceInterface
      */
     public function responseByRequestIntent(?string $paymentMethodId, StructPaymentIntent $intent, PaymentInterface $paymentMethod, $model, PlaceOrderResponse $response, string $email = ""): PlaceOrderResponse
     {
+        if ($this->completePaidCheckout($this->checkoutHelper->getQuote(), $response, $intent)) {
+            return $response;
+        }
         $this->appendPaymentMethodId($paymentMethodId, $intent->getId());
 
         $scope = $model instanceof Order ? ReturnState::SCOPE_ORDER : ReturnState::SCOPE_QUOTE;
@@ -812,12 +919,12 @@ class OrderService implements OrderServiceInterface
      * @param StructPaymentIntent $intent
      * @param $email
      * @param ConfirmPaymentIntent $confirmRequest
-     * @param array $currencySwitcherData
+     * @param array $conversionQuoteData
      * @param PaymentInterface $paymentMethod
      * @return ConfirmPaymentIntent
      * @throws LocalizedException
      */
-    public function setConfirmPaymentMethod(ConfirmPaymentIntent $confirmRequest, $address, StructPaymentIntent $intent, $email, array $currencySwitcherData, PaymentInterface $paymentMethod): ConfirmPaymentIntent
+    public function setConfirmPaymentMethod(ConfirmPaymentIntent $confirmRequest, $address, StructPaymentIntent $intent, $email, array $conversionQuoteData, PaymentInterface $paymentMethod): ConfirmPaymentIntent
     {
         $paymentMethodTypeName = $this->getPaymentMethodCode($paymentMethod->getMethod());
         $paymentMethodParams = [
@@ -858,11 +965,11 @@ class OrderService implements OrderServiceInterface
                 $paymentMethodParams[$paymentMethodTypeName]['country_code'] = $address->getCountryId();
             } else if ($paymentMethodTypeName === 'bank_transfer') {
                 $currencyCollection = BankTransfer::SUPPORTED_CURRENCY_TO_COUNTRY;
-                if (!empty($currencySwitcherData['target_currency'])) {
-                    if (empty($currencyCollection[$currencySwitcherData['target_currency']])) {
+                if (!empty($conversionQuoteData['target_currency'])) {
+                    if (empty($currencyCollection[$conversionQuoteData['target_currency']])) {
                         throw new LocalizedException(__('Invalid currency for Bank Transfer'));
                     }
-                    $paymentMethodParams[$paymentMethodTypeName]['country_code'] = $currencyCollection[$currencySwitcherData['target_currency']];
+                    $paymentMethodParams[$paymentMethodTypeName]['country_code'] = $currencyCollection[$conversionQuoteData['target_currency']];
                 } else {
                     if (empty($currencyCollection[$intent->getCurrency()])) {
                         throw new LocalizedException(__('Invalid currency for Bank Transfer'));

@@ -69,17 +69,30 @@ define([
             }
         },
         attachEvents(                     that                     , element                  ) {
-            let updateQuoteByShipment = async (event     ) => {
-                await utils.addToCart(that);
-                let addr = addressHandler.getIntermediateShippingAddress(event.detail.intermediatePaymentData.shippingAddress, 'google');
+            // Keep readiness local to this element so minicart and product-page buttons cannot share it.
+            let cartReady = that.from !== 'product_page';
+            const reportCartError = (intent                                    ) => {
+                const error                                       = {
+                    reason: 'OTHER_ERROR',
+                    intent,
+                    message: $.mage.__('Unable to prepare your cart. Please close the payment window and try again.'),
+                };
+                element.update({ error });
+            };
+            let updateQuoteByShipment = async (event     , intent                                        ) => {
+                cartReady = false;
                 try {
+                    await utils.addToCart(that);
+                    let addr = addressHandler.getIntermediateShippingAddress(event.detail.intermediatePaymentData.shippingAddress, 'google');
                     let methodId = "";
                     if (event.detail.intermediatePaymentData.shippingOptionData) {
                         methodId = event.detail.intermediatePaymentData.shippingOptionData.id;
                     }
                     await that.postAddress(addr, methodId);
                 } catch (e) {
+                    reportCartError(intent);
                     utils.error(e);
+                    return;
                 }
                 let options = this.getRequestOptions();
                 if (utils.isRequireShippingOption()) {
@@ -97,16 +110,22 @@ define([
                     });
                     options.shippingOptionParameters = addressHandler.formatShippingMethodsToGoogle(methods, this.selectedMethod);
                 }
-                element.update(options);
+                element.update({ ...options, error: undefined });
+                cartReady = true;
             };
             element.on('click', () => {
+                cartReady = that.from !== 'product_page';
                 if (utils.isProductPage()) {
                     $('#btn-minicart-close').click();
                 }
             });
-            element.on('shippingAddressChange', updateQuoteByShipment);
-            element.on('shippingMethodChange', updateQuoteByShipment);
+            element.on('shippingAddressChange', (event) => updateQuoteByShipment(event, 'SHIPPING_ADDRESS'));
+            element.on('shippingMethodChange', (event) => updateQuoteByShipment(event, 'SHIPPING_OPTION'));
             element.on('authorized', async (event     ) => {
+                if (!cartReady) {
+                    reportCartError('PAYMENT_AUTHORIZATION');
+                    return;
+                }
                 let data = event.detail.paymentData;
                 that.setGuestEmail(data.email);
                 try {
@@ -142,10 +161,11 @@ define([
                 paymentDataRequest.shippingOptionRequired = true;
             }
             const showZero = initial && utils.isProductPage();
+            const currency = $('[property="product:price:currency"]').attr("content") || this.expressData.quote_currency_code;
             const transactionInfo = {
                 amount: {
-                    value: showZero ? '0.00' : utils.formatCurrency(this.expressData.grand_total ),
-                    currency: $('[property="product:price:currency"]').attr("content") || this.expressData.quote_currency_code,
+                    value: utils.formatCurrency(showZero ? 0 : this.expressData.grand_total , currency),
+                    currency: currency,
                 },
                 countryCode: this.paymentConfig.country_code,
                 displayItems: showZero ? [] : this.getDisplayItems(),
@@ -180,6 +200,7 @@ define([
         },
         getDisplayItems(                   )                                 {
             let res                                 = [];
+            const currency = $('[property="product:price:currency"]').attr("content") || this.expressData.quote_currency_code;
             for (let key in this.expressData) {
                 if (this.expressData[key] === '0.0000' || !this.expressData[key]) {
                     continue;
@@ -188,26 +209,26 @@ define([
                     res.push({
                         'label': 'Shipping',
                         'type': 'LINE_ITEM',
-                        'price': utils.formatCurrency(this.expressData[key])
+                        'price': utils.formatCurrency(this.expressData[key], currency)
                     });
                 } else if (key === 'tax_amount') {
                     res.push({
                         'label': 'Tax',
                         'type': 'TAX',
-                        'price': utils.formatCurrency(this.expressData[key])
+                        'price': utils.formatCurrency(this.expressData[key], currency)
                     });
                 } else if (key === 'subtotal') {
                     res.push({
                         'label': 'Subtotal',
                         'type': 'SUBTOTAL',
-                        'price': utils.formatCurrency(this.expressData[key])
+                        'price': utils.formatCurrency(this.expressData[key], currency)
                     });
                 } else if (key === 'subtotal_with_discount') {
                     if (this.expressData[key] !== this.expressData['subtotal']) {
                         res.push({
                             'label': 'Discount',
                             'type': 'LINE_ITEM',
-                            'price': '-' + utils.getDiscount(this.expressData['subtotal'] , this.expressData['subtotal_with_discount'] ).toString()
+                            'price': '-' + utils.getDiscount(this.expressData['subtotal'] , this.expressData['subtotal_with_discount'] , currency).toString()
                         });
                     }
                 }

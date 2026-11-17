@@ -158,7 +158,7 @@ class AvailablePaymentMethodsHelper
         $cardLogos = $this->cache->load($cacheName);
         if (!empty($cardLogos)) {
             $logos = json_decode($cardLogos, true);
-            if (!empty($logos)) {
+            if (is_array($logos) && !empty($logos)) {
                 return $logos;
             }
         }
@@ -188,7 +188,7 @@ class AvailablePaymentMethodsHelper
         $cached = $this->cache->load($cacheName);
         if (!empty($cached)) {
             $logos = json_decode($cached, true);
-            if (!empty($logos)) {
+            if (is_array($logos) && !empty($logos)) {
                 return $logos;
             }
         }
@@ -219,6 +219,9 @@ class AvailablePaymentMethodsHelper
      */
     public function getAllPaymentMethodTypes(): array
     {
+        if (!$this->canInitialize()) {
+            return [];
+        }
         try {
             return $this->getPaymentMethodTypeList
                 ->setActive(true)

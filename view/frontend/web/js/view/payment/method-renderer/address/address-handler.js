@@ -73,12 +73,12 @@ define([
             };
         },
         getBillingAddressFromGoogle(                            addr               ) {
-            let names = addr.name.split(' ');
+            let names = (addr.name || '').split(' ');
             return {
                 countryId: addr.countryCode,
                 region: addr.administrativeArea,
                 regionId: 0,
-                street: [addr.address1 + ' ' + addr.address2 + ' ' + addr.address3],
+                street: [[addr.address1, addr.address2, addr.address3].filter(Boolean).join(' ')],
                 telephone: addr.phoneNumber,
                 postcode: this.postcode(addr, 'google'),
                 city: this.city(addr, 'google'),
@@ -100,23 +100,25 @@ define([
             };
         },
         constructAddressInformationFromGoogle(                            data                   ) {
-            let names = data.shippingAddress.name.split(' ') || [];
-            let firstname = data.shippingAddress.name ? names[0] : '';
+            let billing = data.paymentMethodData.info.billingAddress;
+            let shipping = data.shippingAddress || billing;
+            let names = (shipping.name || '').split(' ');
+            let firstname = shipping.name ? names[0] : '';
             let lastname = names.length > 1 ? names[names.length - 1] : firstname;
             return {
                 "addressInformation": {
                     "shipping_address": {
-                        "countryId": data.shippingAddress.countryCode,
+                        "countryId": shipping.countryCode,
                         "regionId": this.regionId || 0,
-                        "region": data.shippingAddress.administrativeArea,
-                        "street": [data.shippingAddress.address1 + ' ' + data.shippingAddress.address2 + ' ' + data.shippingAddress.address3],
-                        "telephone": data.shippingAddress.phoneNumber,
-                        "postcode": this.postcode(data.shippingAddress, 'google'),
-                        "city": this.city(data.shippingAddress, 'google'),
+                        "region": shipping.administrativeArea,
+                        "street": [[shipping.address1, shipping.address2, shipping.address3].filter(Boolean).join(' ')],
+                        "telephone": shipping.phoneNumber,
+                        "postcode": this.postcode(shipping, 'google'),
+                        "city": this.city(shipping, 'google'),
                         firstname,
                         lastname,
                     },
-                    "billing_address": this.getBillingAddressFromGoogle(data.paymentMethodData.info.billingAddress),
+                    "billing_address": this.getBillingAddressFromGoogle(billing),
                     "shipping_method_code": this.selectedMethod ? this.selectedMethod.method_code : "",
                     "shipping_carrier_code": this.selectedMethod ? this.selectedMethod.carrier_code : "",
                     "extension_attributes": {}
@@ -161,22 +163,23 @@ define([
         },
         setIntentConfirmBillingAddressFromGoogle(                            data                   ) {
             let addr = data.paymentMethodData.info.billingAddress;
-            let names = addr.name.split(' ');
+            let shipping = data.shippingAddress;
+            let names = (addr.name || '').split(' ');
             this.intentConfirmBillingAddressFromGoogle = {
                 address: {
                     city: this.city(addr, 'google'),
                     country_code: addr.countryCode,
                     postcode: this.postcode(addr, 'google'),
                     state: addr.administrativeArea,
-                    street: [addr.address1 + ' ' + addr.address2 + ' ' + addr.address3],
+                    street: [[addr.address1, addr.address2, addr.address3].filter(Boolean).join(' ')],
                 },
                 first_name: names[0],
                 last_name: names.length > 1 ? names[names.length - 1] : names[0],
                 email: data.email,
-                phone_number: 'addr.phoneNumber'
+                phone_number: addr.phoneNumber || (shipping && shipping.phoneNumber) || ''
             };
         },
-        setIntentConfirmBillingAddressFromApple(                            addr              , email         ) {
+        setIntentConfirmBillingAddressFromApple(                            addr              , email         , phone         ) {
             this.intentConfirmBillingAddressFromApple = {
                 address: {
                     city: this.city(addr),
@@ -188,7 +191,7 @@ define([
                 first_name: addr.givenName,
                 last_name: addr.familyName,
                 email,
-                phone_number: 'addr.phoneNumber2'
+                phone_number: addr.phoneNumber || phone || ''
             };
         },
         setIntentConfirmBillingAddressFromOfficial(                            billingAddress                        ) {

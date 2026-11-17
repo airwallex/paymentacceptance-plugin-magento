@@ -82,7 +82,8 @@ use Magento\Framework\View\Element\AbstractBlock;
                                 }).appendTo(jQuery(this).parent());
                             }
                             if (!paymentMethodStatus || paymentMethodStatus === 'inactive') {
-                                const paymentMethodName = jQuery(this).closest('fieldset').find('legend').first().text() || paymentMethod;
+                                const rawMethodName = jQuery(this).closest('fieldset').find('legend').first().text() || paymentMethod;
+                                const paymentMethodName = jQuery('<div/>').text(rawMethodName).html();
                                 let tip = `
                                     <div style="color: #D91807; font-size: 12px; margin-top: 5px; font-weight: 400; display: flex;">
                                         <img style="height: 12px; width: 40px; margin-top: 2px;" src="<?php echo $block->escapeHtml($block->getViewFileUrl('Airwallex_Payments::img/warning.svg')); ?>" alt="Warning">

@@ -31,12 +31,14 @@ define([
     'jquery',
     'mage/translate',
     'Magento_Customer/js/customer-data',
-    'Airwallex_Payments/js/view/payment/utils'
+    'Airwallex_Payments/js/view/payment/utils',
+    'Airwallex_Payments/js/view/payment/tracking'
 ], function (
     $              ,
     $t                          ,
     customerData         ,
-    utils             
+    utils             ,
+    tracking                
 ) {
     'use strict';
     return function (config                      ) {
@@ -45,6 +47,7 @@ define([
             showError($t('Payment configuration is missing.'));
             return;
         }
+        tracking.continueSession(new URLSearchParams(window.location.search).get('awx_session_id'));
         let apmElement                          = null;
         let currentCurrency = (paymentConfig.order_currency || paymentConfig.intent_base_currency || '').toUpperCase();
         let currencyToken = 0;
@@ -122,6 +125,7 @@ define([
             elementOptions.disableAutoCurrencyConversion = true;
             paymentConfig .elementOptions = elementOptions;
             apmElement = Airwallex.createElement('dropIn', elementOptions);
+            // The CDN SDK needs the mounted DOM node before .on() can attach listeners.
             apmElement.mount('airwallex-apm-element');
             bindElementEvents();
         }
@@ -144,50 +148,31 @@ define([
             $('#airwallex-currency-switcher').empty().hide();
         }
         async function onCurrencyChange(selected        ) {
-            if (!apmElement || selected === currentCurrency) {
-                return;
-            }
-            const orderCurrency = (paymentConfig .order_currency || '').toUpperCase();
-            if (selected === orderCurrency) {
-                currentCurrency = selected;
-                apmElement.update({
-                    currency: selected,
-                    quote_id: undefined
-                });
-                removeCurrencyConversion();
-                return;
-            }
+            if (!apmElement) return;
             const token = ++currencyToken;
-            let quoteResp                         ;
+            if (selected === currentCurrency) return;
+            const orderCurrency = (paymentConfig .order_currency || '').toUpperCase();
             try {
-                quoteResp = await utils.conversionQuote(orderCurrency, selected);
-            } catch (e) {
-                let msg = $t('Failed to convert currency. Please try again.');
-                const err = e                                                             ;
-                if (err && err.responseJSON && err.responseJSON.message) {
-                    msg = err.responseJSON.message;
-                } else if (err && err.message) {
-                    msg = err.message;
+                const quoteResp = selected === orderCurrency ? null : await utils.conversionQuote(orderCurrency, selected);
+                if (token !== currencyToken) return;
+                apmElement.update({ currency: selected, quote_id: quoteResp?.id });
+                currentCurrency = selected;
+                if (!quoteResp) {
+                    removeCurrencyConversion();
+                    return;
                 }
-                showError(msg);
-                return;
+                displayCurrencyConversion({
+                    target_amount: Number(paymentConfig .intent_base_amount || 0) * Number(quoteResp.conversion_rate),
+                    target_currency: selected,
+                    payment_currency: orderCurrency,
+                    client_rate: quoteResp.conversion_rate
+                });
+            } catch (e) {
+                if (token !== currencyToken) return;
+                utils.setSelectedCurrency('#airwallex-currency-switcher', currentCurrency);
+                const err = e                                                             ;
+                showError(err?.responseJSON?.message || err?.message || $t('Failed to convert currency. Please try again.'));
             }
-            if (token !== currencyToken) {
-                return;
-            }
-            currentCurrency = selected;
-            apmElement.update({
-                quote_id: quoteResp.id,
-                currency: selected
-            });
-            const rate = Number(quoteResp.conversion_rate);
-            const targetAmount = Number(paymentConfig .intent_base_amount || 0) * rate;
-            displayCurrencyConversion({
-                target_amount: targetAmount,
-                target_currency: selected,
-                payment_currency: orderCurrency,
-                client_rate: quoteResp.conversion_rate
-            });
         }
         function displayCurrencyConversion(quote                           ) {
             if (!quote) {
@@ -211,13 +196,21 @@ define([
                 hideLoading();
             });
             apmElement .on('success', function () {
+                const elementOptions = paymentConfig .elementOptions                          ;
+                tracking.trackConfirm(elementOptions.intent_id, 'apm');
                 showLoading();
                 window.location.href = paymentConfig .return_url ;
             });
             apmElement .on('error', function (event                                                                        ) {
                 hideLoading();
                 removeCurrencyConversion();
+                tracking.track(tracking.EVENTS.FAILED, { payment_method: 'apm' });
                 const errorDetail = event?.detail?.error;
+                if (errorDetail?.code === 'invalid_status_for_operation') {
+                    showLoading();
+                    window.location.href = paymentConfig .return_url ;
+                    return;
+                }
                 if (errorDetail && errorDetail.code === 'no_payment_methods') {
                     showError(errorDetail.message || $t('No payment methods available. Please contact support.'));
                 }
@@ -229,15 +222,15 @@ define([
                 const quote = e?.detail?.quote;
                 const eventCurrency = (quote?.target_currency || '').toUpperCase();
                 const orderCurrency = (paymentConfig .order_currency || '').toUpperCase();
+                if (eventCurrency) {
+                    currentCurrency = eventCurrency;
+                    utils.setSelectedCurrency('#airwallex-currency-switcher', eventCurrency);
+                }
                 if (eventCurrency && orderCurrency && eventCurrency === orderCurrency) {
                     removeCurrencyConversion();
                     return;
                 }
                 displayCurrencyConversion(quote);
-                if (eventCurrency) {
-                    currentCurrency = eventCurrency;
-                    utils.setSelectedCurrency('#airwallex-currency-switcher', eventCurrency);
-                }
             });
         }
         $(document).ready(function () {

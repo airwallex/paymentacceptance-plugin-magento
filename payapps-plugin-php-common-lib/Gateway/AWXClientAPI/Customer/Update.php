@@ -6,6 +6,7 @@ use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\DataSanitizationTrait;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\Customer;
 use Airwallex\PayappsPlugin\CommonLibrary\Util\StringHelper;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\UrlHelper;
 
 class Update extends AbstractApi
 {
@@ -32,7 +33,7 @@ class Update extends AbstractApi
      */
     protected function getUri(): string
     {
-        return 'pa/customers/' . $this->id . '/update';
+        return 'pa/customers/' . UrlHelper::pathSegment($this->id) . '/update';
     }
 
     /**

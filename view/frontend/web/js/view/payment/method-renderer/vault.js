@@ -48,7 +48,7 @@ define([
     return VaultComponent.extend({
         validationError: ko.observable(),
         paymentMethodId: ko.observable(),
-        autoCapture: !!window.checkoutConfig .payment .airwallex_payments .cc_auto_capture,
+        autoCapture: !!window.checkoutConfig?.payment?.airwallex_payments?.cc_auto_capture,
         cvcElement: undefined,
         cvcDetail: undefined,
         id: '',
@@ -69,7 +69,7 @@ define([
          * @returns {boolean}
          */
         isActive: function (                   ) {
-            let active = this.getId() === this.isChecked();
+            let active = !!window.checkoutConfig?.payment?.airwallex_payments && this.getId() === this.isChecked();
             this.active(active);
             return active;
         },
@@ -138,7 +138,8 @@ define([
             return addressHandler.intentConfirmBillingAddressFromOfficial;
         },
         isAirwallexCustomerIdSame(                   ) {
-            return this.details.customer_id === window.checkoutConfig .payment .airwallex_payments .airwallex_customer_id;
+            const customerId = window.checkoutConfig?.payment?.airwallex_payments?.airwallex_customer_id;
+            return !!customerId && this.details.customer_id === customerId;
         },
         initCvcForm: async function (                     id        , type        ) {
             this.id = id;

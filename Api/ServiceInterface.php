@@ -102,17 +102,6 @@ interface ServiceInterface
     public function account(): StructAccount;
 
     /**
-     * Currency switcher
-     *
-     * @param string $paymentCurrency
-     * @param string $targetCurrency
-     * @param string $amount
-     * @return string
-     * @throws Exception
-     */
-    public function currencySwitcher(string $paymentCurrency, string $targetCurrency, string $amount): string;
-
-    /**
      * Conversion quote (MCP)
      *
      * @param string $merchantCurrency
@@ -121,4 +110,32 @@ interface ServiceInterface
      * @throws Exception
      */
     public function conversionQuote(string $merchantCurrency, string $shopperCurrency): string;
+
+    /**
+     * Record a client-side checkout funnel stage event (EPP-1214, spec §4 Path A).
+     *
+     * Relayed here from the storefront and re-emitted to airtracker as onCheckoutFunnel.
+     * The stage name is the message "event" field, not the airtracker event name, so a
+     * per-attempt funnel (rendered -> selected -> submitted -> succeeded / failed)
+     * is computable for source=magento. commonData (appName, source, accountId,
+     * appVersion, env, ...) is supplied by the common library, not the client.
+     * Counts only — no amounts. Best-effort: always returns a JSON ack and never
+     * throws, so telemetry cannot break checkout.
+     *
+     * @param string $eventName Funnel stage name; must be one of the whitelisted events.
+     * @param string $sessionId Random client tracking id used to stitch one checkout attempt.
+     * @param string $paymentMethod Payment method code involved in the stage, if any.
+     * @param bool $isDefault Whether this reports the default (pre-selected) payment method.
+     * @param string $errorReason Optional short failure reason for CHECKOUT_FAILED.
+     * @param string $intentId Payment intent id, set when the browser SDK confirm resolves.
+     * @return string
+     */
+    public function trackCheckoutEvent(
+        string $eventName,
+        string $sessionId,
+        string $paymentMethod = '',
+        bool $isDefault = false,
+        string $errorReason = '',
+        string $intentId = ''
+    ): string;
 }

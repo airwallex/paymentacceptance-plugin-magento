@@ -36,6 +36,7 @@ use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Quote\Api\CartRepositoryInterface;
+use Airwallex\Payments\Model\PaymentFlowLog;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\Framework\App\CacheInterface;
 use Magento\Sales\Api\OrderManagementInterface;

@@ -132,6 +132,7 @@ class Index implements HttpGetActionInterface
         }
 
         $resultPage = $this->resultPageFactory->create();
+        $resultPage->setHeader('Referrer-Policy', 'same-origin', true);
         $resultPage->getConfig()->getTitle()->set(__('Complete Your Payment'));
         return $resultPage;
     }
@@ -212,7 +213,9 @@ class Index implements HttpGetActionInterface
      */
     private function redirectToCart()
     {
-        return $this->redirectFactory->create()->setPath('checkout/cart');
+        return $this->redirectFactory->create()
+            ->setHeader('Referrer-Policy', 'same-origin', true)
+            ->setPath('checkout/cart');
     }
 
     /**
@@ -224,7 +227,10 @@ class Index implements HttpGetActionInterface
      */
     private function redirectToSuccess(string $entityType, $entityId)
     {
-        return $this->redirectFactory->create()->setPath('airwallex/redirect', [
+        $this->consumeReturnStateToken((string) $this->request->getParam('state'));
+        return $this->redirectFactory->create()
+            ->setHeader('Referrer-Policy', 'same-origin', true)
+            ->setPath('airwallex/redirect', [
             'awx_return_result' => 'success',
             'id' => $entityId,
             'type' => $entityType,

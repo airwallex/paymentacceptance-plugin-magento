@@ -30,8 +30,10 @@
  */
 namespace Airwallex\Payments\Model\Webhook;
 
+use Airwallex\PayappsPlugin\CommonLibrary\Util\AmountHelper;
 use Airwallex\Payments\Exception\WebhookException;
 use Airwallex\Payments\Model\PaymentIntentRepository;
+use Airwallex\Payments\Model\PaymentOperationLock;
 use Exception;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\InputException;
@@ -42,9 +44,8 @@ use Magento\Sales\Model\Order\CreditmemoFactory;
 use Magento\Sales\Model\OrderRepository;
 use Magento\Sales\Model\Service\CreditmemoService;
 use Airwallex\Payments\Model\Traits\HelperTrait;
-use Magento\Framework\App\CacheInterface;
-use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
 
 class Refund extends AbstractWebhook
 {
@@ -63,11 +64,6 @@ class Refund extends AbstractWebhook
     private PaymentIntentRepository $paymentIntentRepository;
 
     /**
-     * @var CacheInterface
-     */
-    private CacheInterface $cache;
-
-    /**
      * @var CreditmemoFactory
      */
     private CreditmemoFactory $creditmemoFactory;
@@ -82,6 +78,8 @@ class Refund extends AbstractWebhook
      */
     private RetrievePaymentIntent $retrievePaymentIntent;
 
+    private PaymentOperationLock $paymentOperationLock;
+
     /**
      * Refund constructor.
      *
@@ -89,23 +87,23 @@ class Refund extends AbstractWebhook
      * @param PaymentIntentRepository $paymentIntentRepository
      * @param CreditmemoFactory $creditmemoFactory
      * @param CreditmemoService $creditmemoService
-     * @param CacheInterface $cache
      * @param RetrievePaymentIntent $retrievePaymentIntent
+     * @param PaymentOperationLock $paymentOperationLock
      */
     public function __construct(
         OrderRepository $orderRepository,
         PaymentIntentRepository $paymentIntentRepository,
-        CacheInterface $cache,
         CreditmemoFactory $creditmemoFactory,
         CreditmemoService $creditmemoService,
-        RetrievePaymentIntent $retrievePaymentIntent
+        RetrievePaymentIntent $retrievePaymentIntent,
+        PaymentOperationLock $paymentOperationLock
     ) {
         $this->orderRepository = $orderRepository;
         $this->paymentIntentRepository = $paymentIntentRepository;
-        $this->cache = $cache;
         $this->creditmemoFactory = $creditmemoFactory;
         $this->creditmemoService = $creditmemoService;
         $this->retrievePaymentIntent = $retrievePaymentIntent;
+        $this->paymentOperationLock = $paymentOperationLock;
     }
 
     /**
@@ -120,41 +118,44 @@ class Refund extends AbstractWebhook
      */
     public function execute(object $data): void
     {
-        $intentId = $data->payment_intent_id;
-
-        /** @var Order $order */
+        $intentId = $data->payment_intent_id ?? null;
+        $refundId = $data->id ?? null;
+        $amount = $data->amount ?? null;
+        $currency = $data->currency ?? null;
+        if (!is_string($intentId) || $intentId === '' || !is_string($refundId) || $refundId === ''
+            || !is_numeric($amount) || !is_finite((float) $amount) || (float) $amount <= 0
+            || !is_string($currency) || !preg_match('/^[A-Z]{3}$/D', $currency)
+        ) {
+            throw new WebhookException(__('Invalid refund event.'));
+        }
         $order = $this->paymentIntentRepository->getOrder($intentId);
-        if (!$order) {
-            throw new WebhookException(__('Can\'t find order'));
+        if (!$order || !$order->getId()) {
+            throw new WebhookException(__("Can't find order"));
         }
-
-        $cacheName = $this->refundCacheName($intentId);
-        if ($this->cache->load($cacheName)) {
-            $this->cache->remove($cacheName);
-            return;
-        }
-
-        $record = $this->paymentIntentRepository->getByIntentId($intentId);
-        $detail = $record->getDetail();
-        $detailArray = $detail ? json_decode($detail, true) : [];
-        if (!empty($detailArray['refund_ids']) && in_array($data->id, $detailArray['refund_ids'], true)) {
-            return;
-        }
-
-        if ($order->getState() === Order::STATE_HOLDED && $order->canUnhold()) {
-            $order->unhold();
-        }
-
-        if (!$order->canCreditmemo()) {
-            if ($order->canCancel()) {
-                $order->cancel();
-                $this->orderRepository->save($order);
-            }
-
-            return;
-        }
-
-        $this->createCreditMemo($order, $data->amount, $data->currency, $intentId, $data->reason ?? '');
+        $this->paymentOperationLock->execute((int)$order->getId(), function () use ($data, $intentId, $refundId): void {
+            $this->paymentIntentRepository->withLockedIntent($intentId, function ($record) use ($data, $intentId, $refundId): void {
+                try {
+                    if ($this->paymentIntentRepository->hasRecordedRefund($record, $refundId)) {
+                        return;
+                    }
+                } catch (LocalizedException $e) {
+                    throw new WebhookException(__('Invalid refund reconciliation data.'));
+                }
+                $order = $this->paymentIntentRepository->getOrder($intentId);
+                if (!$order || !$order->getId()) {
+                    throw new WebhookException(__('Can\'t find order'));
+                }
+                if ($order->getState() === Order::STATE_HOLDED && $order->canUnhold()) {
+                    $order->unhold();
+                }
+                if (!$order->canCreditmemo()) {
+                    throw new WebhookException(__('The refund cannot be applied until the order has a captured invoice.'));
+                }
+                $this->createCreditMemo($order, (float) $data->amount, (string) $data->currency, $intentId);
+                $requestId = isset($data->request_id) && is_string($data->request_id) ? $data->request_id : '';
+                $this->paymentIntentRepository->appendRefundToRecord($record, $refundId, $requestId);
+            });
+        });
     }
 
     /**
@@ -162,7 +163,6 @@ class Refund extends AbstractWebhook
      * @param float $refundAmount
      * @param string $refundCurrency
      * @param string $intentId
-     * @param string $reason
      *
      * @return void
      * @throws AlreadyExistsException
@@ -171,42 +171,60 @@ class Refund extends AbstractWebhook
      * @throws NoSuchEntityException
      * @throws Exception
      */
-    private function createCreditMemo(Order $order, float $refundAmount, string $refundCurrency, string $intentId, string $reason): void
+    private function createCreditMemo(Order $order, float $refundAmount, string $refundCurrency, string $intentId): void
     {
         /** @var Order\Invoice $invoice */
         $invoice = $order->getInvoiceCollection()->getFirstItem();
-
-        if (!$invoice) {
-            return;
+        if (!$invoice || !$invoice->getId()) {
+            throw new WebhookException(__('Refund invoice is not available yet.'));
         }
 
-        $totalNotRefunded = $order->getGrandTotal() - $order->getTotalRefunded();
+        $orderCurrency = (string) $order->getOrderCurrencyCode();
+        $baseCurrency = (string) $order->getBaseCurrencyCode();
+        $rate = (float) $order->getBaseToOrderRate();
+        if ($refundCurrency === $orderCurrency) {
+            $orderRefundAmount = AmountHelper::formatAmount($refundAmount, $orderCurrency);
+            $baseAmount = $this->getBaseAmount(
+                $refundAmount,
+                $rate,
+                (float) $order->getGrandTotal(),
+                (float) $order->getBaseGrandTotal(),
+                $orderCurrency,
+                $baseCurrency
+            );
+        } elseif ($refundCurrency === $baseCurrency) {
+            $baseAmount = AmountHelper::formatAmount($refundAmount, $baseCurrency);
+            $orderRefundAmount = AmountHelper::formatAmount(
+                ($rate ? $baseAmount * $rate : $baseAmount),
+                $orderCurrency
+            );
+        } else {
+            /** @var StructPaymentIntent $paymentIntent */
+            $paymentIntent = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
+            $intentAmount = (float) $paymentIntent->getAmount();
+            if ($refundCurrency !== $paymentIntent->getCurrency() || $intentAmount <= 0) {
+                throw new WebhookException(__('Refund currency or payment intent amount is invalid.'));
+            }
+            if (AmountHelper::formatAmount($refundAmount, $refundCurrency)
+                > AmountHelper::formatAmount($intentAmount, $refundCurrency)
+            ) {
+                throw new WebhookException(__('Refund amount exceeds the payment intent amount.'));
+            }
+            $baseGrandTotal = (float) $order->getBaseGrandTotal();
+            $baseAmount = AmountHelper::formatAmount(
+                $refundAmount / $intentAmount * $baseGrandTotal,
+                $baseCurrency
+            );
+            $orderRefundAmount = AmountHelper::formatAmount(
+                ($rate ? $baseAmount * $rate : $baseAmount),
+                $orderCurrency
+            );
+        }
 
         $creditMemo = $this->creditmemoFactory->createByOrder($order);
         $creditMemo->setInvoice($invoice);
-
-        if ($totalNotRefunded > $refundAmount) {
-            $diff = $totalNotRefunded - $refundAmount;
-            $creditMemo->setAdjustmentPositive($diff);
-        }
-
-        $baseAmount = $this->getBaseAmount($refundAmount, $order->getBaseToOrderRate(), $order->getGrandTotal(), $order->getBaseGrandTotal());
-        $remained = round($order->getBaseTotalPaid() - $order->getBaseTotalRefunded(), 4);
-
-        if ($baseAmount - $remained >= 0.0001) {
-            $baseAmount = $remained;
-        }
-
+        $creditMemo->setGrandTotal($orderRefundAmount);
         $creditMemo->setBaseGrandTotal($baseAmount);
-        $creditMemo->setGrandTotal($refundAmount);
-        if ($refundCurrency !== $order->getOrderCurrencyCode()) {
-            /** @var StructPaymentIntent $paymentIntent */
-            $paymentIntent = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
-            $refundAmount = round($refundAmount / $paymentIntent->getAmount() * $order->getBaseGrandTotal(), 2);
-            $creditMemo->setBaseGrandTotal($refundAmount);
-            $creditMemo->setGrandTotal($this->convertToDisplayCurrency($refundAmount, $order->getBaseToOrderRate(), false));
-        }
-
         $this->creditmemoService->refund($creditMemo, true);
         $this->orderRepository->save($order);
     }

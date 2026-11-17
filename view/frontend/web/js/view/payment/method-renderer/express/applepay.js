@@ -75,6 +75,23 @@ define([
             utils.loadRecaptcha(that.isShowRecaptcha);
         },
         confirmIntent(                    from        , params                         ) {
+            const paymentData = this.authorizedPaymentData && this.authorizedPaymentData[from];
+            // Airwallex keeps a shipping field whenever it is truthy, so a full
+            // shipping contact (product, cart, minicart) replaces the billing address.
+            if (paymentData && paymentData.billingContact && !utils.isCheckoutPage()) {
+                const billing = paymentData.billingContact;
+                const shipping = paymentData.shippingContact || {};
+                params = {
+                    ...params,
+                    billingContact: billing,
+                    shippingContact: {
+                        phoneNumber: billing.phoneNumber || shipping.phoneNumber,
+                        emailAddress: billing.emailAddress || shipping.emailAddress,
+                        givenName: billing.givenName || shipping.givenName,
+                        familyName: billing.familyName || shipping.familyName,
+                    },
+                };
+            }
             return this.elements[from].confirmIntent(params);
         },
         destroy(                    from        ) {
@@ -85,7 +102,29 @@ define([
             }
         },
         attachEvents(                    that                     , element                  ) {
+            // Product-page wallets must prepare a fresh cart in every payment session.
+            let cartReady = that.from !== 'product_page';
+            let cartPrepared = cartReady;
+            const reportCartError = (shippingMethodChange = false) => {
+                const errors                                                = [{
+                    code: 'unknown',
+                    message: $.mage.__('Unable to prepare your cart. Please close the payment window and try again.'),
+                }];
+                // Always supply the current amount: SDK fallback uses the initial product-page total (zero).
+                const options = this.getRequestOptions();
+                if (shippingMethodChange) {
+                    // Apple Pay shipping-method updates have no errors field; show the failure in the summary.
+                    options.lineItems = [...this.getDisplayItems(), {
+                        label: $.mage.__('Unable to update shipping. Please select another shipping method or close the payment window and try again.'),
+                        amount: '0.00',
+                        type: 'pending',
+                    }];
+                }
+                element.update({ ...options, errors });
+            };
             element.on('click', () => {
+                cartReady = that.from !== 'product_page';
+                cartPrepared = cartReady;
                 if (utils.isProductPage()) {
                     $('#btn-minicart-close').click();
                 }
@@ -102,30 +141,48 @@ define([
                 }
             });
             element.on('shippingAddressChange', async (event     ) => {
-                await utils.addToCart(that);
-                this.intermediateShippingAddress = addressHandler.getIntermediateShippingAddress(event.detail.shippingAddress, 'apple');
+                cartReady = false;
+                cartPrepared = false;
                 try {
+                    await utils.addToCart(that);
+                    this.intermediateShippingAddress = addressHandler.getIntermediateShippingAddress(event.detail.shippingAddress, 'apple');
+                    cartPrepared = true;
                     await that.postAddress(this.intermediateShippingAddress);
                 } catch (e) {
+                    reportCartError();
                     utils.error(e);
+                    return;
                 }
                 let options = this.getRequestOptions();
                 if (utils.isRequireShippingOption()) {
                     options.shippingMethods = addressHandler.formatShippingMethodsToApple(this.methods, this.selectedMethod);
                 }
-                element.update(options);
+                element.update({ ...options, errors: [] });
+                cartReady = true;
             });
             element.on('shippingMethodChange', async (event     ) => {
+                if (!cartPrepared) {
+                    reportCartError(true);
+                    return;
+                }
+                cartReady = false;
                 try {
                     await that.postAddress(this.intermediateShippingAddress, event.detail.shippingMethod.identifier);
                 } catch (e) {
+                    reportCartError(true);
                     utils.error(e);
+                    return;
                 }
                 let options = this.getRequestOptions();
                 options.shippingMethods = addressHandler.formatShippingMethodsToApple(this.methods, this.selectedMethod);
-                element.update(options);
+                element.update({ ...options, errors: [] });
+                cartReady = true;
             });
             element.on('authorized', async (event     ) => {
+                if (!cartReady) {
+                    reportCartError();
+                    return;
+                }
                 let shipping = event.detail.paymentData.shippingContact;
                 let billing = event.detail.paymentData.billingContact;
                 let phone, email;
@@ -156,7 +213,9 @@ define([
                             'address': addressHandler.getBillingAddressFromApple(billing, phone)
                         }, utils.isLoggedIn(), utils.getCartId());
                     }
-                    addressHandler.setIntentConfirmBillingAddressFromApple(billing, email);
+                    addressHandler.setIntentConfirmBillingAddressFromApple(billing, email, phone);
+                    this.authorizedPaymentData = this.authorizedPaymentData || {};
+                    this.authorizedPaymentData[that.from] = event.detail.paymentData;
                     that.placeOrder('applepay');
                 } catch (e) {
                     utils.error(e);
@@ -186,10 +245,11 @@ define([
                 }
             }
             const showZero = initial && utils.isProductPage();
+            const currency = $('[property="product:price:currency"]').attr("content") || this.expressData.quote_currency_code;
             const transactionInfo = {
                 amount: {
-                    value: showZero ? '0.00' : utils.formatCurrency(this.expressData.grand_total ),
-                    currency: $('[property="product:price:currency"]').attr("content") || this.expressData.quote_currency_code,
+                    value: utils.formatCurrency(showZero ? 0 : this.expressData.grand_total , currency),
+                    currency: currency,
                 },
                 lineItems: showZero ? [] : this.getDisplayItems(),
             };
@@ -232,6 +292,7 @@ define([
         },
         getDisplayItems(                  )                                 {
             let res                                 = [];
+            const currency = $('[property="product:price:currency"]').attr("content") || this.expressData.quote_currency_code;
             for (let key in this.expressData) {
                 if (this.expressData[key] === '0.0000' || !this.expressData[key]) {
                     continue;
@@ -239,23 +300,23 @@ define([
                 if (key === 'shipping_amount') {
                     res.push({
                         'label': 'Shipping',
-                        'amount': utils.formatCurrency(this.expressData[key])
+                        'amount': utils.formatCurrency(this.expressData[key], currency)
                     });
                 } else if (key === 'tax_amount') {
                     res.push({
                         'label': 'Tax',
-                        'amount': utils.formatCurrency(this.expressData[key])
+                        'amount': utils.formatCurrency(this.expressData[key], currency)
                     });
                 } else if (key === 'subtotal') {
                     res.push({
                         'label': 'Subtotal',
-                        'amount': utils.formatCurrency(this.expressData[key])
+                        'amount': utils.formatCurrency(this.expressData[key], currency)
                     });
                 } else if (key === 'subtotal_with_discount') {
                     if (this.expressData[key] !== this.expressData['subtotal']) {
                         res.push({
                             'label': 'Discount',
-                            'amount': '-' + utils.getDiscount(this.expressData['subtotal'] , this.expressData['subtotal_with_discount'] ).toString()
+                            'amount': '-' + utils.getDiscount(this.expressData['subtotal'] , this.expressData['subtotal_with_discount'] , currency).toString()
                         });
                     }
                 }

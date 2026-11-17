@@ -36,6 +36,7 @@
 /** The card/vault renderer instance passed to `pay` / `preverification`. */
 /** The Magento checkout quote model (subset used here). */
 /** The express renderer context passed to `addToCart`. */
+/** Checkout funnel telemetry module (EPP-1214). */
 define([
     'mage/url',
     'jquery',
@@ -49,7 +50,8 @@ define([
     'Magento_Customer/js/model/customer',
     'Magento_Checkout/js/model/payment/place-order-hooks',
     'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
-    'Magento_ReCaptchaFrontendUi/js/registry'
+    'Magento_ReCaptchaFrontendUi/js/registry',
+    'Airwallex_Payments/js/view/payment/tracking'
 ], function (
     urlBuilder            ,
     $              ,
@@ -63,7 +65,8 @@ define([
     customer               ,
     placeOrderHooks                 ,
     addressHandler                ,
-    recaptchaRegistry                           
+    recaptchaRegistry                           ,
+    tracking                
 ) {
     'use strict';
     return {
@@ -102,9 +105,9 @@ define([
                 // customerData.reload(['cart'], true);
             }
         },
-        getDiscount(subtotal        , subtotal_with_discount        ) {
+        getDiscount(subtotal        , subtotal_with_discount        , currency         ) {
             let diff = subtotal - subtotal_with_discount;
-            return diff.toFixed(2);
+            return this.formatCurrency(diff, currency);
         },
         attachHeightGuard(element                , type        ) {
             if (!element || element._awxHeightGuard) {
@@ -133,8 +136,21 @@ define([
                 delete element._awxHeightGuard;
             }
         },
-        formatCurrency(v                 ) {
-            return parseFloat(v          ).toFixed(2);
+        formatCurrency(v                 , currency         ) {
+            const code = (currency || this.expressData.quote_currency_code
+                || window.checkoutConfig?.payment?.airwallex_payments?.quote_currency_code || 'USD').toUpperCase();
+            const options = this.customizedCurrencyOptions(code);
+            let precision = options.maximumFractionDigits;
+            if (typeof precision !== 'number') {
+                try {
+                    precision = new Intl.NumberFormat('en-US', {
+                        style: 'currency', currency: code
+                    }).resolvedOptions().maximumFractionDigits ?? 2;
+                } catch (e) {
+                    precision = 2;
+                }
+            }
+            return parseFloat(v          ).toFixed(precision);
         },
         isSameBillingAddress(addr1                           , addr2                           ) {
             if (!addr1 && !addr2) {
@@ -360,8 +376,15 @@ define([
         async conversionQuote(merchantCurrency        , shopperCurrency        )                                   {
             const url = urlBuilder.build('rest/V1/airwallex/conversion-quote');
             const body = JSON.stringify({ merchantCurrency: merchantCurrency, shopperCurrency: shopperCurrency });
-            const response = await storage.post(url, body, true, 'application/json', {});
-            return typeof response === 'string' ? JSON.parse(response) : response;
+            // Checkout listens on #checkout; standalone payment pages use the body loader.
+            const $loader = $('#checkout').length ? $('#checkout') : $('body');
+            $loader.trigger('processStart');
+            try {
+                const response = await storage.post(url, body, true, 'application/json', {});
+                return typeof response === 'string' ? JSON.parse(response) : response;
+            } finally {
+                $loader.trigger('processStop');
+            }
         },
         isRequireShippingAddress() {
             if (this.isProductPage()) {
@@ -371,6 +394,22 @@ define([
                 return false;
             }
             return !this.expressData.is_virtual;
+        },
+        getFormKey() {
+            if (typeof window.FORM_KEY === 'string' && window.FORM_KEY) {
+                return window.FORM_KEY;
+            }
+            const match = document.cookie.match(/(?:^|; )form_key=([^;]+)/);
+            if (match) {
+                try {
+                    return decodeURIComponent(match[1]);
+                } catch (e) {
+                    return match[1];
+                }
+            }
+            return document.querySelector                  ('input[name="form_key"]')?.value
+                || window.checkoutConfig?.formKey
+                || '';
         },
         postOptions(data                                                                 , url        ) {
             let formData = new FormData();
@@ -393,6 +432,12 @@ define([
         },
         addToCartOptions() {
             let arr = $(this.productFormSelector).serializeArray();
+            if (!arr.some((field) => field.name === 'form_key' && field.value)) {
+                const formKey = this.getFormKey();
+                if (formKey) {
+                    arr.push({ name: 'form_key', value: formKey });
+                }
+            }
             let url = urlBuilder.build('rest/V1/airwallex/payments/add-to-cart');
             return this.postOptions(arr, url);
         },
@@ -401,12 +446,8 @@ define([
                 return;
             }
             if (this.isProductPage() && this.isSetActiveInProductPage()) {
-                try {
-                    let res = await $.ajax(this.addToCartOptions()                       );
-                    that.updateExpressData(JSON.parse(res));
-                } catch (res     ) {
-                    this.error(res);
-                }
+                let res = await $.ajax(this.addToCartOptions()                       );
+                that.updateExpressData(JSON.parse(res));
                 customerData.invalidate(['cart']);
                 customerData.reload(['cart'], true);
             }
@@ -425,7 +466,7 @@ define([
             if (response.responseJSON) {
                 errorMessage = $.mage.__(response.responseJSON.message          );
             }
-            $("#awx-modal .modal-body-content").html(errorMessage);
+            $("#awx-modal .modal-body-content").text(errorMessage);
             modalSelector.modal('openModal');
         },
         redirectToSuccess() {
@@ -508,6 +549,14 @@ define([
             // Mastercard AN 6022 compliance. Sent on Payment Intent create.
             payload.paymentMethod.additional_data.merchant_website_url = window.location.origin + '/';
             let intentResponse = {}                      ;
+            payload.paymentMethod.additional_data.awx_session_id = tracking.getSessionId();
+            _.each(placeOrderHooks.requestModifiers, function (modifier) {
+                modifier(headers, payload);
+            });
+            if (payload.xReCaptchaValue) {
+                headers['X-ReCaptcha'] = payload.xReCaptchaValue;
+                delete payload.xReCaptchaValue;
+            }
             try {
                 intentResponse = await storage.post(
                     this.placeOrderUrl(), JSON.stringify(payload), true, 'application/json', headers
@@ -524,6 +573,12 @@ define([
                 throw new Error(intentResponse.message);
             }
             return intentResponse;
+        },
+        completeRecoveredOrder(response                                       )          {
+            if (!response || response.response_type !== 'success') return false;
+            this.clearDataAfterPay({}, customerData);
+            this.redirectToSuccess();
+            return true;
         },
         async placeOrder(payload                   , intentResponse                    , headers                          = {}) {
             payload.intent_id = intentResponse.intent_id;
@@ -685,6 +740,8 @@ define([
         },
         async pay(self                     , from        , quote            ) {
             $('body').trigger('processStart');
+            tracking.useSession('card');
+            tracking.track(tracking.EVENTS.SUBMITTED, { payment_method: 'card' });
             const payload                    = {
                 cartId: quote.getQuoteId(),
                 from: from,
@@ -699,19 +756,17 @@ define([
             if (!this.isLoggedIn()) {
                 payload.email = quote.guestEmail;
             }
-            let headers = {};
-            _.each(placeOrderHooks.requestModifiers, function (modifier) {
-                modifier(headers, payload);
-            });
             payload.intent_id = null;
             if (from === 'card' && self.isSaveCardSelected() && self.getCustomerId()) {
                 payload.from = 'card_with_saved';
             }
             await this.setRecaptchaToken(payload, this.getRecaptchaId());
+            let headers = {};
             try {
                 await this.sendBillingAddress(self, quote, from);
                 await this.preverification(from, payload, self, quote);
                 let intentResponse = await this.getIntent(payload, headers);
+                if (this.completeRecoveredOrder(intentResponse)) return;
                 try {
                     if (from === 'vault') {
                         const selectedConsentId = $("#v-" + $('input[name="payment[method]"]:checked').val()).val();
@@ -729,6 +784,8 @@ define([
                                 }
                             },
                         });
+                        tracking.useSession('card');
+                        tracking.trackConfirm(intentResponse.intent_id, 'card');
                     } else {
                         if (self.isSaveCardSelected() && self.getCustomerId()) {
                             let requestUrl = urlBuilder.build('rest/V1/airwallex/generate_client_secret');
@@ -751,6 +808,8 @@ define([
                                 },
                                 element: self.cardNumberElement
                             });
+                            tracking.useSession('card');
+                            tracking.trackConfirm(intentResponse.intent_id, 'card');
                         }
                     }
                 } catch (error     ) {
@@ -762,6 +821,8 @@ define([
                 this.clearDataAfterPay({}, customerData);
                 window.location.replace(urlBuilder.build('airwallex/redirect?from=card&type=quote&id=' + quote.getQuoteId()));
             } catch (e     ) {
+                tracking.useSession('card');
+                tracking.track(tracking.EVENTS.FAILED, { payment_method: 'card' });
                 if (e.message) {
                     self.validationError(e.message);
                 } else if (e.responseJSON && e.responseJSON.message) {
@@ -790,20 +851,21 @@ define([
             }
             let formattedTargetAmount = this.convertToAwxAmount(switchers.target_amount, switchers.target_currency);
             let formattedClientRate = switchers.client_rate;
+            const escape = (s         )         => $('<div/>').text(String(s ?? '')).html();
             $(youPayElement).html(
                 '<th class="mark" scope="row" style="padding-top: 33px;">' +
-                    '<span style="font-size: 1.8rem; font-weight: 600;">' + $t('You Pay') + '</strong>' +
+                    '<span style="font-size: 1.8rem; font-weight: 600;">' + escape($t('You Pay')) + '</strong>' +
                 '</th>' +
                 '<td class="amount">' +
                     '<div class="switcher-tip">' +
-                        '<div style="color: rgba(108, 116, 127, 1); margin-right: 5px;">1 ' + switchers.payment_currency + ' = ' + formattedClientRate + ' ' + switchers.target_currency + '</div>' +
+                        '<div style="color: rgba(108, 116, 127, 1); margin-right: 5px;">1 ' + escape(switchers.payment_currency) + ' = ' + escape(formattedClientRate) + ' ' + escape(switchers.target_currency) + '</div>' +
                         '<svg width="12" height="24" viewBox="0 0 12 24" xmlns="http://www.w3.org/2000/svg">' +
                             '<line x1="6.5" y1="2.18557e-08" x2="6.5" y2="6" stroke="#E8EAED"></line>' +
                                 '<path fill-rule="evenodd" clip-rule="evenodd" d="M10.8751 12.006C11.2227 11.8469 11.641 11.9755 11.836 12.3134C12.0431 12.6721 11.9202 13.1308 11.5615 13.3379L9.93769 14.2754C9.57897 14.4825 9.12028 14.3596 8.91317 14.0009L7.97567 12.3771C7.76857 12.0184 7.89147 11.5597 8.25019 11.3526C8.60891 11.1455 9.0676 11.2684 9.27471 11.6271L9.36849 11.7895C9.25886 10.0245 7.79267 8.62695 6.00007 8.62695C5.0122 8.62695 4.12347 9.05137 3.50626 9.72782L2.44482 8.66638C3.33417 7.71884 4.598 7.12695 6.00007 7.12695C8.69245 7.12695 10.8751 9.30957 10.8751 12.002C10.8751 12.0033 10.8751 12.0047 10.8751 12.006ZM1.12576 12.0887L1.12513 12.0891C0.766406 12.2962 0.307713 12.1733 0.100606 11.8146C-0.106501 11.4559 0.0164058 10.9972 0.375125 10.7901L1.99892 9.85256C2.35764 9.64545 2.81633 9.76836 3.02344 10.1271L3.96094 11.7509C4.16805 12.1096 4.04514 12.5683 3.68642 12.7754C3.3277 12.9825 2.86901 12.8596 2.6619 12.5009L2.66152 12.5002C2.90238 14.1279 4.30533 15.377 6 15.377C6.85293 15.377 7.63196 15.0606 8.22613 14.5387L9.28834 15.6009C8.42141 16.3935 7.26716 16.877 6 16.877C3.3366 16.877 1.17206 14.7411 1.12576 12.0887Z" fill="#B0B6BF"></path>' +
                             '<line x1="6.5" y1="18" x2="6.5" y2="24" stroke="#E8EAED"></line>' +
                         '</svg>' +
                     '</div>' +
-                    '<div class="awx-amount">' + switchers.target_currency + ' ' + formattedTargetAmount + '</div>' +
+                    '<div class="awx-amount">' + escape(switchers.target_currency) + ' ' + escape(formattedTargetAmount) + '</div>' +
                 '</td>'
             );
             $(youPayElement).show();
@@ -1023,6 +1085,15 @@ define([
             });
         },
         customizedCurrencyOptions(currency        )                         {
+            const precisions = window.checkoutConfig?.payment?.airwallex_payments?.currency_to_decimal
+                || this.paymentConfig.currency_to_decimal;
+            if (precisions) {
+                const precision = precisions[currency.toUpperCase()] ?? 2;
+                return {
+                    maximumFractionDigits: precision,
+                    minimumFractionDigits: precision
+                };
+            }
             // HUF, IDR, MGA, TWD should have 0 decimal places, different from the ISO 4217 standards
             let zeroDecimalCurrencies = ['IDR', 'HUF', 'MGA', 'TWD'];
             if (zeroDecimalCurrencies.indexOf(currency.toUpperCase()) !== -1) {

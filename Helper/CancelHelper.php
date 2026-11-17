@@ -38,6 +38,11 @@ class CancelHelper
     private bool $webhookCanceling = false;
 
     /**
+     * @var array<string, bool>
+     */
+    private array $canceledIntents = [];
+
+    /**
      * @return bool
      */
     public function isWebhookCanceling(): bool
@@ -51,5 +56,17 @@ class CancelHelper
     public function setWebhookCanceling(bool $webhookCanceling): void
     {
         $this->webhookCanceling = $webhookCanceling;
+    }
+
+    public function markIntentCanceled(string $intentId): void
+    {
+        if ($intentId !== '') {
+            $this->canceledIntents[$intentId] = true;
+        }
+    }
+
+    public function isIntentCanceled(string $intentId): bool
+    {
+        return $intentId !== '' && !empty($this->canceledIntents[$intentId]);
     }
 }

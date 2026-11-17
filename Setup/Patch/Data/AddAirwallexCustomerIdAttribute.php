@@ -68,7 +68,7 @@ class AddAirwallexCustomerIdAttribute implements DataPatchInterface
             'visible' => false,
             'user_defined' => false,
             'position' => 999,
-            'system' => 0,
+            'system' => 1,
             'is_used_in_grid' => true,
             'is_visible_in_grid' => true,
             'is_filterable_in_grid' => true,

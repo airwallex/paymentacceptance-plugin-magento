@@ -4,6 +4,7 @@ namespace Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentMeth
 
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentMethod;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\UrlHelper;
 
 class Get extends AbstractApi
 {
@@ -25,7 +26,7 @@ class Get extends AbstractApi
      */
     protected function getUri(): string
     {
-        return 'pa/payment_methods/' . $this->id;
+        return 'pa/payment_methods/' . UrlHelper::pathSegment($this->id);
     }
 
     /**

@@ -32,10 +32,12 @@ namespace Airwallex\Payments\Model\Webhook;
 
 use Airwallex\Payments\Helper\IntentHelper;
 use Airwallex\Payments\Model\PaymentIntentRepository;
+use Airwallex\Payments\Model\PaymentOperationLock;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Framework\DB\TransactionFactory;
+use Magento\Framework\App\ObjectManager;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\InputException;
 use Magento\Framework\Exception\LocalizedException;
@@ -44,6 +46,7 @@ use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order\Invoice;
 use Magento\Sales\Model\Service\InvoiceService;
+use Airwallex\Payments\Model\PaymentFlowLog;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\Sales\Model\Order;
 use Magento\Framework\App\CacheInterface;
@@ -131,71 +134,50 @@ class Capture extends AbstractWebhook
     {
         $intentId = $data->payment_intent_id ?? $data->id;
 
-        if ($this->cache->load($this->captureCacheName($intentId))) {
-            $this->cache->remove($this->captureCacheName($intentId));
-            return;
-        }
 
         /** @var Order $order */
         $order = $this->paymentIntentRepository->getOrder($intentId);
         $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
-        $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
-        if (empty($order) || empty($order->getId())) {
-            /** @var StructPaymentIntent $paymentIntent */
+        $operation = function () use ($intentId, $order, $paymentIntent): void {
+            $quote = $this->quoteRepository->get($paymentIntent->getQuoteId());
             $paymentIntentFromApi = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
-            $this->placeOrder($quote->getPayment(), $paymentIntentFromApi, $quote, __METHOD__);
-            return;
-        }
+            if (empty($order) || empty($order->getId())) {
+                $this->placeOrder($quote->getPayment(), $paymentIntentFromApi, $quote, __METHOD__);
+                return;
+            }
 
-        if (!$this->isOrderBeforePayment()) {
-            /** @var StructPaymentIntent $paymentIntent */
-            $paymentIntentFromApi = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
-            $this->changeOrderStatus($paymentIntentFromApi, $paymentIntent->getOrderId(), $quote, __METHOD__);
-            $this->deactivateQuote($quote);
-            return;
-        }
+            $orderId = (int) ($paymentIntent->getOrderId() ?: $order->getId());
+            if (!$this->isOrderBeforePayment()) {
+                $this->changeOrderStatus($paymentIntentFromApi, $orderId, $quote, __METHOD__);
+                $this->deactivateQuote($quote);
+                return;
+            }
 
-        if ($data->captured_amount === $data->amount && $this->isOrderBeforePayment()) {
-            /** @var StructPaymentIntent $paymentIntent */
-            $paymentIntentFromApi = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
-            $this->changeOrderStatus($paymentIntentFromApi, $paymentIntent->getOrderId(), $quote, __METHOD__);
-            return;
-        }
+            // Airwallex's public API only supports a single capture (full or partial)
+            // per PaymentIntent and does not support multiple partial captures.
+            if ($this->isFullCaptureConfirmed($paymentIntentFromApi)) {
+                $this->changeOrderStatus($paymentIntentFromApi, $orderId, $quote, __METHOD__);
+                return;
+            }
 
-        if (!$order->getPayment() || $order->getTotalPaid()) return;
-
-        $order->setState(Order::STATE_PROCESSING)->setStatus(Order::STATE_PROCESSING);
-        $this->orderRepository->save($order);
-
-        $amount = $data->captured_amount;
-        $baseAmount = $this->getBaseAmount($amount, $order->getBaseToOrderRate(), $order->getGrandTotal(), $order->getBaseGrandTotal());
-        $amountFormat = $this->priceForComment($amount, $baseAmount, $order);
-        if ($data->currency === $order->getBaseCurrencyCode()) {
-            $amountFormat = $order->formatBasePrice($amount);
-            $baseAmount = $amount;
-        } else if ($data->currency !== $order->getOrderCurrencyCode()) {
-            $amount = round($data->captured_amount / $data->amount * $order->getBaseGrandTotal(), 2);
-            $amountFormat = $order->formatBasePrice($amount);
-            $baseAmount = $amount;
+            $this->paymentIntentRepository->withLockedIntent($intentId, function () use ($orderId, $paymentIntentFromApi, $quote, $intentId): void {
+                $order = $this->reloadLockedOrder($orderId);
+                if (!$order->getId() || $order->isCanceled() || !$order->getPayment()) {
+                    return;
+                }
+                $this->checkIntent($paymentIntentFromApi, $order);
+                if (!$this->invoiceAuthorizedOrder($order, $paymentIntentFromApi)) {
+                    return;
+                }
+                $this->deactivateQuote($quote);
+                PaymentFlowLog::orderStatusUpdated($order, (string)$intentId, __METHOD__);
+            });
+        };
+        if ($order && $order->getId()) {
+            ObjectManager::getInstance()->get(PaymentOperationLock::class)
+                ->execute((int)$order->getId(), $operation);
+        } else {
+            $operation();
         }
-        $comment = "Captured amount of $amountFormat through Airwallex. Transaction ID: \"$intentId\".";
-        $this->addComment($order, $comment);
-        $invoice = $this->invoiceService->prepareInvoice($order);
-        if ($data->currency === $order->getOrderCurrencyCode() && !$this->isAmountEqual($amount, $order->getGrandTotal())) {
-            $invoice->setGrandTotal($amount);
-            $invoice->setBaseGrandTotal($baseAmount);
-        }
-        if ($data->currency !== $order->getOrderCurrencyCode() && !$this->isAmountEqual($amount, $order->getBaseGrandTotal())) {
-            $invoice->setGrandTotal($this->convertToDisplayCurrency($amount, $order->getBaseToOrderRate(), false));
-            $invoice->setBaseGrandTotal($amount);
-        }
-        $invoice->setTransactionId($data->id);
-        $invoice->setRequestedCaptureCase(Invoice::CAPTURE_OFFLINE);
-        $invoice->register();
-        $transactionSave = $this->transactionFactory->create()
-            ->addObject($invoice)
-            ->addObject($invoice->getOrder());
-
-        $transactionSave->save();
     }
 }

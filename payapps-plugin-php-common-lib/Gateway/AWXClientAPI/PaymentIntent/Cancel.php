@@ -4,6 +4,7 @@ namespace Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentInte
 
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\UrlHelper;
 
 class Cancel extends AbstractApi
 {
@@ -17,7 +18,7 @@ class Cancel extends AbstractApi
      */
     protected function getUri(): string
     {
-        return 'pa/payment_intents/' . $this->id . '/cancel';
+        return 'pa/payment_intents/' . UrlHelper::pathSegment($this->id) . '/cancel';
     }
 
     /**

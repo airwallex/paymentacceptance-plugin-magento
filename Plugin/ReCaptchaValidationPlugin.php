@@ -82,8 +82,15 @@ class ReCaptchaValidationPlugin
     protected function validateBypassReCaptcha(): bool
     {
         $requestData = $this->request->getRequestData();
-        $intentId = $requestData['intent_id'] ?? false;
-        if (!$intentId) {
+        // Magento's service input processor prefers camelCase over snake_case.
+        // Reject duplicate aliases before consuming the one-use bypass token.
+        if (!is_array($requestData)
+            || (array_key_exists('intentId', $requestData) && array_key_exists('intent_id', $requestData))
+        ) {
+            return false;
+        }
+        $intentId = $requestData['intentId'] ?? $requestData['intent_id'] ?? null;
+        if (!is_string($intentId) || $intentId === '') {
             return false;
         }
 

@@ -114,6 +114,20 @@ class Cancel extends AbstractWebhook
             return;
         }
 
+        $payment = $order->getPayment();
+        $boundIntentId = $payment ? ($payment->getAdditionalInformation('intent_id') ?: $payment->getLastTransId()) : '';
+        if (is_string($boundIntentId) && strpos($boundIntentId, 'int_') === 0) {
+            $boundIntentId = (string) preg_replace('/-(?:capture|refund|void)$/', '', $boundIntentId);
+            if ($boundIntentId !== $paymentIntentId) {
+                return;
+            }
+        }
+
+        $currentIntent = $this->paymentIntentRepository->getByOrderId((int) $order->getId());
+        if (!$currentIntent || $currentIntent->getIntentId() !== $paymentIntentId) {
+            return;
+        }
+
         if (!$order->canCancel()) {
             if ($order->isCanceled()) return;
             throw new WebhookException(__("Can't cancel order $paymentIntentId"));

@@ -122,23 +122,14 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
      */
     public function execute(): ResponseHttp
     {
-        $data = json_decode($this->request->getContent(), false, self::JSON_DECODE_DEPTH, JSON_THROW_ON_ERROR);
-        $returnUrl = $data->data->object->return_url ?? '';
-        $baseUrl = $this->urlInterface->getUrl();
-
-        if ($returnUrl && substr($returnUrl, 0, strlen($baseUrl)) !== $baseUrl) {
-            return $this->response->setStatusCode(self::HTTP_OK);
-        }
+        $rawContent = (string) $this->request->getContent();
         try {
             $this->webhook->checkChecksum($this->request);
         } catch (Exception $e) {
-            $host = $_SERVER['HTTP_HOST'] ?? '';
-            $webhookHost = $data->data->object->metadata->host ?? '';
-            if ($host && $webhookHost && $host !== $webhookHost) {
-                return $this->response->setStatusCode(self::HTTP_UNAUTHORIZED);
-            }
-            throw $e;
+            $this->logger->warning('Rejected Airwallex webhook: ' . $e->getMessage());
+            return $this->response->setStatusCode(self::HTTP_UNAUTHORIZED);
         }
+        $data = json_decode($rawContent, false, self::JSON_DECODE_DEPTH, JSON_THROW_ON_ERROR);
         try {
             if (isset($data->name) && isset($data->data->object)) {
                 $this->webhook->dispatch($data->name, $data->data->object);

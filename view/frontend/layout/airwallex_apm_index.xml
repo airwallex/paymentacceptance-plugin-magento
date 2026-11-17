@@ -7,7 +7,7 @@
     </head>
     <body>
         <referenceContainer name="content">
-            <block class="Airwallex\Payments\Block\Apm\Payment" name="airwallex.apm.payment" template="Airwallex_Payments::apm/payment.phtml" />
+            <block class="Airwallex\Payments\Block\Apm\Payment" name="airwallex.apm.payment" cacheable="false" template="Airwallex_Payments::apm/payment.phtml" />
         </referenceContainer>
     </body>
 </page>

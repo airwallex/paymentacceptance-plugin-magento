@@ -18,6 +18,12 @@
         </data>
     </route>
 
+    <route url="/V1/airwallex/payments/checkout-event" method="POST">
+        <service class="Airwallex\Payments\Api\ServiceInterface" method="trackCheckoutEvent"/>
+        <resources>
+            <resource ref="anonymous"/>
+        </resources>
+    </route>
     <route url="/V1/airwallex/payments/express-data" method="GET">
         <service class="Airwallex\Payments\Api\ServiceInterface" method="expressData"/>
         <resources>
@@ -146,13 +152,6 @@
 
     <route url="/V1/airwallex/account" method="GET">
         <service class="Airwallex\Payments\Api\ServiceInterface" method="account"/>
-        <resources>
-            <resource ref="anonymous"/>
-        </resources>
-    </route>
-
-    <route url="/V1/airwallex/currency/switcher" method="POST">
-        <service class="Airwallex\Payments\Api\ServiceInterface" method="currencySwitcher"/>
         <resources>
             <resource ref="anonymous"/>
         </resources>

@@ -42,6 +42,7 @@ use Magento\Framework\App\RequestInterface;
 
 class GetPaymentMethodTypeStatus extends Action
 {
+    public const ADMIN_RESOURCE = 'Magento_Config::config';
     protected JsonFactory $resultJsonFactory;
     protected Context $context;
     protected RequestInterface $request;

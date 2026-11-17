@@ -70,10 +70,13 @@ abstract class AbstractApi
      */
     public function send()
     {
+        // A new operation gets a fresh ID; internal retries stay within doSend().
+        unset($this->params['request_id']);
         try {
             return $this->doSend();
         } catch (UnauthorizedException $e) {
-            CacheManager::getInstance()->remove(self::ACCESS_TOKEN_CACHE_KEY);
+            $cache = CacheManager::getInstance();
+            $cache->remove(self::ACCESS_TOKEN_CACHE_KEY);
             return $this->doSend();
         }
     }
@@ -105,6 +108,10 @@ abstract class AbstractApi
                 throw new UnauthorizedException($body);
             }
             throw new RequestException($body);
+        }
+        // A server error may contain valid JSON, so reject it before success parsing.
+        if ($statusCode >= 500) {
+            throw new \Exception('Server error: HTTP ' . $statusCode);
         }
         if ($body === 'ok') {
             return;
@@ -223,9 +230,22 @@ abstract class AbstractApi
      */
     protected function initializePostParams()
     {
-        $this->params['request_id'] = $this->generateRequestId();
+        // A 401 retry calls this again. Keep the first request_id so Airwallex
+        // treats the retry as the same refund or payment intent.
+        $this->ensureRequestId();
         $this->params['referrer_data'] = $this->getReferrerData();
         $this->params['metadata'] = $this->getMetadata();
+    }
+
+    /**
+     * @return void
+     * @throws Exception
+     */
+    protected function ensureRequestId()
+    {
+        if (empty($this->params['request_id'])) {
+            $this->params['request_id'] = $this->generateRequestId();
+        }
     }
 
     /**

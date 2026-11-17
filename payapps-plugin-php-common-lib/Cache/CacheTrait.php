@@ -2,6 +2,8 @@
 
 namespace Airwallex\PayappsPlugin\CommonLibrary\Cache;
 
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\AbstractBase;
+
 trait CacheTrait
 {
     public function cacheRemember(string $key, callable $callback, int $ttl = 3600)
@@ -39,7 +41,7 @@ trait CacheTrait
             return $rawData;
         }
 
-        if (!class_exists($classType)) {
+        if (!is_string($classType) || !class_exists($classType) || !is_subclass_of($classType, AbstractBase::class)) {
             return null;
         }
 
