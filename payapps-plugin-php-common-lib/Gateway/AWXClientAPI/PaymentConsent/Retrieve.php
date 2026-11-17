@@ -4,6 +4,7 @@ namespace Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentCons
 
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentConsent;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\UrlHelper;
 
 class Retrieve extends AbstractApi
 {
@@ -17,7 +18,7 @@ class Retrieve extends AbstractApi
      */
     protected function getUri(): string
     {
-        return 'pa/payment_consents/' . $this->id;
+        return 'pa/payment_consents/' . UrlHelper::pathSegment($this->id);
     }
 
     /**

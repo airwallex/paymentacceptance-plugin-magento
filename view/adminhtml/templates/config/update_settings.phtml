@@ -49,7 +49,7 @@
         function (jQuery) {
             const MANAGE = 'Manage';
 
-            let returnObjectStr = '<?=$block->escapeHtml($this->getConnectionFlowMessage())?>';
+            let returnObjectStr = '<?= $block->escapeJs((string) $this->getConnectionFlowMessage()) ?>';
             let returnObject;
             if (returnObjectStr) {
                 returnObject = JSON.parse(returnObjectStr);
@@ -71,15 +71,15 @@
             };
 
             let connectionFlowStatus = {
-                "demo": '<?= $block->escapeHtml($this->getConnectionFlowField('demo'))?>',
-                "prod": '<?= $block->escapeHtml($this->getConnectionFlowField('prod'))?>',
+                "demo": '<?= $block->escapeJs((string) $this->getConnectionFlowField('demo')) ?>',
+                "prod": '<?= $block->escapeJs((string) $this->getConnectionFlowField('prod')) ?>',
             };
 
             let account = {
-                demo_account_id: '<?= $block->escapeHtml($this->getDemoAccountId()) ?>',
-                demo_account_name: '<?= $block->escapeHtml($this->getDemoAccountName()) ?>',
-                prod_account_id: '<?= $block->escapeHtml($this->getProdAccountId()) ?>',
-                prod_account_name: '<?= $block->escapeHtml($this->getProdAccountName()) ?>',
+                demo_account_id: '<?= $block->escapeJs((string) $this->getDemoAccountId()) ?>',
+                demo_account_name: '<?= $block->escapeJs((string) $this->getDemoAccountName()) ?>',
+                prod_account_id: '<?= $block->escapeJs((string) $this->getProdAccountId()) ?>',
+                prod_account_name: '<?= $block->escapeJs((string) $this->getProdAccountName()) ?>',
             };
             let envSelector = '[name="groups[airwallex_payments][groups][basic][fields][mode][value]"]';
 
@@ -89,8 +89,9 @@
                 if (returnObject && env === returnObject.env) {
                     let $table = jQuery('.airwallex-admin-config .section-config table');
                     if (!jQuery(".awx-return-message").length) {
-                        let messageHtml = '<tr class="awx-return-message"><td colspan="3"><div>' + returnObject.message + '</div></td></tr>';
-                        $table.find('tr').first().before(messageHtml);
+                        let $row = jQuery('<tr class="awx-return-message"><td colspan="3"><div></div></td></tr>');
+                        $row.find('div').text(returnObject.message || '');
+                        $table.find('tr').first().before($row);
                     }
                 } else {
                     jQuery(".awx-return-message").remove();
@@ -101,11 +102,11 @@
 
                 if (!hasAccount) {
                     jQuery(connectedSelector).hide();
-                    jQuery("#airwallex_update_settings").html('Connect with Airwallex');
+                    jQuery("#airwallex_update_settings").text('Connect with Airwallex');
                 } else {
                     jQuery(connectedSelector).show();
-                    jQuery(connectedSelector).html(account[env + "_account_name"]);
-                    jQuery("#airwallex_update_settings").html(MANAGE);
+                    jQuery(connectedSelector).text(account[env + "_account_name"]);
+                    jQuery("#airwallex_update_settings").text(MANAGE);
                 }
 
                 jQuery('.manage-container').show();
@@ -151,18 +152,44 @@
             let redirect = function () {
                 let env = document.querySelector(envSelector).value;
                 let baseRedirectUrl = '<?= $block->escapeJs($block->getUrl('airwallex/configuration/connectionFlowRedirectUrl')) ?>';
-                let redirectUrl = `${baseRedirectUrl}?target_url=${btoa(location.href)}&env=${env}`;
-                let awxUrl = env === 'prod' ? 'https://www.airwallex.com/' : 'https://www.sandbox.airwallex.com/';
-                const connectedAccountId = account[`${env}_account_id`] || '';
-                const params = new URLSearchParams({
-                    platform: 'magento',
-                    origin: window.location.origin,
-                    returnUrl: redirectUrl,
-                    requestId: uuid(),
-                    connectedAccountId: connectedAccountId,
-                });
+                const button = jQuery('#airwallex_update_settings');
+                if (button.prop('disabled')) {
+                    return;
+                }
+                button.prop('disabled', true);
+                jQuery.ajax({
+                    url: '<?= $block->escapeJs($block->getUrl('airwallex/configuration/connectionFlowStart')) ?>',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {env: env, form_key: window.FORM_KEY},
+                    showLoader: true
+                }).done(function (response) {
+                    if (!response || !response.success || !response.state) {
+                        window.alert('Unable to start the Airwallex connection. Please refresh the page and try again.');
+                        return;
+                    }
+                    const callbackParams = new URLSearchParams({
+                        target_url: btoa(location.href),
+                        env: env,
+                        state: response.state
+                    });
+                    let redirectUrl = `${baseRedirectUrl}?${callbackParams.toString()}`;
+                    let awxUrl = env === 'prod' ? 'https://www.airwallex.com/' : 'https://www.sandbox.airwallex.com/';
+                    const connectedAccountId = account[`${env}_account_id`] || '';
+                    const params = new URLSearchParams({
+                        platform: 'magento',
+                        origin: window.location.origin,
+                        returnUrl: redirectUrl,
+                        requestId: uuid(),
+                        connectedAccountId: connectedAccountId,
+                    });
 
-                location.href = `${awxUrl.trim()}payment_app/plugin/api/v1/connection/start?${params.toString()}`;
+                    location.href = `${awxUrl.trim()}payment_app/plugin/api/v1/connection/start?${params.toString()}`;
+                }).fail(function () {
+                    window.alert('Unable to start the Airwallex connection. Please refresh the page and try again.');
+                }).always(function () {
+                    button.prop('disabled', false);
+                });
             };
 
             jQuery('#airwallex_update_settings').on('click', function () {

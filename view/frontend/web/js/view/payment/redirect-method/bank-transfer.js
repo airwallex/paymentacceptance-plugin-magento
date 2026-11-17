@@ -54,6 +54,7 @@ define([
                 return;
             }
             this.hideYouPay();
+            localStorage.removeItem(this.bankTransferCurrencyKey);
             const container = $(`.${this.index} .awx-redirect-method-footer`);
             const paymentData = window.checkoutConfig .payment .airwallex_payments ;
             const availableCurrencies = paymentData.available_currencies || [];
@@ -74,6 +75,9 @@ define([
             }
             let countryID = quote.billingAddress() ? quote.billingAddress().countryId : '';
             let targetCurrency = paymentData.bank_transfer_support_country_to_currency_collection [countryID];
+            if (targetCurrency) {
+                localStorage.setItem(this.bankTransferCurrencyKey, targetCurrency);
+            }
             if (targetCurrency === paymentData.quote_currency_code ) {
                 container.html('');
                 this.enableCheckoutButton(this.code);
@@ -150,11 +154,7 @@ define([
                 }
             });
             $('.airwallex_payments_bank_transfer .awx-bank-transfer-currencies ul li').click(async function (                 ) {
-                let $body = $('body');
-                $body.trigger('processStart');
-                localStorage.setItem(that.bankTransferCurrencyKey, $(this).data("value"));
-                await that.showBankTransferCurrencies(expressData);
-                $body.trigger('processStop');
+                void that.selectCurrency(that.bankTransferCurrencyKey, $(this).data("value"), () => that.showBankTransferCurrencies(expressData));
             });
         }
     });

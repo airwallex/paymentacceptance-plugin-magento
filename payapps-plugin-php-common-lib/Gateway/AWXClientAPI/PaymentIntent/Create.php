@@ -162,27 +162,37 @@ class Create extends AbstractApi
 
     /**
      * Resolve the public client IP address from the current request.
+     * Use REMOTE_ADDR only; host plugins can supply a resolved IP via setDeviceData().
      *
      * @return string
      */
     private function getClientIpAddress(): string
     {
-        $forwardedFor = trim((string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
-        if ($forwardedFor !== '') {
-            $clientIp = trim(explode(',', $forwardedFor)[0]);
-            if (filter_var($clientIp, FILTER_VALIDATE_IP)) {
-                return $clientIp;
-            }
+        $remoteAddr = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+        return $this->isPublicIp($remoteAddr) ? $remoteAddr : '';
+    }
+
+    /**
+     * @param string $ip
+     *
+     * @return bool
+     */
+    private function isPublicIp(string $ip): bool
+    {
+        $packed = @inet_pton($ip);
+        if ($packed === false) {
+            return false;
+        }
+        if (strlen($packed) === 16 && substr($packed, 0, 12) === str_repeat("\0", 10) . "\xff\xff") {
+            $packed = substr($packed, 12);
         }
 
-        foreach (['HTTP_CLIENT_IP', 'REMOTE_ADDR'] as $serverKey) {
-            $candidateIp = trim((string)($_SERVER[$serverKey] ?? ''));
-            if ($candidateIp !== '' && filter_var($candidateIp, FILTER_VALIDATE_IP)) {
-                return $candidateIp;
-            }
-        }
-
-        return '';
+        // Older PHP versions miss reserved IPv6 addresses unless their spelling is canonical.
+        return filter_var(
+            inet_ntop($packed),
+            FILTER_VALIDATE_IP,
+            FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+        ) !== false;
     }
 
     /**
@@ -404,7 +414,8 @@ class Create extends AbstractApi
     {
         // Format amount according to currency decimal places
         if ($this->amount && $this->currency) {
-            $this->setParam('amount', AmountHelper::formatAmount($this->amount, $this->currency));
+            $amount = AmountHelper::formatAmount($this->amount, (string)$this->currency);
+            $this->setParam('amount', $amount);
         }
 
         if ($this->amount && $this->currency && $this->order) {
@@ -422,17 +433,20 @@ class Create extends AbstractApi
                 $orderItemTotal += $this->order['shipping']['fee_amount'] ?? 0;
             }
 
-            $decimalPlaces = PaymentIntent::CURRENCY_TO_DECIMAL[strtoupper($this->currency)] ?? 2;
-            $precision = pow(10, $decimalPlaces);
-            $minThreshold = 1 / $precision;
-
-            if ($this->amount - $orderItemTotal >= $minThreshold) {
+            // Amounts have at most four decimal places; ignore floating-point residue.
+            $shortfall = round($amount - $orderItemTotal, 4);
+            if ($shortfall > 0) {
+                $diff = AmountHelper::formatAmount($shortfall, $this->currency);
+                if ($diff < $shortfall) {
+                    $decimalPlaces = PaymentIntent::CURRENCY_TO_DECIMAL[strtoupper($this->currency)] ?? 2;
+                    $diff = AmountHelper::formatAmount($diff + pow(10, -$decimalPlaces), $this->currency);
+                }
                 $this->order['products'][] = [
                     'name'       => 'Other Fees',
                     'desc'       => '',
                     'quantity'   => 1,
                     'sku'        => '',
-                    'unit_price' => ceil(($this->amount - $orderItemTotal) * $precision) / $precision,
+                    'unit_price' => $diff,
                 ];
             }
 

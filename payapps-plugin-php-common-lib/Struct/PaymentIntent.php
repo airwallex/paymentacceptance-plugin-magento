@@ -91,6 +91,8 @@ class PaymentIntent extends AbstractBase
      */
     private $createdAt;
 
+    private $conversionQuoteId;
+
     /**
      * @var string
      */
@@ -392,6 +394,18 @@ class PaymentIntent extends AbstractBase
     public function setConnectedAccountId(string $connectedAccountId): PaymentIntent
     {
         $this->connectedAccountId = $connectedAccountId;
+        return $this;
+    }
+
+    public function getConversionQuoteId(): string
+    {
+        return $this->conversionQuoteId ?? '';
+    }
+
+    /** @param string|null $conversionQuoteId */
+    public function setConversionQuoteId($conversionQuoteId = null): PaymentIntent
+    {
+        $this->conversionQuoteId = $conversionQuoteId;
         return $this;
     }
 

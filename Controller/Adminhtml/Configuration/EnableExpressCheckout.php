@@ -52,6 +52,7 @@ use Airwallex\PayappsPlugin\CommonLibrary\Struct\ApplePayDomains as StructAppleP
 
 class EnableExpressCheckout extends Action
 {
+    public const ADMIN_RESOURCE = 'Magento_Config::config';
     use HelperTrait;
 
     protected JsonFactory $resultJsonFactory;
@@ -190,7 +191,7 @@ class EnableExpressCheckout extends Action
                 return $resultJson;
             }
         } catch (Exception $e) {
-            $resultJson->setData($this->error(__($e->getMessage())));
+            $resultJson->setData($this->error(htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8')));
             return $resultJson;
         }
 

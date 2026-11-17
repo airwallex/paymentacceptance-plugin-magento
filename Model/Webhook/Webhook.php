@@ -56,9 +56,69 @@ class Webhook
     use HelperTrait;
 
     private const HASH_ALGORITHM = 'sha256';
+    public const SIGNATURE_TOLERANCE_SECONDS = 300;
     public const WEBHOOK_VERIFIED = 'verified';
     public const WEBHOOK_FAILED = 'failed';
     public const WEBHOOK_STATUS_NAME = 'airwallex/general/webhook';
+
+    /**
+     * Check that a webhook or settings-callback x-timestamp header (seconds or
+     * milliseconds) is within the allowed replay window.
+     *
+     * @param string $timestamp
+     * @param int|null $nowSeconds
+     * @return bool
+     */
+    public static function isTimestampFresh(string $timestamp, ?int $nowSeconds = null): bool
+    {
+        $timestamp = trim($timestamp);
+        if (!preg_match('/^\d{10}(\d{3})?$/', $timestamp)) {
+            return false;
+        }
+
+        $timestampSeconds = strlen($timestamp) === 13
+            ? (int) floor(((float) $timestamp) / 1000)
+            : (int) $timestamp;
+        $now = $nowSeconds ?? time();
+
+        return abs($now - $timestampSeconds) <= self::SIGNATURE_TOLERANCE_SECONDS;
+    }
+
+    /**
+     * Hash a webhook secret key so the plaintext secret is never persisted in
+     * the unencrypted airwallex/general/webhook status config row.
+     *
+     * @param string $secretKey
+     * @return string
+     */
+    public static function hashSecretKey(string $secretKey): string
+    {
+        return hash(self::HASH_ALGORITHM, $secretKey);
+    }
+
+    /**
+     * Constant-time HMAC-SHA256 verification over timestamp + raw body.
+     *
+     * @param string $timestamp
+     * @param string $rawBody
+     * @param string $secretKey
+     * @param string $signature
+     * @return bool
+     */
+    public static function verifySignature(
+        string $timestamp,
+        string $rawBody,
+        string $secretKey,
+        string $signature
+    ): bool {
+        if ($secretKey === '' || $signature === '') {
+            return false;
+        }
+
+        $expected = hash_hmac(self::HASH_ALGORITHM, $timestamp . $rawBody, $secretKey);
+
+        return hash_equals($expected, $signature);
+    }
 
     /**
      * @var Refund
@@ -171,24 +231,31 @@ class Webhook
      */
     public function checkChecksum(Http $request): void
     {
-        $signature = $request->getHeader('x-signature');
-        if (!$signature) {
+        $signature = (string) $request->getHeader('x-signature');
+        if ($signature === '') {
             throw new WebhookException(__('signature is required'));
         }
-        $data = $request->getHeader('x-timestamp') . $request->getContent();
+        $timestamp = (string) $request->getHeader('x-timestamp');
+        if (!self::isTimestampFresh($timestamp)) {
+            throw new WebhookException(__('webhook timestamp is invalid or expired'));
+        }
 
         $mode = $this->configuration->getMode();
-        $key = $this->configuration->getWebhookSecretKey();
-        if (!$key) {
+        $key = (string) $this->configuration->getWebhookSecretKey();
+        if (trim($key) === '') {
             throw new WebhookException(__("airwallex webhook $mode secret key is required"));
         }
 
-        $status = hash_hmac(self::HASH_ALGORITHM, $data, $key) !== $signature ? self::WEBHOOK_FAILED : self::WEBHOOK_VERIFIED;
+        // Unauthenticated requests must not change merchant configuration or invalidate its cache.
+        if (!self::verifySignature($timestamp, (string) $request->getContent(), $key, $signature)) {
+            throw new WebhookException(__('failed to verify the signature'));
+        }
+        $keyHash = self::hashSecretKey($key);
 
         try {
             $oldWebhook = $webhook = $this->configuration->getWebhook();
-            $webhook["{$mode}_key"] = $key;
-            $webhook["{$mode}_status"] = $status;
+            $webhook["{$mode}_key"] = $keyHash;
+            $webhook["{$mode}_status"] = self::WEBHOOK_VERIFIED;
 
             if (empty($oldWebhook["{$mode}_key"])
                 || empty($oldWebhook["{$mode}_status"])
@@ -201,9 +268,6 @@ class Webhook
             $this->logError(__METHOD__ . ': ' . $e->getMessage());
         }
 
-        if ($status === self::WEBHOOK_FAILED) {
-            throw new WebhookException(__('failed to verify the signature'));
-        }
     }
 
     /**
@@ -221,7 +285,10 @@ class Webhook
      */
     public function dispatch(string $type, stdClass $data): void
     {
-        $paymentIntentId = $data->payment_intent_id ?? $data->id;
+        $paymentIntentId = (string) ($data->payment_intent_id ?? $data->id ?? '');
+        if ($paymentIntentId === '') {
+            return;
+        }
         try {
             $this->paymentIntentRepository->getByIntentId($paymentIntentId);
         } catch (NoSuchEntityException $e) {

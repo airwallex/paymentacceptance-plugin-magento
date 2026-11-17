@@ -42,12 +42,14 @@ use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Magento\Catalog\Api\ProductRepositoryInterface;
+use Magento\CatalogInventory\Api\StockRegistryInterface;
 use Magento\Checkout\Api\Data\ShippingInformationInterface;
 use Magento\Checkout\Helper\Data as CheckoutData;
 use Magento\Directory\Model\RegionFactory;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\DataObject;
 use Magento\Framework\Exception\CouldNotSaveException;
+use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Quote\Api\Data\ShippingMethodInterface;
@@ -79,17 +81,25 @@ use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Ret
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Log as RemoteLog;
 use Error;
+use Throwable;
 
 class Service implements ServiceInterface
 {
-    use HelperTrait;
+    use HelperTrait {
+        conversionQuote as private conversionQuoteResponse;
+    }
 
+    private const FX_RATE_LIMIT_MAX = 60;
+    private const FX_RATE_LIMIT_WINDOW = 300;
+
+    private CheckoutRequestGuard $checkoutRequestGuard;
     protected Configuration $configuration;
     protected CheckoutData $checkoutHelper;
     protected QuoteIdToMaskedQuoteIdInterface $quoteIdToMaskedQuoteId;
     protected StoreManagerInterface $storeManager;
     protected RequestInterface $request;
     protected ProductRepositoryInterface $productRepository;
+    private StockRegistryInterface $stockRegistry;
     private SerializerInterface $serializer;
     private LocalizedToNormalized $localizedToNormalized;
     private Resolver $localeResolver;
@@ -149,6 +159,7 @@ class Service implements ServiceInterface
      * @param Writer $configWriter
      * @param CommonLibraryInit $commonLibraryInit
      * @param RetrievePaymentIntent $retrievePaymentIntent
+     * @param StockRegistryInterface $stockRegistry
      */
     public function __construct(
         Configuration                          $configuration,
@@ -181,15 +192,19 @@ class Service implements ServiceInterface
         Manager                                $cacheManager,
         Writer                                 $configWriter,
         CommonLibraryInit                      $commonLibraryInit,
-        RetrievePaymentIntent                  $retrievePaymentIntent
+        RetrievePaymentIntent                  $retrievePaymentIntent,
+        CheckoutRequestGuard                   $checkoutRequestGuard,
+        StockRegistryInterface                 $stockRegistry
     )
     {
+        $this->checkoutRequestGuard = $checkoutRequestGuard;
         $this->configuration = $configuration;
         $this->checkoutHelper = $checkoutHelper;
         $this->quoteIdToMaskedQuoteId = $quoteIdToMaskedQuoteId;
         $this->storeManager = $storeManager;
         $this->request = $request;
         $this->productRepository = $productRepository;
+        $this->stockRegistry = $stockRegistry;
         $this->serializer = $serializer;
         $this->localizedToNormalized = $localizedToNormalized;
         $this->localeResolver = $localeResolver;
@@ -305,14 +320,17 @@ class Service implements ServiceInterface
 
         $intentRecord = $this->paymentIntentRepository->getByIntentId($intentId);
         try {
-            $order = $this->getFreshOrder($intentRecord->getOrderId());
+            $order = $this->paymentIntentRepository->getOrder($intentId);
         } catch (Exception $e) {
             $this->logError(__METHOD__ . ': ' . $e->getMessage());
         }
-        if (!empty($order) && $order->getId() && $order->getStatus() !== Order::STATE_PENDING_PAYMENT && !$this->configuration->isOrderBeforePayment()) {
+        $data['is_order_handled_success'] = !empty($order) && $order->getId() && !$order->isCanceled()
+            && !in_array($order->getState(), [Order::STATE_NEW, Order::STATE_PENDING_PAYMENT], true)
+            && $order->getStatus() !== Order::STATE_PENDING_PAYMENT;
+        if ($data['is_order_handled_success']) {
             $this->setCheckoutSuccess($intentRecord->getQuoteId(), $order);
+            $this->consumeReturnState((int) $intentRecord->getQuoteId(), (int) $order->getId(), $state);
         }
-        $data['is_order_handled_success'] = !empty($order) && $order->getStatus() !== Order::STATE_PENDING_PAYMENT;
         return json_encode($data);
     }
 
@@ -333,6 +351,33 @@ class Service implements ServiceInterface
             return true;
         }
 
+        if ((int) $intentRecord->getQuoteId() > 0) {
+            try {
+                $intentQuote = $this->quoteRepository->get((int) $intentRecord->getQuoteId());
+                if ($intentQuote && $intentQuote->getId()) {
+                    if ($this->validateQuoteOwnership($intentQuote)) {
+                        return true;
+                    }
+                    if ($this->entityCustomerId($intentQuote) > 0) {
+                        return false;
+                    }
+                }
+            } catch (Exception $e) {
+            }
+        }
+
+        if ((int) $intentRecord->getOrderId() > 0) {
+            $order = $this->getFreshOrder((int) $intentRecord->getOrderId());
+            if ($order && $order->getId()) {
+                if ($this->validateOrderOwnership($order)) {
+                    return true;
+                }
+                if ($this->entityCustomerId($order) > 0) {
+                    return false;
+                }
+            }
+        }
+
         return $this->validateIntentStateAccess($intentRecord, $state);
     }
 
@@ -344,6 +389,9 @@ class Service implements ServiceInterface
     private function quoteData(): array
     {
         $quote = $this->checkoutHelper->getQuote();
+        if (!$quote || ((int) $quote->getId() > 0 && !$this->validateQuoteOwnership($quote))) {
+            throw new LocalizedException(__('Checkout session is invalid.'));
+        }
 
         $cartId = $quote->getId() ?? 0;
         try {
@@ -412,6 +460,7 @@ class Service implements ServiceInterface
             'recaptcha_type' => $this->configuration->recaptchaType(),
             'agreements' => $this->agreementsConfigProvider->getConfig(),
             'allowed_card_networks' => $this->getAllowedCardNetworks(),
+            'currency_to_decimal' => StructPaymentIntent::CURRENCY_TO_DECIMAL,
         ];
     }
 
@@ -471,9 +520,19 @@ class Service implements ServiceInterface
      */
     public function addToCart(): string
     {
+        if (!$this->configuration->isExpressActive()
+            || strpos((string) $this->configuration->expressDisplayArea(), 'product_page') === false
+        ) {
+            throw new CouldNotSaveException(__('Express checkout is not enabled on the product page.'));
+        }
+        $this->assertExpressRequestOrigin(true);
+
         $params = $this->request->getParams();
-        $productId = $params['product'];
-        $related = $params['related_product'];
+        $productId = $params['product'] ?? null;
+        $related = $params['related_product'] ?? '';
+        if (empty($productId)) {
+            throw new CouldNotSaveException(__('Product is required.'));
+        }
 
         if (isset($params['qty'])) {
             $this->localizedToNormalized->setOptions(['locale' => $this->localeResolver->getLocale()]);
@@ -481,30 +540,57 @@ class Service implements ServiceInterface
         }
 
         $quote = $this->checkoutHelper->getQuote();
+        if (!$quote || ((int) $quote->getId() > 0 && !$this->validateQuoteOwnership($quote))) {
+            throw new CouldNotSaveException(__('Checkout session is invalid.'));
+        }
 
         try {
-            $storeId = $this->storeManager->getStore()->getId();
-            $product = $this->productRepository->getById($productId, false, $storeId);
-
-            $this->checkoutHelper->getQuote()->removeAllItems();
-
-            $this->checkoutHelper->getQuote()->addProduct($product, new DataObject($params));
-
-            // Express checkout supplies only a partial shipping address (country/region/postcode)
-            // until payment is authorized; skip core address validation so re-collecting the
-            // freshly-cleared quote doesn't fail on the still-empty name/street/phone fields.
-            $quote->getShippingAddress()->setShouldIgnoreValidation(true);
-
-            if (!empty($related)) {
-                $productIds = explode(',', $related);
-                $this->checkoutHelper->getQuote()->addProductsByIds($productIds);
+            $store = $this->storeManager->getStore();
+            $product = $this->productRepository->getById($productId, false, $store->getId());
+            $buyRequest = new ExpressProductBuyRequest();
+            if (!$buyRequest->isAssignedToWebsite($product->getWebsiteIds(), (int)$store->getWebsiteId())) {
+                throw new LocalizedException(
+                    __("The product wasn't found. Verify the product and try again.")
+                );
             }
 
-            $this->quoteRepository->save($quote);
+            $quote->removeAllItems();
+            $result = $quote->addProduct($product, new DataObject($buyRequest->filter($params)));
+            if (is_string($result)) {
+                throw new LocalizedException(__($result));
+            }
 
-            $quote->setTotalsCollectedFlag(false);
-            $quote->collectTotals();
-            $this->quoteRepository->save($quote);
+            // Express checkout supplies only a partial shipping address (country/region/postcode)
+            // until payment is authorized; skip core address validation only while saving the
+            // freshly-cleared quote, then immediately restore validation on the quote address.
+            $shippingAddress = $quote->getShippingAddress();
+            $shippingAddress->setShouldIgnoreValidation(true);
+            try {
+                if (!empty($related)) {
+                    foreach (array_filter(array_map('intval', explode(',', $related))) as $relatedId) {
+                        $relatedProduct = $this->productRepository->getById($relatedId, false, $store->getId());
+                        if (!$buyRequest->isAssignedToWebsite($relatedProduct->getWebsiteIds(), (int)$store->getWebsiteId())) {
+                            throw new LocalizedException(__("The product wasn't found. Verify the product and try again."));
+                        }
+                        if (!$relatedProduct->isVisibleInCatalog()) {
+                            continue;
+                        }
+                        $minimumQty = $this->stockRegistry->getStockItem($relatedId, $store->getWebsiteId())->getMinSaleQty();
+                        $result = $quote->addProduct($relatedProduct, $minimumQty > 0 ? $minimumQty : 1);
+                        if (is_string($result)) {
+                            throw new LocalizedException(__($result));
+                        }
+                    }
+                }
+
+                $this->quoteRepository->save($quote);
+
+                $quote->setTotalsCollectedFlag(false);
+                $quote->collectTotals();
+                $this->quoteRepository->save($quote);
+            } finally {
+                $shippingAddress->setShouldIgnoreValidation(false);
+            }
 
             try {
                 $maskCartId = $this->quoteIdToMaskedQuoteId->execute($quote->getId());
@@ -536,6 +622,11 @@ class Service implements ServiceInterface
      */
     public function postAddress(): string
     {
+        if (!$this->configuration->isExpressActive()) {
+            return $this->error(__('Express checkout is not enabled.'));
+        }
+        $this->assertExpressRequestOrigin(true);
+
         $countryId = $this->request->getParam('country_id');
         if (!$countryId) {
             return $this->error(__('Country is required.'));
@@ -550,14 +641,12 @@ class Service implements ServiceInterface
             $regionId = $this->regionFactory->create()->loadByCode($region, $countryId)->getRegionId();
         }
 
-        $quote = $this->checkoutHelper->getQuote();
+        $quote = $this->activeCheckoutQuote();
 
         $cartId = $quote->getId();
-        if (!is_numeric($cartId)) {
-            $cartId = $this->quoteIdMaskFactory->create()->load($cartId, 'masked_id')->getQuoteId();
-        }
 
         $address = $quote->getShippingAddress();
+        $address->setShouldIgnoreValidation(false);
         $address->setCountryId($countryId);
 
         if ($regionId) {
@@ -597,7 +686,12 @@ class Service implements ServiceInterface
                     ShippingInformationInterface::SHIPPING_METHOD_CODE => $selectedMethod->getMethodCode(),
                 ],
             ]);
-            $this->shippingInformationManagement->saveAddressInformation($cartId, $shippingInformation);
+            try {
+                $this->shippingInformationManagement->saveAddressInformation($cartId, $shippingInformation);
+            } finally {
+                $address->setShouldIgnoreValidation(false);
+                $quote->getShippingAddress()->setShouldIgnoreValidation(false);
+            }
 
             foreach ($methods as $method) {
                 if ($method->getAvailable()) {
@@ -612,6 +706,48 @@ class Service implements ServiceInterface
         return json_encode($res);
     }
 
+    private function assertExpressRequestOrigin(bool $requireFormKey = false): void
+    {
+        if (method_exists($this->request, 'isXmlHttpRequest') && !$this->request->isXmlHttpRequest()) {
+            throw new LocalizedException(__('Invalid express checkout request.'));
+        }
+        if ($requireFormKey) {
+            $this->checkoutRequestGuard->assertFormKey($this->request);
+        }
+        if (!method_exists($this->request, 'getHeader')) {
+            return;
+        }
+        $origin = trim((string) $this->request->getHeader('Origin'));
+        $referer = trim((string) $this->request->getHeader('Referer'));
+        if ($origin === '' && $referer === '') {
+            throw new LocalizedException(__('Invalid express checkout request origin.'));
+        }
+        $store = $this->storeManager->getStore();
+        $baseUrls = $this->storeBaseUrls($store);
+        foreach ([$origin, $referer] as $candidate) {
+            if ($candidate === '') {
+                continue;
+            }
+            $parsed = parse_url($candidate);
+            if (!$parsed || empty($parsed['host'])) {
+                throw new LocalizedException(__('Invalid express checkout request origin.'));
+            }
+            $host = strtolower((string) $parsed['host']);
+            $defaultPort = strtolower((string) ($parsed['scheme'] ?? '')) === 'https' ? 443 : 80;
+            $port = (int) ($parsed['port'] ?? $defaultPort);
+            $authority = $port !== $defaultPort ? ($host . ':' . $port) : $host;
+            ApplePayValidation::parameters('', $authority, $baseUrls);
+        }
+    }
+
+    private function storeBaseUrls($store): array
+    {
+        return [
+            (string) $store->getBaseUrl(\Magento\Framework\UrlInterface::URL_TYPE_WEB, true),
+            (string) $store->getBaseUrl(\Magento\Framework\UrlInterface::URL_TYPE_WEB, false),
+        ];
+    }
+
     /**
      * Apple pay validate merchant
      *
@@ -620,20 +756,18 @@ class Service implements ServiceInterface
      */
     public function validateMerchant(): string
     {
-        $validationUrl = $this->request->getParam('validationUrl');
-        if (empty($validationUrl)) {
-            return $this->error('Validation URL is empty.');
-        }
-
-        $initiativeContext = $this->request->getParam('origin');
-        if (empty($initiativeContext)) {
-            return $this->error('Initiative Context is empty.');
-        }
-
-        return $this->applePayStartPaymentSession->setInitiativeParams([
-            'validation_url' => $validationUrl,
-            'initiative_context' => $initiativeContext,
-        ])->send();
+        $store = $this->storeManager->getStore();
+        // validationUrl is forwarded as-is. Airwallex's public API
+        // (POST pa/payment_session/start) validates the Apple Pay gateway URL.
+        // Do not add a local allowlist or report the missing check as SSRF.
+        $params = ApplePayValidation::parameters(
+            $this->request->getParam('validationUrl'),
+            $this->request->getParam('origin'),
+            $this->storeBaseUrls($store)
+        );
+        // Product-page express checkout validates the merchant before a quote exists.
+        $this->checkoutRequestGuard->limit('apple_pay_validation', (int) $store->getId(), 60);
+        return $this->applePayStartPaymentSession->setInitiativeParams($params)->send();
     }
 
     /**
@@ -644,7 +778,7 @@ class Service implements ServiceInterface
      */
     public function validateAddresses(): string
     {
-        $quote = $this->checkoutHelper->getQuote();
+        $quote = $this->activeCheckoutQuote();
         $errors = $this->shippingAddressValidationRule->validate($quote);
         if ($errors && $errors[0]->getErrors()) {
             return $this->errorAboutAddress($errors, 'Shipping');
@@ -673,6 +807,132 @@ class Service implements ServiceInterface
             }
         }
         return $this->error(__($error));
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function trackCheckoutEvent(
+        string $eventName,
+        string $sessionId,
+        string $paymentMethod = '',
+        bool $isDefault = false,
+        string $errorReason = '',
+        string $intentId = ''
+    ): string {
+        try {
+            $rawContent = method_exists($this->request, 'getContent')
+                ? (string) $this->request->getContent()
+                : '';
+            if (CheckoutFunnelEvent::isPayloadTooLarge($rawContent)) {
+                return $this->serializer->serialize(['ok' => false, 'reason' => 'payload_too_large']);
+            }
+
+            if ($this->isCheckoutEventRateLimited()) {
+                return $this->serializer->serialize(['ok' => false, 'reason' => 'rate_limited']);
+            }
+
+            $sessionId = CheckoutFunnelEvent::normalizeSessionId($sessionId);
+            if ($sessionId === '') {
+                return $this->serializer->serialize(['ok' => false, 'reason' => 'missing_session']);
+            }
+
+            if ($eventName === 'PAYMENT_INTENT_CONFIRMED') {
+                $intentId = CheckoutFunnelEvent::normalizeIntentId($intentId);
+                if ($intentId === '') {
+                    return $this->serializer->serialize(['ok' => false, 'reason' => 'missing_intent']);
+                }
+                if (!$this->hasStoredPaymentIntent($intentId)) {
+                    return $this->serializer->serialize(['ok' => false, 'reason' => 'unknown_intent']);
+                }
+
+                PaymentFlowLog::paymentConfirmed($sessionId, $intentId, $paymentMethod);
+
+                return $this->serializer->serialize(['ok' => true]);
+            }
+
+            if (!CheckoutFunnelEvent::isValidEvent($eventName)) {
+                return $this->serializer->serialize(['ok' => false, 'reason' => 'unknown_event']);
+            }
+
+            PaymentFlowLog::log(CheckoutFunnelEvent::buildMessage(
+                $eventName,
+                $sessionId,
+                CheckoutFunnelEvent::funnelPaymentMethod($paymentMethod),
+                $isDefault,
+                $errorReason,
+                ['intent_id' => CheckoutFunnelEvent::normalizeIntentId($intentId)]
+            ));
+
+            return $this->serializer->serialize(['ok' => true]);
+        } catch (Exception $e) {
+            return $this->serializer->serialize(['ok' => false]);
+        } catch (Error $e) {
+            return $this->serializer->serialize(['ok' => false]);
+        }
+    }
+
+    public function conversionQuote(string $merchantCurrency, string $shopperCurrency): string
+    {
+        $this->assertCurrencyCode($merchantCurrency);
+        $this->assertCurrencyCode($shopperCurrency);
+        $store = $this->storeManager->getStore();
+        $this->checkoutRequestGuard->limit(
+            'conversion_quote',
+            (int) $store->getId(),
+            self::FX_RATE_LIMIT_MAX,
+            self::FX_RATE_LIMIT_WINDOW
+        );
+        return $this->conversionQuoteResponse($merchantCurrency, $shopperCurrency);
+    }
+
+    private function activeCheckoutQuote()
+    {
+        $quote = $this->checkoutHelper->getQuote();
+        $storeId = (int) $this->storeManager->getStore()->getId();
+        if (!$quote || !(int) $quote->getId() || !$quote->getIsActive()
+            || (int) $quote->getItemsCount() < 1
+            || (int) $quote->getStoreId() !== $storeId
+            || !$this->validateQuoteOwnership($quote)
+        ) {
+            throw new LocalizedException(__('Checkout session is invalid.'));
+        }
+
+        return $quote;
+    }
+
+    private function assertCurrencyCode(string $currency): void
+    {
+        if (!preg_match('/^[A-Z]{3}$/', $currency)) {
+            throw new LocalizedException(__('Currency is invalid.'));
+        }
+    }
+
+    private function hasStoredPaymentIntent(string $intentId): bool
+    {
+        try {
+            $record = $this->paymentIntentRepository->getByIntentId($intentId);
+        } catch (Exception $e) {
+            return false;
+        }
+
+        return $record && (string) $record->getIntentId() === $intentId;
+    }
+
+    /**
+     * Fixed-window per-IP rate limit for the anonymous checkout-event endpoint.
+     *
+     * @return bool
+     */
+    private function isCheckoutEventRateLimited(): bool
+    {
+        try {
+            $this->checkoutRequestGuard->limit('checkout_event', (int) $this->storeManager->getStore()->getId(),
+                CheckoutFunnelEvent::RATE_LIMIT_MAX, CheckoutFunnelEvent::RATE_LIMIT_WINDOW);
+            return false;
+        } catch (Throwable $e) {
+            return true;
+        }
     }
 
     /**

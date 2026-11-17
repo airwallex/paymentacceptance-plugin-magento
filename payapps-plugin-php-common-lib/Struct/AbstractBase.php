@@ -85,6 +85,7 @@ abstract class AbstractBase
     public function toArray(): array
     {
         $result = [];
+        // Preserve the existing export contract; child-private fields are intentionally excluded.
         foreach (get_object_vars($this) as $property => $value) {
             if (is_object($value) && method_exists($value, 'toArray')) {
                 $result[$property] = $value->toArray();

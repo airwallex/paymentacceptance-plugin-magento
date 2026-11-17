@@ -28,6 +28,7 @@
  * @license   https://opensource.org/licenses/MIT MIT License
  */
 /* global Airwallex */
+/** Checkout funnel telemetry module (EPP-1214). */
 /** `this` receiver for the card renderer's methods. */
 define(
     [
@@ -42,6 +43,7 @@ define(
         'Magento_Customer/js/model/customer',
         'Airwallex_Payments/js/view/payment/utils',
         'Airwallex_Payments/js/view/payment/method-renderer/address/address-handler',
+        'Airwallex_Payments/js/view/payment/tracking',
     ],
     function (
         $              ,
@@ -55,6 +57,7 @@ define(
         customer               ,
         utils             ,
         addressHandler                      ,
+        tracking                ,
     ) {
         'use strict';
         return Component.extend({
@@ -181,6 +184,13 @@ define(
                 });
                 this.cardNumberElement .on('ready', () => {
                     this.cardNumberElement .focus();
+                    tracking.trackRendered('card');
+                    const selected = quote.paymentMethod();
+                    const code = selected && selected.method ? selected.method : '';
+                    if (code !== '' && code !== 'airwallex_payments_card') {
+                        return;
+                    }
+                    tracking.trackMethodSelected('card');
                 });
                 $('.airwallex-card-container .payment-method-title').click(() => {
                     this.cardNumberElement .focus();

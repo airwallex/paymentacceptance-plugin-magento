@@ -49,70 +49,58 @@ define([
             code: 'airwallex_payments_afterpay',
             template: "Airwallex_Payments/payment/redirect-method",
         },
+        selectedAfterpayCountry: null,
+        getSupportedAfterpayCountries(                      ) {
+            const config = window.checkoutConfig .payment .airwallex_payments ;
+            const supported = config.afterpay_support_entity_to_currency [this.entity] || [];
+            const available = config.available_currencies || [];
+            const base = config.quote_currency_code ;
+            return Object.keys(config.afterpay_support_countries ).filter(country => {
+                const currency = config.afterpay_support_countries [country];
+                return supported.indexOf(currency) !== -1 && (currency === base ||
+                    (available.indexOf(base) !== -1 && available.indexOf(currency) !== -1));
+            });
+        },
         async loadPayment(                      ) {
-            if (!this.isMethodChecked(this.code)) {
-                return;
-            }
+            if (!this.isMethodChecked(this.code)) return;
+            const version = this.beginRender();
             this.hideYouPay();
+            this.entity = await this.fetchEntity();
+            if (!this.isRenderCurrent(version)) return;
+            const config = window.checkoutConfig .payment .airwallex_payments ;
+            const countryToCurrency = config.afterpay_support_countries ;
+            const countries = this.getSupportedAfterpayCountries();
             const container = $(`.${this.index} .awx-redirect-method-footer`);
-            const entity = await this.fetchEntity();
-            const paymentData = window.checkoutConfig .payment .airwallex_payments ;
-            const entityToCurrency = paymentData.afterpay_support_entity_to_currency ;
-            const countryToCurrency = paymentData.afterpay_support_countries ;
-            const quoteCountryId = quote.billingAddress() ? quote.billingAddress().countryId : '';
-            localStorage.setItem(this.afterpayCountryKey, '');
-            if (!entityToCurrency[entity]) {
-                console.warn('Invalid merchant entity:');
+            if (!countries.length) {
+                localStorage.removeItem(this.afterpayCountryKey);
+                this.selectedAfterpayCountry = null;
+                this.showUnavailableCurrencyAlert(container, this.code, 'Afterpay', config.quote_currency_code );
+                return;
+            }
+            if (countries.indexOf(this.selectedAfterpayCountry) === -1) this.selectedAfterpayCountry = null;
+            const billingCountry = quote.billingAddress()?.countryId || '';
+            const defaultCountry = countries.indexOf(billingCountry) !== -1 ? billingCountry :
+                (countries.length === 1 ? countries[0] : '');
+            const country = this.selectedAfterpayCountry || defaultCountry;
+            localStorage.setItem(this.afterpayCountryKey, country);
+            const needsCountrySelector = !!this.selectedAfterpayCountry || !country;
+            if (!needsCountrySelector && countryToCurrency[country] === config.quote_currency_code) {
+                container.empty();
                 this.enableCheckoutButton(this.code);
-                return;
-            }
-            const availableCurrencies = paymentData.available_currencies || [];
-            if (!availableCurrencies.length) {
-                if (entityToCurrency[entity].indexOf(paymentData.quote_currency_code ) !== -1) {
-                    $(container).html('');
-                    this.enableCheckoutButton(this.code);
-                    return;
-                }
-                const msg = $t('%1 is not available in %2 for your billing country. Please use a different payment method to complete your purchase.')
-                    .replace('%1', 'Afterpay')
-                    .replace('%2', paymentData.quote_currency_code );
-                container.html(utils.awxAlert(msg));
-                this.disableCheckoutButton(this.code);
-                return;
-            }
-            if (entityToCurrency[entity].indexOf(paymentData.quote_currency_code ) !== -1 && (entity !== 'AIRWALLEX_HK' || (countryToCurrency[quoteCountryId] === paymentData.quote_currency_code  && entity === 'AIRWALLEX_HK'))) {
-                $(container).html('');
-                this.enableCheckoutButton(this.code);
-                return;
-            }
-            if (availableCurrencies.indexOf(paymentData.quote_currency_code ) === -1) {
-                const msg = $t('%1 is not available in %2 for your billing country. Please use a different payment method to complete your purchase.')
-                    .replace('%1', 'Afterpay')
-                    .replace('%2', paymentData.quote_currency_code );
-                container.html(utils.awxAlert(msg));
-                this.disableCheckoutButton(this.code);
                 return;
             }
             const expressData = await this.fetchExpressData();
-            let targetCurrency;
-            if (countryToCurrency[quoteCountryId]) {
-                targetCurrency = countryToCurrency[quoteCountryId];
-                localStorage.setItem(this.afterpayCountryKey, quoteCountryId);
-                if (entityToCurrency[entity].indexOf(targetCurrency) === -1) {
-                    localStorage.setItem(this.afterpayCountryKey, '');
-                    targetCurrency = '';
-                }
-            }
-            if (!targetCurrency && entityToCurrency[entity].length === 1) {
-                targetCurrency = entityToCurrency[entity][0];
-            }
-            if (targetCurrency) {
-                await this.displaySwitcher('', expressData, targetCurrency, 'Afterpay');
-                return;
-            }
-            await this.showAfterpayCountries(expressData);
+            if (!this.isRenderCurrent(version)) return;
+            if (needsCountrySelector) await this.showAfterpayCountries(expressData);
+            else await this.displaySwitcher('', expressData, countryToCurrency[country], 'Afterpay');
         },
         async showAfterpayCountries(                        expressData     ) {
+            const version = this.renderVersion;
+            if (!this.entity) this.entity = await this.fetchEntity();
+            if (!this.isRenderCurrent(version)) return;
+            const countries           = this.getSupportedAfterpayCountries();
+            const names                         = { US: 'United States', AU: 'Australia', NZ: 'New Zealand', GB: 'United Kingdom', CA: 'Canada' };
+            const countryItems = countries.map(country => `<li data-value="${this.escapeHtml(country)}">${this.escapeHtml($t(names[country] || country))}</li>`).join('');
             let that = this;
             const paymentData = window.checkoutConfig .payment .airwallex_payments ;
             const container = $(`.${this.index} .awx-redirect-method-footer`);
@@ -124,22 +112,18 @@ define([
                         <img src="` + require.toUrl('Airwallex_Payments/assets/select-arrow.svg') + `" alt="arrow" />
                     </div>
                     <div>
-                        <input type="text" placeholder="` + $t('Afterpay account region') + `" />
+                        <input readonly type="text" placeholder="` + $t('Afterpay account region') + `" />
                     </div>
                     <div class="countries" style="display: none">
                         <ul>
-                            <li data-value="US">` + $t('United States') + `</li>
-                            <li data-value="AU">` + $t('Australia') + `</li>
-                            <li data-value="NZ">` + $t('New Zealand') + `</li>
-                            <li data-value="GB">` + $t('United Kingdom') + `</li>
-                            <li data-value="CA">` + $t('Canada') + `</li>
+                            ${countryItems}
                         </ul>
                     </div>
                 </div>
             `;
             const countryToCurrency = paymentData.afterpay_support_countries ;
             let country = localStorage.getItem(this.afterpayCountryKey);
-            if (!country || !countryToCurrency[country]) {
+            if (!country || countries.indexOf(country) === -1) {
                 container.html(html);
                 this.disableCheckoutButton(this.code);
             } else {
@@ -152,20 +136,21 @@ define([
                     await this.displaySwitcher(html, expressData, targetCurrency, 'Afterpay');
                 }
             }
-            let $li = $(".awx-selector-container li");
-            let $input = $(".awx-selector-container input");
+            if (!this.isRenderCurrent(version)) return;
+            let $li = container.find('.awx-selector-container li');
+            let $input = container.find('.awx-selector-container input');
             $li.each(function (                 ) {
                 let country = localStorage.getItem(that.afterpayCountryKey);
                 if ($(this).data("value") === country) {
-                    $input.val($(this).html());
+                    $input.val($(this).text());
                     that.enableCheckoutButton(that.code);
                 }
             });
             let showCountries = function () {
-                $(".awx-selector-container .countries").fadeIn(300);
+                container.find('.awx-selector-container .countries').fadeIn(300);
                 let country = localStorage.getItem(that.afterpayCountryKey);
                 if (country) {
-                    $(".awx-selector-container li").each(function (                 ) {
+                    container.find('.awx-selector-container li').each(function (                 ) {
                         $(this).removeClass("selected");
                         if ($(this).data("value") === country) {
                             $(this).addClass("selected");
@@ -174,16 +159,17 @@ define([
                 }
             };
             $input.off('focus').on('focus', showCountries);
-            $('.awx-selector-container .input-icon').off('click').on('click', showCountries);
+            container.find('.awx-selector-container .input-icon').off('click').on('click', showCountries);
             $input.off('blur').on('blur', function () {
-                $(".awx-selector-container .countries").fadeOut(300);
+                container.find('.awx-selector-container .countries').fadeOut(300);
             });
             $li.off('click').on('click', function (                 ) {
-                let $body = $('body');
-                $body.trigger('processStart');
-                localStorage.setItem(that.afterpayCountryKey, $(this).data("value"));
-                that.showAfterpayCountries(expressData);
-                $body.trigger('processStop');
+                const country = String($(this).data("value"));
+                if (countries.indexOf(country) === -1) return;
+                void that.selectCurrency(that.afterpayCountryKey, country, async (selectionVersion        ) => {
+                    await that.showAfterpayCountries(expressData);
+                    if (that.isRenderCurrent(selectionVersion)) that.selectedAfterpayCountry = country;
+                });
             });
         },
     });

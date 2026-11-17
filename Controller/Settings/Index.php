@@ -32,7 +32,7 @@ namespace Airwallex\Payments\Controller\Settings;
 
 use Airwallex\Payments\Controller\Adminhtml\Configuration\ConnectionFlowRedirectUrl;
 use Airwallex\Payments\Helper\Configuration;
-use Exception;
+use Airwallex\Payments\Model\Webhook\Webhook;
 use Magento\Framework\App\Action\HttpPostActionInterface;
 use Magento\Framework\App\Cache\Manager;
 use Magento\Framework\App\CacheInterface;
@@ -44,16 +44,22 @@ use Magento\Framework\App\Request\InvalidRequestException;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\App\Response\Http as ResponseHttp;
 use Magento\Framework\Encryption\EncryptorInterface;
+use Magento\Framework\Lock\LockManagerInterface;
 
 class Index implements HttpPostActionInterface, CsrfAwareActionInterface
 {
     private const HTTP_OK = 200;
+    private const HTTP_BAD_REQUEST = 400;
+    private const HTTP_UNAUTHORIZED = 401;
+    private const LOCK_NAME = 'awx_connection_settings_token';
+
     private ResponseHttp $response;
     private Writer $configWriter;
     private RequestHttp $request;
     private CacheInterface $cache;
     public Configuration $configuration;
     protected Manager $cacheManager;
+    private LockManagerInterface $lockManager;
 
     public function __construct(
         ResponseHttp $response,
@@ -61,7 +67,8 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
         RequestHttp $request,
         CacheInterface $cache,
         Configuration $configuration,
-        Manager $cacheManager
+        Manager $cacheManager,
+        LockManagerInterface $lockManager
     ) {
         $this->response = $response;
         $this->configWriter = $configWriter;
@@ -69,74 +76,91 @@ class Index implements HttpPostActionInterface, CsrfAwareActionInterface
         $this->cache = $cache;
         $this->configuration = $configuration;
         $this->cacheManager = $cacheManager;
+        $this->lockManager = $lockManager;
     }
 
     /**
      * @return ResponseHttp
-     * @throws Exception
      */
     public function execute(): ResponseHttp
     {
-        $data = json_decode($this->request->getContent(), true);
-        $tokenFromCache =  $this->cache->load(ConnectionFlowRedirectUrl::CACHE_NAME);
-        if (empty($tokenFromCache)) {
-            return $this->error('Can not find token in cache.');
-        }
-        $this->cache->remove(ConnectionFlowRedirectUrl::CACHE_NAME);
-
-        $signature = $this->request->getHeader('x-signature');
-        if (!$signature) {
-            return $this->error('Signature id is required.');
-        }
-        $ts = $this->request->getHeader('x-timestamp') . $this->request->getContent();
-        if (hash_hmac('sha256', $ts, $tokenFromCache) !== $signature) {
-            return $this->error('Signature id is invalid.');
+        $rawContent = (string) $this->request->getContent();
+        $data = json_decode($rawContent, true);
+        if (!is_array($data)) {
+            return $this->error('Invalid request payload.');
         }
 
-        $clientId = $data['client_id'];
-        $apiKey = $data['api_key'];
-        $webhookKey = $data['webhook_secret'];
-        $accountId = $data['account_id'];
-        $accountName = $data['account_name'];
-        if (empty($clientId)) {
-            return $this->error('Client ID is required.');
+        $signature = (string) $this->request->getHeader('x-signature');
+        if ($signature === '') {
+            return $this->error('Signature id is required.', self::HTTP_UNAUTHORIZED);
         }
-        if (empty($apiKey)) {
-            return $this->error('API Key is required.');
+        $timestamp = (string) $this->request->getHeader('x-timestamp');
+        if (!Webhook::isTimestampFresh($timestamp)) {
+            return $this->error('Timestamp is invalid or expired.', self::HTTP_UNAUTHORIZED);
         }
-        if (empty($webhookKey)) {
-            return $this->error('Webhook Key is required.');
+
+        if (!$this->lockManager->lock(self::LOCK_NAME, 5)) {
+            return $this->error('Connection request is already being processed.', self::HTTP_UNAUTHORIZED);
         }
-        if (empty($accountId)) {
-            return $this->error('Account id is required.');
+        try {
+            $tokenFromCache = (string) $this->cache->load(ConnectionFlowRedirectUrl::CACHE_NAME);
+            if ($tokenFromCache === '') {
+                return $this->error('Can not find token in cache.', self::HTTP_UNAUTHORIZED);
+            }
+            if (!Webhook::verifySignature($timestamp, $rawContent, $tokenFromCache, $signature)) {
+                return $this->error('Signature id is invalid.', self::HTTP_UNAUTHORIZED);
+            }
+
+            $clientId = $data['client_id'] ?? null;
+            $apiKey = $data['api_key'] ?? null;
+            $webhookKey = $data['webhook_secret'] ?? null;
+            $accountId = $data['account_id'] ?? null;
+            $accountName = $data['account_name'] ?? null;
+            if (empty($clientId)) {
+                return $this->error('Client ID is required.');
+            }
+            if (empty($apiKey)) {
+                return $this->error('API Key is required.');
+            }
+            if (empty($webhookKey)) {
+                return $this->error('Webhook Key is required.');
+            }
+            if (empty($accountId)) {
+                return $this->error('Account id is required.');
+            }
+            if (empty($accountName)) {
+                return $this->error('Account name is required.');
+            }
+            if (!$this->cache->remove(ConnectionFlowRedirectUrl::CACHE_NAME)) {
+                return $this->error('Connection token has already been used.', self::HTTP_UNAUTHORIZED);
+            }
+            $encryptor = ObjectManager::getInstance()->get(EncryptorInterface::class);
+            $mode = substr($tokenFromCache, 0, 4) === 'demo' ? 'demo' : 'prod';
+            $account = $this->configuration->getAccount();
+            $arrAccount = $account ? json_decode($account, true) : [];
+            $arrAccount[$mode . '_account_id'] = $accountId;
+            $arrAccount[$mode . '_account_name'] = $accountName;
+            $this->configWriter->save('airwallex/general/' . $mode . '_connection_flow', 'success');
+            $this->configWriter->save('airwallex/general/' . 'account', json_encode($arrAccount));
+            $this->configWriter->save('airwallex/general/' . $mode . '_account_name', $accountName);
+            $this->configWriter->save('airwallex/general/' . $mode . '_client_id', $clientId);
+            $this->configWriter->save('airwallex/general/' . $mode . '_api_key', $encryptor->encrypt($apiKey));
+            $this->configWriter->save('airwallex/general/webhook_' . $mode . '_secret_key', $encryptor->encrypt($webhookKey));
+            $this->configWriter->save('airwallex/general/mode', $mode);
+            $this->cacheManager->flush(['config']);
+        } finally {
+            $this->lockManager->unlock(self::LOCK_NAME);
         }
-        if (empty($accountName)) {
-            return $this->error('Account name is required.');
-        }
-        $encryptor = ObjectManager::getInstance()->get(EncryptorInterface::class);
-        $mode =  substr($tokenFromCache, 0, 4) === 'demo' ? 'demo' : 'prod';
-        $account = $this->configuration->getAccount();
-        $arrAccount = $account ? json_decode($account, true) : [];
-        $arrAccount[$mode . '_account_id'] = $accountId;
-        $arrAccount[$mode . '_account_name'] = $accountName;
-        $this->configWriter->save('airwallex/general/' . $mode . '_connection_flow', 'success');
-        $this->configWriter->save('airwallex/general/' . 'account', json_encode($arrAccount));
-        $this->configWriter->save('airwallex/general/' . $mode . '_account_name', $accountName);
-        $this->configWriter->save('airwallex/general/' . $mode . '_client_id', $clientId);
-        $this->configWriter->save('airwallex/general/' . $mode . '_api_key', $encryptor->encrypt($apiKey));
-        $this->configWriter->save('airwallex/general/webhook_' . $mode . '_secret_key', $encryptor->encrypt($webhookKey));
-        $this->configWriter->save('airwallex/general/mode', $mode);
-        $this->cacheManager->flush(['config']);
+
         $this->response->setBody(json_encode(['success' => true]));
         return $this->response->setStatusCode(self::HTTP_OK);
     }
 
-    /**
-     * @throws Exception
-     */
-    public function error(string $message)
+    public function error(string $message, int $status = self::HTTP_BAD_REQUEST): ResponseHttp
     {
-        throw new Exception($message);
+        $this->response->setHeader('Content-Type', 'application/json', true);
+        $this->response->setBody(json_encode(['message' => $message]));
+        return $this->response->setStatusCode($status);
     }
 
     public function createCsrfValidationException(RequestInterface $request): ?InvalidRequestException

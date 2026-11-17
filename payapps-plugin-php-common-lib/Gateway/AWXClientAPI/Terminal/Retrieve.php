@@ -4,6 +4,7 @@ namespace Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\Terminal;
 
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\Terminal;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\UrlHelper;
 
 class Retrieve extends AbstractApi
 {
@@ -17,7 +18,7 @@ class Retrieve extends AbstractApi
      */
     protected function getUri(): string
     {
-        return 'pa/pos/terminals/' . $this->id;
+        return 'pa/pos/terminals/' . UrlHelper::pathSegment($this->id);
     }
 
     /**

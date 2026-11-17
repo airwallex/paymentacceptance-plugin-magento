@@ -8,11 +8,15 @@ class AmountHelper
 {
     public static function amountEquals($amountA, $amountB, $currency)
     {
-        $decimalPlaces = PaymentIntent::CURRENCY_TO_DECIMAL[strtoupper($currency)] ?? 2;
-        $precision = pow(10, $decimalPlaces);
-        $minThreshold = 1 / $precision;
+        if (!is_numeric($amountA) || !is_numeric($amountB)
+            || !is_finite((float) $amountA) || !is_finite((float) $amountB)
+        ) {
+            return false;
+        }
 
-        return abs($amountA - $amountB) < $minThreshold;
+        $decimalPlaces = PaymentIntent::CURRENCY_TO_DECIMAL[strtoupper((string) $currency)] ?? 2;
+        return number_format((float) $amountA, $decimalPlaces, '.', '')
+            === number_format((float) $amountB, $decimalPlaces, '.', '');
     }
 
     public static function convertAmountToBaseAmount($paymentIntent, $amount)
@@ -41,7 +45,7 @@ class AmountHelper
 
     public static function formatAmount($amount, $currency)
     {
-        $scale = PaymentIntent::CURRENCY_TO_DECIMAL[strtoupper($currency)] ?? 2;
+        $scale = PaymentIntent::CURRENCY_TO_DECIMAL[strtoupper((string)$currency)] ?? 2;
         return round($amount, $scale);
     }
 }

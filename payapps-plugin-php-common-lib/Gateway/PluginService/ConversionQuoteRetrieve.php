@@ -4,6 +4,7 @@ namespace Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService;
 
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\ConversionQuote as StructConversionQuote;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\UrlHelper;
 
 class ConversionQuoteRetrieve extends AbstractApi
 {
@@ -17,7 +18,7 @@ class ConversionQuoteRetrieve extends AbstractApi
      */
     protected function getUri(): string
     {
-        return 'pa/conversion_quotes/' . $this->id;
+        return 'pa/conversion_quotes/' . UrlHelper::pathSegment($this->id);
     }
 
     /**

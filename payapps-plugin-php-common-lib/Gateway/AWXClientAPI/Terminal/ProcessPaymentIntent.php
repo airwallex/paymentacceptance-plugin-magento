@@ -4,6 +4,7 @@ namespace Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\Terminal;
 
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\Terminal as StructTerminal;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\UrlHelper;
 
 class ProcessPaymentIntent extends AbstractApi
 {
@@ -24,7 +25,7 @@ class ProcessPaymentIntent extends AbstractApi
      */
     protected function getUri(): string
     {
-        return 'pa/pos/terminals/' . $this->id . '/process_payment_intent';
+        return 'pa/pos/terminals/' . UrlHelper::pathSegment($this->id) . '/process_payment_intent';
     }
 
     /**

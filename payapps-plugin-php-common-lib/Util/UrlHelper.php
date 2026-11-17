@@ -45,4 +45,26 @@ class UrlHelper
 
         return $scheme . '://' . $host . ($port ? ':' . $port : '') . '/';
     }
+
+    /**
+     * Encode a resource id as one URL path segment.
+     *
+     * Slashes, backslashes, ".." and control characters are rejected so the id
+     * cannot move the request onto another Airwallex path. Other characters,
+     * including "?", are percent-encoded.
+     *
+     * @param string|null $id
+     * @return string
+     */
+    public static function pathSegment($id): string
+    {
+        if (!is_string($id) || $id === '' || $id === '.' || strpos($id, '..') !== false
+            || strpos($id, '/') !== false || strpos($id, '\\') !== false
+            || preg_match('/[\x00-\x1F\x7F]/', $id)
+        ) {
+            throw new \InvalidArgumentException('Invalid resource id');
+        }
+
+        return rawurlencode($id);
+    }
 }

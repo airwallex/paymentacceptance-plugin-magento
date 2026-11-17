@@ -41,6 +41,7 @@ use Airwallex\Payments\Model\Config\Source\Mode;
 use Airwallex\Payments\Model\Methods\RedirectMethod;
 use Airwallex\PayappsPlugin\CommonLibrary\Configuration\PaymentMethodType\RedirectMethod as RedirectMethodConfiguration;
 use Airwallex\PayappsPlugin\CommonLibrary\Util\CurrencyHelper;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Error;
 use GuzzleHttp\Exception\GuzzleException;
@@ -166,6 +167,7 @@ class ConfigProvider implements ConfigProviderInterface
                         'redirect_method_entity_to_currency' => RedirectMethodConfiguration::SUPPORTED_ENTITY_TO_CURRENCY,
                         'country_to_currency' => CurrencyHelper::COUNTRY_TO_CURRENCY,
                         'currency_to_country' => CurrencyHelper::CURRENCY_TO_COUNTRY_MAP,
+                        'currency_to_decimal' => StructPaymentIntent::CURRENCY_TO_DECIMAL,
                         'eu_country_codes' => CurrencyHelper::AVAILABLE_EU_COUNTRY_CODES,
                         'redirect_method_display_names' => RedirectMethod::displayNames(),
                         'is_order_before_payment' => $this->configuration->isOrderBeforePayment(),

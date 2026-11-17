@@ -45,6 +45,7 @@ use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\UrlInterface;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Airwallex\Payments\Exception\SigningKeyMissingException;
+use Airwallex\Payments\Model\PaymentFlowLog;
 use Airwallex\Payments\Model\PaymentIntentRepository;
 use Airwallex\Payments\Model\ReturnState;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
@@ -105,6 +106,7 @@ class Index implements HttpGetActionInterface
      */
     public function execute(): ResponseHttp
     {
+        $this->response->setHeader('Referrer-Policy', 'same-origin', true);
         $result = (string) $this->request->getParam('awx_return_result');
         $entityId = $this->request->getParam('id');
         $from = (string) $this->request->getParam('from');
@@ -116,6 +118,7 @@ class Index implements HttpGetActionInterface
         }
 
         if ($result !== '' && $result !== 'success') {
+            $this->logCheckoutFailedReturn((string) $entityType, $entityId, $state, $result);
             return $this->redirect('checkout#payment');
         }
 
@@ -137,6 +140,10 @@ class Index implements HttpGetActionInterface
 
         try {
             if ($this->completePaymentIfSuccessful($paymentIntentFromApi, $paymentIntent, $quote, __METHOD__)) {
+                $completedOrder = $this->paymentIntentRepository->getOrder($paymentIntent->getIntentId());
+                $completedOrderId = (int) ($paymentIntent->getOrderId()
+                    ?: ($completedOrder ? $completedOrder->getId() : 0));
+                $this->consumeReturnState((int) $quote->getId(), $completedOrderId, $state);
                 return $this->redirect('checkout/onepage/success');
             }
         } catch (Exception $e) {
@@ -144,6 +151,7 @@ class Index implements HttpGetActionInterface
             $this->logError(__METHOD__ . ': ' . $e->getMessage());
         }
 
+        $this->consumeReturnStateToken($state);
         $scope = $entityType === ReturnState::SCOPE_ORDER ? ReturnState::SCOPE_ORDER : ReturnState::SCOPE_QUOTE;
         $entityKey = $scope === ReturnState::SCOPE_ORDER ? (int) $entityId : (int) $quote->getId();
         $pollState = $this->generateReturnState($scope, $entityKey);
@@ -153,7 +161,27 @@ class Index implements HttpGetActionInterface
         return $this->redirect($redirectUrl);
     }
 
-    
+    /**
+     * Shopper came back from a redirect method with an explicit non-success result.
+     *
+     * @param string $entityType
+     * @param mixed $entityId
+     * @param string $state
+     * @param string $result
+     * @return void
+     */
+    private function logCheckoutFailedReturn(string $entityType, $entityId, string $state, string $result): void
+    {
+        try {
+            [$paymentIntent, $quote] = $this->getAuthorizedPaymentContext($entityType, $entityId, $state);
+            PaymentFlowLog::checkoutFailed($quote, (string) $paymentIntent->getIntentId(), $result);
+        } catch (SigningKeyMissingException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            PaymentFlowLog::checkoutFailed(null, '', $result);
+        }
+    }
+
     /**
      * Complete a card payment return when the shopper is still in checkout session
      *
@@ -183,6 +211,7 @@ class Index implements HttpGetActionInterface
             $this->checkIntent($paymentIntentFromApi, $order);
 
             $this->setCheckoutSuccess($quoteId, $order);
+            $this->consumeReturnState($quoteId, (int) $order->getId());
             return $this->redirect('checkout/onepage/success');
         } catch (Exception $e) {
             $this->logError('Unable to process card return: ' . $e->getMessage());

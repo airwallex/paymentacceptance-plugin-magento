@@ -31,13 +31,14 @@
 namespace Airwallex\Payments\Model\Traits;
 
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
-use Airwallex\PayappsPlugin\CommonLibrary\UseCase\CurrencySwitcher;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\AmountHelper;
 use Airwallex\PayappsPlugin\CommonLibrary\UseCase\ConversionQuote as ConversionQuoteUseCase;
 use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Helper\IntentHelper;
 use Airwallex\PayappsPlugin\CommonLibrary\UseCase\Config\CurrencySwitcherAvailableCurrencies;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Log as RemoteLog;
 use Airwallex\Payments\Model\Methods\RedirectMethod;
+use Airwallex\Payments\Model\PaymentFlowLog;
 use Magento\Framework\App\ProductMetadataInterface;
 use Magento\Framework\Module\ModuleListInterface;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentMethod\Get as RetrievePaymentMethod;
@@ -47,6 +48,7 @@ use Airwallex\Payments\Model\Methods\CardMethod;
 use Airwallex\Payments\Model\Methods\Vault;
 use Airwallex\Payments\Exception\SigningKeyMissingException;
 use Airwallex\Payments\Model\PaymentIntentRepository;
+use Airwallex\Payments\Model\PaymentOperationLock;
 use Airwallex\Payments\Model\ResourceModel\PaymentIntent;
 use Airwallex\Payments\Model\ReturnState;
 use Exception;
@@ -57,23 +59,28 @@ use Magento\Checkout\Api\PaymentInformationManagementInterface;
 use Magento\Checkout\Helper\Data;
 use Magento\Framework\App\ObjectManager;
 use Magento\Framework\Exception\InputException;
+use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
+use Magento\Quote\Api\CartManagementInterface;
 use Magento\Quote\Api\Data\PaymentExtension;
+use Magento\Quote\Api\GuestCartManagementInterface;
 use Magento\Quote\Model\Quote;
 use Magento\Quote\Model\QuoteIdToMaskedQuoteIdInterface;
 use Magento\Quote\Model\QuoteRepository;
-use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Payment;
 use Magento\Sales\Model\Order\Status\HistoryFactory;
 use Magento\Sales\Model\OrderFactory;
+use Magento\Sales\Model\Order\Invoice;
 use Magento\Sales\Model\OrderRepository;
 use Magento\Sales\Model\ResourceModel\Order\CollectionFactory;
+use Magento\Sales\Model\Service\InvoiceService;
 use Magento\Sales\Model\Spi\OrderResourceInterface;
+use Magento\Framework\DB\TransactionFactory;
 use Psr\Log\LoggerInterface;
 use ReflectionClass;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService\Account;
-use Airwallex\PayappsPlugin\CommonLibrary\Struct\Quote as StructQuote;
+use Airwallex\PayappsPlugin\CommonLibrary\Struct\ConversionQuote as StructConversionQuote;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent as StructPaymentIntent;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\Account as StructAccount;
 use Magento\Quote\Model\MaskedQuoteIdToQuoteIdInterface;
@@ -83,43 +90,6 @@ use Magento\Checkout\Model\Session as CheckoutSession;
 trait HelperTrait
 {
     /**
-     * Currency switcher
-     *
-     * @param string $paymentCurrency
-     * @param string $targetCurrency
-     * @param string $amount
-     * @return string
-     */
-    public function currencySwitcher(string $paymentCurrency, string $targetCurrency, string $amount): string
-    {
-        $switcher = $this->getCurrencySwitcher($paymentCurrency, $targetCurrency, $amount);
-        return json_encode([
-            'id' => $switcher->getId(),
-            'payment_currency' => $switcher->getPaymentCurrency(),
-            'target_currency' => $switcher->getTargetCurrency(),
-            'payment_amount' => $switcher->getPaymentAmount(),
-            'target_amount' => $switcher->getTargetAmount(),
-            'client_rate' => $switcher->getClientRate(),
-        ]);
-    }
-
-    /**
-     * Get currency switcher quote from Airwallex
-     *
-     * @param string $paymentCurrency
-     * @param string $targetCurrency
-     * @param string $amount
-     * @return StructQuote
-     */
-    public function getCurrencySwitcher(string $paymentCurrency, string $targetCurrency, string $amount): StructQuote
-    {
-        return ObjectManager::getInstance()->get(CurrencySwitcher::class)->setPaymentCurrency($paymentCurrency)
-            ->setTargetCurrency($targetCurrency)
-            ->setPaymentAmount($amount)
-            ->get();
-    }
-
-    /**
      * Get MCP conversion quote
      *
      * @param string $merchantCurrency
@@ -128,16 +98,21 @@ trait HelperTrait
      */
     public function conversionQuote(string $merchantCurrency, string $shopperCurrency): string
     {
-        $quote = ObjectManager::getInstance()->get(ConversionQuoteUseCase::class)
-            ->setMerchantCurrency($merchantCurrency)
-            ->setShopperCurrency($shopperCurrency)
-            ->get();
+        $quote = $this->getConversionQuote($merchantCurrency, $shopperCurrency);
         return json_encode([
             'id' => $quote->getId(),
             'merchant_currency' => $quote->getMerchantCurrency(),
             'shopper_currency' => $quote->getShopperCurrency(),
             'conversion_rate' => $quote->getConversionRate(),
         ]);
+    }
+
+    public function getConversionQuote(string $merchantCurrency, string $shopperCurrency): StructConversionQuote
+    {
+        return ObjectManager::getInstance()->get(ConversionQuoteUseCase::class)
+            ->setMerchantCurrency($merchantCurrency)
+            ->setShopperCurrency($shopperCurrency)
+            ->get();
     }
 
     /**
@@ -166,25 +141,50 @@ trait HelperTrait
     protected function setTransactionId(Payment $payment, string $intentId)
     {
         $payment->setTransactionId($intentId);
+        $payment->setAdditionalInformation('intent_id', $intentId);
         $payment->setIsTransactionClosed(false);
     }
 
     /**
-     * Convert a display amount to base currency and cap at the original base total
+     * Convert a display amount to base currency and validate the original base total
      *
      * @param float $amount
      * @param float $rate
      * @param float $amountMax
      * @param float $baseAmountMax
+     * @param string $currency
+     * @param string $baseCurrency
      * @return float
      */
-    public function getBaseAmount(float $amount, float $rate, float $amountMax, float $baseAmountMax): float
-    {
-        $baseAmount = $this->convertToDisplayCurrency($amount, $rate, true);
-        if ($this->isAmountEqual($amount, $amountMax) || $baseAmount - $baseAmountMax >= 0.0001) {
-            $baseAmount = $baseAmountMax;
+    public function getBaseAmount(
+        float $amount,
+        float $rate,
+        float $amountMax,
+        float $baseAmountMax,
+        string $currency = '',
+        string $baseCurrency = ''
+    ): float {
+        if ($currency === '' || $baseCurrency === '') {
+            $baseAmount = $this->convertToDisplayCurrency($amount, $rate, true);
+            return $this->isAmountEqual($amount, $amountMax) || $baseAmount - $baseAmountMax >= 0.0001
+                ? $baseAmountMax : $baseAmount;
         }
-        return $baseAmount;
+        if ($this->isAmountEqual($amount, $amountMax, $currency)) {
+            return $baseAmountMax;
+        }
+        $baseAmount = AmountHelper::formatAmount(
+            (empty($rate) ? $amount : $amount / $rate),
+            $baseCurrency
+        );
+        return $this->amountWithinOrderTotal($baseAmount, $baseAmountMax, $baseCurrency);
+    }
+
+    private function amountWithinOrderTotal(float $amount, float $total, string $currency): float
+    {
+        if (!is_finite($amount) || ($amount > $total && !$this->isAmountEqual($amount, $total, $currency))) {
+            throw new LocalizedException(__('Payment amount exceeds the order total.'));
+        }
+        return $amount > $total ? $total : $amount;
     }
 
     /**
@@ -220,15 +220,16 @@ trait HelperTrait
     }
 
     /**
-     * Compare two monetary amounts with Magento-scale tolerance
+     * Compare two monetary amounts at the payment currency precision
      *
      * @param float $a
      * @param float $b
+     * @param string $currency
      * @return bool
      */
-    public function isAmountEqual(float $a, float $b): bool
+    public function isAmountEqual(float $a, float $b, string $currency = ''): bool
     {
-        return abs($a - $b) < 0.01;
+        return $currency === '' ? abs($a - $b) < 0.01 : AmountHelper::amountEquals($a, $b, $currency);
     }
 
     /**
@@ -283,7 +284,10 @@ trait HelperTrait
     public function getProducts($object): array
     {
         $products = [];
-        foreach ($object->getAllItems() as $item) {
+        $items = method_exists($object, 'getAllVisibleItems')
+            ? $object->getAllVisibleItems()
+            : $object->getAllItems();
+        foreach ($items as $item) {
             $product = $item->getProduct();
             $qty = ($object instanceof Order) ? $item->getQtyOrdered() : $item->getQty();
             $products[] = [
@@ -352,23 +356,11 @@ trait HelperTrait
         return $order;
     }
 
-    /**
-     * Cache key for a capture request
-     *
-     * @param string $intentId
-     * @return string
-     */
     public function captureCacheName(string $intentId): string
     {
         return $intentId . '_capture';
     }
 
-    /**
-     * Cache key for a refund request
-     *
-     * @param string $intentId
-     * @return string
-     */
     public function refundCacheName(string $intentId): string
     {
         return $intentId . '_refund';
@@ -397,17 +389,19 @@ trait HelperTrait
     protected function checkIntent(StructPaymentIntent $paymentIntentFromApi, $model): void
     {
         $isOrder = $model instanceof Order;
+        if ($isOrder && (!$model->getId() || $model->isCanceled())) {
+            throw new InputException(__('Order is missing or canceled.'));
+        }
 
         $currency = $this->getCurrencyCode($model);
         $orderIncrementId = $isOrder ? $model->getIncrementId() : $model->getReservedOrderId();
         $amount = $model->getGrandTotal();
-        $intentAmount = $paymentIntentFromApi->getBaseAmount() ?: $paymentIntentFromApi->getAmount();
+        $intentAmount = $paymentIntentFromApi->getBaseCurrency() ? $paymentIntentFromApi->getBaseAmount() : $paymentIntentFromApi->getAmount();
         $intentCurrency = $paymentIntentFromApi->getBaseCurrency() ?: $paymentIntentFromApi->getCurrency();
         if (
             !($paymentIntentFromApi->isAuthorized() || $paymentIntentFromApi->isCaptured())
-            || $intentCurrency !== $currency
             || $paymentIntentFromApi->getMerchantOrderId() !== $orderIncrementId
-            || !$this->isAmountEqual($intentAmount, $amount)
+            || !$this->intentMatchesAmountAndCurrency($paymentIntentFromApi, $model)
         ) {
             ObjectManager::getInstance()->get(RemoteLog::class)->error(
                 'check intent failed',
@@ -417,6 +411,32 @@ trait HelperTrait
             $msg = 'Something went wrong while processing your request.';
             throw new Exception(__($msg));
         }
+    }
+
+    protected function intentMatchesAmountAndCurrency(StructPaymentIntent $intent, $model): bool
+    {
+        $currency = (string) $this->getCurrencyCode($model);
+        $intentCurrency = $intent->getBaseCurrency() ?: $intent->getCurrency();
+        $intentAmount = $intent->getBaseCurrency() ? $intent->getBaseAmount() : $intent->getAmount();
+        return $intentCurrency === $currency
+            && AmountHelper::amountEquals($intentAmount, $model->getGrandTotal(), $currency);
+    }
+
+    protected function assertIntentMatchesPayment(StructPaymentIntent $intent, $model): void
+    {
+        if ($this->intentMatchesAmountAndCurrency($intent, $model)) {
+            return;
+        }
+
+        $currency = (string) $this->getCurrencyCode($model);
+        $intentCurrency = $intent->getBaseCurrency() ?: $intent->getCurrency();
+        $intentAmount = $intent->getBaseCurrency() ? $intent->getBaseAmount() : $intent->getAmount();
+        ObjectManager::getInstance()->get(RemoteLog::class)->error(
+            'payment amount mismatch',
+            "Intent Currency: $intentCurrency - Order Currency: $currency - "
+                . "Intent Amount: $intentAmount - Order Amount: {$model->getGrandTotal()}"
+        );
+        throw new LocalizedException(__('The payment amount or currency does not match the order total.'));
     }
 
     /**
@@ -583,6 +603,17 @@ trait HelperTrait
      */
     public function changeOrderStatus(StructPaymentIntent $paymentIntentFromApi, int $orderId, Quote $quote, string $from): void
     {
+        ObjectManager::getInstance()->get(PaymentOperationLock::class)->execute(
+            $orderId,
+            function () use ($paymentIntentFromApi, $orderId, $quote, $from): void {
+                $this->changeOrderStatusLocked($paymentIntentFromApi, $orderId, $quote, $from);
+            },
+            PaymentOperationLock::ORDER_COMPLETION_TIMEOUT
+        );
+    }
+
+    private function changeOrderStatusLocked(StructPaymentIntent $paymentIntentFromApi, int $orderId, Quote $quote, string $from): void
+    {
         $resource = ObjectManager::getInstance()->get(PaymentIntent::class);
         $connection = $resource->getConnection();
         $connection->beginTransaction();
@@ -593,47 +624,205 @@ trait HelperTrait
                 ->forUpdate(true);
             $connection->query($query);
             $this->logInfo("Start to change order status for order $orderId from $from");
-            $order = $this->getFreshOrder($orderId);
-            /** @var Payment $payment */
-            $payment = $order->getPayment();
-            if (($payment && $payment->getAmountAuthorized() > 0 && $paymentIntentFromApi->isAuthorized()) || $order->getTotalPaid() > 0) {
-                $this->deactivateQuote($quote);
-                $connection->commit();
-                $this->setCheckoutSuccess($quote->getId(), $order);
-                return;
+            $order = $this->reloadLockedOrder($orderId);
+            if (!$order->getId() || $order->isCanceled()) {
+                throw new InputException(__('Order is missing or canceled.'));
             }
             $this->checkIntent($paymentIntentFromApi, $order);
-            $this->setTransactionId($order->getPayment(), $paymentIntentFromApi->getId());
-            ObjectManager::getInstance()->get(IntentHelper::class)->setIntent($paymentIntentFromApi);
-            if ($this->isMiniPluginExists()) {
-                $companyOrder = ObjectManager::getInstance()->get('\Magento\Company\Api\Data\CompanyOrderInterfaceFactory')->create();
-                $companyResource = ObjectManager::getInstance()->get('\Magento\Company\Model\ResourceModel\Order');
-                $companyResource->load($companyOrder, $order->getId(), 'order_id');
-                if ($companyOrder && $companyOrder->getId()) {
-                    $companyResource->delete($companyOrder);
-                }
-            }
-
-            $order->place();
-            ObjectManager::getInstance()->get(OrderRepository::class)->save($order);
-
-            $this->addAVSResultToOrder($order, $paymentIntentFromApi);
-
+            $this->applyIntentToOrder($order, $paymentIntentFromApi, true);
             $this->deactivateQuote($quote);
-
-            try {
-                $this->checkCardDetail($paymentIntentFromApi, $order);
-            } catch (Exception $e) {
-                $this->logError('checkCardDetail failed: ' . $e->getMessage());
-            }
             $this->logInfo("Finish to change order status for order $orderId from $from");
             $connection->commit();
             $this->setCheckoutSuccess($quote->getId(), $order);
+            PaymentFlowLog::orderStatusUpdated($order, (string) $paymentIntentFromApi->getId(), $from);
         }   catch (Exception $e) {
             $connection->rollBack();
             $this->logError(__METHOD__ . ': ' . $e->getMessage());
             throw $e;
         }
+    }
+
+    protected function applyIntentToOrder(
+        Order $order,
+        StructPaymentIntent $intent,
+        bool $clearCompanyOrder = false
+    ): void {
+        $payment = $order->getPayment();
+        if ($this->isOrderFullyPaid($order)
+            || ($payment && $payment->getAmountAuthorized() > 0 && $intent->isAuthorized())
+        ) {
+            return;
+        }
+        if ($payment && ($payment->getAmountAuthorized() > 0 || $order->getTotalPaid() > 0
+                || $order->getInvoiceCollection()->getSize() > 0)
+            && $intent->isCaptured()
+        ) {
+            $this->invoiceAuthorizedOrder($order, $intent);
+            return;
+        }
+        $this->setTransactionId($payment, $intent->getId());
+        ObjectManager::getInstance()->get(IntentHelper::class)->setIntent($intent);
+        if ($clearCompanyOrder && $this->isMiniPluginExists()) {
+            $companyOrder = ObjectManager::getInstance()->get('\Magento\Company\Api\Data\CompanyOrderInterfaceFactory')->create();
+            $companyResource = ObjectManager::getInstance()->get('\Magento\Company\Model\ResourceModel\Order');
+            $companyResource->load($companyOrder, $order->getId(), 'order_id');
+            if ($companyOrder && $companyOrder->getId()) {
+                $companyResource->delete($companyOrder);
+            }
+        }
+        $order->place();
+        ObjectManager::getInstance()->get(OrderRepository::class)->save($order);
+        if ($intent->isCaptured()) {
+            $this->invoiceAuthorizedOrder($order, $intent);
+        }
+        $this->addAVSResultToOrder($order, $intent);
+        try {
+            $this->checkCardDetail($intent, $order);
+        } catch (Exception $e) {
+            $this->logError('checkCardDetail failed: ' . $e->getMessage());
+        }
+    }
+
+    protected function invoiceAuthorizedOrder(Order $order, StructPaymentIntent $paymentIntentFromApi): bool
+    {
+        if (!$this->isCaptureConfirmed($paymentIntentFromApi)) {
+            return false;
+        }
+        $order = $this->reloadLockedOrder((int)$order->getId());
+        if (!$order->getId() || $order->isCanceled() || !$order->getPayment()
+            || $order->getTotalPaid() > 0 || $order->getBaseTotalPaid() > 0
+        ) {
+            return false;
+        }
+        $targets = $this->capturedPaymentTargets($order, $paymentIntentFromApi);
+        if ($targets === null) {
+            return false;
+        }
+        $invoice = null;
+        foreach ($order->getInvoiceCollection() as $existing) {
+            if ($existing->getState() == Invoice::STATE_CANCELED) {
+                continue;
+            }
+            if ($invoice || $existing->getState() == Invoice::STATE_PAID
+                || !AmountHelper::amountEquals($existing->getGrandTotal(), $targets['order'], $order->getOrderCurrencyCode())
+                || !AmountHelper::amountEquals($existing->getBaseGrandTotal(), $targets['base'], $order->getBaseCurrencyCode())
+            ) {
+                throw new LocalizedException(__('The existing invoice does not match the confirmed Airwallex capture.'));
+            }
+            $invoice = $existing;
+        }
+        $existingInvoice = $invoice !== null;
+        if (!$invoice) {
+            $invoice = ObjectManager::getInstance()->get(InvoiceService::class)->prepareInvoice($order);
+            $invoice->setGrandTotal($targets['order']);
+            $invoice->setBaseGrandTotal($targets['base']);
+        }
+        $order->setState(Order::STATE_PROCESSING)->setStatus(Order::STATE_PROCESSING);
+        $this->addComment($order, 'Captured amount of '
+            . $this->priceForComment($targets['order'], $targets['base'], $order)
+            . ' through Airwallex. Transaction ID: "' . $paymentIntentFromApi->getId() . '".');
+        $order->getPayment()->setIsTransactionPending(false);
+        $invoice->setTransactionId($paymentIntentFromApi->getId());
+        $invoice->setRequestedCaptureCase(Invoice::CAPTURE_OFFLINE);
+        $invoice->setCanVoidFlag(false);
+        if ($existingInvoice) {
+            $invoice->setIsPaid(true);
+            $invoice->pay();
+        } else {
+            $invoice->register();
+        }
+        ObjectManager::getInstance()->get(TransactionFactory::class)->create()
+            ->addObject($invoice)
+            ->addObject($invoice->getOrder())
+            ->save();
+        return true;
+    }
+
+    protected function reloadLockedOrder(int $orderId): Order
+    {
+        $connection = ObjectManager::getInstance()->get(PaymentIntent::class)->getConnection();
+        $row = $connection->fetchRow(
+            $connection->select()
+                ->from($connection->getTableName('sales_order'), [
+                    'entity_id',
+                    'state',
+                    'status',
+                    'total_paid',
+                    'base_total_paid',
+                    'grand_total',
+                    'base_grand_total',
+                ])
+                ->where('entity_id = ?', $orderId)
+                ->forUpdate(true)
+        );
+        $order = $this->getFreshOrder($orderId);
+        if (is_array($row)) {
+            $order->setState((string)$row['state']);
+            $order->setStatus((string)$row['status']);
+            $order->setTotalPaid($row['total_paid']);
+            $order->setBaseTotalPaid($row['base_total_paid']);
+            $order->setGrandTotal($row['grand_total']);
+            $order->setBaseGrandTotal($row['base_grand_total']);
+        }
+        return $order;
+    }
+
+    protected function capturedPaymentTargets(Order $order, StructPaymentIntent $intent): ?array
+    {
+        $capturedAmount = (float)$intent->getCapturedAmount();
+        $intentAmount = (float)$intent->getAmount();
+        $currency = (string)$intent->getCurrency();
+        if ($capturedAmount <= 0 || $intentAmount <= 0) {
+            return null;
+        }
+        if (AmountHelper::formatAmount($capturedAmount, $currency) > AmountHelper::formatAmount($intentAmount, $currency)) {
+            throw new LocalizedException(__('Invalid captured amount.'));
+        }
+
+        if ($currency === $order->getOrderCurrencyCode()) {
+            $targetOrderPaid = round($capturedAmount, 4);
+            $targetBasePaid = $this->convertToDisplayCurrency($capturedAmount, $order->getBaseToOrderRate(), true);
+        } elseif ($currency === $order->getBaseCurrencyCode()) {
+            $targetBasePaid = round($capturedAmount, 4);
+            $targetOrderPaid = $this->convertToDisplayCurrency($targetBasePaid, $order->getBaseToOrderRate(), false);
+        } else {
+            $ratio = $capturedAmount / $intentAmount;
+            $targetBasePaid = round($ratio * (float)$order->getBaseGrandTotal(), 4);
+            $targetOrderPaid = round($ratio * (float)$order->getGrandTotal(), 4);
+        }
+        // Only an exact match at Magento's storage scale may settle the full order.
+        if (round($capturedAmount, 4) === round($intentAmount, 4)) {
+            $targetOrderPaid = (float)$order->getGrandTotal();
+            $targetBasePaid = (float)$order->getBaseGrandTotal();
+        }
+        return [
+            'order' => $this->amountWithinOrderTotal(
+                $targetOrderPaid, (float)$order->getGrandTotal(), (string)$order->getOrderCurrencyCode()
+            ),
+            'base' => $this->amountWithinOrderTotal(
+                $targetBasePaid, (float)$order->getBaseGrandTotal(), (string)$order->getBaseCurrencyCode()
+            ),
+        ];
+    }
+
+    protected function isCaptureConfirmed(StructPaymentIntent $paymentIntent): bool
+    {
+        $captured = (float)$paymentIntent->getCapturedAmount();
+        return $paymentIntent->getStatus() === StructPaymentIntent::STATUS_SUCCEEDED
+            && is_finite($captured) && $captured > 0;
+    }
+
+    protected function isFullCaptureConfirmed(StructPaymentIntent $paymentIntent): bool
+    {
+        return $this->isCaptureConfirmed($paymentIntent)
+            && AmountHelper::amountEquals($paymentIntent->getCapturedAmount(), $paymentIntent->getAmount(), $paymentIntent->getCurrency());
+    }
+
+    protected function isOrderFullyPaid(Order $order): bool
+    {
+        return $order->getTotalPaid() > 0
+            && (round((float) $order->getTotalPaid(), 4) === round((float) $order->getGrandTotal(), 4)
+                || (float) $order->getTotalPaid() >= (float) $order->getGrandTotal());
     }
 
     /**
@@ -655,6 +844,17 @@ trait HelperTrait
         if (!$paymentIntentFromApi->isAuthorized() && !$paymentIntentFromApi->isCaptured()) {
             return false;
         }
+
+        // Klarna (and the other full-page redirects) unload the checkout page, so
+        // the browser poll never logs success. Record it as soon as Airwallex
+        // says the intent is paid. Placing the Magento order can still throw
+        // afterwards (currency switcher, amount check) and must not drop the event.
+        // The intent-status poll uses this same method; the cache inside
+        // checkoutSucceeded keeps a second call from logging again.
+        $intentId = is_object($paymentIntentRecord) && method_exists($paymentIntentRecord, 'getIntentId')
+            ? (string) $paymentIntentRecord->getIntentId()
+            : '';
+        PaymentFlowLog::checkoutSucceeded($quote, $intentId);
 
         if ($this->isOrderBeforePayment()) {
             $this->changeOrderStatus($paymentIntentFromApi, $paymentIntentRecord->getOrderId(), $quote, $from);
@@ -704,6 +904,19 @@ trait HelperTrait
      */
     public function placeOrder($paymentMethod, StructPaymentIntent $paymentIntentFromApi, Quote $quote, string $from = '', $billingAddress = null)
     {
+        $order = ObjectManager::getInstance()->get(PaymentIntentRepository::class)->getOrder($paymentIntentFromApi->getId());
+        $operation = function () use ($paymentMethod, $paymentIntentFromApi, $quote, $from, $billingAddress) {
+            return $this->placeOrderLocked($paymentMethod, $paymentIntentFromApi, $quote, $from, $billingAddress);
+        };
+        if ($order && $order->getId()) {
+            return ObjectManager::getInstance()->get(PaymentOperationLock::class)
+                ->execute((int)$order->getId(), $operation, PaymentOperationLock::ORDER_COMPLETION_TIMEOUT);
+        }
+        return $operation();
+    }
+
+    private function placeOrderLocked($paymentMethod, StructPaymentIntent $paymentIntentFromApi, Quote $quote, string $from, $billingAddress)
+    {
         $quoteId = $quote->getId();
 
         $resource = ObjectManager::getInstance()->get(PaymentIntent::class);
@@ -716,12 +929,15 @@ trait HelperTrait
                 ->forUpdate(true);
             $connection->query($query);
             $this->logInfo("Start to place order for quote $quoteId from $from");
-            try {
-                $order = ObjectManager::getInstance()->get(OrderInterface::class)->loadByAttribute('increment_id', $paymentIntentFromApi->getMerchantOrderId());
-            } catch (Exception $e) {
+            $repository = ObjectManager::getInstance()->get(PaymentIntentRepository::class);
+            $paymentIntentRecord = $repository->getByIntentId($paymentIntentFromApi->getId());
+            if ((int) $paymentIntentRecord->getQuoteId() !== (int) $quoteId
+                || (int) $paymentIntentRecord->getStoreId() !== (int) $quote->getStoreId()
+            ) {
+                throw new InputException(__('Payment intent does not match the quote.'));
             }
-
-            $paymentIntentRecord = ObjectManager::getInstance()->get(PaymentIntentRepository::class)->getByIntentId($paymentIntentFromApi->getId());
+            $order = $repository->getOrder($paymentIntentFromApi->getId());
+            $this->checkIntent($paymentIntentFromApi, $order ?: $quote);
             $detail = json_decode($paymentIntentRecord->getDetail(), true);
             $payment = $paymentMethod ?: $quote->getPayment();
             if ($payment->getMethod() === Vault::CODE) {
@@ -730,28 +946,17 @@ trait HelperTrait
 
             $this->setAgreementIds($payment, $detail['agreement']);
             if (empty($order) || empty($order->getId())) {
-                $this->checkIntent($paymentIntentFromApi, $quote);
                 /** @var StructPaymentIntent $paymentIntent */
                 $paymentIntentFromApi = ObjectManager::getInstance()->get(RetrievePaymentIntent::class)->setPaymentIntentId($paymentIntentFromApi->getId())->send();
                 ObjectManager::getInstance()->get(IntentHelper::class)->setIntent($paymentIntentFromApi);
-                if ($detail['uid']) {
-                    $orderId = ObjectManager::getInstance()->get(PaymentInformationManagementInterface::class)->savePaymentInformationAndPlaceOrder(
-                        $quoteId,
-                        $payment,
-                        $billingAddress
-                    );
-                } else {
-                    $cartId = ObjectManager::getInstance()->get(QuoteIdToMaskedQuoteIdInterface::class)->execute($quoteId);
-                    $orderId = ObjectManager::getInstance()->get(GuestPaymentInformationManagementInterface::class)->savePaymentInformationAndPlaceOrder(
-                        $cartId,
-                        $paymentIntentFromApi->getCustomer()['email'] ?? '',
-                        $payment,
-                        $billingAddress
-                    );
-                }
+                $orderId = $this->placeOrderFromRecalculatedQuote($payment, $paymentIntentFromApi, $quote, $billingAddress, is_array($detail) ? $detail : []);
 
                 ObjectManager::getInstance()->get(PaymentIntentRepository::class)->updateOrderId($paymentIntentRecord, $orderId);
                 $order = $this->getFreshOrder($orderId);
+                $this->checkIntent($paymentIntentFromApi, $order);
+                if ($paymentIntentFromApi->isCaptured() && !$this->isFullCaptureConfirmed($paymentIntentFromApi)) {
+                    $this->invoiceAuthorizedOrder($order, $paymentIntentFromApi);
+                }
                 $this->addAVSResultToOrder($order, $paymentIntentFromApi);
                 try {
                     $this->checkCardDetail($paymentIntentFromApi, $order);
@@ -759,13 +964,17 @@ trait HelperTrait
                     $this->logError('checkCardDetail failed: ' . $e->getMessage());
                 }
             } else if (in_array($order->getStatus(), [Order::STATE_PENDING_PAYMENT, Order::STATE_NEW, 'pending'])) {
+                ObjectManager::getInstance()->get(PaymentOperationLock::class)
+                    ->assertHeld((int)$order->getId());
                 /** @var StructPaymentIntent $paymentIntent */
                 $paymentIntentFromApi = ObjectManager::getInstance()->get(RetrievePaymentIntent::class)->setPaymentIntentId($paymentIntentFromApi->getId())->send();
+                $order = $this->reloadLockedOrder((int)$order->getId());
                 if ($paymentIntentFromApi->isAuthorized() || $paymentIntentFromApi->isCaptured()) {
-                    ObjectManager::getInstance()->get(IntentHelper::class)->setIntent($paymentIntentFromApi);
-                    $this->setTransactionId($order->getPayment(), $paymentIntentFromApi->getId());
-                    $order->setState(Order::STATE_PROCESSING)->setStatus(Order::STATE_PROCESSING);
-                    ObjectManager::getInstance()->get(OrderRepository::class)->save($order);
+                    $this->checkIntent($paymentIntentFromApi, $order);
+                    if (!$paymentIntentRecord->getOrderId()) {
+                        ObjectManager::getInstance()->get(PaymentIntentRepository::class)->updateOrderId($paymentIntentRecord, (int) $order->getId());
+                    }
+                    $this->applyIntentToOrder($order, $paymentIntentFromApi);
                 } else {
                     $this->logInfo("Can not place order for quote $quoteId from $from");
                     throw new Exception("invalid payment intent");
@@ -777,11 +986,46 @@ trait HelperTrait
             $this->logInfo("Successfully placed order for quote ID: $quoteId from $from.");
             $connection->commit();
             $this->setCheckoutSuccess($quoteId, $order);
+            if (!empty($order) && $order->getId()) {
+                PaymentFlowLog::orderStatusUpdated($order, (string) $paymentIntentFromApi->getId(), $from);
+            }
         }   catch (Exception $e) {
             $connection->rollBack();
             $this->logError(__METHOD__ . ': ' . $e->getMessage());
             throw $e;
         }
+    }
+
+    private function placeOrderFromRecalculatedQuote($payment, StructPaymentIntent $intent, Quote $quote, $billingAddress, array $detail): int
+    {
+        $quoteId = (int) $quote->getId();
+        $isCustomer = !empty($detail['uid']);
+        $cartId = '';
+        if ($isCustomer) {
+            ObjectManager::getInstance()->get(PaymentInformationManagementInterface::class)
+                ->savePaymentInformation($quoteId, $payment, $billingAddress);
+        } else {
+            $cartId = ObjectManager::getInstance()->get(QuoteIdToMaskedQuoteIdInterface::class)->execute($quoteId);
+            $customer = $intent->getCustomer();
+            ObjectManager::getInstance()->get(GuestPaymentInformationManagementInterface::class)
+                ->savePaymentInformation(
+                    $cartId,
+                    is_array($customer) ? (string) ($customer['email'] ?? '') : '',
+                    $payment,
+                    $billingAddress
+                );
+        }
+
+        $recalculated = ObjectManager::getInstance()->get(QuoteRepository::class)->get($quoteId);
+        $recalculated->setTotalsCollectedFlag(false);
+        $recalculated->collectTotals();
+        $this->checkIntent($intent, $recalculated);
+
+        if ($isCustomer) {
+            return (int) ObjectManager::getInstance()->get(CartManagementInterface::class)->placeOrder($quoteId);
+        }
+
+        return (int) ObjectManager::getInstance()->get(GuestCartManagementInterface::class)->placeOrder($cartId);
     }
 
     /**
@@ -793,6 +1037,12 @@ trait HelperTrait
      */
     public function setCheckoutSuccess($quoteId, $order)
     {
+        if (!$order || !$order->getId()) {
+            return;
+        }
+        if ($this->entityCustomerId($order) > 0 && !$this->validateOrderOwnership($order)) {
+            return;
+        }
         $checkoutHelper = ObjectManager::getInstance()->get(Data::class);
         $checkoutHelper->getCheckout()->setLastQuoteId($quoteId);
         $checkoutHelper->getCheckout()->setLastSuccessQuoteId($quoteId);
@@ -944,6 +1194,13 @@ trait HelperTrait
             return $this->validateCustomerOwnership($quote, $customerSession->getCustomerId(), 'Quote');
         }
 
+        $quoteCustomerId = $quote->getCustomerId()
+            ?: (method_exists($quote, 'getCustomer') && $quote->getCustomer() ? $quote->getCustomer()->getId() : null);
+        if ($quoteCustomerId) {
+            $this->logError("Guest user attempted to access registered customer quote {$quote->getId()}");
+            return false;
+        }
+
         $checkoutSession = $checkoutSession ?: ObjectManager::getInstance()->get(CheckoutSession::class);
         $sessionQuoteId = $checkoutSession->getQuoteId();
         if ($quote->getId() != $sessionQuoteId) {
@@ -952,6 +1209,123 @@ trait HelperTrait
         }
 
         return true;
+    }
+
+    /**
+     * Verify that a payment intent belongs to the active checkout quote and caller.
+     *
+     * @param mixed $paymentIntent
+     * @param mixed $quote
+     * @param string $requestCartId
+     * @param mixed $customerSession
+     * @param mixed $checkoutSession
+     * @return bool
+     */
+    public function isIntentOwnedByQuote(
+        $paymentIntent,
+        $quote,
+        string $requestCartId = '',
+        $customerSession = null,
+        $checkoutSession = null
+    ): bool {
+        if (!$paymentIntent || !is_object($paymentIntent) || !method_exists($paymentIntent, 'getQuoteId')
+            || !$quote || !is_object($quote) || !method_exists($quote, 'getId')
+        ) {
+            return false;
+        }
+
+        $quoteId = (int) $quote->getId();
+        if ($quoteId <= 0 || (int) $paymentIntent->getQuoteId() !== $quoteId) {
+            return false;
+        }
+
+        if (!$this->validateQuoteOwnership($quote, $customerSession, $checkoutSession)) {
+            return false;
+        }
+
+        $requestCartId = trim($requestCartId);
+        if ($requestCartId !== '') {
+            try {
+                if ($this->resolveQuoteId($requestCartId) !== $quoteId) {
+                    return false;
+                }
+            } catch (Exception $e) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Authorize an intent lookup when the checkout session's quote was already
+     * deactivated (e.g. by a concurrent webhook).
+     *
+     * @param mixed $paymentIntent
+     * @param string $requestCartId
+     * @param mixed $intentQuote
+     * @param mixed $order
+     * @param mixed $customerSession
+     * @param mixed $checkoutSession
+     * @return bool
+     */
+    public function isDeactivatedIntentQuoteAuthorized(
+        $paymentIntent,
+        string $requestCartId = '',
+        $intentQuote = null,
+        $order = null,
+        $customerSession = null,
+        $checkoutSession = null
+    ): bool {
+        if (!$paymentIntent || !is_object($paymentIntent) || !method_exists($paymentIntent, 'getQuoteId')) {
+            return false;
+        }
+
+        $intentQuoteId = (int) $paymentIntent->getQuoteId();
+        if ($intentQuoteId <= 0) {
+            return false;
+        }
+
+        try {
+            if ($intentQuote === null) {
+                $intentQuote = ObjectManager::getInstance()->get(QuoteRepository::class)->get($intentQuoteId);
+            }
+        } catch (Exception $e) {
+            return false;
+        }
+
+        if (!$intentQuote || (int) $intentQuote->getId() !== $intentQuoteId) {
+            return false;
+        }
+        if ($intentQuote && $this->validateQuoteOwnership($intentQuote, $customerSession, $checkoutSession)) {
+            return true;
+        }
+
+        if ($order === null && method_exists($paymentIntent, 'getOrderId') && (int) $paymentIntent->getOrderId() > 0) {
+            try {
+                $order = $this->getFreshOrder((int) $paymentIntent->getOrderId());
+            } catch (Exception $e) {
+                $order = null;
+            }
+        }
+
+        if ($order && $order->getId() && (int) $order->getQuoteId() === $intentQuoteId
+            && $this->validateOrderOwnership($order, $customerSession, $checkoutSession)
+        ) {
+            return true;
+        }
+
+        $quoteCustomerId = (int) $intentQuote->getCustomerId();
+        $requestCartId = trim($requestCartId);
+        if ($quoteCustomerId === 0 && $requestCartId !== '' && !is_numeric($requestCartId)) {
+            try {
+                return $this->resolveQuoteId($requestCartId) === $intentQuoteId;
+            } catch (Exception $e) {
+                return false;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -1057,15 +1431,19 @@ trait HelperTrait
      * @param mixed $order
      * @param string $state
      * @param ReturnState|null $returnState
+     * @param mixed $customerSession
      * @return bool
      */
-    public function validateOrderAccess($order, string $state, $returnState = null): bool
+    public function validateOrderAccess($order, string $state, $returnState = null, $customerSession = null): bool
     {
-        if ($this->validateOrderOwnership($order)) {
+        if ($this->validateOrderOwnership($order, $customerSession)) {
             return true;
         }
 
-        if (!$order || !$order->getId()) {
+        if (!$order || !$order->getId()
+            || $this->entityCustomerId($order) > 0
+            || $this->isLoggedInCustomer($customerSession)
+        ) {
             return false;
         }
 
@@ -1083,15 +1461,19 @@ trait HelperTrait
      * @param mixed $quote
      * @param string $state
      * @param ReturnState|null $returnState
+     * @param mixed $customerSession
      * @return bool
      */
-    public function validateQuoteAccess($quote, string $state, $returnState = null): bool
+    public function validateQuoteAccess($quote, string $state, $returnState = null, $customerSession = null): bool
     {
-        if ($this->validateQuoteOwnership($quote)) {
+        if ($this->validateQuoteOwnership($quote, $customerSession)) {
             return true;
         }
 
-        if (!$quote || !$quote->getId()) {
+        if (!$quote || !$quote->getId()
+            || $this->entityCustomerId($quote) > 0
+            || $this->isLoggedInCustomer($customerSession)
+        ) {
             return false;
         }
 
@@ -1109,11 +1491,19 @@ trait HelperTrait
      * @param mixed $intentRecord
      * @param string $state
      * @param ReturnState|null $returnState
+     * @param mixed $customerSession
      * @return bool
      */
-    public function validateIntentStateAccess($intentRecord, string $state, $returnState = null): bool
-    {
-        if (!$intentRecord) {
+    public function validateIntentStateAccess(
+        $intentRecord,
+        string $state,
+        $returnState = null,
+        $customerSession = null
+    ): bool {
+        if (!$intentRecord
+            || $this->intentCustomerId($intentRecord) > 0
+            || $this->isLoggedInCustomer($customerSession)
+        ) {
             return false;
         }
 
@@ -1140,6 +1530,82 @@ trait HelperTrait
         }
 
         return false;
+    }
+
+    public function consumeReturnStateToken(string $state, $returnState = null): void
+    {
+        if ($state === '') {
+            return;
+        }
+        try {
+            $returnState = $returnState ?: $this->returnState();
+            if ($returnState->isConfigured()) {
+                $returnState->consumeToken($state);
+            }
+        } catch (Exception $e) {
+            $this->logError('Unable to consume signed return state: ' . $e->getMessage());
+        }
+    }
+
+    public function consumeReturnState(int $quoteId, int $orderId = 0, string $state = '', $returnState = null): void
+    {
+        try {
+            $returnState = $returnState ?: $this->returnState();
+            if (!$returnState->isConfigured()) {
+                return;
+            }
+            if ($state !== '') {
+                $returnState->consumeToken($state);
+            }
+            if ($quoteId > 0) {
+                $returnState->consumeEntity(ReturnState::SCOPE_QUOTE, $quoteId);
+            }
+            if ($orderId > 0) {
+                $returnState->consumeEntity(ReturnState::SCOPE_ORDER, $orderId);
+            }
+        } catch (Exception $e) {
+            $this->logError('Unable to consume signed return state: ' . $e->getMessage());
+        }
+    }
+
+    protected function entityCustomerId($entity): int
+    {
+        if (!is_object($entity)) {
+            return 0;
+        }
+        if (method_exists($entity, 'getCustomerId') && $entity->getCustomerId()) {
+            return (int) $entity->getCustomerId();
+        }
+        if (method_exists($entity, 'getCustomer') && $entity->getCustomer()
+            && method_exists($entity->getCustomer(), 'getId')
+        ) {
+            return (int) $entity->getCustomer()->getId();
+        }
+        return 0;
+    }
+
+    protected function intentCustomerId($intentRecord): int
+    {
+        if (is_object($intentRecord) && method_exists($intentRecord, 'getDetail')) {
+            $detail = json_decode((string) $intentRecord->getDetail(), true);
+            if (is_array($detail) && !empty($detail['uid'])) {
+                return (int) $detail['uid'];
+            }
+        }
+        return 0;
+    }
+
+    protected function isLoggedInCustomer($customerSession = null): bool
+    {
+        if ($customerSession === null) {
+            try {
+                $customerSession = ObjectManager::getInstance()->get(CustomerSession::class);
+            } catch (\RuntimeException $e) {
+                return false;
+            }
+        }
+        return is_object($customerSession) && method_exists($customerSession, 'isLoggedIn')
+            && (bool) $customerSession->isLoggedIn();
     }
 
     /**

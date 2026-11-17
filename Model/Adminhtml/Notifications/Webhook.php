@@ -101,14 +101,17 @@ class Webhook implements MessageInterface
             if ($capitalMode === 'Prod') {
                 $capitalMode = 'Production';
             }
-            if (!$this->configuration->getWebhookSecretKey()) {
+            $secretKey = (string) $this->configuration->getWebhookSecretKey();
+            if (trim($secretKey) === '') {
                 $this->displayedText = __("Please ensure that the Airwallex Webhook $capitalMode Secret Key is configured.");
                 return;
             }
             $webhook = $this->configuration->getWebhook();
             $mode = $this->configuration->getMode();
             if (empty($webhook["{$mode}_key"])) return;
-            if ($webhook["{$mode}_key"] !== $this->configuration->getWebhookSecretKey()) return;
+            $storedKey = (string) $webhook["{$mode}_key"];
+            $expectedHash = WebhookWebhook::hashSecretKey($secretKey);
+            if (!hash_equals($expectedHash, $storedKey)) return;
             if ($webhook["{$mode}_status"] !== WebhookWebhook::WEBHOOK_VERIFIED) {
                 $this->displayedText = __("The Airwallex Webhook $capitalMode Secret Key is not configured properly. Please ensure it is correctly set up.");
             }

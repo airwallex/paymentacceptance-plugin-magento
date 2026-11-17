@@ -30,6 +30,33 @@
             <argument name="filesystem" xsi:type="object">Magento\Framework\Filesystem\Driver\File</argument>
         </arguments>
     </type>
+    <type name="Magento\Sales\Controller\Adminhtml\Order\Invoice\Save">
+        <plugin name="airwallex_capture_lock" type="Airwallex\Payments\Plugin\InvoiceCapture" sortOrder="1"/>
+    </type>
+    <type name="Magento\Sales\Controller\Adminhtml\Order\Invoice\Capture">
+        <plugin name="airwallex_capture_lock" type="Airwallex\Payments\Plugin\InvoiceCapture" sortOrder="1"/>
+    </type>
+    <type name="Magento\Sales\Model\InvoiceOrder">
+        <plugin name="airwallex_capture_lock" type="Airwallex\Payments\Plugin\InvoiceCapture" sortOrder="1"/>
+    </type>
+    <type name="Magento\Sales\Model\Service\InvoiceService">
+        <plugin name="airwallex_capture_lock" type="Airwallex\Payments\Plugin\InvoiceCapture" sortOrder="1"/>
+    </type>
+    <type name="Magento\Sales\Model\Service\CreditmemoService">
+        <plugin name="airwallex_refund_lock" type="Airwallex\Payments\Plugin\CreditmemoRefund" sortOrder="1"/>
+    </type>
+    <type name="Magento\Sales\Model\RefundInvoice">
+        <plugin name="airwallex_refund_lock" type="Airwallex\Payments\Plugin\CreditmemoRefund" sortOrder="1"/>
+    </type>
+    <type name="Magento\Sales\Model\RefundOrder">
+        <plugin name="airwallex_refund_lock" type="Airwallex\Payments\Plugin\CreditmemoRefund" sortOrder="1"/>
+    </type>
+    <type name="Magento\Sales\Model\Order">
+        <plugin name="airwallex_reconcile_before_cancel" type="Airwallex\Payments\Plugin\OrderCancel" sortOrder="1"/>
+    </type>
+    <type name="Magento\Sales\Api\OrderManagementInterface">
+        <plugin name="airwallex_reconcile_before_cancel" type="Airwallex\Payments\Plugin\OrderCancel" sortOrder="1"/>
+    </type>
     <!-- Card Method -->
     <virtualType name="AirwallexPaymentCardCountryValidator" type="Magento\Payment\Gateway\Validator\CountryValidator">
         <arguments>

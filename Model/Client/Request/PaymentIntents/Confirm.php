@@ -86,11 +86,11 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
      * @param AddressInterface|OrderAddressInterface|null $address
      * @param string $email
      * @param $intent
-     * @param array $currencySwitcherData
+     * @param array $conversionQuoteData
      * @return Confirm
      * @throws LocalizedException
      */
-    public function setInformation(string $method, $address, $intent, string $email = "", array $currencySwitcherData = []): self
+    public function setInformation(string $method, $address, $intent, string $email = "", array $conversionQuoteData = []): self
     {
         $data = [
             'payment_method' => [
@@ -129,11 +129,11 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
                 $data['payment_method'][$method]['country_code'] = $address->getCountryId();
             } else if ($method === 'bank_transfer') {
                 $currencyCollection = BankTransfer::SUPPORTED_CURRENCY_TO_COUNTRY;
-                if (!empty($currencySwitcherData['target_currency'])) {
-                    if (empty($currencyCollection[$currencySwitcherData['target_currency']])) {
+                if (!empty($conversionQuoteData['target_currency'])) {
+                    if (empty($currencyCollection[$conversionQuoteData['target_currency']])) {
                         throw new LocalizedException(__('Invalid currency for Bank Transfer'));
                     }
-                    $data['payment_method'][$method]['country_code'] = $currencyCollection[$currencySwitcherData['target_currency']];
+                    $data['payment_method'][$method]['country_code'] = $currencyCollection[$conversionQuoteData['target_currency']];
                 } else {
                     if (empty($currencyCollection[$intent->getCurrency()])) {
                         throw new LocalizedException(__('Invalid currency for Bank Transfer'));
@@ -164,16 +164,6 @@ class Confirm extends AbstractClient implements BearerAuthenticationInterface
         }
         $data['payment_method'][$paymentMethod]['flow'] = $flow;
         return $data;
-    }
-
-    public function setQuote(string $targetCurrency, $quoteId)
-    {
-        return $this->setParams([
-            'currency_switcher' => [
-                'target_currency' => $targetCurrency,
-                'quote_id' => $quoteId
-            ],
-        ]);
     }
 
     public function setBrowserInformation(string $info)

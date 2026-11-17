@@ -4,7 +4,8 @@ namespace Airwallex\PayappsPlugin\CommonLibrary\Gateway\PluginService;
 
 use Airwallex\PayappsPlugin\CommonLibrary\Configuration\Init;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
-use Error;
+use Airwallex\PayappsPlugin\CommonLibrary\Logger\Redactor;
+use Throwable;
 use Exception;
 
 class Log extends AbstractApi
@@ -75,13 +76,43 @@ class Log extends AbstractApi
     protected function decodeJWT(string $token): string
     {
         $parts = explode('.', $token);
-        if (count($parts) < 2) {
+        if (count($parts) !== 3 || $parts[0] === '' || $parts[1] === '' || $parts[2] === '') {
             return 'decode failed';
         }
 
-        $decoded = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+        $header = json_decode($this->base64UrlDecode($parts[0]), true);
+        if (!is_array($header) || empty($header['alg']) || !is_string($header['alg'])) {
+            return 'decode failed';
+        }
+        if (strtolower($header['alg']) === 'none') {
+            return 'decode failed';
+        }
+        $payload = json_decode($this->base64UrlDecode($parts[1]), true);
+        if (!is_array($payload) || empty($payload['account_id']) || !is_string($payload['account_id'])) {
+            return 'decode failed';
+        }
+        if (!preg_match('/\A[A-Za-z0-9_\-]+\z/', $payload['account_id'])) {
+            return 'decode failed';
+        }
 
-        return $decoded['account_id'] ?? 'decode failed';
+        return $payload['account_id'];
+    }
+
+    /**
+     * @param string $data
+     *
+     * @return string
+     */
+    private function base64UrlDecode($data)
+    {
+        $data = strtr($data, '-_', '+/');
+        $pad = strlen($data) % 4;
+        if ($pad > 0) {
+            $data .= str_repeat('=', 4 - $pad);
+        }
+        $decoded = base64_decode($data, true);
+
+        return $decoded === false ? '' : $decoded;
     }
 
     /**
@@ -90,6 +121,8 @@ class Log extends AbstractApi
      */
     protected function getAccountId(): string
     {
+        // The token comes from the authenticated API over TLS; this claim is
+        // telemetry only and must never authorize access.
         return $this->decodeJWT($this->getToken());
     }
 
@@ -179,26 +212,7 @@ class Log extends AbstractApi
      */
     public static function maskContact(string $input): string
     {
-        if (filter_var($input, FILTER_VALIDATE_EMAIL)) {
-            list($user, $domain) = explode('@', $input);
-            $len = strlen($user);
-            if ($len <= 2) {
-                $maskedUser = substr($user, 0, 1) . str_repeat('*', $len - 1);
-            } else {
-                $maskedUser = substr($user, 0, 1) . str_repeat('*', $len - 2) . substr($user, -1);
-            }
-            return $maskedUser . '@' . $domain;
-        } elseif (preg_match('/^\+?\d{6,20}$/', $input)) {
-            $prefixLen = 3;
-            $suffixLen = 2;
-            $len = strlen($input);
-            if ($len <= ($prefixLen + $suffixLen)) {
-                return substr($input, 0, 1) . str_repeat('*', $len - 1);
-            }
-            return substr($input, 0, $prefixLen) . str_repeat('*', $len - $prefixLen - $suffixLen) . substr($input, -$suffixLen);
-        } else {
-            return $input;
-        }
+        return Redactor::redact($input);
     }
 
     /**
@@ -221,20 +235,25 @@ class Log extends AbstractApi
      */
     public static function log(string $severity, string $eventName, string $message)
     {
-        $instance = self::getInstance();
-        $instance->setParams([
-            'data' => [
-                [
-                    'severity' => $severity,
-                    'eventName' => $eventName,
-                    'message' => self::maskContact($message),
-                    'trace' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS),
-                    'metadata' => $instance->getMetadata(),
+        try {
+            $instance = self::getInstance();
+            $instance->setParams([
+                'data' => [
+                    [
+                        'severity' => $severity,
+                        'eventName' => Redactor::redact($eventName),
+                        'message' => self::maskContact($message),
+                        'trace' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS),
+                        'metadata' => Redactor::redact($instance->getMetadata()),
+                    ]
                 ]
-            ]
-        ]);
+            ]);
 
-        return $instance->send();
+            return $instance->send();
+        } catch (Throwable $e) {
+            // Payload preparation must also be best effort.
+            return '';
+        }
     }
 
     /**
@@ -252,8 +271,7 @@ class Log extends AbstractApi
     {
         try {
             return parent::send();
-        } catch (Error $e) {
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
         }
         return "";
     }

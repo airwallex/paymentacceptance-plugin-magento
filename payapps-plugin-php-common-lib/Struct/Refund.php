@@ -71,6 +71,18 @@ class Refund extends AbstractBase
      */
     private $metadata = [];
 
+    /**
+     * @var string
+     */
+    private $connectedAccountId;
+
+    /**
+     * Failure details when status is FAILED.
+     *
+     * @var array
+     */
+    private $failureDetails = [];
+
     // Getters and Setters
 
     public function getId(): string
@@ -202,6 +214,28 @@ class Refund extends AbstractBase
     public function setMetadata(array $metadata): Refund
     {
         $this->metadata = $metadata;
+        return $this;
+    }
+
+    public function getConnectedAccountId(): string
+    {
+        return $this->connectedAccountId ?? '';
+    }
+
+    public function setConnectedAccountId(string $connectedAccountId): Refund
+    {
+        $this->connectedAccountId = $connectedAccountId;
+        return $this;
+    }
+
+    public function getFailureDetails(): array
+    {
+        return $this->failureDetails ?? [];
+    }
+
+    public function setFailureDetails(array $failureDetails): Refund
+    {
+        $this->failureDetails = $failureDetails;
         return $this;
     }
 }

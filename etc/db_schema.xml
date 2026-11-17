@@ -21,6 +21,11 @@
         <index referenceId="AIRWALLEX_PAYMENT_INTENTS_ORDER_INCREMENT_ID" indexType="btree">
             <column name="order_id"/>
         </index>
+        <index referenceId="AIRWALLEX_PAYMENT_INTENTS_ORDER_INCREMENT_ID_STORE_ID" indexType="btree">
+            <column name="order_increment_id"/>
+            <column name="store_id"/>
+            <column name="id"/>
+        </index>
         <index referenceId="AIRWALLEX_PAYMENT_INTENTS_QUOTE_ID" indexType="btree">
             <column name="quote_id"/>
         </index>

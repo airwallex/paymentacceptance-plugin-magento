@@ -40,7 +40,9 @@ use Airwallex\Payments\Helper\IsOrderCreatedHelper;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Cancel as CancelPaymentIntent;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Capture as CapturePaymentIntent;
 use Airwallex\Payments\Model\PaymentIntentRepository;
+use Airwallex\Payments\Model\PaymentOperationLock;
 use Airwallex\Payments\Model\PaymentIntents;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\AmountHelper;
 use Exception;
 use Magento\Checkout\Helper\Data as CheckoutData;
 use Magento\Framework\Event\ManagerInterface;
@@ -60,11 +62,11 @@ use Magento\Sales\Model\Order\Payment;
 use RuntimeException;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use Magento\Framework\App\CacheInterface;
+use Magento\Framework\App\ObjectManager;
 use Airwallex\Payments\Helper\IntentHelper;
 use Magento\Sales\Model\Order;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentIntent\Retrieve as RetrievePaymentIntent;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\Refund\Create as CreateRefund;
-use Airwallex\PayappsPlugin\CommonLibrary\Struct\Refund as StructRefund;
 
 /**
  * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
@@ -218,6 +220,10 @@ abstract class AbstractMethod extends Adapter
     {
         if (!$this->configuration->isOrderBeforePayment()) {
             $paymentIntent = $this->intentHelper->getIntent();
+            $order = $payment->getOrder();
+            if ($order) {
+                $this->assertIntentMatchesPayment($paymentIntent, $order);
+            }
             /** @var Payment $payment */
             $this->setTransactionId($payment, $paymentIntent->getId());
         }
@@ -241,6 +247,8 @@ abstract class AbstractMethod extends Adapter
         $order = $payment->getOrder();
         /** @var Order $order */
         if ($order && $order->getId()) {
+            ObjectManager::getInstance()->get(PaymentOperationLock::class)
+                ->assertOrderUnchanged($order);
             if ($order->getTotalPaid() > 0) {
                 throw new LocalizedException(__('This order has already been captured and cannot be captured again.'));
             }
@@ -261,24 +269,47 @@ abstract class AbstractMethod extends Adapter
             throw new LocalizedException(__('Something went wrong while trying to capture the payment.'));
         }
 
-        if ($paymentIntent->isCaptured()) {
-            return $this;
+        if ($order) {
+            $this->assertIntentMatchesPayment($paymentIntent, $order);
         }
 
-        $this->cache->save(true, $this->captureCacheName($intentId), [], 3600);
         if (empty($order) || empty($order->getId())) {
             $captureAmount = $paymentIntent->getAmount();
         } else {
             if ($order->getBaseGrandTotal() <= 0) {
                 throw new LocalizedException(__('The base grand total of the order must be greater than zero.'));
             }
-
-            $captureAmount = $this->isAmountEqual($amount, $order->getBaseGrandTotal())
+            $captureAmount = AmountHelper::amountEquals($amount, $order->getBaseGrandTotal(), $order->getBaseCurrencyCode())
                 ? $paymentIntent->getAmount()
                 : $amount / $order->getBaseGrandTotal() * $paymentIntent->getAmount();
         }
-        $decimal = PaymentIntents::CURRENCY_TO_DECIMAL[$paymentIntent->getCurrency()] ?? 2;
-        $this->capturePaymentIntent->setPaymentIntentId($intentId)->setAmount(round($captureAmount, $decimal))->send();
+        $currency = $paymentIntent->getCurrency();
+        if ($paymentIntent->isCaptured()) {
+            if (!$this->isCaptureConfirmed($paymentIntent)) {
+                throw new LocalizedException(__('This payment capture is not yet confirmed on Airwallex. Please wait for confirmation before invoicing.'));
+            }
+            if (!AmountHelper::amountEquals($captureAmount, $paymentIntent->getCapturedAmount(), $currency)) {
+                throw new LocalizedException(__('The invoice amount does not match the confirmed Airwallex capture.'));
+            }
+            if ($payment instanceof Payment) {
+                $payment->setIsTransactionPending(false);
+            }
+            return $this;
+        }
+        $capturedIntent = $this->capturePaymentIntent->setPaymentIntentId($intentId)
+            ->setAmount(AmountHelper::formatAmount($captureAmount, $currency))->send();
+        if ($capturedIntent instanceof StructPaymentIntent) {
+            if ($this->isCaptureConfirmed($capturedIntent)) {
+                if (!AmountHelper::amountEquals($captureAmount, $capturedIntent->getCapturedAmount(), $currency)) {
+                    throw new LocalizedException(__('The invoice amount does not match the confirmed Airwallex capture.'));
+                }
+                if ($payment instanceof Payment) {
+                    $payment->setIsTransactionPending(false);
+                }
+            } elseif ($payment instanceof Payment) {
+                $payment->setIsTransactionPending(true);
+            }
+        }
         return $this;
     }
 
@@ -297,10 +328,15 @@ abstract class AbstractMethod extends Adapter
 
         $intentId = $this->getIntentId($payment);
         $this->cache->save(true, $this->cancelCacheName($intentId), [], 3600);
+        if ($this->cancelHelper->isIntentCanceled($intentId)) {
+            return $this;
+        }
         try {
             $this->cancelPaymentIntent->setPaymentIntentId($intentId)->send();
+            $this->cancelHelper->markIntentCanceled($intentId);
         } catch (Exception $e) {
-            if (strstr($e->getMessage(), 'CANCELLED')) {
+            if (strstr($e->getMessage(), 'CANCELLED') || $this->isIntentCancelledOnAirwallex($intentId)) {
+                $this->cancelHelper->markIntentCanceled($intentId);
                 return $this;
             }
             /** @var Payment $payment */
@@ -309,6 +345,21 @@ abstract class AbstractMethod extends Adapter
         }
 
         return $this;
+    }
+
+    private function isIntentCancelledOnAirwallex(string $intentId): bool
+    {
+        if ($intentId === '') {
+            return false;
+        }
+        try {
+            $latest = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
+            return $latest instanceof StructPaymentIntent
+                && $latest->getStatus() === StructPaymentIntent::STATUS_CANCELLED;
+        } catch (Exception $e) {
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**
@@ -325,53 +376,71 @@ abstract class AbstractMethod extends Adapter
 
         $order = $payment->getOrder();
 
+        ObjectManager::getInstance()->get(PaymentOperationLock::class)
+            ->assertHeld((int)$order->getId());
         $intentId = $this->getIntentId($payment);
 
-        $this->cache->save(true, $this->refundCacheName($intentId), [], 3600);
         try {
             /** @var StructPaymentIntent $paymentIntent */
             $paymentIntent = $this->retrievePaymentIntent->setPaymentIntentId($intentId)->send();
-            $record = $this->paymentIntentRepository->getByIntentId($intentId);
-            /** @var Creditmemo $credit */
             if ($credit->getOrderCurrencyCode() === $paymentIntent->getCurrency()) {
-                $refundAmount = $credit->getGrandTotal();
+                $refundAmount = (float)$credit->getGrandTotal();
             } else {
-                $orderGrandTotal = $order->getGrandTotal();
-                if ($this->isAmountEqual($credit->getGrandTotal(), $order->getGrandTotal()) && $credit->getOrderCurrencyCode() === $order->getOrderCurrencyCode()) {
-                    $refundAmount = $paymentIntent->getAmount();
+                $orderGrandTotal = (float)$order->getGrandTotal();
+                if ($this->isAmountEqual((float)$credit->getGrandTotal(), $orderGrandTotal, (string)$order->getOrderCurrencyCode()) && $credit->getOrderCurrencyCode() === $order->getOrderCurrencyCode()) {
+                    $refundAmount = (float)$paymentIntent->getAmount();
                 } else {
-                    $decimal = PaymentIntents::CURRENCY_TO_DECIMAL[$paymentIntent->getCurrency()] ?? 2;
                     if ($orderGrandTotal <= 0) {
                         throw new LocalizedException(__('The grand total of the order must be greater than zero.'));
                     }
-                    $refundAmount = round($credit->getGrandTotal() / $orderGrandTotal * $paymentIntent->getAmount(), $decimal);
+                    $refundAmount = $credit->getGrandTotal() / $orderGrandTotal * $paymentIntent->getAmount();
                 }
             }
+            $refundAmount = AmountHelper::formatAmount($refundAmount, $paymentIntent->getCurrency());
             if ($refundAmount <= 0) {
                 throw new LocalizedException(__('The refund amount must be greater than zero.'));
             }
+            $currency = (string)$paymentIntent->getCurrency();
             $this->processBankTransfer($paymentIntent, $refundAmount);
-            try {
-                /** @var StructRefund $refundedObject */
-                $refundedObject = $this->createRefund->setPaymentIntentId($intentId)->setAmount($refundAmount)->send();
-            } catch (Exception $e) {
-                $this->logError(__METHOD__ . ': ' . $e->getMessage());
-                $this->cache->remove($this->refundCacheName($intentId));
-                throw new LocalizedException(__('Something went wrong while trying to process the refund.'));
-            }
-
-            $detail = $record->getDetail();
-            $detailArray = $detail ? json_decode($detail, true) : [];
-            if (empty($detailArray['refund_ids'])) {
-                $detailArray['refund_ids'] = [];
-            }
-            $detailArray['refund_ids'][] = $refundedObject->getId();
-            $this->paymentIntentRepository->updateDetail($record, json_encode($detailArray));
+            // Commit the request id before the API call so a lost response retries the same id.
+            $requestId = $this->paymentIntentRepository->reserveRefundRequest($intentId);
+            $refundId = $this->createAirwallexRefund($intentId, $requestId, $refundAmount, $currency);
+            $this->paymentIntentRepository->withLockedIntent(
+                $intentId,
+                function ($record) use ($refundId, $requestId): void {
+                    if ($this->paymentIntentRepository->hasRecordedRefund($record, $refundId)) {
+                        throw new LocalizedException(__('This Airwallex refund is already recorded on the order.'));
+                    }
+                    $this->paymentIntentRepository->appendRefundToRecord($record, $refundId, $requestId);
+                }
+            );
         } catch (Exception $exception) {
-            $this->logError(__METHOD__ . $exception->getMessage());
-            throw new RuntimeException(__($exception->getMessage()));
+            $this->logError(__METHOD__ . ': ' . $exception);
+            throw new RuntimeException(__($exception->getMessage()), 0, $exception);
         }
         return $this;
+    }
+
+    private function createAirwallexRefund(string $intentId, string $requestId, float $amount, string $currency): string
+    {
+        try {
+            $refundedObject = $this->createRefund
+                ->setPaymentIntentId($intentId)
+                ->setAmount($amount)
+                ->setCurrency($currency)
+                ->setRequestId($requestId)
+                ->send();
+        } catch (RequestException $exception) {
+            $this->paymentIntentRepository->clearRefundRequest($intentId, $requestId);
+            throw new LocalizedException(__('Something went wrong while trying to process the refund.'), $exception);
+        } catch (Exception $exception) {
+            throw new LocalizedException(__('The refund result is uncertain. Retry it before sending another refund.'), $exception);
+        }
+        $refundId = $refundedObject->getId();
+        if ($refundId === '') {
+            throw new LocalizedException(__('The refund result is uncertain. Retry it before sending another refund.'));
+        }
+        return $refundId;
     }
 
     /**
@@ -382,7 +451,9 @@ abstract class AbstractMethod extends Adapter
         if ($paymentIntent->getCurrency() === 'USD'
             && !empty($paymentIntent->getLatestPaymentAttempt()['payment_method']['type'])
             && $paymentIntent->getLatestPaymentAttempt()['payment_method']['type'] === 'bank_transfer') {
-            if ($paymentIntent->getAmount() - $refundAmount >= 0.01) {
+            if (AmountHelper::formatAmount($refundAmount, $paymentIntent->getCurrency())
+                < AmountHelper::formatAmount($paymentIntent->getAmount(), $paymentIntent->getCurrency())
+            ) {
                 throw new LocalizedException(__('Partial refunds are supported for USD, but only after additional bank account details are collected from the customer.
                     For more information, please refer to the following document: %1.', "https://www.airwallex.com/docs/payments__global__bank-transfer-beta#refunds"));
             }
@@ -421,11 +492,17 @@ abstract class AbstractMethod extends Adapter
      */
     protected function getIntentId($payment): string
     {
+        $intentId = $payment->getAdditionalInformation('intent_id')
+            ?: $this->getInfoInstance()->getAdditionalInformation('intent_id')
+            ?: $payment->getLastTransId();
+        if (is_string($intentId) && strpos($intentId, 'int_') === 0) {
+            return (string) preg_replace('/-(?:capture|refund|void)$/', '', $intentId);
+        }
         /** @var Order $order */
         $order = $payment->getOrder();
         $paymentIntent = $this->paymentIntentRepository->getByOrderIncrementIdAndStoreId($order->getIncrementId(), $order->getStoreId());
         if (!$paymentIntent || !$paymentIntent->getIntentId()) {
-            return $this->getInfoInstance()->getAdditionalInformation('intent_id') ?: '';
+            return is_string($intentId) ? $intentId : '';
         }
         return $paymentIntent->getIntentId();
     }
@@ -437,7 +514,9 @@ abstract class AbstractMethod extends Adapter
             return '';
         }
         if ($paymentIntent->isCaptured()) {
-            return MethodInterface::ACTION_AUTHORIZE_CAPTURE;
+            // Magento's authorize_capture action creates a full-order invoice inside place().
+            // Partial or unconfirmed captures are invoiced explicitly from the confirmed captured amount.
+            return $this->isFullCaptureConfirmed($paymentIntent) ? MethodInterface::ACTION_AUTHORIZE_CAPTURE : '';
         }
         if ($paymentIntent->isAuthorized()) {
             return MethodInterface::ACTION_AUTHORIZE;

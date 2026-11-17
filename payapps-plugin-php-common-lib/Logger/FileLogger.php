@@ -6,6 +6,8 @@ use Airwallex\PayappsPlugin\CommonLibrary\Configuration\Init;
 
 class FileLogger
 {
+    const ALLOWED_LEVELS = ['info', 'error', 'warning', 'debug'];
+
     private static $instance = null;
 
     public static function getInstance()
@@ -56,27 +58,60 @@ class FileLogger
         self::getInstance()->logDebug($message, $context);
     }
 
+    public function getLogFilePath(string $level, string $date = ''): string
+    {
+        $init = Init::getInstance();
+        $logDir = $this->getLogDirectory();
+        if ($logDir === '') {
+            return '';
+        }
+        $date = $date !== '' ? $date : date('Y-m-d');
+        $secret = serialize([
+            (string) $init->get('api_key'),
+            (string) $init->get('client_id'),
+            $logDir,
+            (string) @fileinode(__DIR__),
+        ]);
+        $hash = substr(hash_hmac('sha256', $level . '|' . $date, $secret), 0, 16);
+
+        return $logDir . DIRECTORY_SEPARATOR . sprintf('airwallex_%s_%s_%s.log', $level, $date, $hash);
+    }
+
     protected function writeLog($level, $message, array $context = [])
     {
-        $logDir = Init::getInstance()->get('log_dir');
+        try {
+            $level = strtolower((string) $level);
+            if (!in_array($level, self::ALLOWED_LEVELS, true)) {
+                return;
+            }
 
-        if (empty($logDir) || !is_dir($logDir) || !is_writable($logDir)) {
-            return;
+            $logDir = $this->getLogDirectory();
+            if ($logDir === '' || !@is_dir($logDir) || !@is_writable($logDir)) {
+                return;
+            }
+
+            $filePath = $this->getLogFilePath($level);
+            if (@is_link($filePath)) {
+                return;
+            }
+
+            $time = date('Y-m-d H:i:s');
+
+            $extra = '';
+            if (!empty($context)) {
+                $extra = ' ' . json_encode(Redactor::redact($context), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            }
+
+            $line = sprintf("[%s] %s: %s%s\n", $time, strtoupper($level), Redactor::redact((string) $message), $extra);
+
+            @file_put_contents($filePath, $line, FILE_APPEND);
+        } catch (\Throwable $e) {
+            // Logging failures must not interrupt payment processing.
         }
+    }
 
-        $date = date('Y-m-d');
-        $filename = sprintf('airwallex_%s_%s.log', $level, $date);
-        $filePath = rtrim($logDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $filename;
-        
-        $time = date('Y-m-d H:i:s');
-
-        $extra = '';
-        if (!empty($context)) {
-            $extra = ' ' . json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        }
-
-        $line = sprintf("[%s] %s: %s%s\n", $time, strtoupper($level), $message, $extra);
-
-        file_put_contents($filePath, $line, FILE_APPEND);
+    private function getLogDirectory(): string
+    {
+        return rtrim((string) Init::getInstance()->get('log_dir'), '/\\');
     }
 }

@@ -43,24 +43,30 @@ class Configuration extends AbstractHelper
 
     private const EXPRESS_PREFIX = 'payment/airwallex_payments_express/';
 
+    private function getStringValue(string $path): string
+    {
+        $value = $this->scopeConfig->getValue($path);
+        return is_scalar($value) ? (string) $value : '';
+    }
+
     /**
      * Client id
      *
-     * @return string|null
+     * @return string
      */
     public function getClientId(): ?string
     {
-        return $this->scopeConfig->getValue('airwallex/general/' . $this->getMode() . '_client_id');
+        return $this->getStringValue('airwallex/general/' . $this->getMode() . '_client_id');
     }
 
     /**
      * Api key
      *
-     * @return string|null
+     * @return string
      */
     public function getApiKey(): ?string
     {
-        return $this->scopeConfig->getValue('airwallex/general/' . $this->getMode() . '_api_key');
+        return $this->getStringValue('airwallex/general/' . $this->getMode() . '_api_key');
     }
 
     /**
@@ -76,11 +82,11 @@ class Configuration extends AbstractHelper
     /**
      * Webhook secret key
      *
-     * @return string|null
+     * @return string
      */
     public function getWebhookSecretKey(): ?string
     {
-        return $this->scopeConfig->getValue(
+        return $this->getStringValue(
             'airwallex/general/webhook_' . $this->getMode() . '_secret_key'
         );
     }
@@ -95,20 +101,20 @@ class Configuration extends AbstractHelper
         $str = $this->scopeConfig->getValue(
             'airwallex/general/webhook'
         );
-        if (!$str) return [];
+        if (!is_string($str) || $str === '') return [];
         $arr = json_decode($str, true);
         if (json_last_error() !== JSON_ERROR_NONE) return [];
-        return $arr ?: [];
+        return is_array($arr) ? $arr : [];
     }
 
     /**
      * Mode
      *
-     * @return string|null
+     * @return string
      */
     public function getMode(): ?string
     {
-        return $this->scopeConfig->getValue('airwallex/general/mode');
+        return $this->getStringValue('airwallex/general/mode');
     }
 
     /**
@@ -118,7 +124,7 @@ class Configuration extends AbstractHelper
      */
     public function getAccount(): string
     {
-        return $this->scopeConfig->getValue('airwallex/general/account') ?? '';
+        return $this->getStringValue('airwallex/general/account');
     }
 
     /**
@@ -213,21 +219,21 @@ class Configuration extends AbstractHelper
     /**
      * Express display area
      *
-     * @return string|null
+     * @return string
      */
     public function expressDisplayArea(): ?string
     {
-        return $this->scopeConfig->getValue('payment/airwallex_payments_express/display_area');
+        return $this->getStringValue('payment/airwallex_payments_express/display_area');
     }
 
     /**
      * Express seller name
      *
-     * @return string|null
+     * @return string
      */
     public function getExpressSellerName(): ?string
     {
-        return $this->scopeConfig->getValue(self::EXPRESS_PREFIX . 'seller_name') ?: '';
+        return $this->getStringValue(self::EXPRESS_PREFIX . 'seller_name');
     }
 
     /**
@@ -309,18 +315,18 @@ class Configuration extends AbstractHelper
      */
     public function recaptchaType(): string
     {
-        return $this->scopeConfig->getValue('recaptcha_frontend/type_for/place_order') ?? '';
+        return $this->getStringValue('recaptcha_frontend/type_for/place_order');
     }
 
     /**
      * Country code
      *
-     * @return string|null
+     * @return string
      */
     public function getCountryCode(): ?string
     {
-        return $this->scopeConfig->getValue('paypal/general/merchant_country')
-            ?: $this->scopeConfig->getValue('general/country/default');
+        return $this->getStringValue('paypal/general/merchant_country')
+            ?: $this->getStringValue('general/country/default');
     }
 
     /**
@@ -351,7 +357,7 @@ class Configuration extends AbstractHelper
      */
     public function getConnectionFlowField(string $env): string
     {
-        return $this->scopeConfig->getValue('airwallex/general/' . $env . '_connection_flow') ?: '';
+        return $this->getStringValue('airwallex/general/' . $env . '_connection_flow');
     }
 
     /**

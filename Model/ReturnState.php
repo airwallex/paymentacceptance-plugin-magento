@@ -30,6 +30,7 @@
  */
 namespace Airwallex\Payments\Model;
 
+use Magento\Framework\App\CacheInterface;
 use Magento\Framework\App\DeploymentConfig;
 use RuntimeException;
 
@@ -48,12 +49,12 @@ class ReturnState
     /**
      * Default TTL for in-flow state tokens, in seconds
      */
-    public const ENTRY_TTL = 3600;
+    public const ENTRY_TTL = 1800;
 
     /**
      * Default TTL for payment-return state tokens, in seconds
      */
-    public const RETURN_TTL = 86400;
+    public const RETURN_TTL = 1800;
 
     /**
      * Payload version for signed state tokens
@@ -65,19 +66,29 @@ class ReturnState
      */
     private const SEPARATOR = '.';
 
+    // Cover tokens issued before the return TTL was reduced to 30 minutes.
+    private const LEGACY_RETURN_TTL = 86400;
+
+    private const CONSUMED_TOKEN_PREFIX = 'awx_return_state_token_';
+    private const CONSUMED_ENTITY_PREFIX = 'awx_return_state_entity_';
+
     /**
      * @var DeploymentConfig
      */
     private DeploymentConfig $deploymentConfig;
 
+    private CacheInterface $cache;
+
     /**
      * Constructor
      *
      * @param DeploymentConfig $deploymentConfig
+     * @param CacheInterface $cache
      */
-    public function __construct(DeploymentConfig $deploymentConfig)
+    public function __construct(DeploymentConfig $deploymentConfig, CacheInterface $cache)
     {
         $this->deploymentConfig = $deploymentConfig;
+        $this->cache = $cache;
     }
 
     /**
@@ -150,8 +161,57 @@ class ReturnState
         if ((int) ($payload['exp'] ?? 0) < time()) {
             return false;
         }
+        if (empty($payload['nonce']) || !is_string($payload['nonce'])) {
+            return false;
+        }
+        if ($this->isTokenConsumed($encoded) || $this->isEntityConsumed($scope, $id)) {
+            return false;
+        }
 
         return true;
+    }
+
+    public function consumeToken(string $state, int $ttl = self::RETURN_TTL): void
+    {
+        if ($state === '') {
+            return;
+        }
+        $parts = explode(self::SEPARATOR, $state);
+        if (count($parts) !== 2 || !hash_equals($this->sign($parts[0]), $parts[1])) {
+            return;
+        }
+        $payload = json_decode($this->base64UrlDecode($parts[0]), true);
+        // validate() accepts the token through its expiry second.
+        $ttl = max(1, $ttl, (int) ($payload['exp'] ?? 0) - time() + 1);
+        $this->cache->save('1', $this->tokenCacheKey($parts[0]), [], $ttl);
+    }
+
+    public function consumeEntity(string $scope, int $id, int $ttl = self::RETURN_TTL): void
+    {
+        if ($id <= 0) {
+            return;
+        }
+        $this->cache->save('1', $this->entityCacheKey($scope, $id), [], max(self::LEGACY_RETURN_TTL + 1, $ttl));
+    }
+
+    private function isTokenConsumed(string $encoded): bool
+    {
+        return (bool) $this->cache->load($this->tokenCacheKey($encoded));
+    }
+
+    private function isEntityConsumed(string $scope, int $id): bool
+    {
+        return (bool) $this->cache->load($this->entityCacheKey($scope, $id));
+    }
+
+    private function tokenCacheKey(string $encoded): string
+    {
+        return self::CONSUMED_TOKEN_PREFIX . hash('sha256', $encoded);
+    }
+
+    private function entityCacheKey(string $scope, int $id): string
+    {
+        return self::CONSUMED_ENTITY_PREFIX . $scope . '_' . $id;
     }
 
     /**

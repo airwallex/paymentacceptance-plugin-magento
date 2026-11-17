@@ -31,6 +31,8 @@
 namespace Airwallex\Payments\Model;
 
 use Airwallex\PayappsPlugin\CommonLibrary\Cache\CacheInterface;
+use Airwallex\PayappsPlugin\CommonLibrary\Cache\CacheTrait;
+use Airwallex\PayappsPlugin\CommonLibrary\Configuration\Init;
 use Airwallex\Payments\Helper\Configuration;
 use Magento\Framework\App\CacheInterface as MagentoCacheInterface;
 use Magento\Framework\App\ObjectManager;
@@ -39,6 +41,8 @@ use Throwable;
 
 class CacheService implements CacheInterface
 {
+    use CacheTrait;
+
     /**
      * Prefix of the cache key
      *
@@ -60,43 +64,50 @@ class CacheService implements CacheInterface
      */
     private $logger;
 
-    public function __construct()
+    public function __construct(?string $clientId = null, ?string $apiKey = null)
     {
         $this->cache = ObjectManager::getInstance()->get(MagentoCacheInterface::class);
         $this->logger = ObjectManager::getInstance()->get(LoggerInterface::class);
-        /** @var Configuration $configuration */
-        $configuration = ObjectManager::getInstance()->get(Configuration::class);
-        $this->prefix = 'awx_' . hash('sha256', $configuration->getClientId() . '-' . $configuration->getApiKey()) . '_';
+        if ($clientId === null && $apiKey === null) {
+            $initClientId = Init::getInstance()->get('client_id');
+            $initApiKey = Init::getInstance()->get('api_key');
+            if ($initClientId !== null || $initApiKey !== null) {
+                $clientId = (string) ($initClientId ?? '');
+                $apiKey = (string) ($initApiKey ?? '');
+            } else {
+                $configuration = ObjectManager::getInstance()->get(Configuration::class);
+                $clientId = (string) $configuration->getClientId();
+                $apiKey = (string) $configuration->getApiKey();
+            }
+        }
+        $this->prefix = $this->buildPrefix((string) $clientId, (string) $apiKey);
     }
 
-    private function serializeItem($item): array
+    private function currentPrefix(): string
     {
-        return [
-            'raw_data' => (is_object($item) && method_exists($item, 'getRawData'))
-                ? $item->getRawData()
-                : $item,
-            'class_type' => (is_object($item) && method_exists($item, 'getClassType'))
-                ? $item->getClassType()
-                : '',
-        ];
+        $initClientId = Init::getInstance()->get('client_id');
+        $initApiKey = Init::getInstance()->get('api_key');
+        if ($initClientId !== null || $initApiKey !== null) {
+            return $this->buildPrefix((string) ($initClientId ?? ''), (string) ($initApiKey ?? ''));
+        }
+        return $this->prefix;
+    }
+
+    private function buildPrefix(string $clientId, string $apiKey): string
+    {
+        return 'awx_' . hash('sha256', $clientId . '-' . $apiKey) . '_';
     }
 
     private function unserializeItem(array $item)
     {
-        $classType = $item['class_type'] ?? '';
-        $rawData = $item['raw_data'] ?? null;
-
-        if ($classType === '') {
-            return $rawData;
+        // Keep strict nested JSON validation before common-lib restores an allowed struct.
+        if (($item['class_type'] ?? '') !== '' && is_string($item['raw_data'] ?? null)) {
+            $item['raw_data'] = json_decode($item['raw_data'], true, 512, JSON_THROW_ON_ERROR);
+            if (!is_array($item['raw_data'])) {
+                throw new \UnexpectedValueException('Invalid cached struct data.');
+            }
         }
-
-        if (!class_exists($classType)) {
-            return null;
-        }
-
-        return new $classType(
-            is_string($rawData) ? json_decode($rawData, true, 512, JSON_THROW_ON_ERROR) : (array)$rawData
-        );
+        return $this->deserializeSingleItem($item);
     }
 
     /**
@@ -111,12 +122,12 @@ class CacheService implements CacheInterface
     {
         try {
             $data = is_array($value)
-                ? array_map([$this, 'serializeItem'], $value)
-                : $this->serializeItem($value);
+                ? array_map([$this, 'serializeSingleItem'], $value)
+                : $this->serializeSingleItem($value);
 
             $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
 
-            return $this->cache->save($json, $this->prefix . $key, [], $maxAge);
+            return $this->cache->save($json, $this->currentPrefix() . $key, [], $maxAge);
         } catch (Throwable $e) {
             $this->logger->info("[CacheService:set][$key] " . $e->getMessage());
             return false;
@@ -131,7 +142,7 @@ class CacheService implements CacheInterface
      */
     public function get(string $key)
     {
-        $value = $this->cache->load($this->prefix . $key);
+        $value = $this->cache->load($this->currentPrefix() . $key);
         if (empty($value)) {
             return null;
         }
@@ -165,6 +176,6 @@ class CacheService implements CacheInterface
      */
     public function remove(string $key): bool
     {
-        return $this->cache->remove($this->prefix . $key);
+        return $this->cache->remove($this->currentPrefix() . $key);
     }
 }

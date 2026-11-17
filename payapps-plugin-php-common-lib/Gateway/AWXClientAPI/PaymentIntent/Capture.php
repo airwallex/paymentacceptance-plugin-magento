@@ -5,6 +5,7 @@ namespace Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentInte
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentIntent;
 use Airwallex\PayappsPlugin\CommonLibrary\Util\AmountHelper;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\UrlHelper;
 
 class Capture extends AbstractApi
 {
@@ -28,7 +29,7 @@ class Capture extends AbstractApi
      */
     protected function getUri(): string
     {
-        return 'pa/payment_intents/' . $this->id . '/capture';
+        return 'pa/payment_intents/' . UrlHelper::pathSegment($this->id) . '/capture';
     }
 
     /**
@@ -80,8 +81,7 @@ class Capture extends AbstractApi
      */
     protected function initializePostParams()
     {
-        // Format amount according to currency decimal places
-        if ($this->amount && $this->currency) {
+        if ($this->amount !== null && $this->currency) {
             $this->setParam('amount', AmountHelper::formatAmount($this->amount, $this->currency));
         }
 

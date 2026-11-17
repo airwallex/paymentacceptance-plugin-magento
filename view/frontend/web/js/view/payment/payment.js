@@ -32,6 +32,9 @@ define([
     'Magento_Checkout/js/model/payment/renderer-list'
 ], function (Component                        , rendererList                 ) {
     'use strict';
+    if (!window.checkoutConfig?.payment?.airwallex_payments) {
+        return Component.extend({});
+    }
     rendererList.push({
         type: 'airwallex_payments_card',
         component: 'Airwallex_Payments/js/view/payment/method-renderer/card-method'

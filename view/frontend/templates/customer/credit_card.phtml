@@ -43,29 +43,29 @@ $currentCustomerId = $block->currentCustomerId();
 <?php if ($cardCustomerId === $currentCustomerId && $block->getStatus() === 'VERIFIED') {?>
 <tr>
     <td data-th="<?= $block->escapeHtml(__('Card Number')) ?>" class="col card-number">
-        <span><?= $block->escapeHtml(__('ending')) ?></span> <?= /* @noEscape */ $ccNumberView ?>
+        <span><?= $block->escapeHtml(__('ending')) ?></span> <?= $block->escapeHtml($ccNumberView) ?>
     </td>
     <td data-th="<?= $block->escapeHtml(__('Expiration Date')) ?>" class="col card-expire">
         <?= $block->escapeHtml($block->getExpDate()) ?>
     </td>
     <td data-th="<?= $block->escapeHtml(__('Type')) ?>" class="col card-type">
-        <img alt="icon" src="<?= /* @noEscape */ $block->getIconUrl() ?>"
-             width="<?= /* @noEscape */ $block->getIconWidth() ?>"
-             height="<?= /* @noEscape */ $block->getIconHeight() ?>"
+        <img alt="icon" src="<?= $block->escapeUrl($block->getIconUrl()) ?>"
+             width="<?= $block->escapeHtmlAttr($block->getIconWidth()) ?>"
+             height="<?= $block->escapeHtmlAttr($block->getIconHeight()) ?>"
         >
     </td>
     <td data-th="<?= $block->escapeHtml(__('Actions')) ?>" class="col actions">
-        <form id="form-<?= $block->escapeHtml($block->getToken()->getGatewayToken()) ?>"
+        <form id="form-<?= $block->escapeHtmlAttr($block->getToken()->getGatewayToken()) ?>"
             class="form"
-            action="<?= $block->escapeHtml($block->getUrl('vault/cards/deleteaction')) ?>"
+            action="<?= $block->escapeUrl($block->getUrl('vault/cards/deleteaction')) ?>"
             method="post"
             >
             <?= $block->getBlockHtml('formkey') ?>
             <input
-                name="<?= /* @noEscape */ PaymentTokenInterface::PUBLIC_HASH ?>"
-                value="<?= /* @noEscape */ $block->getToken()->getPublicHash() ?>"
+                name="<?= $block->escapeHtmlAttr(PaymentTokenInterface::PUBLIC_HASH) ?>"
+                value="<?= $block->escapeHtmlAttr($block->getToken()->getPublicHash()) ?>"
                 type="hidden"/>
-            <button type="button" id="delete-<?= $block->escapeHtml($block->getToken()->getGatewayToken()) ?>" class="action delete">
+            <button type="button" id="delete-<?= $block->escapeHtmlAttr($block->getToken()->getGatewayToken()) ?>" class="action delete">
                 <span><?= $block->escapeHtml(__('Delete')) ?></span>
             </button>
         </form>
@@ -78,7 +78,9 @@ $currentCustomerId = $block->currentCustomerId();
         'mage/url'
     ], function ($, url) {
         $(document).ready(function() {
-            let id = '<?= $block->escapeHtml($block->getToken()->getGatewayToken()) ?>';
+            let id = <?= /* @noEscape */ json_encode((string) $block->getToken()->getGatewayToken()) ?>;
+            let brand = <?= /* @noEscape */ json_encode((string) $brand) ?>;
+            let last4 = <?= /* @noEscape */ json_encode((string) $ccNumberView) ?>;
             $(document).on('click', '#delete-' + id, function (event) {
                 event.preventDefault();
                 $.mage.confirm({
@@ -89,13 +91,13 @@ $currentCustomerId = $block->currentCustomerId();
                         click: function() {
                             $('body').trigger('processStart');
                             this.closeModal(event, true);
-                            let removeUrl = url.build('rest/V1/airwallex/saved_cards/') + id;
+                            let removeUrl = url.build('rest/V1/airwallex/saved_cards/') + encodeURIComponent(id);
 
                             $.ajax({
                                 url: removeUrl,
                                 method: 'DELETE',
                                 success: (function() {
-                                    $('#form-' + id).trigger('submit');
+                                    $(document.getElementById('form-' + id)).trigger('submit');
                                 }).bind(this),
                                 error: function() {
                                     $('body').trigger('processStop');
@@ -111,8 +113,8 @@ $currentCustomerId = $block->currentCustomerId();
                         }
                     }]
                 });
-                let msg = 'You are deleting your saved <?=$block->escapeHtml($brand)?> card ending in <?=$block->escapeHtml($ccNumberView)?>.';
-                $('.modal-content div').html($.mage.__(msg));
+                let msg = 'You are deleting your saved ' + brand + ' card ending in ' + last4 + '.';
+                $('.modal-content div').text($.mage.__(msg));
 
             });
         });

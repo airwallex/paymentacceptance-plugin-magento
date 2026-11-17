@@ -34,8 +34,7 @@ use Airwallex\Payments\Helper\Configuration;
 use Airwallex\Payments\Helper\CurrentPaymentMethodHelper;
 use Airwallex\Payments\Model\Client\AbstractClient;
 use Airwallex\Payments\Model\Client\Interfaces\BearerAuthenticationInterface;
-use Airwallex\Payments\Model\Methods\KlarnaMethod;
-use Airwallex\Payments\Model\PaymentIntents;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\AmountHelper;
 use Airwallex\Payments\Model\Traits\HelperTrait;
 use JsonException;
 use Magento\Framework\App\ObjectManager;
@@ -49,20 +48,6 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
 {
     use HelperTrait;
 
-    protected function getProductsForIntentCreate($model, PaymentInterface $paymentMethod, array $products): array
-    {
-        if ($paymentMethod->getMethod() === KlarnaMethod::CODE) {
-            $products[] = [
-                'code' => 0,
-                'name' => 'Other Fees',
-                'quantity' => 1,
-                'sku' => '',
-                'unit_price' => $model->getGrandTotal(),
-            ];
-        }
-        return $products;
-    }
-
     public function setIntentParams($model, PaymentInterface $paymentMethod, string $returnUrl): self
     {
         $isOrder = $model instanceof Order;
@@ -75,7 +60,7 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
         $products = $this->getProducts($model);
         $merchantOrderId = $isOrder ? $model->getIncrementId() : $model->getReservedOrderId();
         $params = [
-            'amount' => round($model->getGrandTotal(), PaymentIntents::CURRENCY_TO_DECIMAL[$this->getCurrencyCode($model)] ?? 2),
+            'amount' => AmountHelper::formatAmount($model->getGrandTotal(), $this->getCurrencyCode($model)),
             'currency' => $this->getCurrencyCode($model),
             'merchant_order_id' => $merchantOrderId,
             'platform_payment_id' => "",
@@ -83,7 +68,7 @@ class Create extends AbstractClient implements BearerAuthenticationInterface
             'platform_order_name' => $merchantOrderId,
             'return_url' => trim($returnUrl, '/'),
             'order' => [
-                'products' => $this->getProductsForIntentCreate($model, $paymentMethod, $products),
+                'products' => $products,
                 'shipping' => $this->getShippingAddress($model)
             ]
         ];

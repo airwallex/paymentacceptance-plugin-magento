@@ -54,7 +54,7 @@ define([
                  */
                 click: function (               event          ) { //eslint-disable-line no-unused-vars
                     // $('body').trigger('processStart');
-                    let removeUrl = url.build('rest/V1/airwallex/saved_cards/') + $(deleteButton).data('id');
+                    let removeUrl = url.build('rest/V1/airwallex/saved_cards/') + encodeURIComponent(String($(deleteButton).data('id') ?? ''));
                     $.ajax({
                         url: removeUrl,
                         method: 'DELETE',

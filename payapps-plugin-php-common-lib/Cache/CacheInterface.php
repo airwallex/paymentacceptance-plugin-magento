@@ -2,6 +2,10 @@
 
 namespace Airwallex\PayappsPlugin\CommonLibrary\Cache;
 
+/**
+ * Host adapters must namespace cache entries by the active Client ID and API Key.
+ * Select the matching namespace whenever credentials change.
+ */
 interface CacheInterface
 {
     /**

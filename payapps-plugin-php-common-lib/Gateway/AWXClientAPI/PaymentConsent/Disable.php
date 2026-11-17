@@ -4,6 +4,7 @@ namespace Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentCons
 
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\AbstractApi;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentConsent;
+use Airwallex\PayappsPlugin\CommonLibrary\Util\UrlHelper;
 
 class Disable extends AbstractApi
 {
@@ -17,7 +18,7 @@ class Disable extends AbstractApi
      */
     protected function getUri(): string
     {
-        return 'pa/payment_consents/' . $this->paymentConsentId . '/disable';
+        return 'pa/payment_consents/' . UrlHelper::pathSegment($this->paymentConsentId) . '/disable';
     }
 
     /**

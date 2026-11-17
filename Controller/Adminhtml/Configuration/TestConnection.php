@@ -30,10 +30,12 @@
  */
 namespace Airwallex\Payments\Controller\Adminhtml\Configuration;
 
+use Airwallex\PayappsPlugin\CommonLibrary\Cache\CacheManager;
 use Airwallex\PayappsPlugin\CommonLibrary\Configuration\Init;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\Authentication;
 use Airwallex\Payments\CommonLibraryInit;
 use Airwallex\Payments\Helper\Configuration;
+use Airwallex\Payments\Model\CacheService;
 use Airwallex\Payments\Model\Config\Source\Mode;
 use Exception;
 use Magento\Backend\App\Action;
@@ -132,6 +134,7 @@ class TestConnection extends Action
                 'client_id' => $clientId,
                 'api_key' => $apiKey,
             ]);
+            CacheManager::setInstance(new CacheService((string) $clientId, (string) $apiKey));
 
             $accessToken = (new Authentication())->send();
 
@@ -158,6 +161,7 @@ class TestConnection extends Action
                 'client_id' => $originalClientId,
                 'api_key' => $originalApiKey,
             ]);
+            CacheManager::setInstance(new CacheService((string) $originalClientId, (string) $originalApiKey));
         }
     }
 }

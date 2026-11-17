@@ -72,19 +72,11 @@ define([
             }
             const availableCurrencies = paymentData.available_currencies || [];
             if (availableCurrencies.indexOf(paymentData.quote_currency_code ) === -1) {
-                const msg = $t('%1 is not available in %2 for your billing country. Please use a different payment method to complete your purchase.')
-                    .replace('%1', 'Klarna')
-                    .replace('%2', paymentData.quote_currency_code );
-                container.html(utils.awxAlert(msg));
-                this.disableCheckoutButton(this.code);
+                this.showUnavailableCurrencyAlert(container, this.code, 'Klarna', paymentData.quote_currency_code );
                 return;
             }
             if (availableCurrencies.indexOf(targetCurrency) === -1) {
-                const msg = $t('%1 is not available in %2 for your billing country. Please use a different payment method to complete your purchase.')
-                    .replace('%1', 'Klarna')
-                    .replace('%2', targetCurrency);
-                container.html(utils.awxAlert(msg));
-                this.disableCheckoutButton(this.code);
+                this.showUnavailableCurrencyAlert(container, this.code, 'Klarna', targetCurrency);
                 return;
             }
             const expressData = await this.fetchExpressData();

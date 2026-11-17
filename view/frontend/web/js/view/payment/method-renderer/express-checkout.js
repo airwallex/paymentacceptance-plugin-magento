@@ -34,6 +34,7 @@
  * (`email`, `paymentMethod.extension_attributes.agreement_ids`) exactly as the
  * original JS did, so it carries an index signature rather than a frozen shape.
  */
+/** Checkout funnel telemetry module (EPP-1214). */
 define(
     [
         'jquery',
@@ -46,6 +47,7 @@ define(
         'Airwallex_Payments/js/view/payment/utils',
         'Airwallex_Payments/js/view/payment/method-renderer/express/googlepay',
         'Airwallex_Payments/js/view/payment/method-renderer/express/applepay',
+        'Airwallex_Payments/js/view/payment/tracking',
     ],
     function (
         $              ,
@@ -58,6 +60,7 @@ define(
         utils             ,
         googlepay                 ,
         applepay                ,
+        tracking                ,
     ) {
         'use strict';
         return Component.extend({
@@ -94,6 +97,7 @@ define(
             async postAddress(                       address         , methodId = "") {
                 let url = urlBuilder.build('rest/V1/airwallex/payments/post-address');
                 let postOptions = utils.postOptions(address, url);
+                postOptions.data.append('form_key', utils.getFormKey());
                 if (methodId) {
                     postOptions.data.append('methodId', methodId);
                 }
@@ -244,9 +248,11 @@ define(
             createPays(                     ) {
                 if (this.isGooglePayActive()) {
                     googlepay.create(this);
+                    tracking.trackRendered('googlepay');
                 }
                 if (this.isApplePayActive()) {
                     applepay.create(this);
+                    tracking.trackRendered('applepay');
                 }
             },
             async validateAddresses(                     ) {
@@ -255,6 +261,8 @@ define(
             },
             placeOrder(                       pay        ) {
                 $('body').trigger('processStart');
+                tracking.useSession(pay);
+                tracking.track(tracking.EVENTS.SUBMITTED, { payment_method: pay });
                 const payload                           = {
                     cartId: utils.getCartId(),
                     paymentMethod: {
@@ -293,11 +301,18 @@ define(
                         await utils.postPaymentInformation(payload, utils.isLoggedIn(), utils.getCartId());
                         let intentResponse = await utils.getIntent(payload, {});
                         if (!intentResponse) return;
+                        if (intentResponse.response_type === 'success') {
+                            resolve(intentResponse);
+                            return;
+                        }
                         const params                          = {};
                         params.id = intentResponse.intent_id;
                         params.client_secret = intentResponse.client_secret;
                         try {
-                            await eval(pay).confirmIntent(this.from, params);
+                            const wallet = pay === 'applepay' ? applepay : googlepay;
+                            await wallet.confirmIntent(this.from, params);
+                            tracking.useSession(pay);
+                            tracking.trackConfirm(intentResponse.intent_id, pay);
                         } catch (error) {
                             if ((error                     ).code !== 'invalid_status_for_operation') {
                                 throw error;
@@ -306,6 +321,8 @@ define(
                         let endResult = await utils.placeOrder(payload, intentResponse, {});
                         resolve(endResult);
                     } catch (e) {
+                        tracking.useSession(pay);
+                        tracking.track(tracking.EVENTS.FAILED, { payment_method: pay });
                         this.destroyElement();
                         this.createPays();
                         reject(e);
