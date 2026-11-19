@@ -204,6 +204,16 @@ class PaymentIntent extends AbstractBase
     private $refundedAmount;
 
     /**
+     * @var float
+     */
+    private $originalAmount;
+
+    /**
+     * @var string
+     */
+    private $originalCurrency;
+
+    /**
      * @return bool
      */
     public function isAuthorized(): bool
@@ -288,7 +298,13 @@ class PaymentIntent extends AbstractBase
      */
     public function getBaseAmount(): float
     {
-        return $this->baseAmount ?? 0.0;
+        if ($this->baseAmount !== null) {
+            return $this->baseAmount;
+        }
+        if ($this->baseCurrency !== null && $this->baseCurrency !== '') {
+            return 0.0;
+        }
+        return $this->originalAmount ?? 0.0;
     }
 
     /**
@@ -299,6 +315,25 @@ class PaymentIntent extends AbstractBase
     public function setBaseAmount(float $baseAmount): PaymentIntent
     {
         $this->baseAmount = $baseAmount;
+        return $this;
+    }
+
+    /**
+     * @return float
+     */
+    public function getOriginalAmount(): float
+    {
+        return $this->originalAmount ?? 0.0;
+    }
+
+    /**
+     * @param float $originalAmount
+     *
+     * @return PaymentIntent
+     */
+    public function setOriginalAmount(float $originalAmount): PaymentIntent
+    {
+        $this->originalAmount = $originalAmount;
         return $this;
     }
 
@@ -452,7 +487,10 @@ class PaymentIntent extends AbstractBase
      */
     public function getBaseCurrency(): string
     {
-        return $this->baseCurrency ?? '';
+        if ($this->baseCurrency !== null && $this->baseCurrency !== '') {
+            return $this->baseCurrency;
+        }
+        return $this->originalCurrency ?? '';
     }
 
     /**
@@ -463,6 +501,25 @@ class PaymentIntent extends AbstractBase
     public function setBaseCurrency(string $baseCurrency): PaymentIntent
     {
         $this->baseCurrency = $baseCurrency;
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getOriginalCurrency(): string
+    {
+        return $this->originalCurrency ?? '';
+    }
+
+    /**
+     * @param string $originalCurrency
+     *
+     * @return PaymentIntent
+     */
+    public function setOriginalCurrency(string $originalCurrency): PaymentIntent
+    {
+        $this->originalCurrency = $originalCurrency;
         return $this;
     }
 

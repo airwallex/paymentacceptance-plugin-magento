@@ -32,6 +32,8 @@ namespace Airwallex\Payments\Controller\Adminhtml\Configuration;
 
 use Airwallex\Payments\Helper\Configuration;
 use Exception;
+use Magento\Framework\App\ObjectManager;
+use Psr\Log\LoggerInterface;
 use Magento\Framework\DataObject\IdentityService;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
@@ -210,7 +212,17 @@ class ConnectionFlowRedirectUrl extends Action
         }
 
         $decoded = base64_decode($code, true);
-        $accessToken = $decoded === false ? false : @gzdecode($decoded);
+        $accessToken = false;
+        if ($decoded !== false) {
+            set_error_handler(static function () {
+                return true;
+            });
+            try {
+                $accessToken = gzdecode($decoded);
+            } finally {
+                restore_error_handler();
+            }
+        }
         if (!is_string($accessToken) || $accessToken === '' || preg_match('/[\x00-\x1F\x7F]/', $accessToken)) {
             $this->connection_failed();
             return $this->error('Error: The connection code is invalid.');
@@ -250,8 +262,9 @@ class ConnectionFlowRedirectUrl extends Action
                 throw new Exception($curlError);
             }
         } catch (Exception $e) {
+            ObjectManager::getInstance()->get(LoggerInterface::class)->error(__METHOD__ . ': ' . $e->getMessage());
             $this->connection_failed();
-            return $this->error('Error: ' . $e->getMessage());
+            return $this->error('Error: Unable to complete connection. Please try again.');
         }
         if ($response === false) {
             $this->connection_failed();

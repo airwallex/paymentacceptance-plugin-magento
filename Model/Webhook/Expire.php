@@ -90,5 +90,6 @@ class Expire extends AbstractWebhook
      */
     public function execute(object $data): void
     {
+        // Expired payment attempts do not alter Magento order state.
     }
 }

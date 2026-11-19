@@ -169,6 +169,7 @@ class PaymentFlowLog
                 CheckoutFunnelEvent::buildConfirmMessage($sessionId, $intentId, $paymentMethod)
             );
         } catch (Throwable $e) {
+            // Telemetry logging must not interrupt checkout flow.
         }
     }
 
@@ -187,6 +188,7 @@ class PaymentFlowLog
         try {
             self::emitSucceeded(self::resolveIntentContext($quote, $intentId, $merchantOrderId));
         } catch (Throwable $e) {
+            // Telemetry logging must not interrupt checkout flow.
         }
     }
 
@@ -215,6 +217,7 @@ class PaymentFlowLog
                 ]
             ));
         } catch (Throwable $e) {
+            // Telemetry logging must not interrupt checkout flow.
         }
     }
 
@@ -258,6 +261,7 @@ class PaymentFlowLog
                 ]
             ));
         } catch (Throwable $e) {
+            // Telemetry logging must not interrupt checkout flow.
         }
     }
 
@@ -359,6 +363,7 @@ class PaymentFlowLog
                     $merchantOrderId = (string) $record->getOrderIncrementId();
                 }
             } catch (Throwable $e) {
+                // Best-effort lookup from intent record; continue with available context.
             }
         }
 

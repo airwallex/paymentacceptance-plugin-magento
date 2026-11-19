@@ -8,6 +8,14 @@ use Airwallex\PayappsPlugin\CommonLibrary\Struct\GetList as StructGetList;
 
 class GetList extends AbstractApi
 {
+    private $strict = false;
+
+    public function setStrict(bool $strict): GetList
+    {
+        $this->strict = $strict;
+        return $this;
+    }
+
     /**
      * @inheritDoc
      */
@@ -56,6 +64,20 @@ class GetList extends AbstractApi
      */
     protected function parseResponse($response): StructGetList
     {
+        if ($this->strict) {
+            $data = json_decode((string)$response->getBody());
+            if (!is_object($data) || !isset($data->items) || !is_array($data->items)
+                || (isset($data->page_after) && !is_string($data->page_after))) {
+                throw new \Exception('Invalid webhook list response.');
+            }
+            foreach ($data->items as $item) {
+                if (!is_object($item) || !is_string($item->id ?? null) || !is_string($item->url ?? null)
+                    || !is_string($item->version ?? null) || !is_array($item->events ?? null)
+                    || count($item->events) !== count(array_filter($item->events, 'is_string'))) {
+                    throw new \Exception('Invalid webhook list response.');
+                }
+            }
+        }
         $items = [];
         // Guard against a null/non-array json_decode result (empty or invalid body).
         $responseArray = json_decode((string)$response->getBody(), true) ?: [];

@@ -40,8 +40,11 @@ use Magento\Framework\Exception\FileSystemException;
 use Magento\Framework\Math\Random;
 use Magento\Backend\App\Action;
 use Magento\Backend\App\Action\Context;
+use Magento\Framework\App\ObjectManager;
 use Magento\Framework\Controller\Result\Json;
 use Magento\Framework\Controller\Result\JsonFactory;
+use Magento\Framework\Escaper;
+use Magento\Framework\Filesystem\Driver\File as FileDriver;
 use Magento\Store\Model\StoreManager;
 use Magento\Framework\App\CacheInterface;
 use Magento\Framework\App\RequestInterface;
@@ -65,6 +68,8 @@ class EnableExpressCheckout extends Action
     protected AvailablePaymentMethodsHelper $availablePaymentMethodsHelper;
     protected ApplePayDomainGetList $appleDomainList;
     protected ApplePayDomainAddItems $appleDomainAdd;
+    private Escaper $escaper;
+    private FileDriver $fileDriver;
 
     public function __construct(
         Context                       $context,
@@ -77,9 +82,10 @@ class EnableExpressCheckout extends Action
         AvailablePaymentMethodsHelper $availablePaymentMethodsHelper,
         ApplePayDomainGetList         $appleDomainList,
         ApplePayDomainAddItems        $appleDomainAdd,
-        CommonLibraryInit             $commonLibraryInit
-    )
-    {
+        CommonLibraryInit             $commonLibraryInit,
+        ?Escaper                      $escaper = null,
+        ?FileDriver                   $fileDriver = null
+    ) {
         parent::__construct($context);
         $this->resultJsonFactory = $resultJsonFactory;
         $this->context = $context;
@@ -91,6 +97,8 @@ class EnableExpressCheckout extends Action
         $this->availablePaymentMethodsHelper = $availablePaymentMethodsHelper;
         $this->appleDomainList = $appleDomainList;
         $this->appleDomainAdd = $appleDomainAdd;
+        $this->escaper = $escaper ?: ObjectManager::getInstance()->get(Escaper::class);
+        $this->fileDriver = $fileDriver ?: ObjectManager::getInstance()->get(FileDriver::class);
         $commonLibraryInit->exec();
     }
 
@@ -191,7 +199,10 @@ class EnableExpressCheckout extends Action
                 return $resultJson;
             }
         } catch (Exception $e) {
-            $resultJson->setData($this->error(htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8')));
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
+            $resultJson->setData($this->error($this->escaper->escapeHtml(
+                $this->sanitizeUserErrorMessage($e, 'Unable to enable Express Checkout. Please try again.', true)
+            )));
             return $resultJson;
         }
 
@@ -211,10 +222,12 @@ class EnableExpressCheckout extends Action
         $filename = 'apple-developer-merchantid-domain-association';
         $destinationDir = $this->directoryList->getPath(DirectoryList::PUB) . '/.well-known/';
 
-        if (file_exists($destinationDir . $filename)) return true;
-        if (!is_dir($destinationDir)) {
+        if ($this->fileDriver->isExists($destinationDir . $filename)) {
+            return true;
+        }
+        if (!$this->fileDriver->isDirectory($destinationDir)) {
             try {
-                mkdir($destinationDir, 0755, true);
+                $this->fileDriver->createDirectory($destinationDir, 0755);
             } catch (Exception $e) {
                 $this->logError(__METHOD__ . $e->getMessage());
                 return false;
@@ -223,7 +236,7 @@ class EnableExpressCheckout extends Action
         $sourceFile = $this->directoryList->getPath(DirectoryList::APP) . '/../vendor/airwallex/payments-plugin-magento/' . $filename;
         $destinationFile = $destinationDir . $filename;
         try {
-            copy($sourceFile, $destinationFile);
+            $this->fileDriver->copy($sourceFile, $destinationFile);
         } catch (Exception $e) {
             $this->logError(__METHOD__ . $e->getMessage());
             return false;

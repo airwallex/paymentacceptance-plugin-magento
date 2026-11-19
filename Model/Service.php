@@ -363,6 +363,7 @@ class Service implements ServiceInterface
                     }
                 }
             } catch (Exception $e) {
+                // Quote may no longer exist; fall through to order ownership check.
             }
         }
 
@@ -609,8 +610,9 @@ class Service implements ServiceInterface
                 'mask_cart_id' => $maskCartId,
             ]);
         } catch (Exception $e) {
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
             RemoteLog::error(__METHOD__ . ': ' . $e->getMessage(), 'onAddToCartError');
-            throw new CouldNotSaveException(__($e->getMessage()), $e);
+            throw new CouldNotSaveException(__($this->sanitizeUserErrorMessage($e, 'Could not add product to cart.')), $e);
         }
     }
 

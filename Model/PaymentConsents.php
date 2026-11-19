@@ -223,8 +223,8 @@ class PaymentConsents implements PaymentConsentsInterface
     private function tryFindCustomerInVault(CustomerInterface $customer): string
     {
         $customerId = $customer->getId();
-        $tokens = $this->getTokens($customerId) ?: array();
-        $ids = array();
+        $tokens = $this->getTokens($customerId) ?: [];
+        $ids = [];
         foreach ($tokens as $token) {
             $detail = $token->getTokenDetails();
             $arr = json_decode($detail, true);
@@ -507,6 +507,7 @@ class PaymentConsents implements PaymentConsentsInterface
                 try {
                     $this->tokenRepository->save($token);
                 } catch (Exception $e) {
+                    // Best-effort vault token sync; ignore persistence failures.
                 }
             } else {
                 $existingToken = $dbCards[$index];
@@ -519,6 +520,7 @@ class PaymentConsents implements PaymentConsentsInterface
                     try {
                         $this->tokenRepository->save($existingToken);
                     } catch (Exception $e) {
+                        // Best-effort vault token sync; ignore persistence failures.
                     }
                 }
             }

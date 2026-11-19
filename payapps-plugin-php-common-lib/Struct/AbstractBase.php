@@ -73,7 +73,7 @@ abstract class AbstractBase
             $propertyName = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $fieldName))));
             $methodName = 'set' . ucfirst($propertyName);
 
-            if (method_exists($this, $methodName)) {
+            if ($fieldValue !== null && method_exists($this, $methodName)) {
                 $this->{$methodName}($fieldValue);
             }
         }

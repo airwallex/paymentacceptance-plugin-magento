@@ -34,7 +34,7 @@
 <div class="manage-container">
     <div id="awx-connected" class="awx-connect-tip"></div>
     <div class="awx-action-container">
-        <?php echo $block->getButtonHtml() ?>
+        <?= $block->getButtonHtml() ?>
         <div id="awx-connection-options">
             <span class="manual-config">or enter credentials manually</span>
             <span class="cancel">Cancel</span>
@@ -49,7 +49,7 @@
         function (jQuery) {
             const MANAGE = 'Manage';
 
-            let returnObjectStr = '<?= $block->escapeJs((string) $this->getConnectionFlowMessage()) ?>';
+            let returnObjectStr = '<?= $block->escapeJs((string) $block->getConnectionFlowMessage()) ?>';
             let returnObject;
             if (returnObjectStr) {
                 returnObject = JSON.parse(returnObjectStr);
@@ -71,15 +71,15 @@
             };
 
             let connectionFlowStatus = {
-                "demo": '<?= $block->escapeJs((string) $this->getConnectionFlowField('demo')) ?>',
-                "prod": '<?= $block->escapeJs((string) $this->getConnectionFlowField('prod')) ?>',
+                "demo": '<?= $block->escapeJs((string) $block->getConnectionFlowField('demo')) ?>',
+                "prod": '<?= $block->escapeJs((string) $block->getConnectionFlowField('prod')) ?>',
             };
 
             let account = {
-                demo_account_id: '<?= $block->escapeJs((string) $this->getDemoAccountId()) ?>',
-                demo_account_name: '<?= $block->escapeJs((string) $this->getDemoAccountName()) ?>',
-                prod_account_id: '<?= $block->escapeJs((string) $this->getProdAccountId()) ?>',
-                prod_account_name: '<?= $block->escapeJs((string) $this->getProdAccountName()) ?>',
+                demo_account_id: '<?= $block->escapeJs((string) $block->getDemoAccountId()) ?>',
+                demo_account_name: '<?= $block->escapeJs((string) $block->getDemoAccountName()) ?>',
+                prod_account_id: '<?= $block->escapeJs((string) $block->getProdAccountId()) ?>',
+                prod_account_name: '<?= $block->escapeJs((string) $block->getProdAccountName()) ?>',
             };
             let envSelector = '[name="groups[airwallex_payments][groups][basic][fields][mode][value]"]';
 

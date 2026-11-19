@@ -66,12 +66,18 @@ class FileLogger
             return '';
         }
         $date = $date !== '' ? $date : date('Y-m-d');
-        $secret = serialize([
+        $level = strtolower($level);
+        if (!in_array($level, self::ALLOWED_LEVELS, true) || !preg_match('/^\d{4}-\d{2}-\d{2}$/D', $date)) {
+            return '';
+        }
+        $secret = implode('|', array_map('base64_encode', [
             (string) $init->get('api_key'),
             (string) $init->get('client_id'),
             $logDir,
-            (string) @fileinode(__DIR__),
-        ]);
+            (string) $this->suppressWarnings(static function () {
+                return fileinode(__DIR__);
+            }),
+        ]));
         $hash = substr(hash_hmac('sha256', $level . '|' . $date, $secret), 0, 16);
 
         return $logDir . DIRECTORY_SEPARATOR . sprintf('airwallex_%s_%s_%s.log', $level, $date, $hash);
@@ -86,12 +92,16 @@ class FileLogger
             }
 
             $logDir = $this->getLogDirectory();
-            if ($logDir === '' || !@is_dir($logDir) || !@is_writable($logDir)) {
+            if ($logDir === '' || !$this->suppressWarnings(static function () use ($logDir) {
+                return is_dir($logDir) && is_writable($logDir);
+            })) {
                 return;
             }
 
             $filePath = $this->getLogFilePath($level);
-            if (@is_link($filePath)) {
+            if ($this->suppressWarnings(static function () use ($filePath) {
+                return is_link($filePath);
+            })) {
                 return;
             }
 
@@ -104,9 +114,23 @@ class FileLogger
 
             $line = sprintf("[%s] %s: %s%s\n", $time, strtoupper($level), Redactor::redact((string) $message), $extra);
 
-            @file_put_contents($filePath, $line, FILE_APPEND);
+            $this->suppressWarnings(static function () use ($filePath, $line) {
+                return file_put_contents($filePath, $line, FILE_APPEND);
+            });
         } catch (\Throwable $e) {
             // Logging failures must not interrupt payment processing.
+        }
+    }
+
+    private function suppressWarnings(callable $callback)
+    {
+        set_error_handler(static function () {
+            return true;
+        });
+        try {
+            return $callback();
+        } finally {
+            restore_error_handler();
         }
     }
 

@@ -341,7 +341,7 @@ abstract class AbstractMethod extends Adapter
             }
             /** @var Payment $payment */
             $this->logError(__METHOD__ . ': ' . $e->getMessage());
-            throw new RuntimeException(__($e->getMessage()));
+            throw new RuntimeException(__($this->sanitizeUserErrorMessage($e, 'Unable to cancel the payment. Please try again.', true)));
         }
 
         return $this;
@@ -416,7 +416,7 @@ abstract class AbstractMethod extends Adapter
             );
         } catch (Exception $exception) {
             $this->logError(__METHOD__ . ': ' . $exception);
-            throw new RuntimeException(__($exception->getMessage()), 0, $exception);
+            throw new RuntimeException(__($this->sanitizeUserErrorMessage($exception, 'Something went wrong while trying to process the refund.')), 0, $exception);
         }
         return $this;
     }

@@ -379,8 +379,11 @@ class OrderService implements OrderServiceInterface
                     }
                 }
                 $tip = $this->configuration->isOrderBeforePayment() ? 'Order status change' : 'Order place';
-                $message = trim($e->getMessage(), ' .') . '. ' . $tip . ' failed. Please try again.';
-                RemoteLog::error(__METHOD__ . ': ' . $message, 'onOrderConfirmationError');
+                $rawMessage = trim($e->getMessage(), ' .') . '. ' . $tip . ' failed. Please try again.';
+                $this->logError(__METHOD__ . ': ' . $rawMessage);
+                RemoteLog::error(__METHOD__ . ': ' . $rawMessage, 'onOrderConfirmationError');
+                $safeReason = trim($this->sanitizeUserErrorMessage($e, 'Something went wrong while processing your request'), ' .');
+                $message = $safeReason . '. ' . $tip . ' failed. Please try again.';
                 return $response->setData([
                     'response_type' => 'error',
                     'message' => __($message),
@@ -392,8 +395,9 @@ class OrderService implements OrderServiceInterface
                 (int) ($quote->getCustomer() ? $quote->getCustomer()->getId() : 0)
             );
         } catch (Exception | Error $e) {
+            $this->logError('OrderService exception: ' . $e->getMessage());
             RemoteLog::error('OrderService exception: ' . $e->getMessage(), 'onCallFunctionSavePaymentOrPlaceOrderError');
-            throw new LocalizedException(__($e->getMessage()));
+            throw new LocalizedException(__($this->sanitizeUserErrorMessage($e)));
         }
 
         $paymentIntent = $this->paymentIntentRepository->getByIntentId($intentId);
@@ -540,8 +544,9 @@ class OrderService implements OrderServiceInterface
                 }
             } catch (Exception $e) {
                 $message = 'Order failed: ' . trim($e->getMessage());
+                $this->logError(__METHOD__ . ': ' . $message);
                 RemoteLog::error(__METHOD__ . ': ' . $message, 'onSavePaymentInformationAndPlaceOrderError');
-                throw $e;
+                throw new LocalizedException(__($this->sanitizeUserErrorMessage($e, 'Unable to place order. Please try again.')));
             }
 
             $order = $this->getFreshOrder($orderId);
@@ -636,7 +641,7 @@ class OrderService implements OrderServiceInterface
         if ((string)$quoteAddr->getLastname() !== (string)$orderAddr->getLastname()) return false;
         if ((string)$quoteAddr->getCompany() !== (string)$orderAddr->getCompany()) return false;
         if ((string)$quoteAddr->getRegion() !== (string)$orderAddr->getRegion()) return false;
-        if (intval($quoteAddr->getRegionId()) !== intval($orderAddr->getRegionId())) return false;
+        if ((int)$quoteAddr->getRegionId() !== (int)$orderAddr->getRegionId()) return false;
         if ((string)$quoteAddr->getCountryId() !== (string)$orderAddr->getCountryId()) return false;
         if ((string)$quoteAddr->getCity() !== (string)$orderAddr->getCity()) return false;
         $street1 = implode(', ', $quoteAddr->getStreet());
@@ -713,7 +718,7 @@ class OrderService implements OrderServiceInterface
             $conversionQuoteData = $this->switchCurrency($paymentIntentFromApi, $paymentMethod, $address);
         } catch (Exception | Error $e) {
             $this->logError(__METHOD__ . ': ' . $e->getMessage());
-            throw new LocalizedException(__($e->getMessage()));
+            throw new LocalizedException(__($this->sanitizeUserErrorMessage($e, 'Unable to process payment. Please try again.', true)));
         }
         $cacheName .= '-' . ($conversionQuoteData['target_currency'] ?? $paymentIntentFromApi->getCurrency());
         if (!empty($conversionQuoteData['quote_id'])) {
@@ -737,7 +742,8 @@ class OrderService implements OrderServiceInterface
                     ->setReferrerDataType($this->getReferrerDataType($paymentMethod))
                     ->send();
             } catch (Exception $exception) {
-                throw new LocalizedException(__($exception->getMessage()));
+                $this->logError(__METHOD__ . ': ' . $exception->getMessage());
+                throw new LocalizedException(__($this->sanitizeUserErrorMessage($exception, 'Unable to process payment. Please try again.', true)));
             }
 
             $nextAction = $confirmedPaymentIntent->getNextAction();
@@ -760,7 +766,7 @@ class OrderService implements OrderServiceInterface
      */
     protected function switchCurrency(StructPaymentIntent $intent, PaymentInterface $paymentMethod, $address): array
     {
-        $baseCurrency = $intent->getBaseCurrency() ?: $intent->getCurrency();
+        $baseCurrency = $this->resolveIntentBaseCurrency($intent);
         $availableCurrencies = $this->getAvailableCurrencies();
         if (empty($availableCurrencies)) {
             return $baseCurrency !== $intent->getCurrency() ? ['target_currency' => $baseCurrency] : [];
@@ -850,7 +856,7 @@ class OrderService implements OrderServiceInterface
         if (empty($targetCurrency)) {
             throw new LocalizedException(__('Invalid request, target currency is required.'));
         }
-        $baseAmount = $intent->getBaseAmount() ?: $intent->getAmount();
+        $baseAmount = $this->resolveIntentBaseAmount($intent);
         if (empty($baseCurrency) || empty($baseAmount)) {
             throw new LocalizedException(__('Invalid request, intent information is required.'));
         }
