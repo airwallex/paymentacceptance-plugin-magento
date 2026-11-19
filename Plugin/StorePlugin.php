@@ -37,6 +37,6 @@ class StorePlugin
      */
     public function afterSetCurrentCurrencyCode(): void
     {
-
+        // Intentionally kept for DI plugin compatibility.
     }
 }

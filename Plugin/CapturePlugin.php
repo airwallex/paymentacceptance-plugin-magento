@@ -88,7 +88,8 @@ class CapturePlugin
         try {
             $this->checkIntent($paymentIntent, $order);
         } catch (Exception $e) {
-            throw new LocalizedException(__($e->getMessage()));
+            $this->logError(__METHOD__ . ': ' . $e->getMessage());
+            throw new LocalizedException(__($this->sanitizeUserErrorMessage($e, 'Something went wrong while processing your request.')));
         }
 
         ObjectManager::getInstance()->get(IsOrderCreatedHelper::class)->setIsCreated(true);
@@ -103,7 +104,7 @@ class CapturePlugin
         }
 
         if ($paymentIntent->isCaptured()) return;
-        if (empty($payment->getAmountAuthorized()) or $payment->getAmountAuthorized() < 0) {
+        if (empty($payment->getAmountAuthorized()) || $payment->getAmountAuthorized() < 0) {
             throw new LocalizedException(__('Authorized amount must be greater than 0.'));
         }
     }

@@ -179,7 +179,10 @@ class Create extends AbstractApi
      */
     private function isPublicIp(string $ip): bool
     {
-        $packed = @inet_pton($ip);
+        if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
+            return false;
+        }
+        $packed = inet_pton($ip);
         if ($packed === false) {
             return false;
         }

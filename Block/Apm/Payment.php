@@ -151,8 +151,8 @@ class Payment extends Template
                         'intent_id' => $paymentIntentRecord->getIntentId(), 'state' => $returnState]
                 ]),
                 $entityType . '_id' => $entityId,
-                'intent_base_currency' => $paymentIntent->getBaseCurrency() ?: $paymentIntent->getCurrency(),
-                'intent_base_amount' => $paymentIntent->getBaseCurrency() ? $paymentIntent->getBaseAmount() : $paymentIntent->getAmount(),
+                'intent_base_currency' => $this->resolveIntentBaseCurrency($paymentIntent),
+                'intent_base_amount' => $this->resolveIntentBaseAmount($paymentIntent),
                 'order_currency' => $orderCurrency,
                 'available_currencies' => $this->getAvailableCurrencies(),
                 'country_to_currency' => CurrencyHelper::COUNTRY_TO_CURRENCY,

@@ -42,6 +42,7 @@ use Airwallex\Payments\Model\PaymentFlowLog;
 use Magento\Framework\App\ProductMetadataInterface;
 use Magento\Framework\Module\ModuleListInterface;
 use Airwallex\PayappsPlugin\CommonLibrary\Gateway\AWXClientAPI\PaymentMethod\Get as RetrievePaymentMethod;
+use Airwallex\PayappsPlugin\CommonLibrary\Exception\RequestException;
 use Airwallex\PayappsPlugin\CommonLibrary\Struct\PaymentMethod as StructPaymentMethod;
 use Airwallex\Payments\Model\Methods\AbstractMethod;
 use Airwallex\Payments\Model\Methods\CardMethod;
@@ -51,9 +52,12 @@ use Airwallex\Payments\Model\PaymentIntentRepository;
 use Airwallex\Payments\Model\PaymentOperationLock;
 use Airwallex\Payments\Model\ResourceModel\PaymentIntent;
 use Airwallex\Payments\Model\ReturnState;
+use Airwallex\Payments\Model\Webhook\AbstractWebhook;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
+use PDOException;
+use Throwable;
 use Magento\Checkout\Api\GuestPaymentInformationManagementInterface;
 use Magento\Checkout\Api\PaymentInformationManagementInterface;
 use Magento\Checkout\Helper\Data;
@@ -67,6 +71,7 @@ use Magento\Quote\Api\GuestCartManagementInterface;
 use Magento\Quote\Model\Quote;
 use Magento\Quote\Model\QuoteIdToMaskedQuoteIdInterface;
 use Magento\Quote\Model\QuoteRepository;
+use Magento\Quote\Model\ResourceModel\Quote as QuoteResource;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Payment;
 use Magento\Sales\Model\Order\Status\HistoryFactory;
@@ -86,6 +91,7 @@ use Airwallex\PayappsPlugin\CommonLibrary\Struct\Account as StructAccount;
 use Magento\Quote\Model\MaskedQuoteIdToQuoteIdInterface;
 use Magento\Customer\Model\Session as CustomerSession;
 use Magento\Checkout\Model\Session as CheckoutSession;
+use Magento\Store\Model\StoreManagerInterface;
 
 trait HelperTrait
 {
@@ -240,7 +246,7 @@ trait HelperTrait
      */
     public function isRedirectMethodConstant($string): bool
     {
-        $reflectionClass = new ReflectionClass('Airwallex\Payments\Model\Methods\RedirectMethod');
+        $reflectionClass = new ReflectionClass(RedirectMethod::class);
         $constants = $reflectionClass->getConstants();
 
         return in_array($string, $constants);
@@ -293,7 +299,7 @@ trait HelperTrait
             $products[] = [
                 'code' => $product ? $product->getId() : '',
                 'name' => $item->getName() ?: '',
-                'quantity' => intval($qty),
+                'quantity' => (int)$qty,
                 'sku' => $item->getSku() ?: '',
                 'unit_price' => $item->getPrice(),
                 'url' => $product ? $product->getProductUrl() : '',
@@ -396,8 +402,8 @@ trait HelperTrait
         $currency = $this->getCurrencyCode($model);
         $orderIncrementId = $isOrder ? $model->getIncrementId() : $model->getReservedOrderId();
         $amount = $model->getGrandTotal();
-        $intentAmount = $paymentIntentFromApi->getBaseCurrency() ? $paymentIntentFromApi->getBaseAmount() : $paymentIntentFromApi->getAmount();
-        $intentCurrency = $paymentIntentFromApi->getBaseCurrency() ?: $paymentIntentFromApi->getCurrency();
+        $intentAmount = $this->resolveIntentBaseAmount($paymentIntentFromApi);
+        $intentCurrency = $this->resolveIntentBaseCurrency($paymentIntentFromApi);
         if (
             !($paymentIntentFromApi->isAuthorized() || $paymentIntentFromApi->isCaptured())
             || $paymentIntentFromApi->getMerchantOrderId() !== $orderIncrementId
@@ -413,11 +419,56 @@ trait HelperTrait
         }
     }
 
+    protected function resolveIntentBaseCurrency(StructPaymentIntent $intent): string
+    {
+        $baseCurrency = $intent->getBaseCurrency();
+        if ($baseCurrency !== '') {
+            return $baseCurrency;
+        }
+
+        if (method_exists($intent, 'getOriginalCurrency')) {
+            $originalCurrency = $intent->getOriginalCurrency();
+            if ($originalCurrency !== '') {
+                return $originalCurrency;
+            }
+        }
+
+        $rawData = method_exists($intent, 'getRawData') ? $intent->getRawData() : [];
+        if (is_array($rawData) && !empty($rawData['original_currency']) && is_string($rawData['original_currency'])) {
+            return $rawData['original_currency'];
+        }
+
+        return $intent->getCurrency();
+    }
+
+    protected function resolveIntentBaseAmount(StructPaymentIntent $intent): float
+    {
+        $baseCurrency = $intent->getBaseCurrency();
+        if ($baseCurrency !== '') {
+            return $intent->getBaseAmount();
+        }
+
+        if (method_exists($intent, 'getOriginalCurrency') && $intent->getOriginalCurrency() !== ''
+            && method_exists($intent, 'getOriginalAmount')
+        ) {
+            return $intent->getOriginalAmount();
+        }
+
+        $rawData = method_exists($intent, 'getRawData') ? $intent->getRawData() : [];
+        if (is_array($rawData) && !empty($rawData['original_currency'])) {
+            return isset($rawData['original_amount']) && is_numeric($rawData['original_amount'])
+                ? (float) $rawData['original_amount']
+                : 0.0;
+        }
+
+        return $intent->getAmount();
+    }
+
     protected function intentMatchesAmountAndCurrency(StructPaymentIntent $intent, $model): bool
     {
         $currency = (string) $this->getCurrencyCode($model);
-        $intentCurrency = $intent->getBaseCurrency() ?: $intent->getCurrency();
-        $intentAmount = $intent->getBaseCurrency() ? $intent->getBaseAmount() : $intent->getAmount();
+        $intentCurrency = $this->resolveIntentBaseCurrency($intent);
+        $intentAmount = $this->resolveIntentBaseAmount($intent);
         return $intentCurrency === $currency
             && AmountHelper::amountEquals($intentAmount, $model->getGrandTotal(), $currency);
     }
@@ -429,8 +480,8 @@ trait HelperTrait
         }
 
         $currency = (string) $this->getCurrencyCode($model);
-        $intentCurrency = $intent->getBaseCurrency() ?: $intent->getCurrency();
-        $intentAmount = $intent->getBaseCurrency() ? $intent->getBaseAmount() : $intent->getAmount();
+        $intentCurrency = $this->resolveIntentBaseCurrency($intent);
+        $intentAmount = $this->resolveIntentBaseAmount($intent);
         ObjectManager::getInstance()->get(RemoteLog::class)->error(
             'payment amount mismatch',
             "Intent Currency: $intentCurrency - Order Currency: $currency - "
@@ -603,13 +654,22 @@ trait HelperTrait
      */
     public function changeOrderStatus(StructPaymentIntent $paymentIntentFromApi, int $orderId, Quote $quote, string $from): void
     {
-        ObjectManager::getInstance()->get(PaymentOperationLock::class)->execute(
-            $orderId,
-            function () use ($paymentIntentFromApi, $orderId, $quote, $from): void {
-                $this->changeOrderStatusLocked($paymentIntentFromApi, $orderId, $quote, $from);
-            },
-            PaymentOperationLock::ORDER_COMPLETION_TIMEOUT
-        );
+        try {
+            ObjectManager::getInstance()->get(PaymentOperationLock::class)->execute(
+                $orderId,
+                function () use ($paymentIntentFromApi, $orderId, $quote, $from): void {
+                    $this->changeOrderStatusLocked($paymentIntentFromApi, $orderId, $quote, $from);
+                },
+                PaymentOperationLock::ORDER_COMPLETION_TIMEOUT
+            );
+        } catch (Exception $e) {
+            if ($this->isTransientLockException($e)
+                && $this->awaitConcurrentOrderCompletion($paymentIntentFromApi, $orderId, $quote)
+            ) {
+                return;
+            }
+            throw $e;
+        }
     }
 
     private function changeOrderStatusLocked(StructPaymentIntent $paymentIntentFromApi, int $orderId, Quote $quote, string $from): void
@@ -663,8 +723,8 @@ trait HelperTrait
         $this->setTransactionId($payment, $intent->getId());
         ObjectManager::getInstance()->get(IntentHelper::class)->setIntent($intent);
         if ($clearCompanyOrder && $this->isMiniPluginExists()) {
-            $companyOrder = ObjectManager::getInstance()->get('\Magento\Company\Api\Data\CompanyOrderInterfaceFactory')->create();
-            $companyResource = ObjectManager::getInstance()->get('\Magento\Company\Model\ResourceModel\Order');
+            $companyOrder = ObjectManager::getInstance()->get(\Magento\Company\Api\Data\CompanyOrderInterfaceFactory::class)->create();
+            $companyResource = ObjectManager::getInstance()->get(\Magento\Company\Model\ResourceModel\Order::class);
             $companyResource->load($companyOrder, $order->getId(), 'order_id');
             if ($companyOrder && $companyOrder->getId()) {
                 $companyResource->delete($companyOrder);
@@ -869,14 +929,26 @@ trait HelperTrait
      * Deactivate a quote after payment is complete
      *
      * @param Quote $quote
+     * @param QuoteResource|object|null $quoteResource
      * @return void
      */
-    public function deactivateQuote(Quote $quote)
+    public function deactivateQuote(Quote $quote, $quoteResource = null)
     {
-        if (!empty($quote) && $quote->getIsActive()) {
-            $quote->setIsActive(false);
-            ObjectManager::getInstance()->get(QuoteRepository::class)->save($quote);
+        if (empty($quote) || !$quote->getIsActive()) {
+            return;
         }
+        $quoteId = (int) $quote->getId();
+        if ($quoteId <= 0) {
+            return;
+        }
+
+        $quoteResource = $quoteResource ?: ObjectManager::getInstance()->get(QuoteResource::class);
+        $quoteResource->getConnection()->update(
+            $quoteResource->getMainTable(),
+            ['is_active' => 0],
+            ['entity_id = ?' => $quoteId, 'is_active = ?' => 1]
+        );
+        $quote->setIsActive(false);
     }
 
     /**
@@ -908,11 +980,21 @@ trait HelperTrait
         $operation = function () use ($paymentMethod, $paymentIntentFromApi, $quote, $from, $billingAddress) {
             return $this->placeOrderLocked($paymentMethod, $paymentIntentFromApi, $quote, $from, $billingAddress);
         };
-        if ($order && $order->getId()) {
-            return ObjectManager::getInstance()->get(PaymentOperationLock::class)
-                ->execute((int)$order->getId(), $operation, PaymentOperationLock::ORDER_COMPLETION_TIMEOUT);
+        try {
+            if ($order && $order->getId()) {
+                return ObjectManager::getInstance()->get(PaymentOperationLock::class)
+                    ->execute((int)$order->getId(), $operation, PaymentOperationLock::ORDER_COMPLETION_TIMEOUT);
+            }
+            return $operation();
+        } catch (Exception $e) {
+            $orderId = ($order && $order->getId()) ? (int) $order->getId() : 0;
+            if ($this->isTransientLockException($e)
+                && $this->awaitConcurrentOrderCompletion($paymentIntentFromApi, $orderId, $quote)
+            ) {
+                return null;
+            }
+            throw $e;
         }
-        return $operation();
     }
 
     private function placeOrderLocked($paymentMethod, StructPaymentIntent $paymentIntentFromApi, Quote $quote, string $from, $billingAddress)
@@ -953,6 +1035,7 @@ trait HelperTrait
 
                 ObjectManager::getInstance()->get(PaymentIntentRepository::class)->updateOrderId($paymentIntentRecord, $orderId);
                 $order = $this->getFreshOrder($orderId);
+                $quote = ObjectManager::getInstance()->get(QuoteRepository::class)->get($quoteId);
                 $this->checkIntent($paymentIntentFromApi, $order);
                 if ($paymentIntentFromApi->isCaptured() && !$this->isFullCaptureConfirmed($paymentIntentFromApi)) {
                     $this->invoiceAuthorizedOrder($order, $paymentIntentFromApi);
@@ -998,34 +1081,93 @@ trait HelperTrait
 
     private function placeOrderFromRecalculatedQuote($payment, StructPaymentIntent $intent, Quote $quote, $billingAddress, array $detail): int
     {
-        $quoteId = (int) $quote->getId();
-        $isCustomer = !empty($detail['uid']);
-        $cartId = '';
-        if ($isCustomer) {
-            ObjectManager::getInstance()->get(PaymentInformationManagementInterface::class)
-                ->savePaymentInformation($quoteId, $payment, $billingAddress);
-        } else {
-            $cartId = ObjectManager::getInstance()->get(QuoteIdToMaskedQuoteIdInterface::class)->execute($quoteId);
-            $customer = $intent->getCustomer();
-            ObjectManager::getInstance()->get(GuestPaymentInformationManagementInterface::class)
-                ->savePaymentInformation(
-                    $cartId,
-                    is_array($customer) ? (string) ($customer['email'] ?? '') : '',
-                    $payment,
-                    $billingAddress
-                );
+        return (int) $this->withQuoteCurrencyContext($quote, function () use ($payment, $intent, $quote, $billingAddress, $detail): int {
+            $quoteId = (int) $quote->getId();
+            $isCustomer = !empty($detail['uid']);
+            $cartId = '';
+            if ($isCustomer) {
+                ObjectManager::getInstance()->get(PaymentInformationManagementInterface::class)
+                    ->savePaymentInformation($quoteId, $payment, $billingAddress);
+            } else {
+                $cartId = ObjectManager::getInstance()->get(QuoteIdToMaskedQuoteIdInterface::class)->execute($quoteId);
+                $customer = $intent->getCustomer();
+                ObjectManager::getInstance()->get(GuestPaymentInformationManagementInterface::class)
+                    ->savePaymentInformation(
+                        $cartId,
+                        is_array($customer) ? (string) ($customer['email'] ?? '') : '',
+                        $payment,
+                        $billingAddress
+                    );
+            }
+
+            $recalculated = ObjectManager::getInstance()->get(QuoteRepository::class)->get($quoteId);
+            $recalculated->setTotalsCollectedFlag(false);
+            $recalculated->collectTotals();
+            $this->checkIntent($intent, $recalculated);
+
+            if ($isCustomer) {
+                return (int) ObjectManager::getInstance()->get(CartManagementInterface::class)->placeOrder($quoteId);
+            }
+
+            return (int) ObjectManager::getInstance()->get(GuestCartManagementInterface::class)->placeOrder($cartId);
+        });
+    }
+
+    /**
+     * Run a quote operation with the store currency aligned to the quote currency
+     *
+     * @param Quote $quote
+     * @param callable $callback
+     * @param StoreManagerInterface|object|null $storeManager
+     * @return mixed
+     */
+    protected function withQuoteCurrencyContext(Quote $quote, callable $callback, $storeManager = null)
+    {
+        $quoteCurrency = (string) $quote->getQuoteCurrencyCode();
+        if ($quoteCurrency === '') {
+            return $callback();
         }
 
-        $recalculated = ObjectManager::getInstance()->get(QuoteRepository::class)->get($quoteId);
-        $recalculated->setTotalsCollectedFlag(false);
-        $recalculated->collectTotals();
-        $this->checkIntent($intent, $recalculated);
-
-        if ($isCustomer) {
-            return (int) ObjectManager::getInstance()->get(CartManagementInterface::class)->placeOrder($quoteId);
+        $storeManager = $storeManager ?: ObjectManager::getInstance()->get(StoreManagerInterface::class);
+        $previousStore = $storeManager->getStore();
+        $quoteStoreId = (int) $quote->getStoreId();
+        $store = $quoteStoreId > 0 ? $storeManager->getStore($quoteStoreId) : $previousStore;
+        if (!$store || !method_exists($store, 'getCurrentCurrencyCode') || !method_exists($store, 'setCurrentCurrencyCode')) {
+            return $callback();
         }
 
-        return (int) ObjectManager::getInstance()->get(GuestCartManagementInterface::class)->placeOrder($cartId);
+        $needsStoreSwitch = $previousStore && $quoteStoreId > 0 && (int) $previousStore->getId() !== $quoteStoreId;
+        if ($needsStoreSwitch) {
+            $storeManager->setCurrentStore($quoteStoreId);
+        }
+
+        $previousCode = (string) $store->getCurrentCurrencyCode();
+        $previousCurrency = method_exists($store, 'getData') ? $store->getData('current_currency') : null;
+        $needsCurrencySwitch = strtoupper($previousCode) !== strtoupper($quoteCurrency);
+        if ($needsCurrencySwitch) {
+            $store->setCurrentCurrencyCode($quoteCurrency);
+            if (method_exists($store, 'unsetData')) {
+                $store->unsetData('current_currency');
+            }
+        }
+
+        try {
+            return $callback();
+        } finally {
+            if ($needsCurrencySwitch) {
+                $store->setCurrentCurrencyCode($previousCode);
+                if (method_exists($store, 'setData') && method_exists($store, 'unsetData')) {
+                    if ($previousCurrency !== null) {
+                        $store->setData('current_currency', $previousCurrency);
+                    } else {
+                        $store->unsetData('current_currency');
+                    }
+                }
+            }
+            if ($needsStoreSwitch) {
+                $storeManager->setCurrentStore((int) $previousStore->getId());
+            }
+        }
     }
 
     /**
@@ -1037,7 +1179,7 @@ trait HelperTrait
      */
     public function setCheckoutSuccess($quoteId, $order)
     {
-        if (!$order || !$order->getId()) {
+        if (!$order || !$order->getId() || $this instanceof AbstractWebhook) {
             return;
         }
         if ($this->entityCustomerId($order) > 0 && !$this->validateOrderOwnership($order)) {
@@ -1657,5 +1799,177 @@ trait HelperTrait
         }
 
         return $metadata;
+    }
+
+    protected function isTransientLockException(Throwable $exception): bool
+    {
+        $current = $exception;
+        $depth = 0;
+        while ($current && $depth < 8) {
+            $message = (string) $current->getMessage();
+            if ($message !== '' && (
+                stripos($message, 'Another payment operation is in progress') !== false
+                || stripos($message, 'SQLSTATE[40001]') !== false
+                || stripos($message, '1213 Deadlock') !== false
+                || stripos($message, 'Deadlock found') !== false
+                || stripos($message, '1205 Lock wait timeout') !== false
+                || stripos($message, 'Lock wait timeout exceeded') !== false
+            )) {
+                return true;
+            }
+            $current = $current->getPrevious();
+            $depth++;
+        }
+
+        return false;
+    }
+
+    protected function isOrderPaymentCompleted($order, StructPaymentIntent $intent): bool
+    {
+        if (!is_object($order) || !method_exists($order, 'getId') || !(int) $order->getId()) {
+            return false;
+        }
+        if (method_exists($order, 'isCanceled') && $order->isCanceled()) {
+            return false;
+        }
+        if (!$intent->isAuthorized() && !$intent->isCaptured()) {
+            return false;
+        }
+
+        $state = method_exists($order, 'getState') ? (string) $order->getState() : '';
+        $status = method_exists($order, 'getStatus') ? (string) $order->getStatus() : '';
+        if (in_array($state, [Order::STATE_NEW, Order::STATE_PENDING_PAYMENT], true)
+            || $status === Order::STATE_PENDING_PAYMENT
+        ) {
+            return false;
+        }
+
+        $totalPaid = method_exists($order, 'getTotalPaid') ? (float) $order->getTotalPaid() : 0.0;
+        if ($this->isCaptureConfirmed($intent)) {
+            return $totalPaid > 0;
+        }
+
+        $payment = method_exists($order, 'getPayment') ? $order->getPayment() : null;
+        $authorized = $payment && method_exists($payment, 'getAmountAuthorized')
+            ? (float) $payment->getAmountAuthorized()
+            : 0.0;
+        return $totalPaid > 0 || $authorized > 0;
+    }
+
+    protected function awaitConcurrentOrderCompletion(
+        StructPaymentIntent $intent,
+        int $orderId,
+        Quote $quote,
+        int $maxAttempts = 4,
+        int $delayMicros = 300000,
+        ?callable $orderResolver = null,
+        ?callable $sleepFn = null,
+        ?callable $onCompleted = null
+    ): bool {
+        if (!$intent->isAuthorized() && !$intent->isCaptured()) {
+            return false;
+        }
+
+        $maxAttempts = max(1, $maxAttempts);
+        $orderResolver = $orderResolver ?: function (int $resolvedOrderId, StructPaymentIntent $resolvedIntent) {
+            if ($resolvedOrderId > 0) {
+                return $this->getFreshOrder($resolvedOrderId);
+            }
+            return ObjectManager::getInstance()->get(PaymentIntentRepository::class)
+                ->getOrder((string) $resolvedIntent->getId());
+        };
+        $sleepFn = $sleepFn ?: static function (int $micros): void {
+            usleep($micros);
+        };
+
+        for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
+            try {
+                $order = $orderResolver($orderId, $intent);
+            } catch (Throwable $e) {
+                $order = null;
+            }
+
+            if ($this->isOrderPaymentCompleted($order, $intent)) {
+                if ($onCompleted !== null) {
+                    $onCompleted($order);
+                } else {
+                    try {
+                        $this->deactivateQuote($quote);
+                    } catch (Throwable $e) {
+                        $this->logError(__METHOD__ . ': ' . $e->getMessage());
+                    }
+                    $this->setCheckoutSuccess($quote->getId(), $order);
+                }
+                return true;
+            }
+
+            if ($attempt + 1 < $maxAttempts && $delayMicros > 0) {
+                $sleepFn($delayMicros);
+            }
+        }
+
+        return false;
+    }
+
+    protected function containsSensitiveErrorDetails(Throwable $exception): bool
+    {
+        $current = $exception;
+        $depth = 0;
+        while ($current && $depth < 8) {
+            if ($current instanceof PDOException || $current instanceof \Error) {
+                return true;
+            }
+            if ($this->containsSensitiveErrorMessage((string) $current->getMessage())) {
+                return true;
+            }
+            $current = $current->getPrevious();
+            $depth++;
+        }
+
+        return false;
+    }
+
+    protected function containsSensitiveErrorMessage(string $message): bool
+    {
+        if ($message === '') {
+            return false;
+        }
+
+        return (bool) preg_match(
+            '/SQLSTATE\[|\b(?:Deadlock found|Lock wait timeout|Serialization failure|Integrity constraint violation|Unknown column|MySQL server has gone away|Too many connections|PDOException)\b|query was:|Stack trace:|(?:SELECT\b.*\bFROM|INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+`[a-z0-9_]+`|\/(?:var|app|home|Users|srv|opt|usr)\/[^\s]+\.php\b/i',
+            $message
+        );
+    }
+
+    protected function sanitizeUserErrorMessage(
+        Throwable $exception,
+        string $fallback = 'Something went wrong while processing your request. Please try again.',
+        bool $allowRequestException = false
+    ): string {
+        if ($this->containsSensitiveErrorDetails($exception)) {
+            return $fallback;
+        }
+
+        $message = trim((string) $exception->getMessage());
+        if ($message === '') {
+            return $fallback;
+        }
+
+        if ($exception instanceof LocalizedException) {
+            return $message;
+        }
+
+        if ($allowRequestException && $exception instanceof RequestException) {
+            $decoded = json_decode($message, true);
+            if (is_array($decoded) && !empty($decoded['message']) && is_string($decoded['message'])) {
+                $apiMessage = trim($decoded['message']);
+                if ($apiMessage !== '' && !$this->containsSensitiveErrorMessage($apiMessage)) {
+                    return $apiMessage;
+                }
+            }
+            return $fallback;
+        }
+
+        return $fallback;
     }
 }

@@ -159,6 +159,7 @@ class ApmElementOptionsHelper
                 }
             }
         } catch (\Exception $e) {
+            // Ignore session lookup failures when resolving fallback email.
         }
 
         return '';

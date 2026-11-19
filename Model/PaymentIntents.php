@@ -311,8 +311,8 @@ class PaymentIntents
 
     public function canCompleteIntent($model, StructPaymentIntent $intent): bool
     {
-        $currency = $intent->getBaseCurrency() ?: $intent->getCurrency();
-        $amount = $intent->getBaseCurrency() ? $intent->getBaseAmount() : $intent->getAmount();
+        $currency = $this->resolveIntentBaseCurrency($intent);
+        $amount = $this->resolveIntentBaseAmount($intent);
         $orderId = $model instanceof Order ? $model->getIncrementId() : $model->getReservedOrderId();
         return ($intent->isAuthorized() || $intent->isCaptured())
             && (string) $orderId !== '' && $intent->getMerchantOrderId() === (string) $orderId
@@ -350,6 +350,7 @@ class PaymentIntents
                 $this->paymentIntentRepository->updateDetail($paymentIntent, json_encode($detail));
             }
         } catch (Exception $e) {
+            // Session metadata persistence must not block intent reuse.
         }
     }
 

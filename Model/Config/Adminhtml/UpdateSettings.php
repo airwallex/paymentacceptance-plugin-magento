@@ -102,6 +102,6 @@ class UpdateSettings extends Field
             'label' => __('Connect with Airwallex'),
         ];
 
-        return $this->getLayout()->createBlock('Magento\Backend\Block\Widget\Button')->setData($data)->toHtml();
+        return $this->getLayout()->createBlock(\Magento\Backend\Block\Widget\Button::class)->setData($data)->toHtml();
     }
 }

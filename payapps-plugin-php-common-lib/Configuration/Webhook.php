@@ -101,6 +101,16 @@ class Webhook
     const STATUS_FUNDS_SPLIT_RELEASED = 'funds_split.released';
     const STATUS_FUNDS_SPLIT_SETTLED = 'funds_split.settled';
 
+    const PAYMENT_AND_REFUND_EVENTS = [
+        self::STATUS_PAYMENT_INTENT_CANCELLED, self::STATUS_PAYMENT_INTENT_CREATED,
+        self::STATUS_PAYMENT_INTENT_PENDING, self::STATUS_PAYMENT_INTENT_REQUIRES_CAPTURE,
+        self::STATUS_PAYMENT_INTENT_REQUIRES_CUSTOMER_ACTION, self::STATUS_PAYMENT_INTENT_REQUIRES_PAYMENT_METHOD,
+        self::STATUS_PAYMENT_INTENT_SUCCEEDED, self::STATUS_PAYMENT_INTENT_UPDATED,
+        self::STATUS_PAYMENT_INTENT_PENDING_REVIEW, self::STATUS_PAYMENT_INTENT_PAYMENT_FAILED,
+        self::STATUS_REFUND_ACCEPTED, self::STATUS_REFUND_FAILED,
+        self::STATUS_REFUND_RECEIVED, self::STATUS_REFUND_SETTLED,
+    ];
+
     public static function isPaymentIntentAuthorized(string $status): bool
     {
         return in_array($status, [

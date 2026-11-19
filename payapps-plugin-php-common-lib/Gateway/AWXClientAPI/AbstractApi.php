@@ -45,7 +45,7 @@ abstract class AbstractApi
     /**
      * @var string
      */
-    const X_API_VERSION = '2024-06-30';
+    const X_API_VERSION = '2026-08-21';
 
     /**
      * @var array
